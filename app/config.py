@@ -268,11 +268,13 @@ def load_config(path: Path | str | None = None) -> Config:
         voice_id=defaults_raw.get("voice_id", "laochen_default"),
         backend=defaults_raw.get("backend", "fish"),
         base_url_fish=defaults_raw.get("base_url_fish", "http://127.0.0.1:7860"),
+        # B06 双源收敛(2026-10-16): base_url_f5/indextts25_emo_ref/bs1_page_gap_sec
+        # 以 app.yaml 为唯一源, 此处默认值仅镜像兜底 — 改值请改 yaml
         base_url_f5=defaults_raw.get("base_url_f5", "http://127.0.0.1:7861"),
         base_url_indextts=defaults_raw.get("base_url_indextts", "http://127.0.0.1:7862"),
         indextts_duration_factor=float(defaults_raw.get("indextts_duration_factor", 0.75)),
         indextts25_emo_ref=str(defaults_raw.get(
-            "indextts25_emo_ref", "E:/数字人计划/voices/laotan25_emo_fandeng.mp3")),
+            "indextts25_emo_ref", "G:/音乐/untitled #4.wav")),
         bs1_page_gap_sec=float(defaults_raw.get("bs1_page_gap_sec", 0.5)),
         base_url_comfyui=defaults_raw.get("base_url_comfyui", "http://127.0.0.1:8188"),
         comfyui_output_dir=defaults_raw.get(
@@ -294,7 +296,7 @@ def load_config(path: Path | str | None = None) -> Config:
         hf_template_root=defaults_raw.get(
             "hf_template_root", "E:/AI/digital_human/hf_prep"
         ),
-        l0_output_root=defaults_raw.get("l0_output_root", "data/l0"),
+        l0_output_root=defaults_raw.get("l0_output_root", "data/l0"),  # B06: app.yaml 为唯一源(2026-10-16 已补条目)
         # Pexels 素材 resolve 工具 (ID-003)
         pexels_api_key_env=defaults_raw.get("pexels_api_key_env", "PEXELS_API_KEY"),
         materials_dir=defaults_raw.get("materials_dir", "E:/数字人计划/materials"),
