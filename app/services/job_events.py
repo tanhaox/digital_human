@@ -10,7 +10,30 @@ import asyncio
 import threading
 from typing import Any
 
-# In-memory channels: job_id -> list of asyncio.Queue
+# 终止型事件类型 (SSE 流收到即断流): *_done/*_error 成对 + 两个取消类.
+# B10 (2026-10-16): 自 jobs.py 内联硬编码清单抽出 — 新增 job 类型只改这里,
+# 全仓唯一一份 (前端各页对单类型的 UI 分支不算清单副本).
+TERMINAL_EVENT_TYPES: frozenset[str] = frozenset({
+    "rewrite_done", "rewrite_error",
+    "tts_done", "tts_error", "tts_cancelled",
+    "carnival_done", "carnival_error",
+    "correct_done", "correct_error",
+    "material_done", "material_error",
+    "anim_done", "anim_error", "anim_cancelled",
+    "bible_done", "bible_error",
+    "samples_done", "samples_error",
+    "board_done", "board_error",
+    "retune_done", "retune_error",
+    "chars_done", "chars_error",
+})
+
+
+def is_terminal_event(event_type: str) -> bool:
+    """该事件后 SSE 流应断开 (done/error/取消 三类收口)."""
+    return event_type in TERMINAL_EVENT_TYPES
+
+
+# In-memory channels: job_id -> list[asyncio.Queue
 _job_channels: dict[str, list[asyncio.Queue]] = {}
 _lock = threading.Lock()
 

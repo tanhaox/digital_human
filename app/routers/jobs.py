@@ -7,7 +7,7 @@ import json
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
-from app.services.job_events import _job_channels
+from app.services.job_events import TERMINAL_EVENT_TYPES, _job_channels
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 
@@ -26,7 +26,7 @@ async def job_events(request: Request, job_id: str):
                 try:
                     data = await asyncio.wait_for(queue.get(), timeout=30.0)
                     yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
-                    if data.get("type") in ("rewrite_done", "rewrite_error", "tts_done", "tts_error", "tts_cancelled", "carnival_done", "carnival_error", "correct_done", "correct_error", "material_done", "material_error", "anim_done", "anim_error", "anim_cancelled", "bible_done", "bible_error", "samples_done", "samples_error", "board_done", "board_error", "retune_done", "retune_error", "chars_done", "chars_error"):
+                    if data.get("type") in TERMINAL_EVENT_TYPES:
                         break
                 except asyncio.TimeoutError:
                     yield ": keep-alive\n\n"
