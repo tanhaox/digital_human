@@ -1,6 +1,6 @@
 """Director 2.0 router 包: 任务生命周期端点按阶段分组.
 
-原单文件 `app/routers/director.py`(860 行)拆分而来。`router` 聚合 8 个
+原单文件 `app/routers/director.py`(860 行)拆分而来。`router` 聚合 9 个
 分组 APIRouter, `main.py` 经 ``from .routers.director_routes import router``
 接入 (属性名与旧 `routers.director.router` 保持一致)。
 
@@ -11,6 +11,7 @@
   retry.py     单 slot 重试 / 批量重试 / purge replaced
   compose.py   合成 + SSE 进度透传
   download.py  下载 / 打开目录
+  jy_export.py J 线导出(剪映/字幕包)
   stream.py    SSE 进度流
   cleanup.py   删除 / 批量清理
 """
