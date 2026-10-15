@@ -650,30 +650,29 @@ def status(job_id: str):
 @router.get("/{job_id}/events")
 async def events(job_id: str, request: Request):
     """SSE: PPT 产线进度推送."""
-    import asyncio as _aio
-    import json as _json
     from fastapi.responses import StreamingResponse
+
     from app.services.director_events import subscribe, unsubscribe
 
+    from ._sse import sse_stream
+
     queue = subscribe(job_id)
-    async def stream():
-        try:
+
+    def _heartbeat() -> str:
+        return "data: {\"level\":\"info\",\"msg\":\"…\"}\n\n"
+
+    return StreamingResponse(
+        sse_stream(
+            request, queue,
+            heartbeat=_heartbeat,
+            timeout=20.0,
+            terminal_types=("ppt_done", "ppt_error"),
+            on_close=lambda: unsubscribe(job_id, queue),
             # 0909: 先回放已缓冲事件 (SSE 晚连会错过早期"启动/规划中", 导致日志空白)
-            for past in list(_JOBS.get(job_id, {}).get("events", [])):
-                yield f"data: {_json.dumps(past, ensure_ascii=False)}\n\n"
-            while True:
-                if await request.is_disconnected():
-                    break
-                try:
-                    data = await _aio.wait_for(queue.get(), timeout=20.0)
-                    yield f"data: {_json.dumps(data, ensure_ascii=False)}\n\n"
-                    if data.get("type") in ("ppt_done", "ppt_error"):
-                        break
-                except _aio.TimeoutError:
-                    yield "data: {\"level\":\"info\",\"msg\":\"…\"}\n\n"
-        finally:
-            unsubscribe(job_id, queue)
-    return StreamingResponse(stream(), media_type="text/event-stream")
+            prefetch=lambda: list(_JOBS.get(job_id, {}).get("events", [])),
+        ),
+        media_type="text/event-stream",
+    )
 
 
 @router.get("/{job_id}/download")
