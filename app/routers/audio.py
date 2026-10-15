@@ -245,8 +245,8 @@ def _do_tts(job_id: str):
                             Persona.host_id == script.host_id).first()
                         if _p:
                             persona_name = _p.stamp_name or _p.name
-                    except Exception:
-                        pass
+                    except Exception as exc:  # noqa: BLE001
+                        logger.debug("[tts %s] persona 查询失败, 走兜底名: %s", job_id[:8], exc)
                     if persona_name == "老谭":
                         persona_name = (
                             getattr(script.host, "stamp_name", None) or script.host.name
@@ -265,7 +265,7 @@ def _do_tts(job_id: str):
                     _publish(job_id, {"type": "tts_service",
                                       "message": ("2.5 情感参考通道, 跳过情绪标注" if _skip_p5
                                                   else "情绪标注解析失败, 整篇打底兜底")})
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001  # 情绪标注降级护栏(warning 已记)
                 logger.warning("[tts %s] emotion annotate failed, fallback: %s",
                                job_id[:8], exc)
                 emotion_segments = [dict(fallback)]
@@ -355,7 +355,7 @@ def _do_tts(job_id: str):
                     if _fixed:
                         audio_post.persist_manifest(result, _od)
                         logger.info("[tts %s] 语速筛: %d 行重合成", job_id[:8], _fixed)
-                except Exception as exc:
+                except Exception as exc:  # noqa: BLE001  # 语速筛降级护栏(warning 已记)
                     logger.warning("[tts %s] 行级语速筛失败 (不阻断): %s", job_id[:8], exc)
                 try:
                     _zadj = (audio_post.zone_tempo(result, _od, _mods, _pacing, _zone_map,
@@ -480,6 +480,7 @@ def _do_tts(job_id: str):
                 logger.exception("[tts %s] cancelled 终态落库失败 — 任务将留在 running, 待启动清理兜底", job_id[:8])
             _publish(job_id, {"type": "tts_cancelled", "job_id": job_id})
         except Exception as exc:
+            logger.exception("[tts %s] 任务失败(终态落库前)", job_id[:8])
             try:
                 job = db.query(AudioJob).filter(AudioJob.id == job_id).first()
                 if job:
@@ -594,10 +595,10 @@ def list_job_files(job_id: str, db: Session = Depends(get_db)):
                             if _r is not None and abs(_r / float(_a["rate"]) - 1) > 0.10:
                                 flags.setdefault(fn, "anchor_off")
                         _off += len(txt)
-            except Exception:
-                pass
-        except Exception:
-            pass
+            except Exception as exc:  # noqa: BLE001
+                logger.debug("[tts files] 锚点语速校验跳过(单文件): %s", exc)
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("[tts files] 锚点语速校验整体跳过: %s", exc)
     seg_texts = {s.id: s.text for s in db.query(Segment).filter(
         Segment.id.in_([f.segment_id for f in files if f.segment_id] or [""])).all()}
     # 0913 包化: 块产物的显示文本 = manifest 整包文本 (块跨多行); 老行级产物无此
@@ -608,8 +609,8 @@ def list_job_files(job_id: str, db: Session = Depends(get_db)):
             _m = json.loads((Path(job.output_dir) / "manifest.json").read_text(encoding="utf-8"))
             _mf_texts = {e.get("file"): e.get("text") for e in _m.get("segments") or []
                          if e.get("file") and e.get("chunk")}
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[tts] manifest 读取失败(旧任务常态), 文本回退 segment: %s", exc)
     out = []
     for f in files:
         d = AudioFileOut.model_validate(f)
@@ -673,7 +674,7 @@ def _sync_chunk_edit(
                     e["inference_text"] = _tts_text(new_text)
             manifest_path.write_text(
                 json.dumps(m, ensure_ascii=False, indent=2), encoding="utf-8")
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001  # manifest 回写降级(warning 已记)
             logger.warning("[reroll] manifest 改字回写失败: %s", exc)
 
     # ② 稿件侧整块替换 (Script=导演层/再产源, Episode=书稿)
@@ -731,8 +732,8 @@ def anchor_line(file_id: str, db: Session = Depends(get_db)):
             if e.get("file") == af.filename and e.get("text"):
                 _txt = str(e["text"])
                 break
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[reroll] manifest 块文本读取失败, 用 segment 原文: %s", exc)
     rate = measure_rate(_txt, af.duration)
     if rate is None:
         raise HTTPException(409, detail="该行汉字过少/时长异常, 不适合做基准")
@@ -796,8 +797,8 @@ def reroll_line(file_id: str, payload: dict | None = None, db: Session = Depends
                     _chunk_lines = _hit
                 _mf_chunk_text = (_e.get("text") or "").strip() or None
                 break
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[reroll] manifest chunk 匹配失败, 回退行级文本: %s", exc)
 
     text = (_mf_chunk_text
             or "\n".join((s2.text or "").strip() for s2 in _chunk_lines).strip()
@@ -838,8 +839,8 @@ def reroll_line(file_id: str, payload: dict | None = None, db: Session = Depends
                      .order_by(Segment.line_index).all())
         _line_off = sum(len(s2.text or "") for s2 in _segs_all
                         if s2.line_index < seg.line_index)
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[reroll] 行首偏移计算失败, _line_off=0: %s", exc)
     # 0913 三区同参修复: 批合成 speed_zones 按行首字符偏移取 df (tts_lib/lines.py),
     # reroll 此前恒用巡航速 — 锤区/过渡区行重roll后变慢 (job 2adcf9b7 行003 实锤
     # 3.55字/s vs 邻行5.4-6.1)。与批侧共用 zone_duration_factor (0913 斜坡化:
@@ -853,8 +854,8 @@ def reroll_line(file_id: str, payload: dict | None = None, db: Session = Depends
             ]
             params["duration_factor"] = zone_duration_factor(
                 _zones, _line_off, float(params["duration_factor"]))
-        except Exception:
-            pass  # 落区失败退回巡航速, 不阻断重roll
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("[reroll] speed zone 落区失败: %s", exc)  # 落区失败退回巡航速, 不阻断重roll
     # 0913 ⏩累加改版 (用户令: 固定0.95与重roll没区别): accel=在当前df基础上×0.9
     # (逐次快~10%, 下限0.5); 当前df优先读行级 sidecar (上次reroll实际用的值),
     # 无 sidecar = 批合成落区值。任何 reroll 成功后写 sidecar 作下次累加锚。
@@ -862,7 +863,8 @@ def reroll_line(file_id: str, payload: dict | None = None, db: Session = Depends
     if (payload or {}).get("accel"):
         try:
             _df_prev = float(json.loads(_df_sidecar.read_text(encoding="utf-8"))["df"])
-        except Exception:
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("[reroll] sidecar df 缺失/读取失败, 用巡航速锚: %s", exc)
             _df_prev = float(params["duration_factor"])
         params["duration_factor"] = max(round(_df_prev * 0.9, 3), 0.5)
     from scripts.tts_lib.orchestrator import _synthesize_single
@@ -943,6 +945,7 @@ def reroll_line(file_id: str, payload: dict | None = None, db: Session = Depends
                 for _pw, _ in _piece_wavs:
                     _pw.unlink(missing_ok=True)
     except Exception as exc:
+        logger.exception("[reroll] 重roll失败, 已回滚备份")
         _sh.copy2(bak, wav)
         bak.unlink(missing_ok=True)
         raise HTTPException(500, detail=f"重roll失败已回滚: {exc}")
@@ -1010,7 +1013,8 @@ def reroll_line(file_id: str, payload: dict | None = None, db: Session = Depends
         verdict["filler"] = [c for c in _FILLER_CHARS if c in heard and c not in clean]
         verdict["insert"] = [w2 for w2 in _INSERT_WORDS if w2 in heard and w2 not in clean]
         verdict["diff"] = [d["char"] for d in (_diff_readings(clean, heard) or [])][:4]
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001  # 回听降级, 错误入 verdict
+        logger.warning("[reroll] 回听校验失败, verdict 降级: %s", exc)
         verdict = {"error": str(exc)[:80]}
     # 0913 语速地板 (首分钟窗口): 重roll 结果即时体检 — 窗口内低于地板 toast 亮警;
     # 正文自然方差 (气口/拖腔) 不报警
@@ -1056,8 +1060,8 @@ def reroll_line(file_id: str, payload: dict | None = None, db: Session = Depends
         from scripts.tts_client import _concat_wavs_with_ffmpeg
         _concat_wavs_with_ffmpeg(sorted(out_dir.glob("[0-9][0-9][0-9].wav")),
                                  out_dir / "full_paragraph.wav")
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[reroll] full_paragraph 重拼失败(主产物已交付): %s", exc)
 
     db.commit()
     bak.unlink(missing_ok=True)
@@ -1075,7 +1079,7 @@ def reroll_line(file_id: str, payload: dict | None = None, db: Session = Depends
             _sync_chunk_edit(db, seg, _chunk_lines, _new_text,
                              Path(job.output_dir) / "manifest.json", af.filename)
             db.commit()
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001  # 改字同步失败已 rollback+warning
             db.rollback()
             logger.warning("[reroll] 改字同步失败: %s", exc)
     # 自动沉淀 (0912 用户令: 注音确定→先加字典→重跑 一条龙): 注音字符在原稿中
@@ -1100,7 +1104,7 @@ def reroll_line(file_id: str, payload: dict | None = None, db: Session = Depends
                 from app.services.pinyin_fix import add_rule
                 _marked_word = "".join(f"<{c}|{_ann_map[c]}>" for c in _best)
                 dict_added = _best if add_rule(_best, _marked_word) else None
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001  # 词表沉淀降级(warning 已记)
             logger.warning("[reroll] 词表沉淀失败: %s", exc)
     return {"ok": ok, "file": af.filename, "duration": dur, "verdict": verdict,
             "dict_added": dict_added, "df": params["duration_factor"]}
@@ -1158,7 +1162,8 @@ def tempo_line(file_id: str, payload: dict | None = None, db: Session = Depends(
     bak = wav.with_suffix(".accel_bak.wav")
     try:
         factor = float(json.loads(sidecar.read_text(encoding="utf-8"))["factor"])
-    except Exception:
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[tempo] sidecar tempo 缺失/读取失败, factor=1.0: %s", exc)
         factor = 1.0
 
     STEP, FMAX = 1.0 / 0.95, 1.5
@@ -1212,8 +1217,8 @@ def tempo_line(file_id: str, payload: dict | None = None, db: Session = Depends(
                     import re as _re_mod
                     from scripts.tts_lib.text import _PAUSE_MARK_ANY_RE as _PMARK
                     _n = len(_re_mod.sub(r"\s", "", _PMARK.sub("", s.get("text") or "")))
-                except Exception:
-                    pass
+                except Exception as exc:  # noqa: BLE001
+                    logger.debug("[tempo] 停顿标记剥离失败, 字数统计跳过: %s", exc)
         mpath.write_text(json.dumps(m, ensure_ascii=False, indent=2), encoding="utf-8")
     except Exception:
         logger.exception("[tempo %s] manifest 回写失败 — 时长/语速显示将基于旧值", job.id[:8])
@@ -1221,8 +1226,8 @@ def tempo_line(file_id: str, payload: dict | None = None, db: Session = Depends(
         from scripts.tts_client import _concat_wavs_with_ffmpeg
         _concat_wavs_with_ffmpeg(sorted(out_dir.glob("[0-9][0-9][0-9].wav")),
                                  out_dir / "full_paragraph.wav")
-    except Exception:
-        pass
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[tempo] full_paragraph 重拼失败(主产物已交付): %s", exc)
     db.commit()
     return {"ok": True, "file": af.filename, "op": op, "factor": factor,
             "duration": dur, "capped": capped,
@@ -1309,7 +1314,7 @@ def mute_line(file_id: str, db: Session = Depends(get_db)):
         from scripts.tts_client import _concat_wavs_with_ffmpeg
         wavs = sorted(out_dir.glob("[0-9][0-9][0-9].wav"))
         _concat_wavs_with_ffmpeg(wavs, out_dir / "full_paragraph.wav")
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001  # mute 降级护栏(warning 已记)
         logger.warning("[mute] manifest/大段重建失败: %s", exc)
     return {"ok": True, "file": af.filename, "muted_line": (line or "")[:40]}
 
@@ -1429,6 +1434,7 @@ def replace_char(
                     db.commit()
                 replaced += 1
             except Exception as exc:
+                logger.exception("[redo] 段 %s 重做失败", seg.id[:8])
                 db.rollback()
                 raise HTTPException(status_code=500, detail=f"段 {seg.id[:8]} 重做失败: {exc}")
 
@@ -1447,6 +1453,7 @@ def replace_char(
             combined = output_dir / "full_paragraph.wav"
             _concat_wavs_with_ffmpeg(wavs, combined)
     except Exception as exc:
+        logger.exception("[redo] 重合成失败")
         raise HTTPException(status_code=500, detail=f"重合成失败: {exc}")
 
     return {"ok": True, "replaced": replaced, "msg": f"替换完成, 重做 {replaced} 段"}

@@ -24,10 +24,9 @@ select = [
 extend-immutable-calls = ["fastapi.Depends", "fastapi.File", "fastapi.Body"]
 
 [tool.ruff.lint.per-file-ignores]
-# TODO(T10): audio.py 的 S110×8 + BLE001×20 是 T2 定位过的吞异常带 (reroll 的
-# 736/778/793/937 等), 按"T3 存量豁免"指令挂账; T10 把 _do_tts 下沉 service 时
-# 统一收窄, 完成后删除本条并更新基线.
-"app/routers/audio.py" = ["S110", "BLE001"]
+# B15 (2026-10-16): audio.py 的 S110×9+BLE001×17(含首扫漏网的 7 处, 共 24 处)
+# 已全部分类清理 — pass 全改 logger.debug / 错误路径补 exception / 降级护栏
+# 行内 noqa: BLE001. 基线数字见 REFACTOR_PLAN 冻结基线表.
 
 [tool.pytest.ini_options]
 markers = [
