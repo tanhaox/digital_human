@@ -1,7 +1,6 @@
 """AI 素材打标 router — 触发 / 状态 / SSE / 取消."""
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 from typing import Any
@@ -10,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
+from ._sse import sse_stream
 from ..database import get_db
 from ..models import VideoAsset
 from ..schemas import TaggingProgressOut, TaggingRunRequest
@@ -102,29 +102,19 @@ async def status_stream(job_id: str):
 
     queue = subscribe(job_id)
 
-    async def event_generator():
-        try:
-            # 先发送当前状态
-            current = get_job_status(job_id) or {}
-            yield f"data: {json.dumps(current, ensure_ascii=False)}\n\n"
-
-            while True:
-                try:
-                    data = await asyncio.wait_for(queue.get(), timeout=30)
-                except asyncio.TimeoutError:
-                    # 心跳
-                    yield f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
-                    continue
-                yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
-                if data.get("type") in ("complete", "cancelled"):
-                    break
-        except asyncio.CancelledError:
-            pass
-        finally:
-            unsubscribe(job_id, queue)
+    def _heartbeat() -> str:
+        return f"data: {json.dumps({'type': 'heartbeat'})}\n\n"
 
     return StreamingResponse(
-        event_generator(),
+        sse_stream(
+            None, queue,
+            heartbeat=_heartbeat,
+            timeout=30,
+            terminal_types=("complete", "cancelled"),
+            on_close=lambda: unsubscribe(job_id, queue),
+            # 先发送当前状态
+            prefetch=lambda: [get_job_status(job_id) or {}],
+        ),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
