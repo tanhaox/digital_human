@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>动画工坊</title>
+<link rel="stylesheet" href="/web/books.css">
+<link rel="stylesheet" href="./anim.css">
+</head>
+<body>
+
+<nav>
+    <div class="logo">Pipeline<span>Studio</span></div>
+    <a href="/web/books.html" class="active">拆书</a>
+    <a href="/web/index.html">新闻线索</a>
+    <a href="/web/writing.html">文字加工</a>
+    <a href="/web/audio.html">音频加工</a>
+    <a href="/web/director.html">导演控制台</a>
+    <a href="/web/library.html">视频库</a>
+    <a href="/web/templates.html">模板管理</a>
+    <a href="/web/visual_render.html">视觉渲染</a>
+    <a href="/web/voices.html">音色管理</a>
+    <a href="/web/roles.html">角色管理</a>
+    <a href="/web/personas.html">人物</a>
+    <div class="spacer"></div>
+    <a href="/docs" target="_blank" rel="noopener">API Docs</a>
+</nav>
+
+<!-- 书级流程导航 (1012): 六页互达 — 外链 js + 零内联, anim 严格 CSP 兼容 -->
+<div class="container"><div class="flownav" data-page="anim"></div></div>
+<script src="/web/flownav.js"></script>
+
+<!-- 结构与行为分离: 无内联 onclick/无内联样式 (CSP: script-src/style-src 'self') -->
+<header class="topbar">
+  <div class="row1">
+    <div class="brand"><span class="mark">🎬</span> <span id="title">动画工坊</span></div>
+    <div class="subline" id="sub">加载中…</div>
+    <div class="counts" id="counts"></div>
+  </div>
+  <div class="phases" id="phasebar">
+    <button class="gold" id="btn-plan" data-act="plan">🧭 规划(立意闸)</button>
+    <button class="gold" id="btn-plan-scenes" data-act="planScenes" hidden
+      title="立意.md 人工确认后, 从骨架逐场分镜 (两级化第二段)">▶️ 分镜续跑</button>
+    <button class="sm" id="btn-concept-open" data-act="conceptForce" hidden
+      title="具象化后改判立意: 改立意(或重掷此场)→💾保存→该场🔁重规划本场">✏️ 立意</button>
+    <button class="sm" id="btn-enhance" data-act="enhance"
+      title="1013 P0: 单写者架构下增强转手动修复工具 (旧自动增强已退役)">🖌 手动增强</button>
+    <button class="go" id="btn-k2" data-act="k2">🎨 K2 批生图</button>
+    <button class="go" id="btn-approve-all" data-act="approveAll">✅ 全部过审</button>
+    <button class="violet" id="btn-h3" data-act="h3">🎬 H3 批生视频</button>
+    <button class="sm" id="btn-brand" data-act="brand"
+      title="骨架冻结(登山客三拍)+书级风格+圣经色板; 仪式句走后期字幕; 一次生成全系列复用">🏔 品牌卡(本书)</button>
+    <a id="brand-preview" href="#" target="_blank" rel="noopener" hidden
+      title="点击预览品牌卡视频">📹 预览</a>
+    <label class="ck"><input type="checkbox" id="h3-retry" title="连 anim_fail 镜一起重试(换seed)">⚡连带重试败镜</label>
+    <button id="btn-align-dry" data-act="alignDry">🎚 对齐试算</button>
+    <button class="gold" id="btn-align" data-act="align">🎚 对齐落盘</button>
+    <button class="gold" id="btn-draft" data-act="draft">🎞 装配剪映草稿</button>
+    <button class="sm" id="btn-renumber" data-act="renumber"
+      title="按时间轴把全部镜重排为 s1..sN (文件同步改名, 自动备份) — 重规划多轮后镜号层积时用">🔢 重排镜号</button>
+    <a class="hint" id="qc-link" href="#" target="_blank" rel="noopener" hidden>qc_sheet ↗</a>
+  </div>
+  <div class="flowline">动画线动线 (与 📐页单工坊 二选一): 文字 → <b>🔊音频(人耳验收)</b> → 🧭规划(吃真实音频时长) → 🎨K2 → 人检 → 🎬H3 → 🎞草稿 · 开场 5.5s 为剪辑层预留 · 层级: <b>场 a1 → 组 s1 → 镜 p1</b> · <b class="hot">🔥60s特区: 正文前60s 槽位预装 3-6s/镜 · 组内场景不重样</b> · GPU 托管, 镜间断点续跑</div>
+  <div id="latest-draft" class="hint" hidden></div>
+  <!-- 0918 立意人闸展示: 立意.md 在页内可见可确认 (此前只落盘, 页面无入口) -->
+  <div id="concept-panel" class="concept-panel" hidden>
+    <div class="concept-bar">
+      <b>📜 立意模块 (人闸 — 可编辑, 保存即生效)</b>
+      <span id="concept-status" class="c-status"></span>
+      <button class="sm" data-act="conceptToggle">✏️ 编辑/只读</button>
+      <button class="sm" data-act="conceptCollapse" id="concept-collapse-btn">▾ 收起</button>
+      <span class="hint">过目→▶️续跑; 不喜欢→🎲重掷该场 或 ✏️直接改 (改核心映射=旧值进禁用史)</span>
+    </div>
+    <div id="concept-body">
+    <div id="concept-ro" class="concept-ro"></div>
+    <div id="concept-edit" class="concept-edit" hidden></div>
+    <div class="concept-tools">
+      <span class="hint">🎲 单场重掷:</span>
+      <select id="concept-arc" aria-label="选择要重掷的场"></select>
+      <input id="concept-dir" aria-label="重掷方向说明" placeholder="不喜欢的原因/想要的方向 (可空)">
+      <button class="sm gold" data-act="conceptReroll">重掷此场</button>
+      <button class="sm gold" id="concept-save-btn" data-act="conceptSaveAll" hidden>💾 保存立意</button>
+    </div>
+    </div>
+  </div>
+  <!-- 1007 P4: 法层拍摄脚本面板 (立意面板下方, 可折叠) · 1008 P7: 校验徽章 -->
+  <div id="shooting-panel" class="concept-panel" hidden>
+    <div class="concept-bar">
+      <b>📋 拍摄脚本 (法层 — 镜头序/光影/连续性)</b>
+      <span id="shooting-bar-badge"></span>
+      <button class="sm" data-act="shootingCollapse" id="shooting-collapse-btn">▾ 收起</button>
+      <span class="hint">道层规则 + 切场 → 镜头语言; 分镜按此填空</span>
+    </div>
+    <div id="shooting-body" class="concept-ro"></div>
+  </div>
+</header>
+
+<div class="jobpanel" id="jobpanel" hidden>
+  <div class="jobrow">
+    <b id="job-phase"></b>
+    <div class="pbar"><div id="job-bar"></div></div>
+    <span class="hint" id="job-prog"></span>
+    <button class="warn sm" data-act="cancel">⛔ 停止</button>
+  </div>
+  <div id="log" aria-live="polite"></div>
+</div>
+
+<main>
+  <div id="board"></div>
+</main>
+
+<!-- 0921 重做购物篮: 卡片勾选后浮现, ♻️列队重做 (后端 job, 跳败续跑) -->
+<div id="cartbar" hidden>
+  <b id="cart-count">🧺 已选 0 镜</b>
+  <span class="hint">列队重做: LLM重设计→生图→生视频 · ~3.5min/镜 · 镜间可⛔停止</span>
+  <button class="sm" data-act="cartClear">清空</button>
+  <button class="sm gold" data-act="cartRedo">♻️ 列队重做</button>
+  <button class="sm gold" data-act="cartRedoImg" id="cart-redo-img">🎨 重做到生图</button>
+</div>
+<div id="toast" role="status" aria-live="polite"></div>
+<!-- 原生 <dialog>: 自带焦点圈定 + ESC 关闭 + 顶层遮挡, 替代手搓 .ovl -->
+<dialog id="dlg" class="ovl"></dialog>
+
+
+<script src="/web/lightbox.js"></script>
+<script type="module" src="./anim/app.js"></script>
+</body>
+</html>

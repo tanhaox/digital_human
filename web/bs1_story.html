@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>老谭拆书 · bs1 页单工坊</title>
+<style>
+  :root{--bg:#0f172a;--panel:#1e293b;--line:#334155;--txt:#e2e8f0;--sub:#94a3b8;
+        --gold:#C9A25E;--blue:#3b82f6;--green:#22c55e;--red:#ef4444}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.6 system-ui,"Noto Sans SC",sans-serif}
+  nav{display:flex;gap:1rem;align-items:center;padding:.6rem 1.2rem;background:#0b1222;border-bottom:1px solid var(--line)}
+  nav .logo{font-weight:900;letter-spacing:.5px}.nav-logo span{color:var(--gold)}
+  nav a{color:var(--sub);text-decoration:none;font-size:.85rem}nav a:hover{color:var(--txt)}nav a.active{color:var(--gold)}
+  .container{max-width:1280px;margin:0 auto;padding:1.2rem}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:1rem 1.2rem;margin-bottom:1rem}
+  h2{margin:.1rem 0 .6rem;font-size:1.05rem}h3{margin:0 0 .4rem;font-size:.95rem}
+  .hint{color:var(--sub);font-size:.82rem}
+  button{background:var(--blue);color:#fff;border:0;border-radius:6px;padding:.42rem .8rem;font-size:.85rem;cursor:pointer}
+  button:hover{filter:brightness(1.1)}button:disabled{opacity:.45;cursor:not-allowed}
+  button.sm{padding:.28rem .6rem;font-size:.78rem}
+  button.warn{background:#b45309}button.green{background:#14532d}button.ghost{background:transparent;border:1px solid var(--line);color:var(--sub)}
+  input,select,textarea{background:#0b1222;color:var(--txt);border:1px solid var(--line);border-radius:6px;padding:.35rem .55rem;font-size:.85rem}
+  .toolbar{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
+  .badge{display:inline-block;padding:.1rem .55rem;border-radius:99px;font-size:.74rem;background:#334155;color:var(--txt)}
+  .badge.ok{background:#14532d}.badge.need{background:#7c2d12}.badge.run{background:#1e3a8a}
+  /* 状态流 */
+  .flow{display:flex;gap:.4rem;flex-wrap:wrap;align-items:center;font-size:.8rem}
+  .flow .step{padding:.2rem .7rem;border-radius:99px;background:#0b1222;border:1px solid var(--line);color:var(--sub)}
+  .flow .step.on{border-color:var(--gold);color:var(--gold)}
+  .flow .step.done{border-color:var(--green);color:var(--green)}
+  .flow .arr{color:var(--sub)}
+  /* 页卡流 */
+  .pages{display:flex;flex-direction:column;gap:1rem}
+  .pagecard{display:grid;grid-template-columns:420px 1fr;gap:1rem;background:var(--panel);
+            border:1px solid var(--line);border-radius:10px;padding:.8rem}
+  .pagecard.locked{opacity:.75}
+  .thumb{position:relative;cursor:zoom-in}
+  .thumb img{width:100%;border-radius:8px;border:1px solid var(--line);display:block;background:#0C1624;min-height:120px}
+  .thumb .no{position:absolute;top:6px;left:6px;background:rgba(0,0,0,.65);border-radius:6px;padding:.05rem .5rem;font-size:.75rem}
+  .thumb .pt{position:absolute;top:6px;right:6px;border-radius:6px;padding:.05rem .5rem;font-size:.72rem;background:var(--gold);color:#101418;font-weight:700}
+  .meta{display:flex;flex-direction:column;gap:.45rem;min-width:0}
+  .meta .kv{font-size:.8rem;color:var(--sub)}
+  .meta .kv b{color:var(--txt)}
+  details.narr{font-size:.8rem}details.narr summary{cursor:pointer;color:var(--blue)}
+  details.narr pre{white-space:pre-wrap;background:#0b1222;border:1px solid var(--line);border-radius:6px;padding:.5rem;max-height:180px;overflow:auto;margin:.4rem 0 0;font-size:.78rem}
+  .fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:.4rem}
+  .fields label{font-size:.72rem;color:var(--sub);display:block;margin-bottom:.15rem}
+  .fields input,.fields select{width:100%}
+  .ops{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.2rem}
+  .status-dot{width:8px;height:8px;border-radius:50%;display:inline-block;background:var(--sub);margin-right:4px}
+  .status-dot.busy{background:var(--gold);animation:pulse 1s infinite}
+  .status-dot.ok{background:var(--green)}
+  @keyframes pulse{50%{opacity:.35}}
+  /* 日志 */
+  #log{max-height:220px;overflow:auto;font-size:.76rem;font-family:Consolas,monospace;
+       background:#0b1222;border:1px solid var(--line);border-radius:6px;padding:.5rem}
+  #log .ok{color:var(--green)}#log .warn{color:#f59e0b}#log .error{color:var(--red)}#log .info{color:var(--sub)}
+  /* 大图弹窗 */
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.8);display:none;align-items:center;justify-content:center;z-index:50}
+  .modal-bg.active{display:flex}
+  .modal-bg img{max-width:96vw;max-height:92vh;border-radius:8px}
+  .toast{position:fixed;bottom:1.2rem;left:50%;transform:translateX(-50%);background:#14532d;
+         color:#fff;padding:.5rem 1rem;border-radius:8px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:60}
+  .toast.show{opacity:1}.toast.err{background:#7f1d1d}
+  .retype-bar{display:none;gap:.4rem;margin-top:.3rem}
+  .retype-bar.show{display:flex}
+</style>
+</head>
+<body>
+<nav>
+  <div class="logo nav-logo">Pipeline<span>Studio</span></div>
+  <a href="/web/books.html">拆书</a><a href="/web/audio.html">音频加工</a>
+  <a href="/web/director.html">导演控制台</a><a href="/web/books.html">书库</a>
+  <div style="flex:1"></div>
+  <span class="hint" id="nav-book"></span>
+</nav>
+<div class="container">
+  <div class="panel">
+    <h2 id="title">bs1 页单工坊 <span class="hint">稿件 → 页单 → 确认 → 音视频 → 剪映草稿</span></h2>
+    <div class="flow" id="flow" style="margin-bottom:.8rem"></div>
+    <div class="toolbar">
+      <button id="btn-plan" class="green" onclick="doPlan()">生成页单 (从稿件规划)</button>
+      <button id="btn-replan" class="warn" onclick="doPlan(true)">重新规划</button>
+      <button id="btn-confirm" class="green" onclick="doConfirm()">✔ 确认页单</button>
+      <button id="btn-audio" class="ghost" onclick="goAudio()">🎵 音频加工 (人工听审) →</button>
+      <button id="btn-video" style="background:#166534" onclick="doVideo()">🎬 生成视频 (TTS+渲染+剪映草稿)</button>
+      <button id="btn-cancel" class="warn" onclick="doCancel()">取消</button>
+      <span class="hint" id="draft-name"></span>
+    </div>
+    <div id="next-action" style="margin-top:.7rem;padding:.6rem .9rem;border-radius:8px;border:1px solid #C9A25E;background:rgba(201,162,94,.12);font-size:.9rem;display:none"></div>
+  </div>
+
+  <div class="panel" id="log-panel" style="display:none">
+    <h3>产线日志 <span class="status-dot" id="dot"></span></h3>
+    <div id="log"></div>
+  </div>
+
+  <div class="pages" id="pages"></div>
+</div>
+
+<div class="modal-bg" id="zoom" onclick="this.classList.remove('active')"><img id="zoom-img"></div>
+<div class="toast" id="toast"></div>
+
+<script src="/web/lightbox.js"></script>
+<script>
+const $ = s => document.querySelector(s);
+const params = new URLSearchParams(location.search);
+const BOOK_ID = params.get('book_id'), EP = parseInt(params.get('ep_index') || '1', 10);
+let JOB = null, STATE = null, es = null;
+
+const TYPE_CN = {cover:'封面', contents:'目录', chapter:'章节', list:'清单', passage:'段落',
+                 compare:'对比', case:'案例', quote:'金句', data:'数据', chart:'柱图',
+                 outro:'尾页', bookquote:'书摘卡', bookinfo:'书卡'};
+const RETYPES = ['chapter','list','passage','compare','case','quote','data','chart'];
+// 各页型可编辑字段 (fields 白名单, 与后端 _FIELDS 一致)
+const TYPE_FIELDS = {
+  cover:    [['title','集题']],
+  contents: [],
+  chapter:  [['no','章号'],['title','章题'],['subtitle','副题']],
+  list:     [['kicker','眉标'],['title','页题'],['items','条目(|||分隔)'],['quote','金句条']],
+  passage:  [['kicker','眉标'],['title','页题'],['body','正文(换行分行)'],['quote','金句条']],
+  compare:  [['kicker','眉标'],['title','页题'],['left','左栏(栏题|点|点)'],['right','右栏(栏题|点|点)']],
+  case:     [['kicker','眉标'],['title','页题'],['story','案例(换行分行)'],['moral','落点金句']],
+  quote:    [['quote','金句']],
+  data:     [['kicker','眉标'],['title','页题'],['stats','数据(|||组分)'],['note','来源注']],
+  chart:    [['kicker','眉标'],['title','页题'],['bars','柱(|||组分)'],['note','来源注']],
+  outro:    [['quote','收尾金句'],['question','互动问'],['next','下期预告']],
+};
+
+function toast(msg, err) {
+  const t = $('#toast'); t.textContent = msg; t.className = 'toast show' + (err ? ' err' : '');
+  setTimeout(() => t.classList.remove('show'), err ? 4200 : 2200);
+}
+async function api(path, opts = {}) {
+  const r = await fetch(path.startsWith('/api') ? path : '/api/ppt' + path, opts);
+  if (!r.ok) {
+    let m = r.statusText;
+    try { m = (await r.json()).detail || m; } catch (e) {}
+    throw new Error(m);
+  }
+  return r.json();
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s == null ? '' : s; return d.innerHTML; }
+
+function renderFlow() {
+  const st = STATE ? STATE.status : null;
+  const steps = [
+    ['稿件', 'done'], ['① 页单', st && st !== 'failed' ? (st === 'planning' ? 'on' : 'done') : ''],
+    ['② 确认', ['confirmed', 'running', 'done'].includes(st) ? (st === 'confirmed' ? 'on' : 'done') : ''],
+    ['③④ 音视频', st === 'running' ? 'on' : (st === 'done' ? 'done' : '')],
+    ['⑤ 剪映草稿', st === 'done' ? 'done' : ''],
+  ];
+  $('#flow').innerHTML = steps.map(([t, c], i) =>
+    (i ? '<span class="arr">→</span>' : '') + `<span class="step ${c}">${t}</span>`).join('')
+    + `<span class="hint" style="margin-left:.6rem">${
+        st === 'planning' ? '① 页单生成中 (LLM 约 2~5 分钟), 完成后逐页检查'
+        : st === 'planned' ? '② 逐页检查/调整页型/换图 → 「🎵 音频加工」人工听审 (或直接确认后生成)'
+        : st === 'confirmed' ? '已确认 — 建议「🎵 音频加工」听审后再生成; 跳过也行 (TTS 自动跑)'
+        : st === 'running' ? '③④ 音视频生成中 (TTS+渲染), 看下方日志'
+        : st === 'done' ? '⑤ 已出剪映草稿 — 改过页点「🎬 重新生成视频」出新版'
+        : '① 点「生成页单」从稿件规划'}</span>`;
+  const has = st && st !== 'failed';
+  $('#btn-plan').style.display = has ? 'none' : '';
+  $('#btn-replan').style.display = has && !['planning','running'].includes(st) ? '' : 'none';
+  $('#btn-confirm').style.display = st === 'planned' ? '' : 'none';
+  $('#btn-audio').style.display = ['planned', 'confirmed', 'done'].includes(st) ? '' : 'none';
+  $('#btn-video').style.display = ['confirmed', 'done'].includes(st) ? '' : 'none';
+  $('#btn-video').textContent = st === 'done' ? '🎬 重新生成视频' : '🎬 生成视频 (TTS+渲染+剪映草稿)';
+  $('#btn-cancel').style.display = ['planning','running'].includes(st) ? '' : 'none';
+  $('#btn-plan').disabled = $('#btn-replan').disabled = ['planning','running'].includes(st);
+  $('#draft-name').textContent = STATE && STATE.draft ? `✅ 剪映草稿: ${STATE.draft.draft_name}` : '';
+  // 下一步引导: 单一主行动 + 高亮对应按钮
+  const NEXT = {
+    null:      ['① 还没页单 — 点上方绿色「生成页单」', 'btn-plan'],
+    planning:  ['① 页单生成中, 看下方日志, 完成后回到本页逐页检查', null],
+    planned:   ['② 逐页检查 (改字段/换页型/换图) → 没问题点绿色「✔ 确认页单」', 'btn-confirm'],
+    confirmed: ['③ 已确认 — 点绿色「🎬 生成视频」出片 (或先「🎵 音频加工」人工听审)', 'btn-video'],
+    running:   ['③④ 音视频生成中, 看下方日志, 完成后自动出剪映草稿', null],
+    done:      ['⑤ 已出剪映草稿 — 改过页再点「🎬 重新生成视频」; 想整体重来点「重新规划」', 'btn-video'],
+  };
+  const [msg, focusBtn] = NEXT[st] || NEXT[null];
+  const na = $('#next-action');
+  na.style.display = 'block';
+  na.innerHTML = `<b>下一步：</b>${msg}`;
+  ['btn-plan','btn-replan','btn-confirm','btn-audio','btn-video'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) b.style.boxShadow = (id === focusBtn) ? '0 0 0 3px rgba(201,162,94,.55)' : '';
+  });
+}
+
+function renderPages() {
+  const pages = (STATE && STATE.pages) || [];
+  $('#pages').innerHTML = pages.map((p, i) => {
+    const locked = [0, 1, pages.length - 1].includes(i);
+    const flds = (TYPE_FIELDS[p.type] || []).map(([k, label]) =>
+      `<div><label>${label} · ${k}</label><input id="f-${i}-${k}" value="${esc(p.fields ? p.fields[k] : '')}"></div>`).join('');
+    return `<div class="pagecard ${locked ? 'locked' : ''}">
+      <div class="thumb" onclick="zoom('${p.png_url}')">
+        ${p.png_url ? `<img src="${p.png_url}?t=${Date.now()}" loading="lazy">` : '<div class="hint" style="padding:3rem 0;text-align:center">未渲染</div>'}
+        <span class="no">P${String(i + 1).padStart(2, '0')}</span><span class="pt">${TYPE_CN[p.type] || p.type}</span>
+      </div>
+      <div class="meta">
+        <div class="kv"><b>${esc((p.fields && (p.fields.title || p.fields.quote)) || '')}</b>
+          · ${(p.est_sec || 0).toFixed(1)}s · 台词 ${(p.narration || '').length} 字
+          ${p.img_query ? ` · 🖼 ${esc(p.img_query)}` : ''}</div>
+        <details class="narr"><summary>台词 (锁定, 不可单页改)</summary><pre>${esc(p.narration)}</pre></details>
+        <div class="fields">${flds}
+          <div><label>图片检索词 · img_query</label><input id="f-${i}-img_query" value="${esc(p.img_query || '')}"></div>
+          <div><label>图注 · img_cap</label><input id="f-${i}-img_cap" value="${esc(p.img_cap || '')}"></div>
+        </div>
+        <div class="ops">
+          <button class="sm ghost" onclick="saveFields(${i})">💾 保存字段+重渲染</button>
+          ${locked ? '<span class="hint">结构位 (首二末一), 不可换页型</span>' : `
+            <select id="rt-${i}" class="sm" style="padding:.28rem .4rem;font-size:.78rem">
+              ${RETYPES.filter(t => t !== p.type).map(t => `<option value="${t}">→ ${TYPE_CN[t]}</option>`).join('')}
+            </select>
+            <button class="sm warn" onclick="doReplan(${i}, false)">换页型</button>`}
+          <button class="sm ghost" onclick="doReplan(${i}, true)">🎲 重新生成</button>
+          <button class="sm ghost" onclick="doReimage(${i})">🔄 换一张图</button>
+          ${!(p.narration || '').trim() && ![0, 1, pages.length - 1].includes(i)
+            ? `<button class="sm" style="background:#7f1d1d" onclick="delEmptyPage(${i})">🗑 删除此空页</button>` : ''}
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function zoom(url) { if (!url) return; lbOpen(url + '?t=' + Date.now()); }  // 0923 统一灯箱
+
+async function refresh() {
+  STATE = await api(`/bs1/state?book_id=${BOOK_ID}&ep_index=${EP}`);
+  JOB = STATE.job_id;
+  renderFlow(); renderPages();
+  if (['planning', 'running'].includes(STATE.status)) connectSSE();
+}
+
+function connectSSE() {
+  if (!JOB || es) return;
+  $('#log-panel').style.display = '';
+  es = new EventSource(`/api/ppt/${JOB}/events`);
+  es.onmessage = ev => {
+    let d; try { d = JSON.parse(ev.data); } catch (e) { return; }
+    if (!d.ts && (!d.msg || d.msg === '…')) return;  // SSE 保活心跳, 不显示
+    const div = document.createElement('div');
+    div.className = d.level || 'info';
+    div.textContent = `[${d.ts || ''}] ${d.msg || ''}`;
+    $('#log').appendChild(div); $('#log').scrollTop = 1e9;
+    if (['bs1_planned', 'bs1_confirmed', 'ppt_done', 'ppt_error', 'bs1_error'].includes(d.type)) {
+      es.close(); es = null;
+      toast(d.msg, d.level === 'error');
+      refresh();
+    }
+  };
+  es.onerror = () => { es.close(); es = null; setTimeout(refresh, 1500); };
+}
+
+async function doPlan(force) {
+  if (force && !confirm('重新规划将整集重切页单 (约 2~5 分钟), 已确认内容作废。继续?')) return;
+  const fd = new FormData();
+  fd.append('book_id', BOOK_ID); fd.append('ep_index', EP);
+  const r = await api('/bs1/plan', { method: 'POST', body: fd });
+  JOB = r.job_id; toast('页单规划已启动');
+  $('#log').innerHTML = ''; $('#log-panel').style.display = '';
+  connectSSE(); setTimeout(refresh, 800);
+}
+
+async function saveFields(i) {
+  const p = STATE.pages[i];
+  const fields = {};
+  (TYPE_FIELDS[p.type] || []).forEach(([k]) => { const el = $(`#f-${i}-${k}`); if (el) fields[k] = el.value; });
+  ['img_query', 'img_cap'].forEach(k => { const el = $(`#f-${i}-${k}`); if (el) fields[k] = el.value; });
+  const r = await api(`/bs1/${JOB}/pages/${i}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fields }),
+  });
+  toast(r.rendered ? `P${i + 1} 已重渲染` : `P${i + 1} 保存 (渲染失败, 查日志)`, !r.rendered);
+  refresh();
+}
+
+async function doReplan(i, sameType, hint) {
+  const p = STATE.pages[i];
+  const body = {};
+  if (!sameType) {
+    const sel = $(`#rt-${i}`);
+    if (!sel || !sel.value) return toast('选择目标页型', true);
+    body.new_type = sel.value;
+  } else {
+    hint = hint || prompt('调整指令 (可空, 如: 金句换一句 / 更口语化):', '');
+    if (hint === null) return;
+    if (hint) body.hint = hint;
+  }
+  toast(`P${i + 1} 重排中 (LLM ~15s)…`);
+  try {
+    const r = await api(`/bs1/${JOB}/pages/${i}/replan`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    toast(`P${i + 1} → ${TYPE_CN[r.page.type] || r.page.type} ${r.rendered ? '已渲染' : '(渲染失败)'}`, !r.rendered);
+    refresh();
+  } catch (e) { toast(e.message, true); }
+}
+
+async function doReimage(i) {
+  const q = prompt('图片检索词 (留空=同词换下一张):', STATE.pages[i].img_query || '');
+  if (q === null) return;
+  const body = q.trim() && q.trim() !== (STATE.pages[i].img_query || '') ? { img_query: q.trim() } : {};
+  const r = await api(`/bs1/${JOB}/pages/${i}/reimage`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  toast(r.page.img_file ? `P${i + 1} 已换图` : '无可用图 (保留原样/纯色)', !r.page.img_file);
+  refresh();
+}
+
+async function delEmptyPage(i) {
+  if (!confirm(`删除 P${i + 1} (零台词空页, 无损失)?`)) return;
+  await api(`/bs1/${JOB}/pages/${i}`, { method: 'DELETE' });
+  toast('空页已删'); refresh();
+}
+
+async function doConfirm() {
+  if (!confirm(`确认页单 (${STATE.pages.length} 页)? 确认后可生成视频; 仍可继续单页调整。`)) return;
+  const r = await api(`/bs1/${JOB}/confirm`, { method: 'POST' });
+  toast(`已确认 ${r.pages} 页`); refresh();
+}
+
+async function goAudio() {
+  // ③ 前置: 桥接 Script (页=段, 老谭音色) → 音频加工页人工听审;
+  // 听审产物 render 时 TTS 缓存自动复用 (cache_key=音色+段文本)
+  toast('桥接音频 Script…');
+  try {
+    const r = await api(`/bs1/${JOB}/bridge-audio`, { method: 'POST' });
+    location.href = `/web/audio.html?script_id=${r.script_id}`
+      + `&book_id=${encodeURIComponent(BOOK_ID)}&ep_index=${EP}`
+      + (r.voice_id ? `&voice_id=${r.voice_id}` : '') + '&from_bs1=1';
+  } catch (e) { toast(e.message, true); }
+}
+
+async function doVideo() {
+  if (!confirm('生成视频: TTS 合成 → 逐页成帧 → 剪映草稿。TTS 未缓存时约需数分钟, 继续吗?')) return;
+  const fd = new FormData(); fd.append('render_mode', 'jy2');
+  try {
+    const r0 = await api(`/${JOB}/render`, { method: 'POST', body: fd });
+    if (r0 && r0.auto_replanned) {
+      // 0910: 稿已更新 → 后端自动重新规划中; 引导走 确认 环, 不进渲染
+      JOB = r0.job_id;
+      toast(r0.message || '检测到新稿, 已自动重新规划 — 完成后请确认页单');
+      document.getElementById('log').innerHTML = '';
+      document.getElementById('log-panel').style.display = '';
+      connectSSE(); setTimeout(refresh, 800);
+      return;
+    }
+    $('#log').innerHTML = ''; $('#log-panel').style.display = '';
+    connectSSE(); setTimeout(refresh, 800);
+  } catch (e) { toast(e.message, true); }
+}
+
+async function doCancel() {
+  await api(`/${JOB}/cancel`, { method: 'POST' }); toast('取消请求已发');
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  $('#nav-book').textContent = `书 ${BOOK_ID ? BOOK_ID.slice(0, 8) : '?'} · 第 ${EP} 集`;
+  if (!BOOK_ID) { $('#pages').innerHTML = '<div class="hint">缺 book_id 参数 (从拆书讲书页进入)</div>'; return; }
+  try { await refresh(); } catch (e) { toast(e.message, true); }
+});
+</script>
+</body>
+</html>

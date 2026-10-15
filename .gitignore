@@ -1,0 +1,112 @@
+# 环境变量（含 API key，禁止入库）
+.env
+.env.*
+
+# 工作流历史备份（多版本迭代保留，仅本地）
+workflows/*.bak_*
+
+# 数字人 Web UI 配置文件（包含敏感信息，已加入 .gitignore）
+config/app.yaml
+
+# 数据库文件
+data/pipeline.db
+data/*.bak.*
+data/pipeline.db.pre_voice_cleanup_*.bak
+
+# 原始数据 / 临时调试
+data/raw/
+data/zhipu_engine_state.json   # 智谱搜索引擎轮流状态 (运行时)
+tmp/
+
+# 输出产物
+outputs/
+projects/
+references/
+
+# 调试/测试残留
+_*.txt
+_*.json
+news_dashboard*.html
+news_data.json
+tests/artifacts/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# 日志
+logs/
+*.log
+
+# 系统
+Thumbs.db
+.DS_Store
+
+# 剪映 J 线：参考仓库克隆（调查用，本地保留）
+_ref_*/
+
+# 剪映模板明文快照（847 文件，研究原料库，仅本地）
+data/jy_template_snapshot/
+
+# 剪映实验残留
+data/jy_expA_bg.png
+scripts/_tmp_*.py
+data/jy_sounds/
+
+# 剪映 BGM 音频文件本体（语义库在 config/jy_bgm_semantics.json 跟踪）
+data/jy_bgm/
+
+# 地缘提示词优化循环批次(成稿与豆包点评, 本地)
+data/geo_batch/
+
+# 迁移备份目录 (纯代码快照, 不入库)
+digital_human_2/
+
+# 2026-08-27 审计补充: 素材/缓存/密钥/备份不入库
+# sandbox 只忽略大文件素材 (视频/抽帧/ASR); 拆解工具与报告是实验工作产物, 必须留痕:
+sandbox/*
+!sandbox/*.py
+!sandbox/reports/
+sandbox/reports/*
+!sandbox/reports/*.md
+!sandbox/reports/*_vision_zones.json
+!sandbox/ref_videos/
+sandbox/ref_videos/*
+!sandbox/ref_videos/*_asr.json
+.sandbox_preview/
+data/frames_cache/
+data/l0/
+data/vocabulary_pack.json
+data/failed_scenes_ids.json
+config/siliconflow.yaml
+config/p*_prompt_backup_*.txt
+*.bak
+*.bak_*
+.tmp/
+.zcode/
+
+# Claude Code 本地个人配置 (机器特定权限, 不入库; 项目共享的 .claude/settings.json 正常跟踪)
+.claude/settings.local.json
+
+# ===== git 止损补丁 2026-10-16 =====
+# YouTube 素材库（最大膨胀源）
+data/materials/
+# 剪映 dump 调查残留
+.tmp_jy_dump/
+# cudnn 安装缓存
+_cudnn_tmp/
+# 环境变量未展开产生的垃圾目录
+${APPDATA}/
+# 连字符命名备份（现有 *.bak_* / *.bak.* 不匹配）
+data/*.bak-*
+*.dmp
+# 防未来：任意层临时文件
+**/*.tmp

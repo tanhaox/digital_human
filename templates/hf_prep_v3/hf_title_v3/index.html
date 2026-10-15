@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<!-- ============================================================
+  hf_title_v3 — 编辑纸墨风标题卡 (2026-09-04, 替代黑金 hf_title_v2)
+  版式: .tmp/style_gallery_h.html 01 开场刊头。
+        mast(品牌名 caps)+粗墨 rule / 中央大字自动阶梯 / kicker+日期 foot。
+        大字阶梯: 纯拉丁 → Playfair 斜体 330px; 中文 ≤6字 190px / 7~10字
+        150px / >10字 120px (≤2行)。
+  协议: HyperFrames — #root data-* + GSAP paused timeline 注册
+        window.__timelines, 入场 2s + 尾部保持段。
+  ============================================================ -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Noto+Serif+SC:wght@600;700;900&family=Playfair+Display:ital,wght@0,600;0,700;1,500;1,600;1,700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F2EEE6; --paper-2:#EAE4D8; --ink:#1C1613; --ink-soft:#3B2424;
+    --taupe:#A1836E; --rust:#9E4A2F; --hair:rgba(28,22,19,.28);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1920px;height:1080px;overflow:hidden;background:var(--paper)}
+  body{font-family:"Noto Serif SC",serif;color:var(--ink)}
+  #root{position:relative;width:1920px;height:1080px;background:var(--paper);overflow:hidden}
+  .grain{position:absolute;inset:0;opacity:.5;pointer-events:none;
+    background-image:radial-gradient(rgba(28,22,19,.06) 1px,transparent 1px);background-size:5px 5px}
+  .rule{height:3px;background:var(--ink);transform-origin:left}
+  .rule.thin{height:1px;background:var(--hair)}
+  .caps{font-family:Manrope,sans-serif;font-weight:700;letter-spacing:.34em;text-transform:uppercase}
+
+  .frame{position:absolute;inset:0;padding:90px 110px;display:flex;flex-direction:column}
+  .mast{display:flex;justify-content:space-between;align-items:center}
+  .mast .caps{font-size:30px}
+  .mast .tag{font-size:22px;color:var(--taupe)}
+  .body{margin-top:auto;margin-bottom:auto;display:flex;justify-content:flex-start;align-items:center}
+  .title{font-weight:900;line-height:1.05;letter-spacing:.02em;white-space:nowrap;max-width:1700px}
+  .title.en{font-family:"Playfair Display",serif;font-weight:800;font-style:italic;
+    font-size:330px;line-height:.9;letter-spacing:-.01em}
+  .title.t1{font-size:190px}
+  .title.t2{font-size:150px}
+  .title.t3{font-size:120px;white-space:normal;line-height:1.15;letter-spacing:.03em}
+  .foot{display:flex;justify-content:space-between;align-items:flex-end;margin-top:36px}
+  .foot .caps{font-size:28px}
+  .foot .date{font-family:"Playfair Display",serif;font-style:italic;font-size:48px;color:var(--ink-soft)}
+</style>
+</head>
+<body>
+<div id="root"
+     data-composition-id="hf_title_v3"
+     data-start="0"
+     data-duration="{{duration_sec}}"
+     data-width="1920"
+     data-height="1080"
+     data-title="{{title}}"
+     data-kicker="{{kicker}}"
+     data-issue-date="{{issue_date}}"
+     data-brand="{{brand_name}}"
+     data-tag="{{brand_tag}}">
+  <div class="grain"></div>
+  <div class="frame">
+    <div class="mast">
+      <span class="caps" id="mast">{{brand_name}}</span>
+      <span class="caps tag" id="tag">{{brand_tag}}</span>
+    </div>
+    <div class="rule" id="head-rule" style="margin-top:32px"></div>
+    <div class="body"><h2 class="title" id="title"></h2></div>
+    <div class="rule thin" id="base-rule"></div>
+    <div class="foot" id="foot">
+      <span class="caps" id="kicker"></span>
+      <span class="date" id="date"></span>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<script>
+(function () {
+  var root = document.getElementById("root");
+  var DUR = parseFloat(root.getAttribute("data-duration")) || 6;
+
+  var title = (root.getAttribute("data-title") || "").trim();
+  var kicker = (root.getAttribute("data-kicker") || "").trim();
+
+  // 大字阶梯: 纯拉丁 → Playfair 斜体; 中文按字数
+  var t = document.getElementById("title");
+  var isEn = title && !/[^\x00-\x7F]/.test(title);
+  if (isEn) {
+    t.classList.add("en");
+    t.textContent = title;
+    if (title.length > 6) t.style.fontSize = Math.round(330 * 6 / title.length) + "px";
+  } else {
+    var n = title.replace(/\s/g, "").length;
+    t.classList.add(n <= 6 ? "t1" : n <= 10 ? "t2" : "t3");
+    t.textContent = title;
+  }
+
+  // kicker: 沿口播主题短句 (caps); 空则隐藏 foot 左侧
+  var kEl = document.getElementById("kicker");
+  kEl.textContent = kicker;
+  if (!kicker) kEl.style.visibility = "hidden";
+
+  // 日期由 Python 填充注入 ({{issue_date}}) — HF 渲染沙箱 Date 被冻结为
+  // epoch (实测 2026-09 真机渲染出 1970.01), 帧内 new Date() 不可信。
+  document.getElementById("date").textContent = root.getAttribute("data-issue-date") || "";
+
+  var tl = gsap.timeline({ paused: true });
+  tl.from(document.getElementById("mast"), { opacity: 0, y: 24, duration: .6,
+      ease: "power3.out" }, 0)
+    .from(document.getElementById("tag"), { opacity: 0, duration: .7 }, .3)
+    .from(document.getElementById("head-rule"), { scaleX: 0, duration: 1,
+      ease: "power3.out" }, .1)
+    .from(t, { opacity: 0, x: -90, duration: 1, ease: "power3.out" }, .25)
+    .from(document.getElementById("base-rule"), { scaleX: 0, duration: 1,
+      ease: "power3.out" }, .6)
+    .from(document.getElementById("foot"), { opacity: 0, y: 30, duration: .8,
+      ease: "power3.out" }, .8);
+
+  // HyperFrames 协议: paused timeline 注册到 __timelines + 尾部保持段
+  window.__timelines = window.__timelines || {};
+  window.__timelines["hf_title_v3"] = tl;
+  tl.to({}, { duration: Math.max(0.5, DUR - 2.0) }, 2.0);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<!-- ============================================================
+  hf_quote_v2 — 编辑纸墨风金句卡 (2026-09-04, 替代黑金 hf_quote_v1)
+  版式: .tmp/style_gallery_h.html 05 金句卡。无引号; paper-2 底。
+        字号阶梯 (标点计入字数): ≤8字 150px/1行 · 9~16字 110px/2行 ·
+        >16字 92px/3~4行; 按标点(，。、；)语义断行。
+        hot_word → 锈红内联 em (不换行不断句)。
+  协议: HyperFrames — #root data-* + GSAP paused timeline 注册
+        window.__timelines (v1 漏注册, 此版修复), 入场 2s + 尾部保持段。
+  ============================================================ -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Noto+Serif+SC:wght@600;700;900&family=Playfair+Display:ital,wght@0,600;0,700;1,500;1,600;1,700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F2EEE6; --paper-2:#EAE4D8; --ink:#1C1613; --ink-soft:#3B2424;
+    --taupe:#A1836E; --rust:#9E4A2F; --hair:rgba(28,22,19,.28);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1920px;height:1080px;overflow:hidden;background:var(--paper-2)}
+  body{font-family:"Noto Serif SC",serif;color:var(--ink)}
+  #root{position:relative;width:1920px;height:1080px;background:var(--paper-2);overflow:hidden}
+  .grain{position:absolute;inset:0;opacity:.5;pointer-events:none;
+    background-image:radial-gradient(rgba(28,22,19,.06) 1px,transparent 1px);background-size:5px 5px}
+  .rule{height:1px;background:var(--hair);transform-origin:left}
+  .caps{font-family:Manrope,sans-serif;font-weight:700;letter-spacing:.34em;text-transform:uppercase}
+
+  .frame{position:absolute;inset:0;padding:110px 130px;display:flex;flex-direction:column}
+  .quote-wrap{flex:1;display:flex;align-items:center;justify-content:center}
+  blockquote{font-size:150px;font-weight:900;line-height:1.4;text-align:center}
+  blockquote em{font-style:normal;color:var(--rust)}
+  blockquote.mid{font-size:110px;line-height:1.5}
+  blockquote.long{font-size:92px;line-height:1.66}
+  .sig{display:flex;justify-content:space-between;align-items:center}
+  .sig .caps{font-size:26px;color:var(--ink-soft)}
+  .sig .who{display:flex;align-items:baseline;gap:26px}
+  .sig .name{font-family:"Playfair Display",serif;font-style:italic;font-size:52px}
+  .sig .role{font-size:28px;font-weight:600;color:var(--ink-soft)}
+  .sig .portrait{width:150px;height:150px;border-radius:50%;object-fit:cover;
+    border:3px solid var(--ink);margin-right:30px}
+</style>
+</head>
+<body>
+<div id="root"
+     data-composition-id="hf_quote_v2"
+     data-start="0"
+     data-duration="{{duration_sec}}"
+     data-width="1920"
+     data-height="1080"
+     data-quote="{{quote_body}}"
+     data-hot="{{hot_word}}"
+     data-name="{{attrib_name}}"
+     data-role="{{attrib_role}}"
+     data-portrait="{{portrait_b64}}"
+     data-brand="{{brand_name}}">
+  <div class="grain"></div>
+  <div class="frame">
+    <div class="quote-wrap"><blockquote id="quote"></blockquote></div>
+    <div class="rule" id="base-rule"></div>
+    <div class="sig" id="sig" style="margin-top:44px">
+      <span class="caps">Quote of the Issue</span>
+      <span class="who" id="who"></span>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<script>
+(function () {
+  var root = document.getElementById("root");
+  var DUR = parseFloat(root.getAttribute("data-duration")) || 6;
+
+  var quote = root.getAttribute("data-quote") || "";
+  var hot = root.getAttribute("data-hot") || "";
+  var name = root.getAttribute("data-name") || "";
+  var role = root.getAttribute("data-role") || "";
+  var portrait = root.getAttribute("data-portrait") || "";
+
+  // ── 字号阶梯 + 语义断行 ──
+  var q = document.getElementById("quote");
+  var count = quote.replace(/\s/g, "").length;
+  var bracket = count <= 8 ? 1 : count <= 16 ? 2 : count <= 28 ? 3 : 4;
+  var lines;
+
+  // 按标点切段 (标点跟段尾), 无标点则不手动断行 (交浏览器自动换行)
+  var segs = quote.match(/[^，。、；：,.;:!?！？]+[，。、；：,.;:!?！？]?/g) || [quote];
+  if (segs.length >= bracket) {
+    var target = Math.ceil(count / bracket);
+    lines = [];
+    var cur = "";
+    for (var i = 0; i < segs.length; i++) {
+      if (cur && (cur.replace(/\s/g, "").length + segs[i].replace(/\s/g, "").length) > target
+          && lines.length < bracket - 1) {
+        lines.push(cur);
+        cur = segs[i];
+      } else {
+        cur += segs[i];
+      }
+    }
+    if (cur) lines.push(cur);
+  } else {
+    lines = [quote];
+  }
+
+  q.classList.add(bracket === 1 ? "" : bracket === 2 ? "mid" : "long");
+  // 行内构建: hot_word → <em> (textContent 安全, 不走 innerHTML)
+  lines.forEach(function (line, idx) {
+    if (idx > 0) q.appendChild(document.createElement("br"));
+    if (hot && line.indexOf(hot) >= 0 && hot !== line) {
+      var parts = line.split(hot);
+      for (var p = 0; p < parts.length; p++) {
+        if (parts[p]) q.appendChild(document.createTextNode(parts[p]));
+        if (p < parts.length - 1) {
+          var em = document.createElement("em");
+          em.textContent = hot;
+          q.appendChild(em);
+        }
+      }
+    } else if (hot && line === hot) {
+      var emAll = document.createElement("em");
+      emAll.textContent = hot;
+      q.appendChild(emAll);
+    } else {
+      q.appendChild(document.createTextNode(line));
+    }
+  });
+
+  // ── 署名行 ──
+  var who = document.getElementById("who");
+  if (portrait) {
+    var img = document.createElement("img");
+    img.className = "portrait";
+    img.src = /^data:/.test(portrait) ? portrait : "data:image/jpeg;base64," + portrait;
+    who.appendChild(img);
+  }
+  if (name) {
+    var nm = document.createElement("span");
+    nm.className = "name";
+    nm.textContent = "— " + name;
+    who.appendChild(nm);
+  }
+  if (role) {
+    var rl = document.createElement("span");
+    rl.className = "role";
+    rl.textContent = role;
+    who.appendChild(rl);
+  }
+  if (!name && !role && !portrait) who.parentNode.style.visibility = "hidden";
+
+  var tl = gsap.timeline({ paused: true });
+  tl.from(q, { opacity: 0, y: 64, duration: 1, ease: "power3.out" }, .2)
+    .from(document.getElementById("base-rule"), { scaleX: 0, duration: 1,
+      ease: "power3.out" }, .7)
+    .from(document.getElementById("sig"), { opacity: 0, y: 30, duration: .8,
+      ease: "power3.out" }, .9);
+
+  // HyperFrames 协议: paused timeline 注册到 __timelines + 尾部保持段
+  window.__timelines = window.__timelines || {};
+  window.__timelines["hf_quote_v2"] = tl;
+  tl.to({}, { duration: Math.max(0.5, DUR - 2.0) }, 2.0);
+})();
+</script>
+</body>
+</html>

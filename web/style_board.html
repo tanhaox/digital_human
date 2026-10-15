@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>风格选择板 — 动画风格选型</title>
+<link rel="stylesheet" href="/web/books.css">
+<style>
+  body{background:#14110d;color:#ece5d8}
+  [hidden]{display:none!important}  /* 本页多个组件用 flex 布局, 防特异性压过 hidden */
+  /* 1009 小坑1 修: 行网格 → 风格卡片纵向流 — 每风格一张卡 (头+3镜横排),
+     风格数再多只是纵向加卡, 不再撑爆页面 (旧 7 风格×3 镜 21 图行网格实爆) */
+  .board-grid{display:flex;flex-direction:column;gap:1rem;margin-top:1rem}
+  .style-card{border:1px solid #332d25;border-radius:8px;background:#1a1714;
+    padding:.6rem .7rem .7rem}
+  .style-card.pick{outline:3px solid #d2a85e;outline-offset:-3px}
+  .sc-head{display:flex;align-items:baseline;gap:.5rem;flex-wrap:wrap;padding-bottom:.4rem;
+    border-bottom:2px solid #4a4234;margin-bottom:.5rem}
+  .sc-head.pick-h{border-bottom-color:#d2a85e}
+  .sc-head b{color:#e6c078;font-size:.95rem}
+  .sc-head .new{font-size:.62rem;background:#7c2d12;color:#fecaca;border-radius:3px;padding:.05rem .3rem}
+  .sc-head .kept-badge{font-size:.62rem;background:#2c3a1e;color:#c9d8a0;border:1px solid #4a5a2e;
+    border-radius:3px;padding:.06rem .35rem}
+  .sc-head .sc-acts{margin-left:auto;display:flex;gap:.3rem;flex-wrap:wrap}
+  .sc-shots{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem}
+  .sc-desc{font-size:.72rem;color:#8a7f6e;line-height:1.5;margin-top:.45rem}
+  /* 1009 小坑5: 风格库预筛 (未启动选型时先否一批, 省 Kimi 重复推荐+GPU) */
+  .lib-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:.7rem;margin-top:.8rem}
+  .lib-card{border:1px solid #332d25;border-radius:8px;background:#1a1714;overflow:hidden;
+    display:flex;flex-direction:column}
+  .lib-card.off{opacity:.45}
+  .lib-card img{width:100%;aspect-ratio:16/9;object-fit:cover;cursor:zoom-in;background:#14110d}
+  .lib-card .lc-body{padding:.4rem .55rem .55rem;display:flex;flex-direction:column;gap:.3rem;flex:1}
+  .lib-card b{color:#e6c078;font-size:.85rem}
+  .lib-card .lc-desc{font-size:.7rem;color:#8a7f6e;line-height:1.45;flex:1;
+    display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+  .lib-hint{font-size:.78rem;color:#a2988a;background:#1f1a13;border:1px dashed #7a5642;
+    border-radius:6px;padding:.5rem .7rem;margin-top:.8rem;line-height:1.6}
+  .shot-label{font-size:.8rem;color:#a2988a;padding:.4rem .2rem}
+  .shot-label b{color:#e6c078;display:block;font-size:.85rem}
+  .cell{position:relative;border:1px solid #332d25;border-radius:6px;overflow:hidden;
+    cursor:pointer;transition:border-color .15s;background:#1a1714}
+  .cell:hover{border-color:#d2a85e}
+  .cell img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}
+  .cell .cap{position:absolute;left:0;right:0;bottom:0;background:rgba(10,8,6,.82);
+    font-size:.68rem;padding:.25rem .45rem;color:#a2988a}
+  .col-head{font-size:.85rem;font-weight:600;color:#e6c078;padding:.35rem .1rem;
+    border-bottom:2px solid #4a4234;display:block}
+  .col-head .col-name{display:flex;align-items:baseline;gap:.3rem;min-width:0}
+  .col-head .col-name b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .col-head .col-acts{display:flex;flex-wrap:wrap;gap:.25rem;margin-top:.3rem}
+  .col-head .new{font-size:.62rem;background:#7c2d12;color:#fecaca;border-radius:3px;padding:.05rem .3rem}
+  .col-head.pick-h{border-bottom-color:#d2a85e;color:#e6c078}
+  .pick{outline:3px solid #d2a85e;outline-offset:-3px}
+  .pick .cap::after{content:" ✓ 待确定";color:#e6c078}
+  .sel-btn{font-size:.66rem;background:transparent;border:1px solid #4a4234;color:#a2988a;
+    border-radius:3px;padding:.08rem .4rem;cursor:pointer}
+  .sel-btn:hover{border-color:#d2a85e;color:#e6c078}
+  .ex-btn{font-size:.66rem;background:transparent;border:1px solid #4a4234;color:#6f665a;
+    border-radius:3px;padding:.08rem .4rem;cursor:pointer}
+  .ex-btn:hover{border-color:#c0564a;color:#d98b6a}
+  .col-excluded .cell{filter:grayscale(1) brightness(.45)}
+  .col-excluded{opacity:.75}
+  .excl-bar{font-size:.72rem;color:#8a7f6e;margin-bottom:.6rem;display:flex;flex-wrap:wrap;gap:.4rem;align-items:center}
+  .ex-chip{font-size:.68rem;background:#2a2118;color:#d98b6a;border:1px dashed #7a5642;
+    border-radius:3px;padding:.12rem .45rem;cursor:pointer}
+  .ex-chip:hover{border-color:#d2a85e;color:#e6c078}
+  .keep-btn{font-size:.66rem;background:transparent;border:1px solid #4a4234;color:#a2988a;
+    border-radius:3px;padding:.08rem .4rem;cursor:pointer}
+  .keep-btn:hover{border-color:#7c8a4a;color:#c9d8a0}
+  .kept-badge{font-size:.62rem;background:#2c3a1e;color:#c9d8a0;border:1px solid #4a5a2e;
+    border-radius:3px;padding:.06rem .35rem}
+  .ex-on{font-size:.62rem;background:#3d1d1a;color:#d98b6a;border:1px dashed #7a5642;
+    border-radius:3px;padding:.06rem .35rem;cursor:pointer}
+  .col-head.pick-h{border-bottom-color:#d2a85e;color:#e6c078}
+  .confirmbar{position:sticky;bottom:0;z-index:5;display:flex;align-items:center;gap:.8rem;
+    background:#211d18;border:1px solid #d2a85e;border-radius:8px;padding:.6rem .9rem;
+    margin-top:.9rem;box-shadow:0 -6px 30px rgba(0,0,0,.5)}
+  .confirmbar b{color:#e6c078}
+  .confirmbar .grow{flex:1}
+  #lightbox{position:fixed;inset:0;background:rgba(8,6,4,.95);z-index:99;display:flex;
+    align-items:center;justify-content:center;flex-direction:column;gap:.6rem}
+  #lightbox img{max-width:96vw;max-height:88vh;border:1px solid #4a4234;border-radius:4px}
+  #lightbox .lb-cap{color:#a2988a;font-size:.8rem}
+  #lightbox .lb-nav{color:#6f665a;font-size:.72rem}
+  #lightbox .lb-x{position:absolute;top:1rem;right:1.4rem;color:#a2988a;font-size:1.6rem;
+    cursor:pointer}
+  .log{font-size:.72rem;color:#a2988a;background:#1a1714;border:1px solid #332d25;
+    border-radius:6px;padding:.5rem .7rem;margin-top:.8rem;line-height:1.8;max-height:180px;overflow:auto}
+  .banner{margin-top:.8rem;padding:.6rem .9rem;border-radius:6px;font-size:.88rem}
+  .banner.ok{background:#14532d;color:#bbf7d0;border:1px solid #166534}
+  .desc-tip{font-size:.72rem;color:#8a7f6e;line-height:1.5;margin:.2rem 0 .4rem}
+</style>
+</head>
+<body>
+<nav>
+  <div class="logo">Pipeline<span>Studio</span></div>
+  <a href="/web/books.html">拆书</a>
+  <div class="spacer"></div>
+  <a href="/docs" target="_blank">API Docs</a>
+</nav>
+<div class="container">
+  <div class="flownav" data-page="board"></div>
+  <script src="/web/flownav.js"></script>
+  <div class="panel">
+    <h2>🎨 风格选择板 <span class="badge" id="bk">…</span></h2>
+    <p class="desc-tip">真内容试镜: 第一集钩子段切 3 镜 → 风格库全员 + Kimi 新配方提案, 样张全部本地 K2 出
+      (选中即可产)。同镜同种子 — 只比风格不赌种子。点卡片「选定」两步定绑 (已绑定也可换绑); 新提案选中后自动入库。</p>
+    <div class="toolbar">
+      <button id="btn-start" onclick="start()">▶ 启动选型 (约 10-20 分钟)</button>
+      <input id="dir-input" placeholder="🎯 大方向 (可选): 例 2.5D 立体感, 禁平面扁平 / 水墨" style="flex:1;min-width:220px">
+      <button class="sm secondary" onclick="saveDir()">📌 方向</button>
+      <span id="bound" class="badge"></span>
+    </div>
+    <div id="banner"></div>
+    <div id="board" class="board-grid"></div>
+    <div id="confirmbar" class="confirmbar" hidden>
+      <span>已选风格: <b id="picked-name"></b></span><span class="grow"></span>
+      <button class="sm" id="btn-confirm" onclick="confirmPick()">✅ 确定绑定</button>
+      <button class="sm secondary" onclick="clearPick()">取消</button>
+    </div>
+    <div id="log" class="log" hidden></div>
+  </div>
+</div>
+<div id="lightbox" hidden>
+  <span class="lb-x" onclick="lbClose()">✕</span>
+  <img id="lb-img" alt="放大预览">
+  <div class="lb-cap" id="lb-cap"></div>
+  <div class="lb-nav">← → 切换 · Esc 关闭 · 点击图片外关闭</div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const QS = new URLSearchParams(location.search);
+const BOOK = QS.get('book_id');
+const API = '/books/' + encodeURIComponent(BOOK) + '/style-board';
+let picked = null, timer = null, BOARD = null, EXCL = [], VER = '', BOUND = null;
+
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2600)}
+
+async function start(){
+  const b=document.getElementById('btn-start');b.disabled=true;b.textContent='启动中…';
+  try{
+    const r=await fetch(API,{method:'POST'});
+    const j=await r.json();
+    if(!r.ok) throw new Error(j.detail||r.status);
+    toast('选型已启动'); poll(true);
+  }catch(e){alert('启动失败: '+e.message)}
+  b.disabled=false;b.textContent='▶ 启动选型 (约 10-20 分钟)';
+}
+
+function poll(first){
+  clearTimeout(timer);
+  fetch(API).then(r=>r.json()).then(v=>{
+    document.getElementById('bk').textContent='《'+(v.book_title||'')+'》';
+    const boundEl=document.getElementById('bound');
+    boundEl.textContent=v.bound?('已绑定: '+v.bound):'未绑定';
+    boundEl.className='badge '+(v.bound?'':'need');
+    BOUND=v.bound||null;  // 1012 换绑: 确认条按"旧→新"提示
+    if(v.excluded)EXCL=v.excluded;
+    const lg=document.getElementById('log');
+    if(v.retune){
+      const rt=v.retune;
+      if(rt.status==='running'){
+        const lg=document.getElementById('log');lg.hidden=false;
+        lg.innerHTML='<b style="color:#e6c078">重调中: '+esc(rt.style||'')+' — 修配方+单列重渲, 约 3-5 分钟…</b>';
+        timer=setTimeout(poll,3000);return;
+      }
+      if(rt.status==='error'){toast('重调失败: '+(rt.error||''));}
+      if(rt.status==='done'){toast('重调完成: '+esc(rt.style||'')+' — 刷新该列');}
+    }
+    if(v.job){
+      lg.hidden=false;
+      lg.innerHTML=(v.job.log||[]).map(l=>'· '+l).join('<br>')+
+        (v.job.status==='running'?`<br><b style="color:#e6c078">进行中… ${v.job.done_n} 张已出</b>`:'');
+    }
+    if(v.board) render(v.board);
+    // 1009 小坑6: 方向回显 (输入框 = 事实源镜像, 保存走 /direction 端点)
+    const di=document.getElementById('dir-input');
+    if(di && document.activeElement!==di && v.direction!==undefined) di.value=v.direction||'';
+    // 1009 小坑5: 未启动选型 (无板且无 job) → 风格库预筛 — 补修: job running 期间
+    // 后端无 board 字段, 旧条件会拿 library 把进行中的板覆盖成预筛区
+    if(!v.board && !v.job && v.library){
+      LIB=v.library;
+      renderLibrary(v.library);
+    }
+    if(v.job&&v.job.status==='running'){
+      timer=setTimeout(poll, first?1500:3000);
+    } else if(v.job&&v.job.status==='error'){
+      lg.hidden=false;lg.innerHTML+='<br><b style="color:#f87171">失败: '+v.job.error+'</b>';
+    }
+  }).catch(()=>{timer=setTimeout(poll,5000)});
+}
+
+function render(bd){
+  // 0925 用户令: 排除即隐列 — 已排除风格不占板面, 顶部恢复条可召回;
+  // 文件名/灯箱索引用 board 自带原始 idx (排除后列号跳号, 盘上产物不动)
+  // 1009 小坑1 修: 行网格 → 风格卡片纵向流 (风格多时只加卡不爆版)
+  const styles=bd.styles.filter(s=>!EXCL.includes(s.name));
+  const exd=bd.styles.filter(s=>EXCL.includes(s.name));
+  const exbar=exd.length
+    ?`<div class="excl-bar">已排除 (点击恢复入板): ${exd.map(s=>
+      `<span class="ex-chip" onclick="excl('${esc(s.name)}', false)" title="恢复后回板; 下轮选型重新入板">${esc(s.name)} ↩</span>`).join('')}</div>`:'';
+  if(!styles.length){document.getElementById('board').innerHTML=exbar;return;}
+  picked=bd.selected||null;
+  BOARD=bd; LB_CELLS=[]; VER=encodeURIComponent(bd.created_at||Date.now());  // 版本号破缓存: 轮次同名图不串档
+  let h=exbar;
+  styles.forEach(s=>{
+    const si=(s.idx!=null?s.idx:bd.styles.indexOf(s));  // 原始列号: 文件名/灯箱按它
+    h+=`<div class="style-card ${picked===s.name?'pick':''}">
+      <div class="sc-head ${picked===s.name?'pick-h':''}">
+        <b title="${esc(s.name)}">${esc(s.name)}</b>
+        ${s.is_new?'<span class="new">Kimi提案</span>':''}
+        ${(s.is_new&&s.kept)?'<span class="kept-badge" title="配方已入风格库备用">✦已留存</span>':''}
+        <span class="sc-acts"><button class="sel-btn" onclick="pick('${esc(s.name)}')" title="两步定绑: 先选定高亮, 再底部确认; 已绑定其他风格时=换绑">选定</button>
+          <button class="keep-btn" onclick="retuneStyle('${esc(s.name)}')" title="整体喜欢但有瑕疵 (如头发塑料感)? 说出问题, Kimi 只修配方旋钮 (LoRA/强度/质感词), 重渲一列对照 — 库成员会衍生「_改」新列, 原列保留">🔧 重调</button>
+          ${(s.is_new&&!s.kept)?`<button class="keep-btn" onclick="keepStyle('${esc(s.name)}')" title="风格好, 先入库备用; 仍在候选列待着, 随时可选定它">留存</button>`:''}
+          <button class="ex-btn" onclick="excl('${esc(s.name)}', true)" title="排除: 下轮选型不再入板, Kimi 补一个新提案顶位">排除</button></span>
+      </div>
+      <div class="sc-shots">
+      ${bd.shots.map((sh,ci)=>{
+        LB_CELLS.push({si,ci,name:s.name,shot:sh.name||('镜'+(ci+1))});
+        return `<div class="cell" id="cell-${si}-${ci}" title="点击放大: ${esc(s.name)}">
+          <img src="${API}/img/style${si}_${ci+1}.png?v=${VER}" loading="lazy" onclick="lbOpen(${si},${ci})" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'cap',textContent:'未出图'}))">
+          <div class="cap">镜${ci+1} ${esc(sh.name||'')}</div>
+        </div>`}).join('')}
+      </div>
+      ${(s.desc)?`<div class="sc-desc">${esc(s.desc)}${s.lora?' · LoRA: '+esc(s.lora):' · 纯提示词'}</div>`:''}
+    </div>`;
+  });
+  if(bd.selected) h+=`<div class="banner ok">已绑定: ${esc(bd.selected)} — 动画开工即用此风格</div>`;
+  document.getElementById('board').innerHTML=h;
+}
+
+/* ── 大方向指定 (1009 小坑6): 存书级, 注入提案/重调 prompt 圈内探索 ── */
+async function saveDir(){
+  const v=document.getElementById('dir-input').value.trim();
+  try{
+    const r=await fetch(API+'/direction',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({direction:v})});
+    if(!r.ok) throw new Error((await r.json()).detail||r.status);
+    toast(v?('🎯 方向已定: '+v+' — 下次启动选型/提案在此圈内'):'方向已清除 (回到自由探索)');
+  }catch(e){alert('保存失败: '+e.message)}
+}
+
+/* ── 风格库预筛 (1009 小坑5): 未启动时先否一批 — excl() 落书级排除, 与板上排除同存储 ── */
+let LIB=null;
+function renderLibrary(lib){
+  const el=document.getElementById('board');
+  if(!lib||!lib.length){el.innerHTML='';return;}
+  el.innerHTML=`<div class="lib-hint">📖 风格库现有 <b>${lib.length}</b> 个风格。先点 <b>✗ 预否</b> 挡掉确定不要的方向
+    (启动后不入板、Kimi 提案自动避开该方向、不浪费 GPU 渲注定被否的列) — 预否随时可 ↩ 恢复。</div>
+  <div class="lib-grid">`+lib.map(s=>`
+    <div class="lib-card ${s.excluded?'off':''}">
+      ${s.has_ref?`<img src="${API}/img/${encodeURIComponent(s.name)}" loading="lazy"
+        onclick="lbOpenLib('${esc(s.name)}')" onerror="this.remove()">`
+        :`<div style="aspect-ratio:16/9;background:#14110d;display:flex;align-items:center;
+           justify-content:center;color:#6f665a;font-size:.72rem">无参考图</div>`}
+      <div class="lc-body">
+        <b title="${esc(s.name)}">${esc(s.name)}</b>
+        <div class="lc-desc" title="${esc(s.desc)}">${esc(s.desc)}</div>
+        ${s.excluded
+          ?`<button class="ex-on" onclick="excl('${esc(s.name)}', false)">✗已预否 · 点击恢复</button>`
+          :`<button class="ex-btn" onclick="excl('${esc(s.name)}', true)">✗ 预否这个方向</button>`}
+      </div>
+    </div>`).join('')+'</div>';
+}
+function lbOpenLib(name){
+  const c=LIB&&LIB.find(x=>x.name===name);
+  if(!c)return;
+  document.getElementById('lightbox').hidden=false;
+  document.getElementById('lb-img').src=`${API}/img/${encodeURIComponent(name)}`;
+  document.getElementById('lb-cap').textContent=`风格库 · ${name}`;
+}
+
+/* ── 重调 (0922; 1009 全列放开): 方向对但有瑕疵 — Kimi 修配方, 重渲一列 ── */
+async function retuneStyle(name){
+  const note=prompt(`重调「${name}」— 说说哪里不对 (Kimi 只修配方旋钮, 风格方向不变):\n例: 头发塑料感太强, 要分组雕塑感的发丝`, '画面粗糙, 请精修还原度');
+  if(note===null)return;
+  try{
+    const r=await fetch(API+'/retune',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({style:name,note})});
+    const j=await r.json();
+    if(!r.ok) throw new Error(j.detail||r.status);
+    toast('重调已启动: '+name+(j.forked?' → 衍生「_改」新列对照':' (重渲本列)')+' 约 3-5 分钟');
+    poll(true);
+  }catch(e){alert('重调失败: '+e.message)}
+}
+
+/* ── 留存 (0922 用户令): 这本书用不上, 但风格好 — 配方入库备用, 不绑本书 ── */
+async function keepStyle(name){
+  if(!confirm(`留存「${name}」?\n配方入风格库备用 — 它仍在本板候选列, 随时可选定; 以后别的书也能用。`))return;
+  try{
+    const r=await fetch(API+'/keep',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({style:name})});
+    const j=await r.json();
+    if(!r.ok) throw new Error(j.detail||r.status);
+    toast(j.kept?('✦ 已留存: '+name+' → 风格库备用'):(name+' — '+(j.note||'已在库')));
+    if(BOARD){const st=BOARD.styles.find(x=>x.name===name);if(st&&j.kept)st.kept=true;render(BOARD);}
+  }catch(e){alert('留存失败: '+e.message)}
+}
+
+/* ── 排除 (0922 用户令): 下轮选型不入板, Kimi 提案补位; ✕已排除 可点击恢复 ── */
+async function excl(name, on){
+  if(on && !confirm(`排除「${name}」?\n本板立即隐藏该列 (顶部已排除条可恢复); 下轮选型该风格不再入板, Kimi 会补一个新提案顶位。`))return;
+  try{
+    const r=await fetch(API+'/exclude',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({style:name,on})});
+    const j=await r.json();
+    if(!r.ok) throw new Error(j.detail||r.status);
+    EXCL=j.excluded||[];
+    toast(on?('已排除 '+name+' — 下轮选型生效'):(name+' 已恢复'));
+    if(BOARD)render(BOARD);  // 本轮立即置灰/取消置灰
+    else if(LIB){LIB.forEach(s=>{if(s.name===name)s.excluded=on;});renderLibrary(LIB);}  // 预筛态
+  }catch(e){alert('操作失败: '+e.message)}
+}
+
+function cssId(s){return String(s).replace(/[^a-zA-Z0-9_一-龥]/g,'_')}
+
+/* ── 两步选定: 点[选定]高亮列 → 确定栏 [✅确定绑定] 才落库 ── */
+function pick(name){
+  picked=name;
+  document.querySelectorAll('.cell.pick,.style-card.pick,.sc-head.pick-h').forEach(el=>el.classList.remove('pick','pick-h'));
+  BOARD.styles.forEach((s,si)=>{ if(s.name===name){
+    const card=[...document.querySelectorAll('.style-card b')].find(b=>b.textContent===name);
+    const head=card?card.closest('.style-card'):null;
+    if(head){head.classList.add('pick');head.querySelector('.sc-head').classList.add('pick-h');}
+    BOARD.shots.forEach((_,ci)=>document.getElementById(`cell-${s.idx!=null?s.idx:si}-${ci}`)?.classList.add('pick'));
+  }});
+  // 1012 换绑: 已绑定他款时确认条明示"旧→新", 防误触静默换风格
+  const rb=BOUND&&BOUND!==name;
+  document.getElementById('picked-name').textContent=rb?(BOUND+' → '+name):name;
+  document.getElementById('btn-confirm').textContent=rb?'✅ 确定换绑':'✅ 确定绑定';
+  document.getElementById('confirmbar').hidden=false;
+}
+function clearPick(){
+  picked=null;
+  document.querySelectorAll('.cell.pick,.style-card.pick,.sc-head.pick-h').forEach(el=>el.classList.remove('pick','pick-h'));
+  document.getElementById('confirmbar').hidden=true;
+}
+async function confirmPick(){
+  if(!picked)return;
+  const prev=BOUND, name=picked;
+  try{
+    const r=await fetch(API+'/select',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({style:name})});
+    const j=await r.json();
+    if(!r.ok) throw new Error(j.detail||r.status);
+    toast(prev&&prev!==name
+      ?('已换绑: '+prev+' → '+name+' — 若已生成艺术圣经, 记得 force 重掷同步风格')
+      :('已绑定: '+name));
+    BOUND=name;
+    clearPick(); poll();
+  }catch(e){alert('绑定失败: '+e.message)}
+}
+
+/* ── 放大灯箱: ←→ 跨全部样张轮看, Esc/点外关闭 ── */
+let LB_CELLS=[], LB_I=0;
+function lbOpen(si,ci){
+  LB_I=LB_CELLS.findIndex(c=>c.si===si&&c.ci===ci);
+  lbShow();
+  document.getElementById('lightbox').hidden=false;
+}
+function lbShow(){
+  const c=LB_CELLS[LB_I]; if(!c)return;
+  document.getElementById('lb-img').src=`${API}/img/style${c.si}_${c.ci+1}.png?v=${VER}`;
+  document.getElementById('lb-cap').textContent=`${c.name} · ${c.shot} (${LB_I+1}/${LB_CELLS.length})`;
+}
+function lbClose(){document.getElementById('lightbox').hidden=true}
+document.getElementById('lightbox').addEventListener('click',e=>{if(e.target.id==='lightbox')lbClose()});
+document.addEventListener('keydown',e=>{
+  const lb=document.getElementById('lightbox');
+  if(lb.hidden)return;
+  if(e.key==='Escape')lbClose();
+  if(e.key==='ArrowRight'){LB_I=(LB_I+1)%LB_CELLS.length;lbShow()}
+  if(e.key==='ArrowLeft'){LB_I=(LB_I-1+LB_CELLS.length)%LB_CELLS.length;lbShow()}
+});
+
+function esc(s){return String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+poll();
+</script>
+</body>
+</html>

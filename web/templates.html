@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>提示词模板管理</title>
+  <link rel="stylesheet" href="/web/templates.css">
+</head>
+<body>
+  <nav>
+    <div class="logo">Pipeline<span>Studio</span></div>
+    <a href="/web/books.html">拆书</a>
+    <a href="/web/index.html">新闻线索</a>
+    <a href="/web/writing.html">文字加工</a>
+    <a href="/web/audio.html">音频加工</a>
+    <a href="/web/director.html">导演控制台</a>
+    <a href="/web/library.html">视频库</a>
+    <a href="/web/templates.html" class="active">模板管理</a>
+    <a href="/web/visual_render.html">视觉渲染</a>
+    <a href="/web/voices.html">音色管理</a>
+    <a href="/web/roles.html">角色管理</a>
+    <a href="/web/personas.html">人物</a>
+    <div class="spacer"></div>
+    <a href="/docs" target="_blank">API Docs</a>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h1>提示词模板管理</h1>
+      <p>管理 AI 洗稿的数字人提示词模板 · 上传 .txt 文件即可自动集成</p>
+    </div>
+
+    <!-- Upload Card -->
+    <div class="card">
+      <h3><span class="icon">📤</span> 上传新模板</h3>
+      <div style="margin-bottom:1rem;">
+        <label>模板名称（英文/数字/下划线）</label>
+        <input type="text" id="template-name" placeholder="例如：anchor_female_zh" maxlength="64">
+      </div>
+      <div class="upload-area" id="upload-area">
+        <input type="file" id="file-input" accept=".txt">
+        <div class="upload-icon">📄</div>
+        <p>点击或拖拽 .txt 文件到此处</p>
+        <div class="file-name hidden" id="file-name"></div>
+      </div>
+      <div class="btn-group" style="margin-top:1rem;">
+        <button class="btn btn-primary" id="btn-upload" onclick="uploadTemplate()" disabled>
+          <span class="spinner hidden" id="spinner-upload"></span>
+          上传模板
+        </button>
+      </div>
+    </div>
+
+    <!-- Template List Card -->
+    <div class="card">
+      <h3>
+        <span class="icon">📋</span> 已有模板
+        <button class="btn btn-secondary btn-sm" onclick="loadTemplates()" style="margin-left:auto;">刷新</button>
+      </h3>
+      <div id="template-list">
+        <div class="empty"><div class="icon">📭</div><p>加载中…</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rename Modal -->
+  <div class="modal-overlay" id="rename-overlay" onclick="if(event.target===this)closeRename()">
+    <div class="modal">
+      <h4>重命名模板</h4>
+      <label>当前名称</label>
+      <div style="padding:0.5rem 0.8rem;background:rgba(0,0,0,0.3);border-radius:var(--radius-sm);font-size:0.9rem;margin-bottom:0.8rem;" id="rename-old"></div>
+      <label>新名称</label>
+      <input type="text" id="rename-new" placeholder="输入新名称" onkeydown="if(event.key==='Enter')doRename()">
+      <div class="btn-group">
+        <button class="btn btn-secondary btn-sm" onclick="closeRename()">取消</button>
+        <button class="btn btn-primary btn-sm" onclick="doRename()">确认改名</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script src="/web/templates.js"></script>
+</body>
+</html>

@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<!-- bs1_bookquote_v1 — 老谭拆书·深空蓝金 书摘金句卡 B-Q1 (静读书 hf_bookquote_v1 同构, 字段对齐产线)
+  三句书摘(q1/k1 锈金强调轮换) + 刊头品牌/书名 + 尾注 logo; 入视频规则同静读书: 倒数第二 4-5s 静音+title_in -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Noto+Serif+SC:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root{--navy-1:#0A1320;--navy-2:#10233D;--gold:#C9A25E;--gold-2:#E3C689;--paper:#EDEAE0;--sub:#9AA6B5}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1920px;height:1080px;overflow:hidden}
+  body{font-family:"Noto Serif SC",serif;color:var(--paper)}
+  #root{position:relative;width:1920px;height:1080px;overflow:hidden;
+        background:radial-gradient(1500px 900px at 30% 20%,var(--navy-2) 0%,var(--navy-1) 100%)}
+  .grain{position:absolute;inset:0;opacity:.35;pointer-events:none;
+    background-image:radial-gradient(rgba(201,162,94,.05) 1px,transparent 1px);background-size:6px 6px}
+  .caps{font-family:Manrope,sans-serif;font-weight:700;letter-spacing:.34em;text-transform:uppercase}
+  .wrap{position:absolute;inset:0;padding:100px 130px 88px;display:flex;flex-direction:column}
+  .top{display:flex;justify-content:space-between;align-items:baseline}
+  .mast{font-weight:900;font-size:40px;letter-spacing:.3em;color:#F5EFE2}
+  .from{font-weight:700;font-size:28px;letter-spacing:.14em;color:var(--gold)}
+  .body{flex:1;display:flex;flex-direction:column;justify-content:center;gap:60px;max-width:1560px}
+  blockquote{display:flex;gap:36px;align-items:flex-start}
+  blockquote .qm{font-family:Manrope,sans-serif;font-weight:800;font-size:32px;
+                 letter-spacing:.2em;color:var(--gold);flex:none;transform:translateY(14px)}
+  blockquote p{font-size:48px;font-weight:900;line-height:1.62;color:var(--paper)}
+  blockquote p em{font-style:normal;color:var(--gold-2)}
+  .tail{font-size:26px;color:var(--sub);display:flex;justify-content:space-between;align-items:center}
+  .tail img{height:120px;width:auto;display:block}
+</style>
+</head>
+<body>
+<div id="root"
+     data-composition-id="bs1_bookquote_v1" data-start="0" data-duration="{{duration_sec}}"
+     data-width="1920" data-height="1080"
+     data-book="{{book_title}}" data-brand="{{brand_name}}"
+     data-q1="{{q1}}" data-k1="{{k1}}" data-q2="{{q2}}" data-k2="{{k2}}"
+     data-q3="{{q3}}" data-k3="{{k3}}" data-logo="{{logo_b64}}">
+  <div class="grain"></div>
+  <div class="wrap">
+    <div class="top"><span class="mast" id="mast"></span><span class="from" id="from"></span></div>
+    <div class="body" id="body"></div>
+    <div class="tail"><span id="brand-line"></span><img id="logo" alt=""></div>
+  </div>
+</div>
+<script>
+// 预览自适应 (0907): 小容器自动缩放; 生产 1920 渲染不触发
+(function () {
+  var w = window.innerWidth, h = window.innerHeight;
+  if (w >= 1900) return;
+  var s = Math.min(w / 1920, h / 1080);
+  var r = document.getElementById("root");
+  if (!r) return;
+  r.style.transform = "scale(" + s + ")";
+  r.style.transformOrigin = "top left";
+  try { document.body.style.background = getComputedStyle(r).background; } catch (e) {}
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<script>
+(function () {
+  var root = document.getElementById("root");
+  var DUR = parseFloat(root.getAttribute("data-duration")) || 5;
+  function esc(s) { return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+  document.getElementById("mast").textContent = (root.getAttribute("data-brand") || "") + " · 书摘";
+  document.getElementById("from").textContent = "《" + (root.getAttribute("data-book") || "") + "》";
+  var body = document.getElementById("body");
+  for (var i = 1; i <= 3; i++) {
+    var q = root.getAttribute("data-q" + i) || "";
+    if (!q) continue;
+    var k = root.getAttribute("data-k" + i) || "";
+    var bq = document.createElement("blockquote");
+    bq.className = "bq";
+    bq.innerHTML = '<span class="qm">0' + i + '</span><p></p>';
+    // 金词命中 → 金色强调 (未命中则原样, 同静读书规则)
+    var html = esc(q);
+    if (k && html.indexOf(k) >= 0) {
+      html = html.replace(k, "<em>" + esc(k) + "</em>");
+    }
+    bq.querySelector("p").innerHTML = html;
+    body.appendChild(bq);
+  }
+  document.getElementById("brand-line").textContent = root.getAttribute("data-brand") || "";
+  var logo = root.getAttribute("data-logo") || "";
+  if (logo) document.getElementById("logo").src = logo;
+  var tl = gsap.timeline({paused: true});
+  tl.from(".mast", {x: -40, autoAlpha: 0, duration: .55, ease: "power3.out"}, .1)
+    .from(".from", {autoAlpha: 0, duration: .5}, .28)
+    .from(".bq", {y: 44, autoAlpha: 0, duration: .65, stagger: .18, ease: "power3.out"}, .42)
+    .from(".tail", {autoAlpha: 0, y: 16, duration: .5}, 1.2)
+    .to({}, {duration: Math.max(0.2, DUR - 1.9)});
+  window.__timelines = window.__timelines || {};
+  window.__timelines["bs1_bookquote_v1"] = tl;
+  window.addEventListener("message", function (ev) {
+    if (ev.data && ev.data.type === "preview-play") { tl.restart(); }
+  });
+})();
+</script>
+</body>
+</html>

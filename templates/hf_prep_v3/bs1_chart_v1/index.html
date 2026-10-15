@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<!-- bs1_chart_v1 — 老谭拆书·深空蓝金 柱状图页 (0908 立): ≥4 组数据对比时使用 (2~3 组走 data 行式页)
+  data-bars: "标签|数值|柱顶显示|||标签|数值|柱顶显示…" (4~6 根; 数值为纯数字用于归一化,
+  柱顶显示=口播读法文本如「15美元」; 高度按 数值/最大值 比例, 最高柱满高全金)
+  布局铁律: 底部200px字幕带 / foot右上 / kicker左上 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Noto+Serif+SC:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root{--navy-1:#0C1626;--navy-2:#10233D;--gold:#C9A25E;--gold-2:#E3C689;--paper:#EDEAE0;--sub:#9AA6B5}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1920px;height:1080px;overflow:hidden}
+  body{font-family:"Noto Serif SC",serif;color:var(--paper)}
+  #root{position:relative;width:1920px;height:1080px;overflow:hidden;
+        background:linear-gradient(135deg,var(--navy-1) 0%,var(--navy-2) 100%)}
+  .caps{font-family:Manrope,sans-serif;font-weight:700;letter-spacing:.42em;text-transform:uppercase}
+  .kicker{position:absolute;top:104px;left:150px;font-size:24px;color:var(--gold);letter-spacing:.4em}
+  h1{position:absolute;top:158px;left:150px;font-weight:900;font-size:72px;color:#F5EFE2}
+  .foot{position:absolute;top:112px;right:150px;left:auto;font-size:22px;color:#77808F;
+        letter-spacing:.18em;text-align:right}
+  .chart{position:absolute;top:330px;left:150px;right:150px;bottom:300px;
+         display:flex;align-items:flex-end;gap:54px;
+         border-bottom:2px solid rgba(201,162,94,.4);padding:0 20px}
+  .col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+       height:100%;min-width:0}
+  .val{font-family:Manrope,"Noto Serif SC",serif;font-weight:800;font-size:44px;
+       color:var(--gold-2);margin-bottom:14px;white-space:nowrap}
+  .bar{width:100%;max-width:190px;background:linear-gradient(180deg,rgba(201,162,94,.55),rgba(201,162,94,.28));
+       border:1px solid rgba(201,162,94,.5);border-bottom:none;
+       transform-origin:bottom center}
+  .col.top .bar{background:linear-gradient(180deg,var(--gold-2),var(--gold));
+                border:1px solid var(--gold-2)}
+  .col.top .val{color:var(--gold)}
+  .col.top .label{color:#F5EFE2}
+  .label{margin-top:18px;font-size:30px;font-weight:900;color:var(--sub);
+         text-align:center;line-height:1.4;max-width:280px}
+  .note{position:absolute;bottom:230px;left:150px;font-size:26px;color:var(--sub)}
+</style>
+</head>
+<body>
+<div id="root"
+     data-composition-id="bs1_chart_v1" data-start="0" data-duration="{{duration_sec}}"
+     data-width="1920" data-height="1080"
+     data-kicker="{{kicker}}" data-title="{{title}}" data-bars="{{bars}}"
+     data-note="{{note}}" data-foot="{{foot}}">
+  <div class="kicker caps" id="kicker"></div>
+  <h1 id="title"></h1>
+  <div class="foot" id="foot"></div>
+  <div class="chart" id="chart"></div>
+  <div class="note" id="note"></div>
+</div>
+<script>
+// 预览自适应 (0907): 小容器自动缩放; 生产 1920 渲染不触发
+(function () {
+  var w = window.innerWidth, h = window.innerHeight;
+  if (w >= 1900) return;
+  var s = Math.min(w / 1920, h / 1080);
+  var r = document.getElementById("root");
+  if (!r) return;
+  r.style.transform = "scale(" + s + ")";
+  r.style.transformOrigin = "top left";
+  try { document.body.style.background = getComputedStyle(r).background; } catch (e) {}
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<script>
+(function () {
+  var root = document.getElementById("root");
+  var DUR = parseFloat(root.getAttribute("data-duration")) || 5;
+  document.getElementById("kicker").textContent = root.getAttribute("data-kicker") || "";
+  document.getElementById("title").textContent = root.getAttribute("data-title") || "";
+  document.getElementById("foot").textContent = root.getAttribute("data-foot") || "";
+  document.getElementById("note").textContent = root.getAttribute("data-note") || "";
+  var chart = document.getElementById("chart");
+  var rows = (root.getAttribute("data-bars") || "").split("|||").filter(Boolean).slice(0, 6);
+  var maxv = 0;
+  var parsed = rows.map(function (g) {
+    var p = g.split("|");
+    var v = parseFloat((p[1] || "0").replace(/[^\d.\-]/g, "")) || 0;
+    maxv = Math.max(maxv, v);
+    return { label: (p[0] || "").trim(), val: v, disp: (p[2] || p[1] || "").trim() };
+  });
+  parsed.forEach(function (r) {
+    var col = document.createElement("div");
+    col.className = "col" + (r.val === maxv && maxv > 0 ? " top" : "");
+    // 高度: 数值/最大值 × 80% 图区 (留 headroom 给柱顶数值)
+    var hPct = maxv > 0 ? Math.max(8, Math.round(r.val / maxv * 80)) : 30;
+    col.innerHTML = '<div class="val"></div><div class="bar" style="height:' + hPct + '%"></div><div class="label"></div>';
+    col.querySelector(".val").textContent = r.disp;
+    col.querySelector(".label").textContent = r.label;
+    chart.appendChild(col);
+  });
+  var tn = (root.getAttribute("data-title") || "").replace(/\s/g, "").length;
+  if (tn > 12) document.getElementById("title").style.fontSize = "58px";
+  var tl = gsap.timeline({paused: true});
+  tl.from("#kicker, #title", {y: 28, autoAlpha: 0, duration: .6, ease: "power3.out"}, .1)
+    .from(".col", {y: 30, autoAlpha: 0, duration: .45, stagger: .08, ease: "power2.out"}, .32)
+    .from(".bar", {scaleY: 0, duration: .7, stagger: .12, ease: "back.out(1.4)"}, .5)
+    .from(".val", {y: 18, autoAlpha: 0, duration: .4, stagger: .1}, .85)
+    .from(".label", {autoAlpha: 0, duration: .4, stagger: .08}, 1.1)
+    .from("#note, #foot", {autoAlpha: 0, duration: .4}, 1.45)
+    .to({}, {duration: Math.max(0.2, DUR - 1.85)});
+  window.__timelines = window.__timelines || {};
+  window.__timelines["bs1_chart_v1"] = tl;
+  window.addEventListener("message", function (ev) {
+    if (ev.data && ev.data.type === "preview-play") { tl.restart(); }
+  });
+})();
+</script>
+</body>
+</html>

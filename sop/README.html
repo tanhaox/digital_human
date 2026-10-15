@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数字人计划 · SOP 索引</title>
+<style>
+:root{
+  --bg:#0f172a;--surface:#1e293b;--surface2:#334155;--border:#475569;
+  --text:#e2e8f0;--muted:#94a3b8;--accent:#06b6d4;--green:#10b981;
+  --yellow:#f59e0b;--red:#ef4444;--purple:#a855f7;--pink:#ec4899;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;padding:24px;max-width:1200px;margin:0 auto}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+header{background:linear-gradient(135deg,#0891b2 0%,#a855f7 100%);padding:32px;border-radius:12px;margin-bottom:24px}
+.badge{display:inline-block;background:rgba(255,255,255,0.2);padding:4px 12px;border-radius:12px;font-size:12px;margin-right:8px;font-weight:600}
+h1{font-size:28px;margin:8px 0 4px}
+.subtitle{font-size:14px;opacity:0.9}
+.back-link{font-size:13px;color:rgba(255,255,255,0.9);margin-top:12px;display:inline-block}
+section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:16px}
+h2{font-size:20px;margin-bottom:12px;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:8px}
+.rules{background:var(--surface2);padding:16px 20px;border-radius:8px;border-left:3px solid var(--purple);margin:12px 0;font-size:14px}
+.rules ul{padding-left:24px;margin-top:8px}
+.sop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-top:12px}
+.sop-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:18px 20px;transition:transform 0.15s,border-color 0.15s;cursor:pointer;display:block;color:var(--text)}
+.sop-card:hover{transform:translateY(-2px);border-color:var(--accent);text-decoration:none}
+.sop-card .sop-id{font-size:12px;color:var(--muted);font-family:Consolas,monospace}
+.sop-card .sop-title{font-size:16px;font-weight:600;margin:6px 0;color:var(--accent)}
+.sop-card .sop-stage{display:inline-block;background:var(--bg);padding:2px 8px;border-radius:4px;font-size:11px;color:var(--muted);margin-right:6px}
+.sop-card .sop-cost{display:inline-block;background:var(--bg);padding:2px 8px;border-radius:4px;font-size:11px;color:var(--green);font-weight:600}
+.sop-card .sop-desc{font-size:13px;color:var(--muted);margin-top:8px;line-height:1.5}
+.sop-card .sop-status{display:inline-block;padding:2px 10px;border-radius:10px;font-size:11px;margin-top:8px;font-weight:600}
+.status-ready{background:rgba(16,185,129,0.2);color:var(--green)}
+.status-todo{background:rgba(245,158,11,0.2);color:var(--yellow)}
+.status-future{background:rgba(148,163,184,0.2);color:var(--muted)}
+.section-green{border-left:4px solid var(--green)}
+.section-yellow{border-left:4px solid var(--yellow)}
+.section-blue{border-left:4px solid var(--accent)}
+.section-purple{border-left:4px solid var(--purple)}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+th{background:var(--surface2);padding:8px 12px;text-align:left;font-weight:600;color:var(--accent)}
+td{padding:8px 12px;border-bottom:1px solid var(--border)}
+tr:hover{background:var(--surface2)}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px}
+.kpi{background:var(--surface2);padding:12px 16px;border-radius:8px;border-left:3px solid var(--accent);text-align:center}
+.kpi .num{font-size:20px;font-weight:700;color:var(--accent)}
+.kpi .label{font-size:11px;color:var(--muted);text-transform:uppercase;margin-top:4px}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="badge">📋 SOP 索引</span>
+  <span class="badge">v1.3</span>
+  <span class="badge">2026-07-20</span>
+  <h1>数字人计划 · SOP 二级页面索引</h1>
+  <div class="subtitle">每个 SOP 是独立"孤立事件"· 可单独执行、验收、勾选完成</div>
+  <a href="../执行计划清单.html" class="back-link">← 返回执行计划主页</a> · <a href="../执行计划清单.md" class="back-link">← 返回 MD 源</a>
+</header>
+
+<section>
+  <h2>📊 SOP 完成进度总览</h2>
+  <div class="kpi-row">
+    <div class="kpi"><div class="num">18</div><div class="label">总 SOP 数</div></div>
+    <div class="kpi"><div class="num">4</div><div class="label">已就绪(M0-M1)</div></div>
+    <div class="kpi" style="border-left-color:var(--green)"><div class="num" style="color:var(--green)">4/4</div><div class="label">含应急方案</div></div>
+    <div class="kpi"><div class="num">0</div><div class="label">已完成</div></div>
+    <div class="kpi"><div class="num">14</div><div class="label">待编写</div></div>
+  </div>
+  <div class="tip" style="margin-top:12px">
+    <strong>🆘 v1.3 更新(2026-07-20)</strong>: SOP-01 升级为<strong>Giffgaff 英国 SIM 卡(jd ¥108 + 英国官网远程激活)+ 闲鱼泰国 8天卡(¥30 W1 应急)双轨</strong>;Giffgaff 全年成本 ¥288(¥24/月均摊),比泰国年卡省 ¥272;+44 UK 号 Workspace 99% 验证通过;6 月 £10 续费 = 1 年免操作保号
+  </div>
+</section>
+
+<section class="section-green">
+  <h2>🟢 已就绪 SOP(M0-M1 启动必备 · 4 个)</h2>
+  <p style="font-size:13px;color:var(--muted);margin-bottom:12px">所有文件已就绪,可立即点击进入执行</p>
+  <div class="sop-grid">
+    <a href="01-thai-ais-tourist.html" class="sop-card">
+      <div class="sop-id">SOP-01</div>
+      <div class="sop-title">Giffgaff 英国 SIM 卡采购(jd + 官网激活)</div>
+      <div><span class="sop-stage">M0 W1</span><span class="sop-cost">¥108 + £10/6 月(¥288/年)</span></div>
+      <div class="sop-desc">+44 英国手机号 · Google Workspace 99% 验证通过 · <strong>主推 Giffgaff(jd £108 卡 + 英国官网 giffgaff.com/activate 远程激活)+ 闲鱼泰国 8天卡(¥30 W1 应急链路)</strong> · 🆘 含 jd/闲鱼/官网激活/代激活 5 应急方案</div>
+      <span class="sop-status status-ready">✅ 可执行</span>
+    </a>
+    <a href="01-myus-premium.html" class="sop-card">
+      <div class="sop-id">SOP-02</div>
+      <div class="sop-title">MyUS Premium 开通</div>
+      <div><span class="sop-stage">M2 W1 前 1 周</span><span class="sop-cost">$69.99/年</span></div>
+      <div class="sop-desc">美国 Oregon 免税州仓库 · Tello US SIM 入境必备 · M1 阶段不需要(直邮中国用 jd/Giffgaff)· USGoBuy 已死 · 🆘 含国内访问/支付应急</div>
+      <span class="sop-status status-ready">✅ 可执行</span>
+    </a>
+    <a href="01-bright-data.html" class="sop-card">
+      <div class="sop-id">SOP-03</div>
+      <div class="sop-title">Bright Data 注册</div>
+      <div><span class="sop-stage">M1 W1</span><span class="sop-cost">$18/月(共享 10 IPs)</span></div>
+      <div class="sop-desc">英国住宅 ISP 静态 IP · 破解 Google 风控 impossible travel · 普通 VPN 100% 被标记 · 🆘 含国内卡拒付 4 级备选 + 支付宝月付</div>
+      <span class="sop-status status-ready">✅ 可执行</span>
+    </a>
+    <a href="01-gologin.html" class="sop-card">
+      <div class="sop-id">SOP-04</div>
+      <div class="sop-title">GoLogin 指纹浏览器</div>
+      <div><span class="sop-stage">M1 W1</span><span class="sop-cost">$24/月</span></div>
+      <div class="sop-desc">多账号指纹隔离 · 50+ 指纹字段随机 · Workspace 多账号必备 · 7 天免费试用 · 🆘 含试用到期 3 替代路径</div>
+      <span class="sop-status status-ready">✅ 可执行</span>
+    </a>
+  </div>
+</section>
+
+<section class="section-yellow">
+  <h2>🟡 待编写 SOP(M2-M3 矩阵扩张 · 5 个)</h2>
+  <p style="font-size:13px;color:var(--muted);margin-bottom:12px">M1 验收通过后,启动 M2 前编写</p>
+  <table>
+    <tr><th>SOP 名</th><th>阶段</th><th>单次成本</th><th>前置</th><th>状态</th></tr>
+    <tr><td>02-tello-us-sim.html · Tello US SIM 开通</td><td>M2 W1</td><td>$5/月</td><td>MyUS 已开通</td><td><span class="sop-status status-todo">📝 待编写</span></td></tr>
+    <tr><td>02-workspace-14day.html · Workspace 14 天试用</td><td>M1 W2</td><td>¥0</td><td>BD+GoLogin+泰国 AIS</td><td><span class="sop-status status-todo">📝 待编写</span></td></tr>
+    <tr><td>02-yt-ar-channel.html · AR 频道注册 + 定位</td><td>M1 W2</td><td>¥0</td><td>Workspace 已开</td><td><span class="sop-status status-todo">📝 待编写</span></td></tr>
+    <tr><td>02-payoneer-cmb.html · Payoneer + 招行绑定</td><td>M3 W1</td><td>¥0</td><td>YPP 1000 订阅达成</td><td><span class="sop-status status-todo">📝 待编写</span></td></tr>
+    <tr><td>02-w8ben-submit.html · W-8BEN 表格提交</td><td>M3 W2</td><td>¥0</td><td>Payoneer 已绑</td><td><span class="sop-status status-todo">📝 待编写</span></td></tr>
+  </table>
+</section>
+
+<section class="section-blue">
+  <h2>🔵 远期 SOP(M4-M18 · 9 个)</h2>
+  <table>
+    <tr><th>SOP 名</th><th>阶段</th><th>单次成本</th><th>触发条件</th></tr>
+    <tr><td>03-deepseek-api.html</td><td>M4</td><td>¥500/月</td><td>月入 ≥¥3k</td></tr>
+    <tr><td>03-azure-tts-ar.html</td><td>M4</td><td>¥20/月</td><td>Edge 阿语 TTS 不及格</td></tr>
+    <tr><td>04-assistant-hire.html</td><td>M7</td><td>¥3k/月</td><td>月入 ≥¥10k 持续 3 月</td></tr>
+    <tr><td>04-channel-matrix.html</td><td>M8</td><td>¥0</td><td>加 PT 频道前</td></tr>
+    <tr><td>05-wyoming-llc.html</td><td>M13</td><td>$200</td><td>月入 ≥¥30k 持续 3 月</td></tr>
+    <tr><td>05-mercury-account.html</td><td>M14</td><td>$0</td><td>LLC + EIN 已获</td></tr>
+    <tr><td>05-w8ben-e-submit.html</td><td>M14</td><td>$0</td><td>Mercury 已开</td></tr>
+    <tr><td>05-wise-business.html</td><td>M15</td><td>$0</td><td>W-8BEN-E 已提交</td></tr>
+    <tr><td>05-form-5472.html</td><td>M14</td><td>$0-500</td><td>首次报税季(4 月)</td></tr>
+  </table>
+</section>
+
+<section class="section-purple">
+  <h2>📐 SOP 使用规则(必读)</h2>
+  <div class="rules">
+    <strong>每个 SOP 必须包含 5 大要素</strong>:
+    <ul>
+      <li><strong>1. 元信息块</strong> — 阶段 / 前置依赖 / 单次成本 / 耗时 / 责任人</li>
+      <li><strong>2. 操作流程</strong> — 编号步骤(每步 1-3 行 + 截图位)</li>
+      <li><strong>3. 验收清单</strong> — 可勾选 checkbox(点击交互)</li>
+      <li><strong>4. 验收标准</strong> — 明确"完成"定义(可量化)</li>
+      <li><strong>5. 完成确认按钮</strong> — 一键确认 + 时间戳 + 进度归档</li>
+    </ul>
+  </div>
+
+  <div class="rules" style="border-left-color:var(--pink)">
+    <strong>SOP 状态机</strong>:
+    <p style="margin-top:8px;font-family:Consolas,monospace;font-size:13px">
+      待执行 (Pending) → 进行中 (In Progress) → 待验收 (Verifying) → 已完成 (Done)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↓<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;失败 (Failed) → 回退待执行
+    </p>
+  </div>
+
+  <div class="rules" style="border-left-color:var(--green)">
+    <strong>何时新建 SOP(任一条件)</strong>:
+    <ul>
+      <li>涉及真实付款(>¥100 或 >$10)</li>
+      <li>涉及不可逆操作(LLC 注册、EIN 申请、域名购买)</li>
+      <li>涉及关键决策点(语言切换、风控应对)</li>
+      <li>需多人协作(助理接入)</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>🎯 命名规则</h2>
+  <table>
+    <tr><th>前缀</th><th>含义</th></tr>
+    <tr><td><code>01-</code></td><td>M0-M1 阶段(M0 启动 + M1 单语种上线)</td></tr>
+    <tr><td><code>02-</code></td><td>M2-M3 阶段(M2 矩阵 + M3 YPP 验证)</td></tr>
+    <tr><td><code>03-</code></td><td>M4-M6 阶段(稳定产出)</td></tr>
+    <tr><td><code>04-</code></td><td>M7-M12 阶段(矩阵扩张)</td></tr>
+    <tr><td><code>05-</code></td><td>M13-M18 阶段(算力本地化 + LLC)</td></tr>
+    <tr><td><code>99-</code></td><td>通用 SOP(技术、合规、应急)</td></tr>
+  </table>
+</section>
+
+<footer style="text-align:center;color:var(--muted);padding:24px;font-size:12px">
+  数字人计划 · SOP 体系 v1.3 · 2026-07-20 · 配套 <a href="../执行计划清单.html">执行计划主页</a>
+</footer>
+
+</body>
+</html>

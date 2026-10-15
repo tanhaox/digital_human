@@ -1,0 +1,16 @@
+fastapi
+uvicorn
+sqlalchemy
+pydantic
+pyyaml
+requests
+soundfile
+numpy
+msgpack
+python-multipart
+jsonschema
+Pillow
+httpx
+send2trash
+agentmemory
+pypinyin

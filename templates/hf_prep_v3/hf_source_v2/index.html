@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<!-- ============================================================
+  hf_source_v2 — 编辑纸墨风来源卡 (2026-09-04, 替代黑金 hf_source_v1)
+  版式: .tmp/style_gallery_h.html 08 来源卡。
+        行 = 编号 + 标题(大, 内容层) + 媒体名(右列 420px);
+        容量 5 → 8 (v1 是 slice(0,5));
+        tail = 免责声明 + 品牌名。
+  协议: HyperFrames — #root data-* + GSAP paused timeline 注册
+        window.__timelines, 入场 2s + 尾部保持段。
+  ============================================================ -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Noto+Serif+SC:wght@600;700;900&family=Playfair+Display:ital,wght@0,600;0,700;1,500;1,600;1,700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F2EEE6; --paper-2:#EAE4D8; --ink:#1C1613; --ink-soft:#3B2424;
+    --taupe:#A1836E; --rust:#9E4A2F; --hair:rgba(28,22,19,.28);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1920px;height:1080px;overflow:hidden;background:var(--paper)}
+  body{font-family:"Noto Serif SC",serif;color:var(--ink)}
+  #root{position:relative;width:1920px;height:1080px;background:var(--paper);overflow:hidden}
+  .grain{position:absolute;inset:0;opacity:.5;pointer-events:none;
+    background-image:radial-gradient(rgba(28,22,19,.06) 1px,transparent 1px);background-size:5px 5px}
+  .rule{height:3px;background:var(--ink);transform-origin:left}
+  .caps{font-family:Manrope,sans-serif;font-weight:700;letter-spacing:.34em;text-transform:uppercase}
+
+  .frame{position:absolute;inset:0;padding:90px 110px;display:flex;flex-direction:column}
+  .head{display:flex;justify-content:space-between;align-items:baseline}
+  .head .caps{font-size:28px}
+  .frame h2{font-family:"Noto Serif SC",serif;font-weight:900;font-size:96px;letter-spacing:.04em}
+  .rows{margin-top:auto;display:flex;flex-direction:column}
+  .row{display:flex;align-items:baseline;gap:56px;padding:var(--row-pad,26px) 0;border-top:1px solid var(--hair)}
+  .row .no{font-family:Manrope,sans-serif;font-weight:700;font-size:24px;
+    letter-spacing:.2em;color:var(--taupe);width:56px;flex:0 0 56px}
+  .row .dt{color:var(--ink);font-size:38px;font-weight:700;flex:1;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .nm{font-size:30px;font-weight:600;color:var(--ink-soft);width:420px;
+    flex:0 0 420px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right}
+  .tail{margin-top:30px;font-size:26px;color:var(--ink-soft);display:flex;
+    justify-content:space-between;align-items:baseline}
+  .tail .brand{font-family:Manrope,sans-serif;font-weight:700;font-size:24px;
+    letter-spacing:.3em;color:var(--taupe);text-transform:uppercase}
+</style>
+</head>
+<body>
+<div id="root"
+     data-composition-id="hf_source_v2"
+     data-start="0"
+     data-duration="{{duration_sec}}"
+     data-width="1920"
+     data-height="1080"
+     data-title="{{title}}"
+     data-sources="{{sources_json}}"
+     data-disclaimer="{{disclaimer}}"
+     data-brand="{{brand_name}}">
+  <div class="grain"></div>
+  <div class="frame">
+    <div class="head">
+      <h2 id="title"></h2>
+      <span class="caps">Sources</span>
+    </div>
+    <div class="rule" id="head-rule" style="margin-top:28px"></div>
+    <div class="rows" id="rows"></div>
+    <div class="tail" id="tail" style="margin-top:auto">
+      <span id="disclaimer"></span>
+      <span class="brand" id="brand"></span>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<script>
+(function () {
+  var root = document.getElementById("root");
+  var DUR = parseFloat(root.getAttribute("data-duration")) || 6;
+
+  document.getElementById("title").textContent = root.getAttribute("data-title") || "内容来源声明";
+  document.getElementById("disclaimer").textContent = root.getAttribute("data-disclaimer") || "";
+  document.getElementById("brand").textContent = root.getAttribute("data-brand") || "";
+
+  var sources = [];
+  try { sources = JSON.parse(root.getAttribute("data-sources") || "[]"); } catch (e) { sources = []; }
+  sources = sources.slice(0, 8); // 容量 8 (v1 是 5)
+
+  var rows = document.getElementById("rows");
+  sources.forEach(function (s, i) {
+    var row = document.createElement("div");
+    row.className = "row";
+    var no = document.createElement("span");
+    no.className = "no";
+    no.textContent = String(i + 1).padStart(2, "0");
+    var dt = document.createElement("span");
+    dt.className = "dt";
+    dt.textContent = s.title || s.media || "";
+    var nm = document.createElement("span");
+    nm.className = "nm";
+    nm.textContent = s.media || "";
+    row.appendChild(no); row.appendChild(dt); row.appendChild(nm);
+    rows.appendChild(row);
+  });
+
+  // 行距按行数自适应 (烟测实证: 8 行 × 26px padding 总高 1036px > 内容区 900px,
+  // 末行溢出贴底 y≈1052 且 tail(disclaimer+品牌) 被挤出画幅 — v1 容量 5 未暴露)。
+  // 数学: 行高 ≈ 53px 文字 + 2×pad; head≈156 + tail≈66 固定。
+  var n = sources.length;
+  rows.style.setProperty("--row-pad", (n >= 7 ? 13 : n >= 6 ? 20 : 26) + "px");
+
+  // HyperFrames 协议: paused timeline 注册到 __timelines + 尾部保持段
+  var tl = gsap.timeline({ paused: true });
+  tl.from(document.getElementById("title"), { opacity: 0, x: -90, duration: .9,
+      ease: "power3.out" }, .15)
+    .from(document.getElementById("head-rule"), { scaleX: 0, duration: 1,
+      ease: "power3.out" }, .2)
+    .from(rows.children, { opacity: 0, x: -60, duration: .6,
+      stagger: Math.min(.14, 1.0 / Math.max(1, rows.children.length)),
+      ease: "power3.out" }, .35)
+    .from(document.getElementById("tail"), { opacity: 0, y: 24, duration: .7,
+      ease: "power3.out" }, 1.1);
+
+  window.__timelines = window.__timelines || {};
+  window.__timelines["hf_source_v2"] = tl;
+  tl.to({}, { duration: Math.max(0.5, DUR - 2.0) }, 2.0);
+})();
+</script>
+</body>
+</html>

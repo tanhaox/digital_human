@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>角色管理 — 数字人口播流水线</title>
+  <link rel="stylesheet" href="/web/roles.css">
+</head>
+<body>
+  <nav>
+    <div class="logo">Pipeline<span>Studio</span></div>
+    <a href="/web/books.html">拆书</a>
+    <a href="/web/index.html">新闻线索</a>
+    <a href="/web/writing.html">文字加工</a>
+    <a href="/web/audio.html">音频加工</a>
+    <a href="/web/director.html">导演控制台</a>
+    <a href="/web/library.html">视频库</a>
+    <a href="/web/templates.html">模板管理</a>
+    <a href="/web/visual_render.html">视觉渲染</a>
+    <a href="/web/voices.html">音色管理</a>
+    <a href="/web/roles.html" class="active">角色管理</a>
+    <a href="/web/personas.html">人物</a>
+    <div class="spacer"></div>
+    <a href="/docs" target="_blank">API Docs</a>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h1>角色形象管理</h1>
+      <p>上传多组多机位形象图，导演台自动按镜头语言切换</p>
+    </div>
+    <div class="toolbar">
+      <button class="btn btn-primary" onclick="openCreateModal()">+ 新建角色</button>
+      <button class="btn btn-secondary" onclick="loadRoles()">刷新</button>
+    </div>
+    <div id="grid" class="grid"></div>
+  </div>
+
+  <!-- 创建角色 Modal -->
+  <div id="create-modal" class="modal-bg">
+    <div class="modal">
+      <h2>新建角色</h2>
+      <label>角色名 *</label>
+      <input type="text" id="f-name" placeholder="例: 老陈" maxlength="128">
+      <label>角色描述</label>
+      <textarea id="f-description" maxlength="1000" placeholder="例: 30-40岁男性，短发，西装，沉稳气质..."></textarea>
+      <label>主参考图 * (用于角色头像展示)</label>
+      <input type="file" id="f-reference" accept="image/*">
+      <div class="row-btns">
+        <button class="btn btn-secondary" onclick="closeCreateModal()">取消</button>
+        <button class="btn btn-primary" onclick="submitCreate()">创建</button>
+      </div>
+      <div class="status" id="create-status"></div>
+    </div>
+  </div>
+
+  <!-- 编辑 Modal -->
+  <div id="edit-modal" class="modal-bg">
+    <div class="modal">
+      <h2>编辑角色</h2>
+      <input type="hidden" id="edit-id">
+      <label>角色名</label>
+      <input type="text" id="edit-name" maxlength="128">
+      <label>角色描述</label>
+      <textarea id="edit-description" maxlength="1000"></textarea>
+      <div class="row-btns">
+        <button class="btn btn-secondary" onclick="closeEditModal()">取消</button>
+        <button class="btn btn-primary" onclick="submitEdit()">保存</button>
+      </div>
+      <div class="status" id="edit-status"></div>
+    </div>
+  </div>
+
+  <!-- 上传形象组 Modal -->
+  <div id="group-modal" class="modal-bg">
+    <div class="modal">
+      <h2>上传形象组</h2>
+      <input type="hidden" id="group-role-id">
+      <label>组名 * (例: 演播室正装、户外休闲)</label>
+      <input type="text" id="group-name" placeholder="给这组形象起个名字" maxlength="64">
+      <label>4 个机位图 (带背景的人物合成图)</label>
+      <div class="cam-upload-grid">
+        <div class="cam-upload-item">
+          <div class="cam-title">机位1 · 正面半身</div>
+          <input type="file" id="cam-1" accept="image/*" onchange="previewCam(this, 1)">
+          <img class="preview" id="preview-1">
+        </div>
+        <div class="cam-upload-item">
+          <div class="cam-title">机位2 · 左侧45度</div>
+          <input type="file" id="cam-2" accept="image/*" onchange="previewCam(this, 2)">
+          <img class="preview" id="preview-2">
+        </div>
+        <div class="cam-upload-item">
+          <div class="cam-title">机位3 · 右侧45度</div>
+          <input type="file" id="cam-3" accept="image/*" onchange="previewCam(this, 3)">
+          <img class="preview" id="preview-3">
+        </div>
+        <div class="cam-upload-item">
+          <div class="cam-title">机位4 · 正面特写</div>
+          <input type="file" id="cam-4" accept="image/*" onchange="previewCam(this, 4)">
+          <img class="preview" id="preview-4">
+        </div>
+      </div>
+      <div class="row-btns">
+        <button class="btn btn-secondary" onclick="closeGroupModal()">取消</button>
+        <button class="btn btn-primary" id="btn-upload-group" onclick="submitGroup()">上传</button>
+      </div>
+      <div class="status" id="group-status"></div>
+    </div>
+  </div>
+
+  <script src="/web/roles.js"></script>
+</body>
+</html>

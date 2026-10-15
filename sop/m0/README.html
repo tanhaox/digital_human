@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>阶段 A · M0 技术验证 · SOP 索引</title>
+<style>
+:root{
+  --bg:#0f172a;--surface:#1e293b;--surface2:#334155;--border:#475569;
+  --text:#e2e8f0;--muted:#94a3b8;--accent:#06b6d4;--green:#10b981;
+  --yellow:#f59e0b;--red:#ef4444;--purple:#a855f7;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;padding:24px;max-width:1100px;margin:0 auto}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+header{background:linear-gradient(135deg,#0891b2 0%,#10b981 100%);padding:24px 32px;border-radius:12px;margin-bottom:24px}
+.badge{display:inline-block;background:rgba(255,255,255,0.2);padding:4px 12px;border-radius:12px;font-size:12px;margin-right:8px;font-weight:600}
+h1{font-size:24px;margin:8px 0 4px}
+.subtitle{font-size:14px;opacity:0.9}
+.back-link{font-size:13px;color:rgba(255,255,255,0.9);margin-top:12px;display:inline-block}
+section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:16px}
+h2{font-size:18px;margin-bottom:12px;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:8px}
+.rules{background:var(--surface2);padding:14px 18px;border-radius:8px;border-left:3px solid var(--purple);margin:12px 0;font-size:13px}
+.rules ul{padding-left:22px;margin-top:6px}
+.tip{background:rgba(16,185,129,0.1);border-left:3px solid var(--green);padding:12px 16px;border-radius:6px;margin:12px 0;font-size:13px}
+.warning{background:rgba(239,68,68,0.1);border-left:3px solid var(--red);padding:12px 16px;border-radius:6px;margin:12px 0;font-size:13px}
+.phase-gate{background:rgba(245,158,11,0.1);border-left:3px solid var(--yellow);padding:12px 16px;border-radius:6px;margin:12px 0;font-size:13px}
+.phase-gate strong{color:var(--yellow)}
+.top-home-bar{position:sticky;top:0;z-index:100;background:rgba(15,23,42,0.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:-24px -24px 16px;font-size:13px}
+.top-home-bar a.home-link{color:var(--accent);text-decoration:none;font-weight:600;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(6,182,212,0.1);border:1px solid var(--accent);border-radius:6px}
+.top-home-bar .breadcrumbs{color:var(--muted);font-size:12px;font-family:Consolas,monospace}
+.top-home-bar .breadcrumbs a{color:var(--muted);text-decoration:none}
+.top-home-bar .breadcrumbs .sep{margin:0 6px;color:var(--border)}
+.sop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:12px}
+.sop-card{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px 18px;transition:transform 0.15s,border-color 0.15s;cursor:pointer;display:block;color:var(--text)}
+.sop-card:hover{transform:translateY(-2px);border-color:var(--accent);text-decoration:none}
+.sop-card .sop-id{font-size:11px;color:var(--muted);font-family:Consolas,monospace}
+.sop-card .sop-title{font-size:15px;font-weight:600;margin:6px 0;color:var(--accent)}
+.sop-card .sop-stage{display:inline-block;background:var(--bg);padding:2px 8px;border-radius:4px;font-size:11px;color:var(--muted);margin-right:6px}
+.sop-card .sop-cost{display:inline-block;background:var(--bg);padding:2px 8px;border-radius:4px;font-size:11px;color:var(--green);font-weight:600}
+.sop-card .sop-desc{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5}
+.sop-card .sop-progress{display:flex;align-items:center;gap:8px;margin-top:10px}
+.sop-card .progress-bar{flex:1;height:6px;background:var(--bg);border-radius:3px;overflow:hidden}
+.sop-card .progress-fill{height:100%;background:var(--green);transition:width 0.3s}
+.sop-card .progress-text{font-size:11px;color:var(--muted);font-family:Consolas,monospace}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+th{background:var(--surface2);padding:8px 12px;text-align:left;font-weight:600;color:var(--accent)}
+td{padding:8px 12px;border-bottom:1px solid var(--border)}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:12px}
+.kpi{background:var(--surface2);padding:12px 16px;border-radius:8px;border-left:3px solid var(--accent);text-align:center}
+.kpi .num{font-size:20px;font-weight:700;color:var(--accent)}
+.kpi .label{font-size:11px;color:var(--muted);text-transform:uppercase;margin-top:4px}
+code{background:var(--bg);padding:2px 6px;border-radius:3px;font-family:Consolas,monospace;font-size:13px;color:var(--yellow)}
+.reset-btn{background:var(--red);color:#fff;border:none;padding:8px 16px;border-radius:6px;font-size:12px;cursor:pointer;margin-left:12px}
+.reset-btn:hover{opacity:0.85}
+</style>
+</head>
+<body>
+
+<nav class="top-home-bar">
+  <a href="../README.html" class="home-link">📋 回 SOP 索引</a>
+  <div class="breadcrumbs">
+    <a href="../README.html">SOP 索引</a><span class="sep">›</span><span>阶段 A · M0 技术验证</span>
+  </div>
+</nav>
+
+<header>
+  <span class="badge">阶段 A · M0</span>
+  <span class="badge">技术验证</span>
+  <span class="badge">¥0 成本</span>
+  <span class="badge">28 天(W1-W4)</span>
+  <h1>数字人计划 · M0 技术验证 SOP</h1>
+  <div class="subtitle">端到端流水线:TTS → 数字人 → FFmpeg → MP4 · 每步都有可勾选清单 + localStorage 持久化进度</div>
+  <a href="../README.html" class="back-link">← 返回 SOP 索引</a> · <a href="../../执行计划清单.html" class="back-link">← 返回执行计划</a>
+  <button class="reset-btn" onclick="resetAll()">🗑 重置所有 M0 进度</button>
+</header>
+
+<section>
+  <h2>📊 M0 总进度</h2>
+  <div class="kpi-row" id="global-kpis">
+    <div class="kpi"><div class="num" id="global-done">0</div><div class="label">已完成项</div></div>
+    <div class="kpi"><div class="num" id="global-total">--</div><div class="label">总任务项</div></div>
+    <div class="kpi" style="border-left-color:var(--green)"><div class="num" id="global-percent" style="color:var(--green)">0%</div><div class="label">完成率</div></div>
+    <div class="kpi" style="border-left-color:var(--purple)"><div class="num" id="global-time">-</div><div class="label">累计用时(估)</div></div>
+  </div>
+  <div class="phase-gate">
+    <strong>⏸ M0 阶段门控</strong>:4 个 SOP 全部 100% 勾选 + 产出 5 条 demo 视频(任一语种)→ 进入 M1。任何一项未达 100% = 不进入 M1。失败成本:¥0,但浪费时间。
+  </div>
+  <div class="tip">
+    <strong>💾 进度持久化</strong>:所有 checkbox 状态自动保存到浏览器 localStorage,刷新页面 / 关闭浏览器后下次打开仍保留。换浏览器或清缓存会丢失。
+  </div>
+</section>
+
+<section>
+  <h2>📋 4 个 M0 SOP 入口</h2>
+  <p style="font-size:13px;color:var(--muted);margin-bottom:12px">按顺序执行,后置 SOP 依赖前置结果</p>
+  <div class="sop-grid" id="sop-grid">
+    <a href="m0-01-edge-tts.html" class="sop-card">
+      <div class="sop-id">M0-SOP-01</div>
+      <div class="sop-title">Edge TTS 安装 + 三语种测试</div>
+      <div><span class="sop-stage">W1</span><span class="sop-cost">¥0</span></div>
+      <div class="sop-desc">pip install edge-tts → 跑通 zh-CN + en-US + ar-SA 三个 demo · 装 Python 3.10+</div>
+      <div class="sop-progress"><div class="progress-bar"><div class="progress-fill" id="p-m0-01" style="width:0%"></div></div><div class="progress-text" id="t-m0-01">0/8</div></div>
+    </a>
+    <a href="m0-02-sadtalker.html" class="sop-card">
+      <div class="sop-id">M0-SOP-02</div>
+      <div class="sop-title">SadTalker 安装 + 测试</div>
+      <div><span class="sop-stage">W2</span><span class="sop-cost">¥0</span></div>
+      <div class="sop-desc">git clone SadTalker → 准备静态图 + 5 秒音频 → 跑出第 1 个数字人视频 · 需 NVIDIA GPU</div>
+      <div class="sop-progress"><div class="progress-bar"><div class="progress-fill" id="p-m0-02" style="width:0%"></div></div><div class="progress-text" id="t-m0-02">0/10</div></div>
+    </a>
+    <a href="m0-03-ffmpeg.html" class="sop-card">
+      <div class="sop-id">M0-SOP-03</div>
+      <div class="sop-title">FFmpeg 拼接 + 端到端 MP4</div>
+      <div><span class="sop-stage">W2</span><span class="sop-cost">¥0</span></div>
+      <div class="sop-desc">下载 FFmpeg → 测试 mp4 拼接 → TTS 音频 + SadTalker 视频 → 第 1 条 demo MP4</div>
+      <div class="sop-progress"><div class="progress-bar"><div class="progress-fill" id="p-m0-03" style="width:0%"></div></div><div class="progress-text" id="t-m0-03">0/8</div></div>
+    </a>
+    <a href="m0-04-avatar-image.html" class="sop-card">
+      <div class="sop-id">M0-SOP-04</div>
+      <div class="sop-title">数字人形象照准备</div>
+      <div><span class="sop-stage">W2-W3</span><span class="sop-cost">¥0</span></div>
+      <div class="sop-desc">Midjourney / 即梦 / Stable Diffusion → 1 张固定角色图(正面 + 高分辨率 + 无遮挡)· 数字人核心素材</div>
+      <div class="sop-progress"><div class="progress-bar"><div class="progress-fill" id="p-m0-04" style="width:0%"></div></div><div class="progress-text" id="t-m0-04">0/7</div></div>
+    </a>
+  </div>
+</section>
+
+<section>
+  <h2>🗓 28 天推荐节奏</h2>
+  <table>
+    <tr><th>周</th><th>任务</th><th>工具</th><th>验收</th></tr>
+    <tr><td>W1</td><td>M0-SOP-01(Edge TTS)+ 阅读 3 份核心文档</td><td>Python + edge-tts</td><td>3 个 TTS 文件</td></tr>
+    <tr><td>W2</td><td>M0-SOP-02(SadTalker)+ M0-SOP-04(形象照)</td><td>SadTalker + MJ</td><td>5 秒数字人视频</td></tr>
+    <tr><td>W3</td><td>M0-SOP-03(FFmpeg)+ 5 条新闻稿</td><td>FFmpeg + RSS</td><td>5 个 MP4</td></tr>
+    <tr><td>W4</td><td>质量评估 + M0 决策点</td><td>主观</td><td>demo ≥7 分?</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>📐 M0 SOP 设计原则(对比主 SOP)</h2>
+  <table>
+    <tr><th>项</th><th>主 SOP(M1+)</th><th>M0 SOP(本目录)</th></tr>
+    <tr><td>页面样式</td><td>meta-grid + steps + 验收标准 + 进度条(5 元素)</td><td><strong>极简清单</strong>(只有 checklist + 进度条)</td></tr>
+    <tr><td>进度持久化</td><td>❌(刷新即丢)</td><td><strong>✅ localStorage</strong></td></tr>
+    <tr><td>每步详细度</td><td>1-3 行概述</td><td><strong>真实命令 + 截图位 + 验收标准</strong></td></tr>
+    <tr><td>何时使用</td><td>付费/不可逆/多人协作</td><td><strong>个人技术落地(单人单日多次刷新)</strong></td></tr>
+  </table>
+  <div class="rules">
+    <strong>何时升级到主 SOP 模板</strong>:
+    <ul>
+      <li>涉及真实付款(>¥100 或 >$10)</li>
+      <li>涉及不可逆操作(LLC 注册、EIN 申请、域名购买)</li>
+      <li>需多人协作(助理接入)</li>
+      <li>涉及关键决策点(语言切换、风控应对)</li>
+    </ul>
+  </div>
+</section>
+
+<footer style="text-align:center;color:var(--muted);padding:24px;font-size:12px">
+  数字人计划 · 阶段 A M0 技术验证 · 2026-07-20 · 配套 <a href="../../执行计划清单.html">执行计划主页</a>
+</footer>
+
+<script>
+const M0_KEYS = ['m0-01','m0-02','m0-03','m0-04'];
+const M0_COUNTS = {'m0-01':8,'m0-02':10,'m0-03':8,'m0-04':7};
+
+function loadKey(key){ try{ return JSON.parse(localStorage.getItem(key)) || []; }catch(e){ return []; } }
+function saveKey(key,arr){ localStorage.setItem(key, JSON.stringify(arr)); }
+
+function refreshGlobal(){
+  let totalDone = 0, totalAll = 0;
+  M0_KEYS.forEach(k=>{
+    const done = loadKey(k).filter(x=>x).length;
+    const all = M0_COUNTS[k];
+    totalDone += done; totalAll += all;
+    document.getElementById('p-'+k).style.width = (done/all*100)+'%';
+    document.getElementById('t-'+k).textContent = done+'/'+all;
+  });
+  document.getElementById('global-done').textContent = totalDone;
+  document.getElementById('global-total').textContent = totalAll;
+  document.getElementById('global-percent').textContent = totalAll ? Math.round(totalDone/totalAll*100)+'%' : '0%';
+  document.getElementById('global-time').textContent = (totalDone * 0.5).toFixed(1) + 'h';
+}
+function resetAll(){
+  if(!confirm('确定清除所有 M0 进度?(此操作不可恢复)')) return;
+  M0_KEYS.forEach(k=>localStorage.removeItem(k));
+  refreshGlobal();
+  alert('已清除所有 M0 进度');
+}
+refreshGlobal();
+</script>
+
+</body>
+</html>

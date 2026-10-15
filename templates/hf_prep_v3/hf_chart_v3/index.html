@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<!-- ============================================================
+  hf_chart_v3 — 编辑纸墨风数据卡 (2026-09-04, 替代黑金 hf_chart_v2)
+  版式: .tmp/style_gallery_h.html 02巨数/03对比/10柱状/09饼图 四布局合一,
+        JS 按 chart 数据自动路由:
+          pie            → 环形分段 (09)
+          items=1        → 巨数卡 (02)
+          items=2        → 对比卡 (03, 自动倍率 verdict)
+          items=3~5 bar  → 柱群 (10, 榜单 04 并入)
+        主角 (锈红) = growth 数值匹配项, 否则最大项。
+  协议: HyperFrames — #root data-* + GSAP paused timeline 注册
+        window.__timelines, 入场 2s + 尾部保持段。
+  ============================================================ -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Noto+Serif+SC:wght@600;700;900&family=Playfair+Display:ital,wght@0,600;0,700;1,500;1,600;1,700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F2EEE6; --paper-2:#EAE4D8; --ink:#1C1613; --ink-soft:#3B2424;
+    --taupe:#A1836E; --rust:#9E4A2F; --sand:#C9BFAE; --hair:rgba(28,22,19,.28);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1920px;height:1080px;overflow:hidden;background:var(--paper)}
+  body{font-family:"Noto Serif SC",serif;color:var(--ink)}
+  #root{position:relative;width:1920px;height:1080px;background:var(--paper);overflow:hidden}
+  .grain{position:absolute;inset:0;opacity:.5;pointer-events:none;
+    background-image:radial-gradient(rgba(28,22,19,.06) 1px,transparent 1px);background-size:5px 5px}
+  .rule{height:3px;background:var(--ink);transform-origin:left}
+  .rule.thin{height:1px;background:var(--hair)}
+  .caps{font-family:Manrope,sans-serif;font-weight:700;letter-spacing:.34em;text-transform:uppercase}
+
+  .frame{position:absolute;inset:0;padding:100px 110px;display:flex;flex-direction:column}
+  /* stage 须吃满头部/基线之间的剩余高度 — 否则 .bigstat/.duel/.bars/.donut-row
+     的 flex:1 失效(父非 flex), 巨数卡只占上 44%, 下半屏全空白 (2026-09-05 产线实锤) */
+  #stage{flex:1;min-height:0;display:flex;flex-direction:column}
+  .headrow{display:flex;justify-content:space-between;align-items:baseline}
+  .headrow .caps{font-size:28px}
+  .headrow .tag{font-size:22px;color:var(--taupe)}
+  .baseline{display:flex;justify-content:space-between;align-items:baseline;margin-top:34px}
+  .baseline .footline{font-family:Manrope,sans-serif;font-size:24px;font-weight:600;
+    letter-spacing:.3em;color:var(--taupe);text-transform:uppercase}
+  .baseline .brand{font-family:Manrope,sans-serif;font-size:22px;font-weight:700;
+    letter-spacing:.3em;color:var(--taupe);text-transform:uppercase}
+
+  /* ── 巨数卡 (items=1) ── */
+  .bigstat{flex:1;display:flex;align-items:center;gap:130px}
+  .bigstat .big{font-family:"Playfair Display",serif;font-weight:600;font-size:470px;
+    line-height:.86;letter-spacing:-.03em;white-space:nowrap}
+  .bigstat .big sup{font-size:150px;font-weight:500;vertical-align:super}
+  .bigstat .big .unit-in{font-size:190px;font-weight:500}
+  .bigstat .zh{margin-top:60px;font-size:54px;font-weight:700}
+
+  /* ── 对比卡 (items=2) ── */
+  .duel{flex:1;display:flex;align-items:center}
+  .duel .side{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .duel .side .n{font-family:"Playfair Display",serif;font-weight:700;font-size:390px;
+    line-height:.92;letter-spacing:-.02em;white-space:nowrap}
+  .duel .side .t{font-size:42px;font-weight:600;margin-top:30px;color:var(--ink-soft);
+    display:flex;align-items:center;gap:24px}
+  .duel .side .t .win{font-family:Manrope,sans-serif;font-size:24px;font-weight:700;
+    letter-spacing:.2em;color:#F6F1E7;background:var(--rust);padding:10px 22px}
+  .duel .side.small .n{font-size:190px;font-weight:500;color:var(--ink-soft);opacity:.75}
+  .duel .side.small .t{font-size:34px}
+  .duel .mid{flex:0 0 auto;align-self:stretch;position:relative;display:flex;
+    align-items:center;justify-content:center;padding:0 70px}
+  .duel .mid::before{content:"";position:absolute;top:6%;bottom:6%;left:50%;
+    transform:translateX(-50%);width:2px;background:var(--hair)}
+  .duel .vs{position:relative;background:var(--paper);padding:20px 0;
+    font-family:"Playfair Display",serif;font-style:italic;font-size:54px;
+    color:var(--taupe);letter-spacing:.05em}
+  .verdict{display:flex;align-items:center;justify-content:center;gap:48px}
+  .verdict .dash{width:190px;height:2px;background:var(--hair)}
+  .verdict .x{font-family:"Playfair Display",serif;font-style:italic;font-weight:700;
+    font-size:120px;color:var(--rust);white-space:nowrap}
+  .verdict .x .kuai{font-family:"Noto Serif SC",serif;font-style:normal;font-weight:900;
+    font-size:72px;margin-right:12px}
+
+  /* ── 柱群 (items=3~5, 榜单并入) ── */
+  .bars{flex:1;display:flex;align-items:flex-end;justify-content:space-between;gap:70px;
+    border-bottom:3px solid var(--ink);padding:0 30px}
+  .bars .bar{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end}
+  .bars .bar .v{font-family:"Playfair Display",serif;font-size:58px;font-weight:600;margin-bottom:20px}
+  .bars .bar .col{width:100%;background:var(--sand)}
+  .bars .bar.lead .col{background:var(--rust)}
+  .bars .bar.lead .v{color:var(--rust);font-weight:700}
+  .bar-labels{display:flex;gap:70px;padding:26px 30px 0}
+  .bar-labels .lb{flex:1;text-align:center;font-size:32px;font-weight:600;color:var(--ink-soft);
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .bar-labels .lb.lead{color:var(--rust)}
+
+  /* ── 环形分段 (pie, 3~5 段) ── */
+  .donut-row{flex:1;display:flex;align-items:center;gap:130px}
+  .donut-wrap{flex:0 0 560px;position:relative;display:flex;justify-content:center}
+  .donut-wrap svg{display:block}
+  .cnum-pos{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center}
+  .cnum-pos b{font-family:"Playfair Display",serif;font-weight:600;font-size:112px;
+    line-height:1;display:block}
+  .cnum-pos b span{font-size:54px}
+  .cnum-pos i{display:block;font-style:normal;font-family:Manrope,sans-serif;font-weight:700;
+    font-size:22px;letter-spacing:.3em;color:var(--taupe);margin-top:12px;text-transform:uppercase}
+  .legend{flex:1}
+  .legend .lg{display:flex;justify-content:space-between;align-items:center;
+    padding:40px 0;border-top:1px solid var(--hair)}
+  .legend .lg .nm2{display:flex;align-items:center;font-size:36px;font-weight:600;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .legend .lg .sw{width:26px;height:26px;margin-right:28px;flex:0 0 26px;display:inline-block}
+  .legend .lg .n{font-family:"Playfair Display",serif;font-size:50px}
+  .legend .lg.lead .n,.legend .lg.lead .nm2{color:var(--rust)}
+</style>
+</head>
+<body>
+<div id="root"
+     data-composition-id="hf_chart_v3"
+     data-start="0"
+     data-duration="{{duration_sec}}"
+     data-width="1920"
+     data-height="1080"
+     data-chart="{{chart_json}}"
+     data-brand="{{brand_name}}"
+     data-tag="{{brand_tag}}">
+  <div class="grain"></div>
+  <div class="frame">
+    <div class="headrow">
+      <span class="caps" id="kicker"></span>
+      <span class="caps tag" id="tag"></span>
+    </div>
+    <div class="rule" id="head-rule" style="margin-top:30px"></div>
+    <div id="stage"></div>
+    <div class="rule thin" id="base-rule"></div>
+    <div class="baseline" style="margin-top:26px">
+      <span class="footline" id="footline"></span>
+      <span class="brand" id="brand"></span>
+    </div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<script>
+(function () {
+  var root = document.getElementById("root");
+  var DUR = parseFloat(root.getAttribute("data-duration")) || 6;
+  var chart = {};
+  try { chart = JSON.parse(root.getAttribute("data-chart") || "{}"); } catch (e) { chart = {}; }
+
+  function el(tag, cls, text) {
+    var n = document.createElement(tag);
+    if (cls) n.className = cls;
+    if (text != null) n.textContent = text;
+    return n;
+  }
+  function fmt(v) {
+    return Math.abs(v % 1) < 1e-9 ? String(Math.round(v)) : v.toFixed(1);
+  }
+  // $ 前缀 / 其余后缀 (%, 词/秒 …)
+  function valTxt(v, unit) {
+    if (!unit) return fmt(v);
+    return /^[¥$€£]/.test(unit) ? unit + fmt(v) : fmt(v) + unit;
+  }
+
+  var items = Array.isArray(chart.items) ? chart.items.slice() : [];
+  var growthNum = null;
+  var m = String(chart.growth || "").match(/-?\d+(?:\.\d+)?/);
+  if (m) growthNum = parseFloat(m[0]);
+
+  // items 兜底: 全空时用 growth 数值做纯文字巨数卡;
+  // 无 items 又无 growth = 完全无数据: 不造 value:0 巨数 (470px 大 "0" 形似字母 o,
+  // 2026-09-09 slot #32 实锤), stage 留空纯兜底 (Python 层已先降级标题卡, 此处双保险)
+  var noData = !items.length && growthNum == null;
+  if (!items.length) {
+    items = [{ label: chart.label || "", value: (growthNum != null ? growthNum : 0) }];
+  }
+  items = items.slice(0, 5);
+
+  // 主角 = growth 数值匹配项, 否则最大项; 但"低价更好"类指标 (单价/价格/成本)
+  // 无 growth 锚点时主角 = 最小项 (烟测实证: 单价卡最大项 Claude 200 被标"领先 10×",
+  // 把贵 10 倍读成了优势)。
+  var lowerBetter = (function () {
+    var lu = ((chart.label || "") + " " + (chart.unit || "")).toLowerCase();
+    return /单价|价格|差价|成本|费用|price|cost/.test(lu) && !/性价比|增值/.test(lu);
+  })();
+  var hero = -1;
+  if (growthNum != null) {
+    for (var i = 0; i < items.length; i++) {
+      if (Math.abs(items[i].value - growthNum) < 1e-6) { hero = i; break; }
+    }
+  }
+  if (hero < 0) {
+    hero = 0;
+    for (var j = 1; j < items.length; j++) {
+      if (lowerBetter ? items[j].value < items[hero].value : items[j].value > items[hero].value) hero = j;
+    }
+  }
+
+  var type = String(chart.type || "bar").toLowerCase();
+  var layout = type === "pie" ? "donut"
+             : items.length === 1 ? "bigstat"
+             : items.length === 2 ? "compare"
+             : "bar";
+  // 饼图分段 <3 或 >5 → 柱群 (数据规则闸门在 Python 层已转 bar, 此处双保险)
+  if (layout === "donut" && (items.length < 3 || items.length > 5)) layout = "bar";
+
+  var kicker = document.getElementById("kicker");
+  kicker.textContent = chart.label || "";
+  document.getElementById("tag").textContent = root.getAttribute("data-tag") || "";
+  document.getElementById("brand").textContent = root.getAttribute("data-brand") || "";
+  var footline = document.getElementById("footline");
+  footline.textContent = chart.unit ? String(chart.unit).toUpperCase() : "";
+  if (!kicker.textContent) kicker.style.visibility = "hidden";
+
+  var stage = document.getElementById("stage");
+  var tl = gsap.timeline({ paused: true });
+
+  // ── 巨数卡 ──
+  if (layout === "bigstat") {
+    var bs = el("div", "bigstat");
+    var left = el("div");
+    if (!noData) {
+      var big = el("div", "big");
+      var v0 = items[0].value, unit = String(chart.unit || "");
+      var numTxt = fmt(v0), numEl;
+      if (unit === "%") {
+        numEl = document.createTextNode(numTxt);
+        big.appendChild(numEl);
+        var sup = el("sup", null, "%");
+        big.appendChild(sup);
+      } else if (unit) {
+        numEl = document.createTextNode(numTxt);
+        big.appendChild(numEl);
+        var uin = el("span", "unit-in", unit);
+        big.appendChild(uin);
+      } else {
+        big.textContent = numTxt;
+      }
+      // 长数字防溢出: >5 字符按比例缩
+      var chars = numTxt.length + (unit ? 1 : 0);
+      if (chars > 5) big.style.fontSize = Math.round(470 * 5 / chars) + "px";
+      left.appendChild(big);
+      if (items[0].label) left.appendChild(el("div", "zh", items[0].label));
+    }
+    bs.appendChild(left);
+    stage.appendChild(bs);
+    tl.from(bs, { opacity: 0, x: -90, duration: .9, ease: "power3.out" }, .15)
+      .from(left.querySelector(".zh"), { opacity: 0, y: 40, duration: .7, ease: "power3.out" }, .5);
+  }
+
+  // ── 对比卡 ──
+  if (layout === "compare") {
+    var a = items[hero], b = items[1 - hero];
+    var duel = el("div", "duel");
+    var s1 = el("div", "side");
+    var n1 = el("div", "n", fmt(a.value));
+    if (fmt(a.value).length > 4) n1.style.fontSize = Math.round(390 * 4 / fmt(a.value).length) + "px";
+    s1.appendChild(n1);
+    var t1 = el("div", "t");
+    t1.appendChild(document.createTextNode(a.label || ""));
+    t1.appendChild(el("span", "win", lowerBetter ? "更低" : "领先"));
+    s1.appendChild(t1);
+    var mid = el("div", "mid");
+    mid.appendChild(el("div", "vs", "vs"));
+    var s2 = el("div", "side small");
+    s2.appendChild(el("div", "n", fmt(b.value)));
+    s2.appendChild(el("div", "t", b.label || ""));
+    duel.appendChild(s1); duel.appendChild(mid); duel.appendChild(s2);
+    var verdict = el("div", "verdict");
+    verdict.appendChild(el("span", "dash"));
+    var xv = el("div", "x");
+    xv.appendChild(el("span", "kuai", lowerBetter ? "便宜" : "领先"));
+    var ratio = Math.max(a.value, b.value) / Math.max(1e-9, Math.min(Math.abs(a.value), Math.abs(b.value)));
+    xv.appendChild(document.createTextNode((ratio >= 10 ? Math.round(ratio) : ratio.toFixed(2)) + "×"));
+    verdict.appendChild(xv);
+    verdict.appendChild(el("span", "dash"));
+    stage.appendChild(duel);
+    stage.appendChild(verdict);
+    stage.style.display = "flex";
+    stage.style.flexDirection = "column";
+    tl.from(s1, { opacity: 0, x: -90, duration: .9, ease: "power3.out" }, .15)
+      .from(mid, { opacity: 0, duration: .6 }, .5)
+      .from(s2, { opacity: 0, y: 64, duration: .8, ease: "power3.out" }, .35)
+      .from(verdict, { opacity: 0, y: 50, duration: .8, ease: "power3.out" }, .8);
+  }
+
+  // ── 柱群 (榜单并入) ──
+  if (layout === "bar") {
+    var vmax = items[0].value;
+    for (var k = 0; k < items.length; k++) vmax = Math.max(vmax, items[k].value);
+    vmax = Math.abs(vmax) < 1e-9 ? 1 : vmax;
+    var bars = el("div", "bars");
+    var labels = el("div", "bar-labels");
+    var cols = [];
+    for (var c = 0; c < items.length; c++) {
+      var it = items[c];
+      var isLead = c === hero;
+      var bar = el("div", "bar" + (isLead ? " lead" : ""));
+      bar.appendChild(el("div", "v", valTxt(it.value, chart.unit)));
+      var hpx = Math.max(120, Math.round(430 * it.value / vmax));
+      var col = el("div", "col");
+      col.style.height = hpx + "px";
+      bar.appendChild(col);
+      cols.push(col);
+      bars.appendChild(bar);
+      labels.appendChild(el("div", "lb" + (isLead ? " lead" : ""), it.label || ""));
+    }
+    stage.appendChild(bars);
+    stage.appendChild(labels);
+    tl.from(bars.querySelectorAll(".v"), { opacity: 0, y: 24, duration: .6,
+      stagger: .12, ease: "power3.out" }, .2)
+      .from(cols, { scaleY: 0, transformOrigin: "50% 100%", duration: .9,
+        stagger: .12, ease: "power3.out" }, .3)
+      .from(labels.children, { opacity: 0, y: 24, duration: .6,
+        stagger: .12, ease: "power3.out" }, .8);
+  }
+
+  // ── 环形分段 ──
+  if (layout === "donut") {
+    var DONUT_COLORS = ["#9E4A2F", "#1C1613", "#A1836E", "#C9BFAE", "#6E5A4B"];
+    var total = 0;
+    for (var d = 0; d < items.length; d++) total += Math.abs(items[d].value);
+    total = total < 1e-9 ? 1 : total;
+    // 主角段置首: 旋转数组使 hero 在第 0 位
+    var segs = items.slice(hero).concat(items.slice(0, hero));
+
+    var row = el("div", "donut-row");
+    var wrap = el("div", "donut-wrap");
+    var svgNS = "http://www.w3.org/2000/svg";
+    var svg = document.createElementNS(svgNS, "svg");
+    svg.setAttribute("width", "560"); svg.setAttribute("height", "560");
+    svg.setAttribute("viewBox", "0 0 400 400");
+    var g = document.createElementNS(svgNS, "g");
+    g.setAttribute("transform", "rotate(-90 200 200)");
+    var C = 2 * Math.PI * 140; // 879.65
+    var acc = 0;
+    var circles = [];
+    for (var s = 0; s < segs.length; s++) {
+      var segLen = C * Math.abs(segs[s].value) / total;
+      var cir = document.createElementNS(svgNS, "circle");
+      cir.setAttribute("cx", "200"); cir.setAttribute("cy", "200"); cir.setAttribute("r", "140");
+      cir.setAttribute("fill", "none");
+      cir.setAttribute("stroke", DONUT_COLORS[s % DONUT_COLORS.length]);
+      cir.setAttribute("stroke-width", "54");
+      cir.setAttribute("stroke-dasharray", segLen.toFixed(1) + " " + C.toFixed(1));
+      cir.setAttribute("stroke-dashoffset", (-acc).toFixed(1));
+      g.appendChild(cir);
+      circles.push(cir);
+      acc += segLen;
+    }
+    svg.appendChild(g);
+    wrap.appendChild(svg);
+    var cp = el("div", "cnum-pos");
+    var cnum = el("div", "cnum");
+    var cb = el("b");
+    cb.appendChild(document.createTextNode(fmt(segs[0].value)));
+    cb.appendChild(el("span", null, chart.unit === "%" ? "%" : ""));
+    cnum.appendChild(cb);
+    cnum.appendChild(el("i", null, segs[0].label || ""));
+    cp.appendChild(cnum);
+    wrap.appendChild(cp);
+    row.appendChild(wrap);
+
+    var legend = el("div", "legend");
+    var lgRows = [];
+    for (var q = 0; q < segs.length; q++) {
+      var lg = el("div", "lg" + (q === 0 ? " lead" : ""));
+      var nm2 = el("span", "nm2");
+      nm2.appendChild(el("i", "sw"));
+      nm2.lastChild.style.background = DONUT_COLORS[q % DONUT_COLORS.length];
+      nm2.appendChild(document.createTextNode(segs[q].label || ""));
+      lg.appendChild(nm2);
+      lg.appendChild(el("span", "n", valTxt(segs[q].value, chart.unit === "%" ? "%" : "")));
+      legend.appendChild(lg);
+      lgRows.push(lg);
+    }
+    row.appendChild(legend);
+    stage.appendChild(row);
+
+    tl.from(g, { rotation: -24, svgOrigin: "200 200", opacity: 0, duration: 1.1,
+      ease: "power3.out" }, .15)
+      .from(cnum, { opacity: 0, y: 40, duration: .7, ease: "power3.out" }, .6)
+      .from(lgRows, { opacity: 0, x: -60, duration: .7, stagger: .12,
+        ease: "power3.out" }, .45);
+  }
+
+  // 头部与基线
+  tl.from(kicker, { opacity: 0, y: 24, duration: .6, ease: "power3.out" }, 0)
+    .from(document.getElementById("head-rule"), { scaleX: 0, duration: 1,
+      ease: "power3.out" }, .1)
+    .from(document.getElementById("base-rule"), { scaleX: 0, duration: 1,
+      ease: "power3.out" }, .5)
+    .from([footline, document.getElementById("brand"), document.getElementById("tag")],
+      { opacity: 0, duration: .7 }, 1.0);
+
+  // HyperFrames 协议: paused timeline 注册到 __timelines + 尾部保持段
+  window.__timelines = window.__timelines || {};
+  window.__timelines["hf_chart_v3"] = tl;
+  tl.to({}, { duration: Math.max(0.5, DUR - 2.0) }, 2.0);
+})();
+</script>
+</body>
+</html>

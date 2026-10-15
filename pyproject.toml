@@ -1,0 +1,35 @@
+# digital_human — 工具链配置 (2026-09-17 T3 基线固化)
+# 只放 ruff + pytest 配置; 故意不声明 [project] (非安装包, .venv 直跑).
+# 加/改规则前先读 REFACTOR_PLAN.md 顶部「冻结基线」, 改完同步更新基线数字.
+
+[tool.ruff.lint]
+# 显式 select 当前实际在用的 8 条 (T3 从 ruff 0.16.5 默认集收缩而来;
+# 默认集会随 ruff 版本漂移, 这里冻结). 想加规则 = 显式加代码 + 重跑基线盘点.
+select = [
+    "B008",   # bugbear: 默认参里函数调用 (FastAPI Depends 惯用法已另行豁免)
+    "I001",   # isort: import 块未排序 — 只声明计数, 暂不跑 --fix (后续任务统一处理)
+    "F401",   # pyflakes: 未用 import — 同上, 只声明不 --fix
+    "S110",   # bandit: try-except-pass — 重构主战场, 保持可见防新增
+    "BLE001", # blind-except: 捕 Exception — 同上
+    "DTZ011", # datetimez: date.today() 无 tz — 存量 5 处
+    "F841",   # pyflakes: 赋值未用变量 — 存量 12 处
+    "RUF100", # unused-noqa: 失效的 noqa 指令
+]
+
+[tool.ruff.lint.flake8-bugbear]
+# B008 豁免理由: FastAPI 依赖注入的官方惯用法就是默认参里调 Depends()/File()/Body().
+# 2026-09-17 全仓盘点: B008 共 171 处, 全部为此三类 (Depends 159 / File 9 / Body 3),
+# 零非惯用法命中. 用 immutable-calls 而非忽略整条规则 — 将来非 FastAPI 的
+# 默认参调用 (真 bug 类) 仍会告警.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.File", "fastapi.Body"]
+
+[tool.ruff.lint.per-file-ignores]
+# TODO(T10): audio.py 的 S110×8 + BLE001×20 是 T2 定位过的吞异常带 (reroll 的
+# 736/778/793/937 等), 按"T3 存量豁免"指令挂账; T10 把 _do_tts 下沉 service 时
+# 统一收窄, 完成后删除本条并更新基线.
+"app/routers/audio.py" = ["S110", "BLE001"]
+
+[tool.pytest.ini_options]
+markers = [
+    "real_api: 调外网真实 API 的测试, 日常跑法 -m 'not real_api' 剔除",
+]

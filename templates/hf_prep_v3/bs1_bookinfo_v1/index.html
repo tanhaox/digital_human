@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<!-- bs1_bookinfo_v1 — 老谭拆书·深空蓝金 书籍信息卡 B-08 (静读书 hf_bookinfo_v1 同构, 字段对齐产线)
+  内容层: title/author/guide(「」《》金色强调)/bio(||| 分段≤3) 固定件: About the Book/品牌尾注/logo -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Noto+Serif+SC:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root{--navy-1:#0C1626;--navy-2:#10233D;--gold:#C9A25E;--gold-2:#E3C689;--paper:#EDEAE0;--sub:#9AA6B5}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1920px;height:1080px;overflow:hidden}
+  body{font-family:"Noto Serif SC",serif;color:var(--paper)}
+  #root{position:relative;width:1920px;height:1080px;overflow:hidden;
+        background:linear-gradient(135deg,var(--navy-1) 0%,var(--navy-2) 60%,#0C1B31 100%)}
+  .glow{position:absolute;width:1100px;height:700px;left:-240px;bottom:-260px;border-radius:50%;
+        background:radial-gradient(closest-side,rgba(201,162,94,.1),transparent 70%);pointer-events:none}
+  .caps{font-family:Manrope,sans-serif;font-weight:700;letter-spacing:.34em;text-transform:uppercase}
+  .wrap{position:absolute;inset:0;padding:96px 110px 88px;display:flex;flex-direction:column}
+  .head{display:flex;justify-content:space-between;align-items:baseline}
+  .head .caps{font-size:28px;color:var(--gold)}
+  h2{font-weight:900;font-size:88px;letter-spacing:.04em;color:#F5EFE2}
+  .tag{font-family:Manrope,sans-serif;font-weight:700;font-size:21px;
+       letter-spacing:.34em;color:var(--gold);text-transform:uppercase;flex:none}
+  .block{margin-top:46px;display:flex;align-items:baseline;gap:44px}
+  .author .who{font-size:42px;font-weight:700;color:var(--paper);letter-spacing:.02em}
+  .guide .txt{font-size:34px;font-weight:700;line-height:1.7;color:var(--paper)}
+  .guide .txt b{color:var(--gold-2)}
+  .bio .txt{display:flex;flex-direction:column;gap:20px;font-size:32px;font-weight:700;
+            line-height:1.75;color:#D8D2C4;flex:1}
+  .bio .txt b{color:#F5EFE2;font-weight:700}
+  .tail{margin-top:auto;font-size:26px;color:var(--sub);display:flex;justify-content:space-between;align-items:center}
+  .tail img{height:120px;width:auto;display:block}
+</style>
+</head>
+<body>
+<div id="root"
+     data-composition-id="bs1_bookinfo_v1" data-start="0" data-duration="{{duration_sec}}"
+     data-width="1920" data-height="1080"
+     data-title="{{title}}" data-author="{{author}}" data-guide="{{guide}}"
+     data-bio="{{bio}}" data-brand="{{brand_name}}" data-logo="{{logo_b64}}">
+  <div class="glow"></div>
+  <div class="wrap">
+    <div class="head"><h2 id="title"></h2><span class="caps a">About the Book</span></div>
+    <div class="block author"><span class="tag">作者</span><span class="who" id="author"></span></div>
+    <div class="block guide"><span class="tag">指南</span><div class="txt" id="guide"></div></div>
+    <div class="block bio"><span class="tag">简介</span><div class="txt" id="bio"></div></div>
+    <div class="tail"><span id="brand-line"></span><img id="logo" alt=""></div>
+  </div>
+</div>
+<script>
+// 预览自适应 (0907): 小容器自动缩放; 生产 1920 渲染不触发
+(function () {
+  var w = window.innerWidth, h = window.innerHeight;
+  if (w >= 1900) return;
+  var s = Math.min(w / 1920, h / 1080);
+  var r = document.getElementById("root");
+  if (!r) return;
+  r.style.transform = "scale(" + s + ")";
+  r.style.transformOrigin = "top left";
+  try { document.body.style.background = getComputedStyle(r).background; } catch (e) {}
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<script>
+(function () {
+  var root = document.getElementById("root");
+  var DUR = parseFloat(root.getAttribute("data-duration")) || 5;
+  function esc(s) { return (s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
+  document.getElementById("title").textContent = root.getAttribute("data-title") || "";
+  document.getElementById("author").textContent = root.getAttribute("data-author") || "";
+  // 指南: 「…」《…》金色强调 (确定性正则, 同静读书版规则)
+  document.getElementById("guide").innerHTML = esc(root.getAttribute("data-guide"))
+    .replace(/「([^」]*)」/g, "<b>「$1」</b>").replace(/《([^》]*)》/g, "<b>《$1》</b>");
+  // 简介: ||| 分段 (≤3), 《…》提亮
+  var bio = document.getElementById("bio");
+  (root.getAttribute("data-bio") || "").split("|||").filter(Boolean).slice(0, 3).forEach(function (seg) {
+    var p = document.createElement("p");
+    p.innerHTML = esc(seg).replace(/《([^》]*)》/g, "<b>《$1》</b>");
+    bio.appendChild(p);
+  });
+  document.getElementById("brand-line").textContent = root.getAttribute("data-brand") || "";
+  var logo = root.getAttribute("data-logo") || "";
+  if (logo) document.getElementById("logo").src = logo;
+  var n = (root.getAttribute("data-title") || "").replace(/\s/g, "").length;
+  if (n > 11) document.querySelector("h2").style.fontSize = "72px";
+  if (n > 16) document.querySelector("h2").style.fontSize = "60px";
+  // 动画编排 (0908 三排·严格串行零交错): 书名→眉标→作者→指南→简介三段→尾注。
+  // 上版 tail@1.55 但简介末段 1.31+.5=1.81 才落地 — stagger 尾段时间算漏, 仍交错。本版逐块
+  // 压时长保证: 每块结束时刻 < 下一块起点, 总入场 ≤2.05s。
+  var tl = gsap.timeline({paused: true});
+  tl.from(".head h2", {x: -70, autoAlpha: 0, duration: .7, ease: "power3.out"}, .1)
+    .from(".head .caps", {autoAlpha: 0, duration: .45}, .36)
+    .from(".author", {y: 30, autoAlpha: 0, duration: .5, ease: "power3.out"}, .5)
+    .from(".guide", {y: 30, autoAlpha: 0, duration: .5, ease: "power3.out"}, .68)
+    .from(".bio p", {y: 26, autoAlpha: 0, duration: .45, stagger: .15, ease: "power3.out"}, .85)
+    .from(".tail", {autoAlpha: 0, y: 14, duration: .4}, 1.66)
+    .to({}, {duration: Math.max(0.2, DUR - 2.06)});
+  window.__timelines = window.__timelines || {};
+  window.__timelines["bs1_bookinfo_v1"] = tl;
+  window.addEventListener("message", function (ev) {
+    if (ev.data && ev.data.type === "preview-play") { tl.restart(); }
+  });
+})();
+</script>
+</body>
+</html>

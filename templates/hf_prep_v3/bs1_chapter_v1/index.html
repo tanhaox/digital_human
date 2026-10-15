@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<!-- bs1_chapter_v1 — 老谭拆书·深空蓝金 章节隔页: 大号 CHAPTER 编号 + 章题 + 一句副题 (节奏呼吸点) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Noto+Serif+SC:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root{--navy-1:#0C1626;--navy-2:#10233D;--gold:#C9A25E;--paper:#EDEAE0;--sub:#9AA6B5}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1920px;height:1080px;overflow:hidden}
+  body{font-family:"Noto Serif SC",serif;color:var(--paper)}
+  #root{position:relative;width:1920px;height:1080px;overflow:hidden;
+        background:linear-gradient(135deg,var(--navy-1) 0%,var(--navy-2) 100%)}
+  .bg{position:absolute;inset:0;display:none}
+  .bg .ph{width:100%;height:100%;object-fit:cover;display:block}
+  .bg .veil{position:absolute;inset:0;
+        background:linear-gradient(100deg,rgba(12,22,38,.94) 0%,rgba(12,22,38,.86) 45%,rgba(16,35,61,.72) 100%)}
+
+  .ghost{position:absolute;right:-40px;bottom:-90px;font-family:Manrope,sans-serif;font-weight:800;
+         font-size:560px;line-height:1;color:rgba(201,162,94,.08);pointer-events:none}
+  .caps{font-family:Manrope,sans-serif;font-weight:700;letter-spacing:.42em;text-transform:uppercase}
+  .cap{position:absolute;top:300px;left:150px;font-size:32px;color:var(--gold);letter-spacing:.5em}
+  .rule{position:absolute;top:372px;left:150px;width:120px;height:4px;background:var(--gold)}
+  h1{position:absolute;top:430px;left:150px;right:220px;font-weight:900;font-size:112px;
+     line-height:1.3;color:#F5EFE2}
+  .sub{position:absolute;top:640px;left:150px;font-size:38px;font-weight:700;color:var(--sub);line-height:1.7}
+  .foot{position:absolute;top:112px;right:150px;left:auto;font-size:22px;color:#77808F;letter-spacing:.18em;text-align:right}
+</style>
+</head>
+<body>
+<div id="root"
+     data-composition-id="bs1_chapter_v1" data-start="0" data-duration="{{duration_sec}}"
+     data-width="1920" data-height="1080"
+     data-no="{{no}}" data-title="{{title}}" data-subtitle="{{subtitle}}" data-foot="{{foot}}" data-img="{{img}}">
+  <div class="bg" id="bg"><img class="ph" id="ph" alt=""><div class="veil"></div></div>
+  <div class="ghost" id="ghost"></div>
+  <div class="cap caps" id="cap"></div>
+  <div class="rule" id="rule"></div>
+  <h1 id="title"></h1>
+  <div class="sub" id="subtitle"></div>
+  <div class="foot" id="foot"></div>
+</div>
+<script>
+// 预览自适应 (0907): 小容器 (风格页 iframe) 自动缩放到视口; 生产 1920 渲染不触发
+(function () {
+  var w = window.innerWidth, h = window.innerHeight;
+  if (w >= 1900) return;
+  var s = Math.min(w / 1920, h / 1080);
+  var r = document.getElementById("root");
+  if (!r) return;
+  r.style.transform = "scale(" + s + ")";
+  r.style.transformOrigin = "top left";
+  try { document.body.style.background = getComputedStyle(r).background; } catch (e) {}
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<script>
+(function () {
+  var root = document.getElementById("root");
+  var DUR = parseFloat(root.getAttribute("data-duration")) || 5;
+  var img = root.getAttribute("data-img") || "";
+  if (img) { document.getElementById("ph").src = img; document.getElementById("bg").style.display = "block"; }
+  var no = root.getAttribute("data-no") || "01";
+  document.getElementById("cap").textContent = "CHAPTER " + no;
+  document.getElementById("ghost").textContent = no;
+  document.getElementById("title").textContent = root.getAttribute("data-title") || "";
+  document.getElementById("subtitle").textContent = root.getAttribute("data-subtitle") || "";
+  document.getElementById("foot").textContent = root.getAttribute("data-foot") || "";
+  var n = (root.getAttribute("data-title") || "").replace(/\s/g, "").length;
+  var h1 = document.getElementById("title");
+  if (n > 10) h1.style.fontSize = "88px";
+  if (n > 16) h1.style.fontSize = "72px";
+  var tl = gsap.timeline({paused: true});
+  tl.from("#cap", {x: -40, autoAlpha: 0, duration: .5, ease: "power3.out"}, .1)
+    .from("#rule", {scaleX: 0, transformOrigin: "left center", duration: .45}, .28)
+    .from("#title", {y: 50, autoAlpha: 0, duration: .75, ease: "power3.out"}, .4)
+    .from("#subtitle", {y: 26, autoAlpha: 0, duration: .55}, .68)
+    .from("#bg, #ghost", {autoAlpha: 0, duration: 1.1, ease: "power1.out"}, .3)
+    .from("#foot", {autoAlpha: 0, duration: .4}, .9)
+    .to({}, {duration: Math.max(0.2, DUR - 1.8)});
+  window.__timelines = window.__timelines || {};
+  window.__timelines["bs1_chapter_v1"] = tl;
+  window.addEventListener("message", function (ev) {
+    if (ev.data && ev.data.type === "preview-play") { tl.restart(); }
+  });
+})();
+</script>
+</body>
+</html>

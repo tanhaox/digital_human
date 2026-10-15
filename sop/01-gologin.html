@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOP · 04 · GoLogin 注册</title>
+<style>
+:root{
+  --bg:#0f172a;--surface:#1e293b;--surface2:#334155;--border:#475569;
+  --text:#e2e8f0;--muted:#94a3b8;--accent:#06b6d4;--green:#10b981;
+  --yellow:#f59e0b;--red:#ef4444;--purple:#a855f7;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;padding:24px;max-width:960px;margin:0 auto}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+header{background:linear-gradient(135deg,#0891b2 0%,#06b6d4 100%);padding:24px 32px;border-radius:12px;margin-bottom:24px}
+.badge{display:inline-block;background:rgba(255,255,255,0.2);padding:4px 12px;border-radius:12px;font-size:12px;margin-right:8px;font-weight:600}
+h1{font-size:24px;margin:8px 0 4px}
+.subtitle{font-size:14px;opacity:0.9}
+.back-link{font-size:13px;color:rgba(255,255,255,0.9);margin-top:12px;display:inline-block}
+section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:16px}
+h2{font-size:18px;margin-bottom:12px;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:8px}
+h3{font-size:15px;margin:16px 0 8px;color:var(--purple)}
+.meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:12px}
+.meta-card{background:var(--surface2);padding:12px 16px;border-radius:8px;border-left:3px solid var(--accent)}
+.meta-card .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px}
+.meta-card .value{font-size:15px;font-weight:600;margin-top:4px}
+.steps{counter-reset:step}
+.step{background:var(--surface2);padding:16px 20px 16px 56px;border-radius:8px;margin-bottom:12px;position:relative;border-left:3px solid var(--accent)}
+.step::before{counter-increment:step;content:counter(step);position:absolute;left:16px;top:16px;width:28px;height:28px;background:var(--accent);color:var(--bg);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+.step h3{margin:0 0 6px;color:var(--accent);font-size:15px}
+.step .body{font-size:14px;color:var(--text)}
+.step .body code{background:var(--bg);padding:2px 6px;border-radius:3px;font-family:Consolas,monospace;font-size:13px;color:var(--yellow)}
+.step .shot{margin-top:8px;padding:8px 12px;background:var(--bg);border:1px dashed var(--border);border-radius:4px;font-size:12px;color:var(--muted);font-style:italic}
+.warning{background:rgba(239,68,68,0.1);border-left:3px solid var(--red);padding:12px 16px;border-radius:6px;margin:12px 0;font-size:13px}
+.tip{background:rgba(16,185,129,0.1);border-left:3px solid var(--green);padding:12px 16px;border-radius:6px;margin:12px 0;font-size:13px}
+.checklist{list-style:none;padding:0}
+.checklist li{padding:10px 12px;background:var(--surface2);margin-bottom:6px;border-radius:6px;cursor:pointer;user-select:none;display:flex;align-items:flex-start;gap:10px;font-size:14px;transition:background 0.15s}
+.checklist li:hover{background:var(--border)}
+.checklist li::before{content:"☐";font-size:18px;color:var(--muted);flex-shrink:0}
+.checklist li.done{background:rgba(16,185,129,0.15);text-decoration:line-through;opacity:0.7}
+.checklist li.done::before{content:"☑";color:var(--green)}
+.acceptance{background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(6,182,212,0.1));border:1px solid var(--green);padding:16px 20px;border-radius:8px;margin:12px 0}
+.acceptance h3{color:var(--green);margin-top:0}
+.criteria-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:12px}
+.criterion{background:var(--surface);padding:10px 14px;border-radius:6px;border-left:3px solid var(--green);font-size:13px}
+.criterion strong{color:var(--green)}
+.confirm-bar{position:sticky;bottom:16px;background:var(--surface);border:2px solid var(--green);padding:16px 24px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;margin-top:24px;box-shadow:0 8px 24px rgba(0,0,0,0.4)}
+.confirm-bar .progress{font-size:14px;color:var(--muted)}
+.confirm-bar button{background:var(--green);color:var(--bg);border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;transition:transform 0.1s}
+.confirm-bar button:hover{transform:scale(1.05)}
+.confirm-bar button:disabled{background:var(--muted);cursor:not-allowed;transform:none}
+.timestamp{font-family:Consolas,monospace;font-size:13px;color:var(--muted);margin-top:8px}
+.phase-gate{background:rgba(245,158,11,0.1);border-left:3px solid var(--yellow);padding:12px 16px;border-radius:6px;margin:12px 0;font-size:13px}
+.phase-gate strong{color:var(--yellow)}
+.top-home-bar{position:sticky;top:0;z-index:100;background:rgba(15,23,42,0.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:-24px -24px 16px;font-size:13px}
+.top-home-bar a.home-link{color:var(--accent);text-decoration:none;font-weight:600;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(6,182,212,0.1);border:1px solid var(--accent);border-radius:6px;transition:background 0.15s,transform 0.1s}
+.top-home-bar a.home-link:hover{background:rgba(6,182,212,0.25);transform:translateX(-2px);text-decoration:none}
+.top-home-bar .breadcrumbs{color:var(--muted);font-size:12px;font-family:Consolas,monospace}
+.top-home-bar .breadcrumbs a{color:var(--muted);text-decoration:none}
+.top-home-bar .breadcrumbs a:hover{color:var(--accent);text-decoration:underline}
+.top-home-bar .breadcrumbs .sep{margin:0 6px;color:var(--border)}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+th{background:var(--surface2);padding:8px 12px;text-align:left;font-weight:600;color:var(--accent)}
+td{padding:8px 12px;border-bottom:1px solid var(--border)}
+tr:hover{background:var(--surface2)}
+</style>
+</head>
+<body>
+
+<nav class="top-home-bar">
+  <a href="../执行计划清单.html" class="home-link">🏠 回主页</a>
+  <div class="breadcrumbs">
+    <a href="../执行计划清单.html">主页</a><span class="sep">›</span><a href="README.html">SOP 索引</a><span class="sep">›</span><span>SOP-04 GoLogin</span>
+  </div>
+</nav>
+
+<header>
+  <span class="badge">SOP-04</span>
+  <span class="badge">M1 W1</span>
+  <span class="badge">$24/月</span>
+  <h1>GoLogin 指纹浏览器注册</h1>
+  <div class="subtitle">多账号隔离 · Google 风控第 3 大致命项"suspicious device"破解</div>
+  <a href="README.html" class="back-link">← 返回 SOP 索引</a> · <a href="../执行计划清单.html" class="back-link">← 返回执行计划</a>
+</header>
+
+<section>
+  <h2>📌 任务元信息</h2>
+  <div class="meta-grid">
+    <div class="meta-card"><div class="label">所属阶段</div><div class="value">M1 单语种上线</div></div>
+    <div class="meta-card"><div class="label">触发时机</div><div class="value">M1 W1(注册 Workspace 前 1 天)</div></div>
+    <div class="meta-card"><div class="label">试用</div><div class="value">7 天免费(基础功能)</div></div>
+    <div class="meta-card"><div class="label">正式月费</div><div class="value">$24/月(年付 $192,折 ¥1380/年)</div></div>
+    <div class="meta-card"><div class="label">耗时</div><div class="value">注册 10 min · 安装 5 min</div></div>
+    <div class="meta-card"><div class="label">责任人</div><div class="value">主理人</div></div>
+    <div class="meta-card"><div class="label">前置依赖</div><div class="value"><a href="01-bright-data.html">SOP-03 Bright Data</a>(必先开通)</div></div>
+  </div>
+  <div class="phase-gate">
+    <strong>⏸ 阶段门控</strong>: M1 必开通(防 Workspace 多账号关联);M2 矩阵化时升 3 个指纹档案;M4 月入 ≥¥3k 后再考虑续费
+  </div>
+</section>
+
+<section>
+  <h2>🎯 为什么需要 GoLogin</h2>
+  <ul style="padding-left:24px">
+    <li><strong>Google 风控第 3 大致命项</strong>:可疑设备。同设备/同浏览器/同指纹登录多账号 = 100% 关联</li>
+    <li><strong>Workspace 多账号隔离</strong>:M2 矩阵化时需 3 个独立 Google Workspace(M2 W2 创建 EN+ES),每个需独立指纹</li>
+    <li><strong>集成 Bright Data</strong>:GoLogin 内置代理配置,可直接绑定 UK ISP 共享 10 IPs 静态 IP(<a href="01-bright-data.html">SOP-03</a> $18/月)</li>
+    <li><strong>成本最低方案</strong>:$24/月 vs Multilogin $111/月 vs AdsPower $9/月(功能弱)</li>
+  </ul>
+  <div class="warning">
+    <strong>⚠ 不能用普通 Chrome 多账号</strong>: 同一浏览器多 Profile 共享 Canvas/WebGL 指纹 = Google 仍能关联;GoLogin 修改 50+ 指纹字段,真正物理隔离
+  </div>
+</section>
+
+<section>
+  <h2>💰 GoLogin 套餐对比</h2>
+  <table>
+    <tr><th>套餐</th><th>月费</th><th>档案数</th><th>推荐度</th></tr>
+    <tr><td>免费试用</td><td>$0</td><td>3 个</td><td>M1 验证用(7 天)</td></tr>
+    <tr><td><strong>Professional ⭐</strong></td><td>$24/月</td><td>100 个</td><td>M2 矩阵化后(年付 $192)</td></tr>
+    <tr><td>Business</td><td>$49/月</td><td>300 个</td><td>M7 6 语种矩阵(暂不需要)</td></tr>
+    <tr><td>Multilogin 对比</td><td>$111/月</td><td>100 个</td><td>❌ 太贵</td></tr>
+    <tr><td>AdsPower 对比</td><td>$9/月</td><td>10 个</td><td>⚠ 功能弱,QA 测试用</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>📝 操作流程</h2>
+  <div class="steps">
+
+    <div class="step">
+      <h3>步骤 1 · 注册账号</h3>
+      <div class="body">
+        访问 <code>https://gologin.com</code><br>
+        点击 "Try Free" 或 "Sign Up"<br>
+        邮箱:用 <strong>Gmail</strong>(与 Bright Data 一致,便于管理)<br>
+        选 <code>7-day Free Trial</code>
+      </div>
+      <div class="shot">📷 截图位: 注册页 + 邮箱验证</div>
+    </div>
+
+    <div class="step">
+      <h3>步骤 1.5 · 应急方案(注册/试用续费)</h3>
+      <div class="body">
+        <strong>⚠ 已知问题(2026-07-20)</strong>:① gologin.com 国内直连偶发慢;② 试用 7 天到期后需 $24/月付费(年付 $192 ≈ ¥1380);③ 同一 Gmail 二次注册被风控<br><br>
+        <strong>方案 A · gologin.com 国内访问慢 → 加速 3 招</strong>:<br>
+        ① <strong>Cloudflare WARP 免费</strong>(<code>1.1.1.1</code>,3 分钟装好)<br>
+        ② <strong>Edge 浏览器 + Cloudflare 扩展</strong>(零成本,适合 M1 试用)<br>
+        ③ <strong>已有 Bright Data 代理</strong>先开 GoLogin(用 US/UK ISP IP 访问 gologin.com)<br><br>
+        <strong>方案 B · 试用 7 天到期不续费 → 3 种替代路径</strong>:<br>
+        ① <strong>新建 Gmail + 第二次 7 天试用</strong>(60% 通过,部分账号被标记)<br>
+        ② <strong>AdsPower 替代</strong>(<code>https://adspower.com</code>)$9/月,基础功能够用,缺点:无深度指纹修改<br>
+        ③ <strong>不续费直接用 Chrome + Bright Data</strong>(单 Workspace 够用,M2 前不必扩 GoLogin)<br><br>
+        <strong>方案 C · 付费 $24/月 → 4 级支付备选</strong>:<br>
+        ① <strong>招行 / 工行 / 中行双币信用卡(VISA/MasterCard)</strong>(75%,首选)<br>
+        ② <strong>PayPal 绑双币信用卡</strong>(85%,中转拒付率低)<br>
+        ③ <strong>Wise 虚拟卡</strong>(95%,长期订阅避风控)<br>
+        ④ <strong>淘宝代付</strong>(100%,搜 <code>gologin 会员 代付</code>,加 10% 服务费)<br><br>
+        <strong>方案 D · 年付 $192 太贵 → 拆解策略</strong>:<br>
+        M1 试用 7 天免费 → M2 月付 $24 → M4 月入 ≥¥3k 后转年付($192 省 $96)<br>
+        实测发现月付 → 年付 切换 goLogin 不扣留余额,可放心月付试水
+      </div>
+      <div class="warning">
+        <strong>⚠ 红线</strong>: 不要用 <code>1.1.1.1</code> 外的免费 VPN(被 GoLogin 风控标记)→ 注册即封号;不要在淘宝买"低价 GoLogin 账号"代注册 → 90% 盗号,登录即失效
+      </div>
+    </div>
+
+    <div class="step">
+      <h3>步骤 2 · 下载客户端</h3>
+      <div class="body">
+        后台 → "Downloads"<br>
+        Windows:<code>GoLogin-Setup-x.x.x.exe</code>(约 250MB)<br>
+        安装路径建议:<code>D:\Tools\GoLogin\</code>(不放 C 盘)<br>
+        启动后用刚注册的账号登录
+      </div>
+    </div>
+
+    <div class="step">
+      <h3>步骤 3 · 创建第 1 个指纹档案</h3>
+      <div class="body">
+        客户端 → "Create New Profile"<br>
+        名称:<code>AR-Main-Workspace</code>(语义化命名)<br>
+        操作系统:<code>Windows 11</code><br>
+        浏览器:<code>Chrome 120</code><br>
+        分辨率:<code>1920x1080</code><br>
+        语言:<code>en-GB</code>
+      </div>
+      <div class="shot">📷 截图位: 档案配置页</div>
+    </div>
+
+    <div class="step">
+      <h3>步骤 4 · 绑定 Bright Data UK IP</h3>
+      <div class="body">
+        在档案配置 → "Proxy" → 选 <code>HTTP</code><br>
+        填入 <a href="01-bright-data.html">SOP-03</a> 获取的代理信息:<br>
+        <code>Host: brd.superproxy.io</code><br>
+        <code>Port: 22225</code><br>
+        <code>Username: brd-customer-XXX-zone-isp-uk</code><br>
+        <code>Password: XXXXX</code><br>
+        点击 "Check Proxy" → 验证显示 UK IP
+      </div>
+      <div class="warning">
+        <strong>⚠ 绑定前先验证</strong>: 若未验证就保存,后续所有浏览都失败;Check Proxy 必须显示国家=United Kingdom
+      </div>
+      <div class="shot">📷 截图位: 代理绑定 + IP 验证成功</div>
+    </div>
+
+    <div class="step">
+      <h3>步骤 5 · 启动档案 + 验证</h3>
+      <div class="body">
+        选中 <code>AR-Main-Workspace</code> → 点击 "Run"<br>
+        自动打开隔离 Chrome 窗口<br>
+        访问 <code>https://browserleaks.com</code> 检查:<br>
+        • Canvas 指纹:每次启动应不同(随机)<br>
+        • WebGL 渲染器:显示真实 GPU(非 SwiftShader)<br>
+        • 时区:<code>Europe/London</code><br>
+        • 语言:<code>en-GB</code><br>
+        访问 <code>https://whoer.net</code> 检查匿名度 ≥ 80%
+      </div>
+      <div class="tip">
+        <strong>💡 指纹独立性</strong>: 同一台机器开 2 个 GoLogin 档案,canvas 哈希完全不同 = Google 无法关联
+      </div>
+      <div class="shot">📷 截图位: browserleaks 检测结果</div>
+    </div>
+
+    <div class="step">
+      <h3>步骤 6 · 用档案注册 Workspace</h3>
+      <div class="body">
+        在 GoLogin 档案内访问 <code>https://workspace.google.com</code><br>
+        选择 "Start a free 14-day trial"<br>
+        用 泰国 +66 号接收验证码(<a href="01-thai-ais-tourist.html">SOP-01</a> 准备的卡)<br>
+        业务名:填个人工作室名(英文)<br>
+        国家:United Kingdom<br>
+        注册成功后 → 截图保存到 <code>sop/_records/workspace-1.png</code>
+      </div>
+    </div>
+
+    <div class="step">
+      <h3>步骤 7 · 试用 7 天结束后决策</h3>
+      <div class="body">
+        试用期内判断:<br>
+        • 跑通 M1 全流程(注册 Workspace + YT 频道 + 30 条上传)<br>
+        • 若跑通 → M2 W1 转 $24/月年付($192/年,折 ¥1380)<br>
+        • 若未跑通 → 不续费,直接用现有 Chrome + Bright Data(单 Workspace 够用)
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <h2>✅ 验收清单</h2>
+  <ul class="checklist" id="checklist">
+    <li onclick="this.classList.toggle('done')">已注册 GoLogin 账号(7 天试用)</li>
+    <li onclick="this.classList.toggle('done')">若访问慢,已用 Cloudflare WARP / GoLogin 自身代理加速</li>
+    <li onclick="this.classList.toggle('done')">已下载并安装 Windows 客户端</li>
+    <li onclick="this.classList.toggle('done')">已创建第 1 个档案 AR-Main-Workspace</li>
+    <li onclick="this.classList.toggle('done')">已在档案内绑定 Bright Data UK ISP IP</li>
+    <li onclick="this.classList.toggle('done')">已 Check Proxy 验证国家=UK</li>
+    <li onclick="this.classList.toggle('done')">已启动档案,验证 browserleaks/whoer 匿名度 ≥ 80%</li>
+    <li onclick="this.classList.toggle('done')">已用 GoLogin 档案注册 Workspace 14 天试用</li>
+    <li onclick="this.classList.toggle('done')">已在主计划 § 阶段 B 备注栏记录本 SOP 完成</li>
+    <li onclick="this.classList.toggle('done')">已设置 7 天试用结束提醒(到期前 1 天)</li>
+    <li onclick="this.classList.toggle('done')">已决定续费方案(月付 $24 / 年付 $192 / 不续用 Chrome 替代)</li>
+  </ul>
+</section>
+
+<section class="acceptance">
+  <h2>🎯 验收标准(可量化"完成"定义)</h2>
+  <div class="criteria-grid">
+    <div class="criterion"><strong>档案数</strong>:≥1 个(AR-Main-Workspace)</div>
+    <div class="criterion"><strong>代理绑定</strong>:UK ISP Static 验证通过</div>
+    <div class="criterion"><strong>whoer 匿名度</strong>:≥80%</div>
+    <div class="criterion"><strong>Canvas 指纹</strong>:每次启动随机不同</div>
+    <div class="criterion"><strong>Workspace 注册</strong>:成功通过泰国 +66 验证</div>
+    <div class="criterion"><strong>试用成本</strong>:$0(7 天)</div>
+  </div>
+  <div class="warning" style="margin-top:12px">
+    <strong>⚠ 失败回退</strong>: 若 whoer < 80% → 检查 proxy 绑定 + 时区设置;若 Workspace 注册失败 → 换泰国 AIS 卡(可能 IMSI 被 Google 标记)或试用 7 天后再注册(账号"养熟")
+  </div>
+</section>
+
+<section>
+  <h2>📊 资金与时间汇总</h2>
+  <table>
+    <tr><th>项</th><th>金额</th><th>备注</th></tr>
+    <tr><td>试用 7 天</td><td>$0</td><td>M1 验证用</td></tr>
+    <tr><td>M2 起年付</td><td>$192/年(¥1380/年)</td><td>$24/月 × 12 ÷ 折年付优惠</td></tr>
+    <tr><td>矩阵扩展 M4</td><td>+$96/年(¥690)</td><td>加 50 个档案(给 EN/ES 各自独立)</td></tr>
+    <tr><td>月均摊</td><td>¥173/月</td><td>$192/年 ÷ 12 ÷ 7.2 汇率</td></tr>
+  </table>
+</section>
+
+<div class="confirm-bar">
+  <div>
+    <div class="progress" id="progress">已完成 0/11 项</div>
+    <div class="timestamp" id="timestamp">未确认</div>
+  </div>
+  <button id="confirmBtn" onclick="confirmDone()">✓ 确认完成本 SOP</button>
+</div>
+
+<script>
+function updateProgress(){
+  const total=document.querySelectorAll('#checklist li').length;
+  const done=document.querySelectorAll('#checklist li.done').length;
+  document.getElementById('progress').textContent=`已完成 ${done}/${total} 项`;
+  document.getElementById('confirmBtn').disabled=done<total;
+}
+document.querySelectorAll('#checklist li').forEach(li=>{
+  li.addEventListener('click',updateProgress);
+});
+function confirmDone(){
+  const now=new Date();
+  const ts=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  document.getElementById('timestamp').textContent=`✅ 已完成 · ${ts}`;
+  document.getElementById('confirmBtn').textContent='✓ 已归档';
+  document.getElementById('confirmBtn').disabled=true;
+  document.getElementById('confirmBtn').style.background='#475569';
+  console.log('[SOP-04 GoLogin] 完成时间:',ts);
+}
+updateProgress();
+</script>
+
+</body>
+</html>

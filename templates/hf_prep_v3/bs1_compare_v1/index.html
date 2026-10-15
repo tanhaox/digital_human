@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<!-- bs1_compare_v1 — 老谭拆书·深空蓝金 对比页: 左右两栏对撞 (旧模式 vs 新模式)
+  data-left/data-right: "标题|要点一|要点二|要点三" (| 分隔, 首项为栏题); 右栏金色=胜方 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Noto+Serif+SC:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root{--navy-1:#0C1626;--navy-2:#10233D;--gold:#C9A25E;--paper:#EDEAE0;--sub:#9AA6B5}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1920px;height:1080px;overflow:hidden}
+  body{font-family:"Noto Serif SC",serif;color:var(--paper)}
+  #root{position:relative;width:1920px;height:1080px;overflow:hidden;
+        background:linear-gradient(135deg,var(--navy-1) 0%,var(--navy-2) 100%)}
+  .caps{font-family:Manrope,sans-serif;font-weight:700;letter-spacing:.42em;text-transform:uppercase}
+  .kicker{position:absolute;top:96px;left:150px;font-size:24px;color:var(--gold);letter-spacing:.4em}
+  h1{position:absolute;top:148px;left:150px;font-weight:900;font-size:68px;color:#F5EFE2}
+  .duel{position:absolute;top:300px;left:110px;right:110px;bottom:240px;display:flex;gap:0}
+  .col{flex:1;padding:64px 60px;display:flex;flex-direction:column;gap:38px;
+       background:rgba(12,22,38,.55);border:1px solid rgba(201,162,94,.18)}
+  .col.win{background:linear-gradient(160deg,rgba(201,162,94,.16),rgba(12,22,38,.6));
+           border:1px solid rgba(201,162,94,.55)}
+  .col h2{font-size:52px;font-weight:900;color:#D8D2C4}
+  .col.win h2{color:var(--gold)}
+  .col li{list-style:none;font-size:34px;line-height:1.7;color:var(--paper);font-weight:700}
+  .col li::before{content:"—";color:#77808F;margin-right:18px}
+  .col.win li::before{content:"◆";color:var(--gold);font-size:20px;vertical-align:3px}
+  .vs{flex:none;width:130px;display:flex;align-items:center;justify-content:center}
+  .vs span{font-family:Manrope,sans-serif;font-weight:800;font-size:56px;color:var(--gold);
+           transform:skewX(-8deg)}
+  .foot{position:absolute;top:112px;right:150px;left:auto;font-size:22px;color:#77808F;letter-spacing:.18em;text-align:right}
+</style>
+</head>
+<body>
+<div id="root"
+     data-composition-id="bs1_compare_v1" data-start="0" data-duration="{{duration_sec}}"
+     data-width="1920" data-height="1080"
+     data-kicker="{{kicker}}" data-title="{{title}}"
+     data-left="{{left}}" data-right="{{right}}" data-foot="{{foot}}">
+  <div class="kicker caps" id="kicker"></div>
+  <h1 id="title"></h1>
+  <div class="duel">
+    <div class="col" id="colL"></div>
+    <div class="vs"><span>VS</span></div>
+    <div class="col win" id="colR"></div>
+  </div>
+  <div class="foot" id="foot"></div>
+</div>
+<script>
+// 预览自适应 (0907): 小容器 (风格页 iframe) 自动缩放到视口; 生产 1920 渲染不触发
+(function () {
+  var w = window.innerWidth, h = window.innerHeight;
+  if (w >= 1900) return;
+  var s = Math.min(w / 1920, h / 1080);
+  var r = document.getElementById("root");
+  if (!r) return;
+  r.style.transform = "scale(" + s + ")";
+  r.style.transformOrigin = "top left";
+  try { document.body.style.background = getComputedStyle(r).background; } catch (e) {}
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<script>
+(function () {
+  var root = document.getElementById("root");
+  var DUR = parseFloat(root.getAttribute("data-duration")) || 5;
+  document.getElementById("kicker").textContent = root.getAttribute("data-kicker") || "";
+  document.getElementById("title").textContent = root.getAttribute("data-title") || "";
+  document.getElementById("foot").textContent = root.getAttribute("data-foot") || "";
+  function fill(id, attr) {
+    var col = document.getElementById(id);
+    (root.getAttribute(attr) || "").split("|").filter(Boolean).forEach(function (seg, i) {
+      var el;
+      if (i === 0) { el = document.createElement("h2"); }
+      else { el = document.createElement("li"); }
+      el.textContent = seg.trim();
+      if (i > 0) { var ul = col.querySelector("ul") || col.appendChild(document.createElement("ul")); ul.appendChild(el); }
+      else col.appendChild(el);
+    });
+  }
+  fill("colL", "data-left");
+  fill("colR", "data-right");
+  var n = (root.getAttribute("data-title") || "").replace(/\s/g, "").length;
+  if (n > 12) document.getElementById("title").style.fontSize = "54px";
+  var tl = gsap.timeline({paused: true});
+  tl.from("#kicker, #title", {y: 26, autoAlpha: 0, duration: .55, ease: "power3.out"}, .1)
+    .from("#colL", {x: -60, autoAlpha: 0, duration: .6, ease: "power3.out"}, .3)
+    .from("#colR", {x: 60, autoAlpha: 0, duration: .6, ease: "power3.out"}, .42)
+    .from(".vs span", {scale: 0, autoAlpha: 0, duration: .45, ease: "back.out(2)"}, .55)
+    .from("#foot", {autoAlpha: 0, duration: .4}, .95)
+    .to({}, {duration: Math.max(0.2, DUR - 1.7)});
+  window.__timelines = window.__timelines || {};
+  window.__timelines["bs1_compare_v1"] = tl;
+  window.addEventListener("message", function (ev) {
+    if (ev.data && ev.data.type === "preview-play") { tl.restart(); }
+  });
+})();
+</script>
+</body>
+</html>

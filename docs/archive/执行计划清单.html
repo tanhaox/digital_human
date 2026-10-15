@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>数字人短视频项目执行计划清单 v10</title>
+  <style>
+    :root {
+      --bg: #0f1115;
+      --card: #161b22;
+      --border: #2d333b;
+      --text: #c9d1d9;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --accent2: #3fb950;
+      --warn: #d29922;
+      --danger: #f85149;
+      --code: #f0883e;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans SC", sans-serif;
+      line-height: 1.7;
+      padding: 24px;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    header {
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 18px;
+      margin-bottom: 24px;
+    }
+    h1 { margin: 0 0 8px; font-size: 1.9rem; color: var(--accent); }
+    .subtitle { color: var(--muted); font-size: 0.95rem; }
+    .badge {
+      display: inline-block;
+      padding: 2px 10px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      background: var(--accent);
+      color: #061018;
+      font-weight: 700;
+      margin-right: 8px;
+    }
+    .badge.warn { background: var(--warn); color: #1f1505; }
+    .badge.danger { background: var(--danger); color: #fff; }
+    section { margin-bottom: 32px; }
+    h2 { font-size: 1.35rem; border-left: 4px solid var(--accent); padding-left: 12px; margin: 0 0 16px; }
+    h3 { font-size: 1.1rem; color: var(--accent2); margin: 20px 0 10px; }
+    p, li { color: var(--text); }
+    ul, ol { padding-left: 22px; }
+    li { margin-bottom: 6px; }
+    .grid { display: grid; gap: 16px; }
+    .grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
+    .grid.cols-3 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+    .grid.cols-4 { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .card h4 { margin: 0 0 8px; color: var(--accent); font-size: 1rem; }
+    .card p { margin: 0; font-size: 0.92rem; color: var(--muted); }
+    .tag {
+      display: inline-block;
+      padding: 1px 8px;
+      border-radius: 4px;
+      background: #21262d;
+      color: var(--text);
+      font-size: 0.75rem;
+      margin-right: 6px;
+      margin-top: 4px;
+    }
+    .kpi { text-align: center; }
+    .kpi .num { font-size: 2rem; font-weight: 800; color: var(--accent2); }
+    .kpi .label { font-size: 0.85rem; color: var(--muted); }
+    .kpi .target { font-size: 0.8rem; color: var(--warn); margin-top: 6px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
+    th, td { border: 1px solid var(--border); padding: 10px; text-align: left; }
+    th { background: #1c2128; color: var(--accent); }
+    .gantt-wrap { overflow-x: auto; }
+    .gantt { min-width: 900px; }
+    .gantt-row { display: grid; grid-template-columns: 140px repeat(12, 1fr); gap: 2px; margin-bottom: 4px; }
+    .gantt-label { padding: 8px; font-size: 0.85rem; color: var(--muted); display: flex; align-items: center; }
+    .gantt-cell { height: 32px; background: #1c2128; border-radius: 4px; position: relative; }
+    .gantt-bar { position: absolute; top: 4px; bottom: 4px; border-radius: 4px; font-size: 0.7rem; display: flex; align-items: center; padding-left: 6px; white-space: nowrap; overflow: hidden; color: #fff; }
+    .gantt-bar.m0 { background: #1f6feb; }
+    .gantt-bar.m1 { background: #238636; }
+    .gantt-bar.m2 { background: #8957e5; }
+    .gantt-bar.m3 { background: #d29922; }
+    .gantt-bar.m4 { background: #f85149; }
+    .gantt-bar.m5 { background: #2f81f7; }
+    .gantt-bar.m6 { background: #3fb950; }
+    .gantt-bar.m7 { background: #a371f7; }
+    .axis { display: grid; grid-template-columns: 140px repeat(12, 1fr); gap: 2px; margin-bottom: 8px; }
+    .axis span { text-align: center; font-size: 0.75rem; color: var(--muted); }
+    .highlight { color: var(--warn); font-weight: 700; }
+    .danger-text { color: var(--danger); font-weight: 700; }
+    footer { margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: 0.85rem; }
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    @media (max-width: 640px) {
+      body { padding: 14px; }
+      h1 { font-size: 1.5rem; }
+      .grid.cols-2, .grid.cols-3, .grid.cols-4 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>数字人短视频项目执行计划清单 <span class="badge">v10</span></h1>
+      <div class="subtitle">
+        启动日：<strong>2026-07-20</strong>｜语言：中文基线 + EN/ES｜平台：国内为主 / YouTube 为辅｜
+        当前策略：单 ComfyUI 工作流 + 多 TTS 候选
+      </div>
+    </header>
+
+    <section>
+      <h2>0. 一句话目标</h2>
+      <p>
+        用<strong>一套可复用的 ComfyUI 数字人工作流</strong>，在 12 个月内把中文、英文、西班牙文的短视频账号跑通；
+        若第 12 个月月收入未达预设阈值，立即砍掉外语线，退回中文-only 兼职模式。
+      </p>
+      <p style="margin-top:12px">
+        <span class="badge">M0 门禁</span>
+        工作流成熟度：一个 ComfyUI 工作流可在 <strong>1 分钟内连续产出 3 条 30 秒成品视频</strong>。
+      </p>
+    </section>
+
+    <section>
+      <h2>1. 关键决策摘要</h2>
+      <ul>
+        <li><strong>M0 不跑量、不变现</strong>，只验证 ComfyUI 工作流能否稳定、快速地端到端出片。</li>
+        <li><strong>数字人管线</strong>：ComfyUI 统一负责图片生成、视频生成、风格化、后期合成；不再以 MuseTalk / SadTalker / LivePortrait 作为默认主链。</li>
+        <li><strong>TTS 方案</strong>：Fish Speech（中文主力）/ F5-TTS（轻量备选）/ ElevenLabs（英文/高质感备选）。</li>
+        <li><strong>平台优先级</strong>：头条 / 西瓜 / 视频号 / 小红书 / B站 / 抖音 为主战场；YouTube / YPP 作为长尾与素材复用池。</li>
+        <li><strong>多语言顺序</strong>：中文 → EN + ES 同步推进；AR 在 M3 复盘后、且工作流能自动切换语言前，不再启动。</li>
+        <li><strong>资金维度</strong>：删除所有启动资金、借款、成本上限内容；<span class="highlight">仅保留“月收入”作为 M12 硬截止指标</span>。</li>
+        <li><strong>朋友/借款/豁免条款</strong>：全部从本清单中移除；相关文档不在 HTML 中引用。</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>2. 铁律</h2>
+      <div class="grid cols-2">
+        <div class="card"><h4>1. 工具即资产</h4><p>每个可复用的 ComfyUI workflow、prompt 模板、TTS 音色包都要版本化，存到 Git。</p></div>
+        <div class="card"><h4>2. 先跑通，再跑量</h4><p>M0-M1 不追求爆款，追求稳定出片；跑量从 M2 开始。</p></div>
+        <div class="card"><h4>3. 数据说话</h4><p>所有分发决策必须依赖真实播放、完播、互动数据，不凭感觉。</p></div>
+        <div class="card"><h4>4. 多语言≠多团队</h4><p>EN/ES 内容必须能从中文 workflow 一键/半自动衍生，否则不做。</p></div>
+        <div class="card"><h4>5. 硬截止不商量</h4><p>M12 月收入未达标，立即砍掉外语线，仅保留中文账号并转为兼职节奏。</p></div>
+        <div class="card"><h4>6. 平台合规优先</h4><p>国内平台内容先审后发，严禁踩政治、医疗、金融红线；YouTube 遵守 YPP/社区准则。</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>3. 导演守则</h2>
+      <ol>
+        <li>每个账号必须有明确的人设、视觉风格、内容母题，禁止“搬运感”。</li>
+        <li>ComfyUI workflow 输出前必须通过自动质量检查（分辨率、帧率、口型/画面一致性、水印）。</li>
+        <li>同一批素材优先出 9:16（短视频）与 1:1（图文/封面）两版，再考虑 16:9（YouTube）。</li>
+        <li>文案必须拆成“钩子 3 秒 + 信息主体 + 行动号召”三段式。</li>
+        <li>每条视频保留源文件、提示词、生成参数、发布链接，统一归档。</li>
+        <li>TTS 音色必须与人设绑定，不要随意切换，避免品牌混乱。</li>
+        <li>多语言版本必须做母语者/本地用户可懂度抽检，禁止纯机器翻译直接发。</li>
+        <li>封面标题避免夸大、绝对化、诱导点击；国内平台尤其注意。</li>
+        <li>每周复盘一次数据，砍掉连续两周低于均线 50% 的内容线。</li>
+        <li>账号矩阵用不同手机号/邮箱/设备指纹隔离，避免被平台判定为营销号。</li>
+        <li>所有发布内容必须保留可追溯的生成记录，以备申诉。</li>
+        <li>ComfyUI 节点升级、模型替换前先在副本 workflow 上验证，禁止直接动生产 workflow。</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>4. 八阶段路线图</h2>
+      <div class="grid cols-4">
+        <div class="card"><h4>M0 工作流验证</h4><p>搭建 ComfyUI 端到端 workflow； Fish Speech / F5-TTS / ElevenLabs 接入；跑出 3 条 30 秒视频。</p></div>
+        <div class="card"><h4>M1 账号矩阵</h4><p>注册/养号 6 大国内平台 + YouTube；完成头像、简介、封面视觉统一。</p></div>
+        <div class="card"><h4>M2 内容跑量</h4><p>稳定日产 ≥3 条；建立选题库、文案模板、素材库。</p></div>
+        <div class="card"><h4>M3 分发优化</h4><p>分析各平台最佳发布时间、标签、标题结构；启动 EN/ES 内容线。</p></div>
+        <div class="card"><h4>M4 变现实验</h4><p>测试橱窗、带货、中视频、YPP、付费社群等模式，跑通最小变现闭环。</p></div>
+        <div class="card"><h4>M5 数据驱动</h4><p>建立看板；用数据反向指导选题、剪辑、发布策略。</p></div>
+        <div class="card"><h4>M6 矩阵放大</h4><p>复制已验证人设/内容线；引入半自动化发布与评论管理。</p></div>
+        <div class="card"><h4>M7 复盘/退出</h4><p>M12 硬截止评估；决定是否继续、收缩、或完全退出。</p></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>5. M0 工具链</h2>
+      <div class="grid cols-2">
+        <div class="card">
+          <h4>图像 / 视频 / 后期</h4>
+          <p><strong>ComfyUI</strong> 为统一工作流底座。</p>
+          <p>负责：文生图、图生视频、风格迁移、抠像、合成、调色、导出。</p>
+          <p>要求：workflow 节点模块化、参数可调、输出规格固定（1080×1920/30fps）。</p>
+        </div>
+        <div class="card">
+          <h4>语音 / TTS</h4>
+          <p>
+            <span class="tag">Fish Speech</span>
+            <span class="tag">F5-TTS</span>
+            <span class="tag">ElevenLabs</span>
+          </p>
+          <p>中文首选 Fish Speech 或 F5-TTS；英文/高质感场景用 ElevenLabs；所有音色入库存档。</p>
+        </div>
+        <div class="card">
+          <h4>文案 / 翻译</h4>
+          <p>中文文案库 + 结构化模板；EN/ES 走 AI 翻译 + 母语抽检。</p>
+        </div>
+        <div class="card">
+          <h4>发布 / 数据</h4>
+          <p>平台官方创作者后台为主；数据用表格/看板汇总，暂时不做复杂爬虫。</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>6. 平台矩阵</h2>
+      <table>
+        <tr><th>平台</th><th>优先级</th><th>内容形态</th><th>备注</th></tr>
+        <tr><td>抖音</td><td>P0</td><td>9:16 短视频</td><td>流量大、算法强，人设/完播是关键</td></tr>
+        <tr><td>视频号</td><td>P0</td><td>9:16 短视频</td><td>私域联动强，适合人设沉淀</td></tr>
+        <tr><td>小红书</td><td>P1</td><td>9:16 视频 + 1:1 图文</td><td>女性/生活方式用户集中，封面重要</td></tr>
+        <tr><td>B站</td><td>P1</td><td>9:16/16:9 中视频</td><td>长尾流量，适合系列化、深度内容</td></tr>
+        <tr><td>头条 / 西瓜</td><td>P1</td><td>9:16/16:9</td><td>中视频计划、搜索流量、男性用户多</td></tr>
+        <tr><td>YouTube</td><td>P2</td><td>9:16 Shorts / 16:9 长视频</td><td>YPP 长尾变现，素材复用池</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>7. 门禁与验收</h2>
+      <table>
+        <tr><th>阶段</th><th>验收指标</th><th>通过标准</th></tr>
+        <tr><td>M0</td><td>工作流成熟度</td><td>1 个 ComfyUI workflow 在 1 分钟内连续产出 3 条 30 秒成品视频</td></tr>
+        <tr><td>M1</td><td>账号就绪</td><td>6 个国内平台 + YouTube 完成注册/养号/视觉统一</td></tr>
+        <tr><td>M2</td><td>产能</td><td>稳定日产 ≥3 条，单月产出 ≥90 条</td></tr>
+        <tr><td>M3</td><td>分发效率</td><td>单条平均播放量 ≥1000 或互动率 ≥3%（任一平台）</td></tr>
+        <tr><td>M4</td><td>变现闭环</td><td>跑通任意一种变现路径的第一笔收入</td></tr>
+        <tr><td>M5</td><td>数据看板</td><td>周度自动化/半自动化数据汇总，可指导选题</td></tr>
+        <tr><td>M6</td><td>矩阵复制</td><td>至少成功复制 1 套已验证的人设/内容线</td></tr>
+        <tr><td>M7</td><td>硬截止决策</td><td>M12 月收入是否达到预设阈值，决定收缩/退出</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>8. KPI 卡片</h2>
+      <div class="grid cols-4">
+        <div class="card kpi">
+          <div class="num">3</div>
+          <div class="label">M0 连续 30 秒视频</div>
+          <div class="target">1 分钟内完成</div>
+        </div>
+        <div class="card kpi">
+          <div class="num">≥90</div>
+          <div class="label">M2 月产出条数</div>
+          <div class="target">日产 ≥3 条</div>
+        </div>
+        <div class="card kpi">
+          <div class="num">≥1000</div>
+          <div class="label">M3 单条均播</div>
+          <div class="target">或互动率 ≥3%</div>
+        </div>
+        <div class="card kpi">
+          <div class="num">M12</div>
+          <div class="label">月收入硬截止</div>
+          <div class="target">未达标即收缩</div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>9. 甘特图（12 个月）</h2>
+      <div class="gantt-wrap">
+        <div class="gantt" id="gantt">
+          <div class="axis"><span></span><span>M1</span><span>M2</span><span>M3</span><span>M4</span><span>M5</span><span>M6</span><span>M7</span><span>M8</span><span>M9</span><span>M10</span><span>M11</span><span>M12</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>10. 首周行动</h2>
+      <ol>
+        <li>安装/更新 ComfyUI，整理必备节点包与模型清单。</li>
+        <li>部署 Fish Speech 与 F5-TTS，录制/收集 3 个候选音色。</li>
+        <li>设计第一条 workflow：文生图 → 图生视频 → 合成 → 导出 30 秒 9:16。</li>
+        <li>注册 6 个国内平台账号 + 1 个 YouTube 频道，统一视觉风格。</li>
+        <li>建立选题库（至少 30 个），按人设分类。</li>
+        <li>制定数据记录表格模板，包含日期、平台、标题、播放量、互动、变现。</li>
+        <li>第一次周会：检查 M0 门禁进度，调整工具链。</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>11. 风险与应对</h2>
+      <table>
+        <tr><th>风险</th><th>应对</th></tr>
+        <tr><td>ComfyUI 工作流不稳定</td><td>节点版本锁定；生产/测试 workflow 分离；关键节点做 fallback</td></tr>
+        <tr><td>平台审核/限流</td><td>内容预审清单；一账号一设备一网络；避免敏感词与夸大标题</td></tr>
+        <tr><td>TTS 音色与人设不符</td><td>固定音色库；发布前必须听完整条</td></tr>
+        <tr><td>多语言内容质量差</td><td>EN/ES 必须母语抽检；M3 前不做 AR</td></tr>
+        <tr><td>月收入长期不达标</td><td>M12 硬截止：砍掉外语线，中文转兼职</td></tr>
+      </table>
+    </section>
+
+    <section>
+      <h2>12. 配套文档</h2>
+      <ul>
+        <li><a href="执行计划清单.md">执行计划清单.md</a>（v10，Markdown 完整版，随 HTML 同步更新）</li>
+        <li><a href="M0-GPU-checklist.md">M0-GPU-checklist.md</a>（本地 ComfyUI 环境检查清单）</li>
+      </ul>
+      <p class="danger-text">注意：朋友豁免协议已从本清单中移除，HTML 不再引用。</p>
+    </section>
+
+    <footer>
+      数字人短视频项目执行计划清单 v10 · 起始日 2026-07-20 · 策略：ComfyUI 单工作流 + Fish Speech / F5-TTS / ElevenLabs · 硬截止：M12 月收入
+    </footer>
+  </div>
+
+  <script>
+    const stages = [
+      { name: 'M0 工作流验证', start: 0, len: 1, cls: 'm0' },
+      { name: 'M1 账号矩阵', start: 0, len: 2, cls: 'm1' },
+      { name: 'M2 内容跑量', start: 1, len: 3, cls: 'm2' },
+      { name: 'M3 分发优化', start: 3, len: 2, cls: 'm3' },
+      { name: 'M4 变现实验', start: 4, len: 3, cls: 'm4' },
+      { name: 'M5 数据驱动', start: 6, len: 3, cls: 'm5' },
+      { name: 'M6 矩阵放大', start: 8, len: 3, cls: 'm6' },
+      { name: 'M7 复盘/退出', start: 11, len: 1, cls: 'm7' }
+    ];
+    const gantt = document.getElementById('gantt');
+    stages.forEach(s => {
+      const row = document.createElement('div');
+      row.className = 'gantt-row';
+      const label = document.createElement('div');
+      label.className = 'gantt-label';
+      label.textContent = s.name;
+      row.appendChild(label);
+      for (let i = 0; i < 12; i++) {
+        const cell = document.createElement('div');
+        cell.className = 'gantt-cell';
+        if (i >= s.start && i < s.start + s.len) {
+          const bar = document.createElement('div');
+          bar.className = 'gantt-bar ' + s.cls;
+          bar.style.left = '0';
+          bar.style.width = '100%';
+          if (i === s.start) bar.textContent = s.name;
+          cell.appendChild(bar);
+        }
+        row.appendChild(cell);
+      }
+      gantt.appendChild(row);
+    });
+  </script>
+</body>
+</html>

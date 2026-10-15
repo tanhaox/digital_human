@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>音频加工中心 · TTS</title>
+  <link rel="stylesheet" href="/web/index.css">
+</head>
+<body>
+  <nav>
+    <div class="logo">Pipeline<span>Studio</span></div>
+    <a href="/web/books.html">拆书</a>
+    <a href="/web/index.html">新闻线索</a>
+    <a href="/web/writing.html">文字加工</a>
+    <a href="/web/audio.html" class="active">音频加工</a>
+    <a href="/web/director.html">导演控制台</a>
+    <a href="/web/library.html">视频库</a>
+    <a href="/web/templates.html">模板管理</a>
+    <a href="/web/visual_render.html">视觉渲染</a>
+    <a href="/web/voices.html">音色管理</a>
+    <a href="/web/roles.html">角色管理</a>
+    <a href="/web/personas.html">人物</a>
+    <div class="spacer"></div>
+    <a href="/docs" target="_blank">API Docs</a>
+  </nav>
+
+  <div class="container">
+    <div class="pipeline-header">
+      <h1>音频加工中心</h1>
+      <p>段落选择 → TTS 配音 → <a href="/web/director.html">导演控制台</a> 合成视频 · <a href="/web/writing.html">← 回文字加工</a></p>
+    </div>
+
+    <!-- Generate Audio (with segment selection) -->
+    <div class="card" id="step-3-card">
+      <h3><span class="icon">🎙️</span> 生成音频</h3>
+
+      <!-- 调取脚本 (本页独立下拉; 从文字加工中心跳入则自动加载) -->
+      <div class="form-row" style="margin-bottom:1.25rem;align-items:center;">
+        <div style="flex:0 0 260px;">
+          <label>调取脚本</label>
+          <select id="script-select" onchange="selectScriptForAudio(this)" style="width:100%;padding:0.4rem 0.6rem;font-size:0.82rem;">
+            <option value="">— 选择脚本（可选）—</option>
+          </select>
+        </div>
+        <div style="flex:1;font-size:0.72rem;color:var(--text-muted);">从文字加工中心跳转会自动加载；也可在此直接调取历史脚本</div>
+      </div>
+
+      <!-- Segment selection (needed for TTS) -->
+      <div style="margin-bottom:1.25rem;">
+        <label style="margin-bottom:0.5rem;">选择口播段落（勾选后生成音频）</label>
+        <div class="btn-group" style="margin-bottom:0.5rem;">
+          <button class="btn btn-secondary btn-sm" type="button" onclick="selectAll(true)">全选</button>
+          <button class="btn btn-secondary btn-sm" type="button" onclick="selectAll(false)">取消全选</button>
+          <span id="director-count" style="font-size:0.78rem;color:var(--text-muted);margin-left:auto;"></span>
+        </div>
+        <div id="segments-list"></div>
+      </div>
+
+      <div style="border-top:1px solid var(--border);padding-top:1.25rem;">
+        <div class="form-row">
+          <div>
+            <label>音色选择</label>
+            <select id="voice-select"></select>
+          </div>
+        </div>
+
+        <!-- 启用的管线: 生成音频前定死管线配置, 避免生成完跳导演台时三开关全开 -->
+        <div class="pipeline-toggles" style="display:flex;gap:1.5rem;align-items:center;margin:0.75rem 0 0 0;padding:0.6rem 0.8rem;background:var(--bg-secondary);border-radius:8px;">
+          <span style="font-size:0.8rem;font-weight:600;color:var(--text-muted);">启用的管线:</span>
+          <label class="toggle-switch" title="C线 — ComfyUI (host/mixed_broll)">
+            <input type="checkbox" id="toggle-c" onchange="onPipelineToggle()">
+            <span class="toggle-slider"></span>
+            <span class="toggle-label">C线 <small>ComfyUI</small></span>
+          </label>
+          <label class="toggle-switch" title="P线 — 在线素材 (broll_pexels 下载 / evidence_image 证据图)">
+            <input type="checkbox" id="toggle-p" checked onchange="onPipelineToggle()">
+            <span class="toggle-slider"></span>
+            <span class="toggle-label">P线 <small>在线素材</small></span>
+          </label>
+          <label class="toggle-switch" title="H线 — HuggingFace (hf_chart / hf_title)">
+            <input type="checkbox" id="toggle-h" checked onchange="onPipelineToggle()">
+            <span class="toggle-slider"></span>
+            <span class="toggle-label">H线 <small>HF</small></span>
+          </label>
+        </div>
+        <!-- PPT 出片 (2026-08-20): 可选上传, 默认收起不影响现有产线 -->
+        <div class="ppt-section" style="margin-top:0.75rem;padding:0.6rem 0.8rem;background:var(--bg-secondary);border-radius:8px;">
+          <div style="font-size:0.75rem;color:var(--text-muted);margin-bottom:0.4rem;" id="ppt-bookctx"></div>
+          <div style="display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;">
+            <span style="font-size:0.8rem;font-weight:600;color:var(--text-muted);">📽 PPT 出片</span>
+            <input type="file" id="ppt-file" accept=".pptx" style="max-width:280px;font-size:0.8rem;">
+            <button class="btn btn-sm" id="btn-ppt-upload" onclick="uploadPPT()">上传并解析</button>
+            <button class="btn btn-sm" id="btn-ppt-master" onclick="markMasterPPT()" disabled style="display:none">📌 定为母本</button>
+            <button class="btn btn-sm btn-warning" id="btn-ppt-render" onclick="renderPPT()" disabled>🎬 PPT 一键成片</button>
+            <a id="ppt-download" style="display:none;font-size:0.8rem;color:#4ade80;" href="#">↓ 下载成片</a>
+            <button class="btn btn-sm" id="btn-ppt-jy" onclick="exportPPTJy()" disabled title="J线: 导出剪映草稿到剪映草稿文件夹(音画不合成, 打开剪映即可审片/调BGM/导出)" style="display:none">🎬 导出剪映草稿</button>
+          </div>
+          <div id="ppt-status" style="font-size:0.78rem;color:var(--text-muted);margin-top:0.4rem;"></div>
+          <progress id="ppt-progress" value="0" max="1" style="display:none;width:100%;margin-top:0.3rem;height:0.5rem;"></progress>
+          <div id="ppt-draft-name" style="font-size:0.78rem;color:#4ade80;margin-top:0.2rem;"></div>
+          <div id="ppt-preview" style="font-size:0.75rem;color:var(--text-muted);margin-top:0.3rem;max-height:120px;overflow:auto;"></div>
+        </div>
+        <div id="persona-lock" style="display:none;margin-top:0.5rem;padding:0.5rem 0.75rem;border-radius:var(--radius-sm);background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.3);font-size:0.82rem;color:#c4b5fd;">
+        </div>
+        <div class="btn-group" style="margin-top:0.5rem;">
+          <button class="btn btn-primary" id="btn-audio" onclick="generateAudio()" disabled>生成音频</button>
+          <button class="btn btn-violet" id="btn-onestop" onclick="oneStop()" disabled title="生成音频 → 创建并规划 → 执行 Slots → 合成视频，每步完成后自动触发下一步">🚀 一键成片</button>
+          <button class="btn btn-danger" id="btn-audio-stop" onclick="cancelAudio()" style="display:none" title="停止当前 TTS 任务 — 当前批次完成后中断，已生成音频保留，重新生成从断点继续">⏹ 停止</button>
+          <a class="btn" id="btn-goto-anim" href="#" title="带本书本集跳动画工坊 — 规划自动吃最新完成的音频 (音频页重生成是原地更新, 天然绑定)" style="text-decoration:none">🎬 动画工坊 →</a>
+        </div>
+      </div>
+      <div class="status" id="status-audio"></div>
+      <div class="audio-list" id="audio-list"></div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script src="/web/app.js?v=7"></script>
+  <script src="/web/audio.js?v=4"></script>
+</body>
+</html>

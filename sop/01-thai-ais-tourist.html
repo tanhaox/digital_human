@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOP · 01 · Giffgaff 英国 SIM 卡采购(jd 收卡 + 官网激活)</title>
+<style>
+:root{
+  --bg:#0f172a;--surface:#1e293b;--surface2:#334155;--border:#475569;
+  --text:#e2e8f0;--muted:#94a3b8;--accent:#06b6d4;--green:#10b981;
+  --yellow:#f59e0b;--red:#ef4444;--purple:#a855f7;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;padding:24px;max-width:960px;margin:0 auto}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+header{background:linear-gradient(135deg,#0891b2 0%,#06b6d4 100%);padding:24px 32px;border-radius:12px;margin-bottom:24px}
+.badge{display:inline-block;background:rgba(255,255,255,0.2);padding:4px 12px;border-radius:12px;font-size:12px;margin-right:8px;font-weight:600}
+h1{font-size:24px;margin:8px 0 4px}
+.subtitle{font-size:14px;opacity:0.9}
+.back-link{font-size:13px;color:rgba(255,255,255,0.9);margin-top:12px;display:inline-block}
+section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:16px}
+h2{font-size:18px;margin-bottom:12px;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:8px}
+h3{font-size:15px;margin:16px 0 8px;color:var(--purple)}
+.meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:12px}
+.meta-card{background:var(--surface2);padding:12px 16px;border-radius:8px;border-left:3px solid var(--accent)}
+.meta-card .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px}
+.meta-card .value{font-size:15px;font-weight:600;margin-top:4px}
+.steps{counter-reset:step}
+.step{background:var(--surface2);padding:16px 20px 16px 56px;border-radius:8px;margin-bottom:12px;position:relative;border-left:3px solid var(--accent)}
+.step::before{counter-increment:step;content:counter(step);position:absolute;left:16px;top:16px;width:28px;height:28px;background:var(--accent);color:var(--bg);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+.step h3{margin:0 0 6px;color:var(--accent);font-size:15px}
+.step .body{font-size:14px;color:var(--text)}
+.step .body code{background:var(--bg);padding:2px 6px;border-radius:3px;font-family:Consolas,monospace;font-size:13px;color:var(--yellow)}
+.step .shot{margin-top:8px;padding:8px 12px;background:var(--bg);border:1px dashed var(--border);border-radius:4px;font-size:12px;color:var(--muted);font-style:italic}
+.warning{background:rgba(239,68,68,0.1);border-left:3px solid var(--red);padding:12px 16px;border-radius:6px;margin:12px 0;font-size:13px}
+.tip{background:rgba(16,185,129,0.1);border-left:3px solid var(--green);padding:12px 16px;border-radius:6px;margin:12px 0;font-size:13px}
+.checklist{list-style:none;padding:0}
+.checklist li{padding:10px 12px;background:var(--surface2);margin-bottom:6px;border-radius:6px;cursor:pointer;user-select:none;display:flex;align-items:flex-start;gap:10px;font-size:14px;transition:background 0.15s}
+.checklist li:hover{background:var(--border)}
+.checklist li::before{content:"☐";font-size:18px;color:var(--muted);flex-shrink:0}
+.checklist li.done{background:rgba(16,185,129,0.15);text-decoration:line-through;opacity:0.7}
+.checklist li.done::before{content:"☑";color:var(--green)}
+.acceptance{background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(6,182,212,0.1));border:1px solid var(--green);padding:16px 20px;border-radius:8px;margin:12px 0}
+.acceptance h3{color:var(--green);margin-top:0}
+.criteria-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:12px}
+.criterion{background:var(--surface);padding:10px 14px;border-radius:6px;border-left:3px solid var(--green);font-size:13px}
+.criterion strong{color:var(--green)}
+.confirm-bar{position:sticky;bottom:16px;background:var(--surface);border:2px solid var(--green);padding:16px 24px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;margin-top:24px;box-shadow:0 8px 24px rgba(0,0,0,0.4)}
+.confirm-bar .progress{font-size:14px;color:var(--muted)}
+.confirm-bar button{background:var(--green);color:var(--bg);border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;transition:transform 0.1s}
+.confirm-bar button:hover{transform:scale(1.05)}
+.confirm-bar button:disabled{background:var(--muted);cursor:not-allowed;transform:none}
+.timestamp{font-family:Consolas,monospace;font-size:13px;color:var(--muted);margin-top:8px}
+.phase-gate{background:rgba(245,158,11,0.1);border-left:3px solid var(--yellow);padding:12px 16px;border-radius:6px;margin:12px 0;font-size:13px}
+.phase-gate strong{color:var(--yellow)}
+.top-home-bar{position:sticky;top:0;z-index:100;background:rgba(15,23,42,0.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:-24px -24px 16px;font-size:13px}
+.top-home-bar a.home-link{color:var(--accent);text-decoration:none;font-weight:600;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(6,182,212,0.1);border:1px solid var(--accent);border-radius:6px;transition:background 0.15s,transform 0.1s}
+.top-home-bar a.home-link:hover{background:rgba(6,182,212,0.25);transform:translateX(-2px);text-decoration:none}
+.top-home-bar .breadcrumbs{color:var(--muted);font-size:12px;font-family:Consolas,monospace}
+.top-home-bar .breadcrumbs a{color:var(--muted);text-decoration:none}
+.top-home-bar .breadcrumbs a:hover{color:var(--accent);text-decoration:underline}
+.top-home-bar .breadcrumbs .sep{margin:0 6px;color:var(--border)}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+th{background:var(--surface2);padding:8px 12px;text-align:left;font-weight:600;color:var(--accent)}
+td{padding:8px 12px;border-bottom:1px solid var(--border)}
+tr:hover{background:var(--surface2)}
+</style>
+</head>
+<body>
+
+<nav class="top-home-bar">
+  <a href="../执行计划清单.html" class="home-link">🏠 回主页</a>
+  <div class="breadcrumbs">
+    <a href="../执行计划清单.html">主页</a><span class="sep">›</span><a href="README.html">SOP 索引</a><span class="sep">›</span><span>SOP-01 Giffgaff 英国 SIM</span>
+  </div>
+</nav>
+
+<header>
+  <span class="badge">SOP-01</span>
+  <span class="badge">M0 W1</span>
+  <span class="badge">¥108 + £10/6 月</span>
+  <h1>Giffgaff 英国 SIM 卡采购</h1>
+  <div class="subtitle">+44 英国手机号 · Google Workspace 验证 · **jd 收实体卡 + 英国官网激活** · 主推 M1 起主用(MVNO 真号 + Workspace 99% 通过率)</div>
+  <a href="README.html" class="back-link">← 返回 SOP 索引</a> · <a href="../执行计划清单.html" class="back-link">← 返回执行计划</a>
+</header>
+
+<section>
+  <h2>📌 任务元信息</h2>
+  <div class="meta-grid">
+    <div class="meta-card"><div class="label">所属阶段</div><div class="value">M0 技术验证 → M1 单语种上线</div></div>
+    <div class="meta-card"><div class="label">触发时机</div><div class="value">W1(数字人 demo ≥7 分后)</div></div>
+    <div class="meta-card"><div class="label">单次成本</div><div class="value"><strong>¥108</strong>(jd 收卡)+ <strong>£10/6 月</strong>(续费保号,约 ¥90)</div></div>
+    <div class="meta-card"><div class="label">耗时</div><div class="value">jd 收卡 2-3 天 · 官网激活 15 min</div></div>
+    <div class="meta-card"><div class="label">责任人</div><div class="value">主理人</div></div>
+    <div class="meta-card"><div class="label">前置依赖</div><div class="value">无(可独立执行)</div></div>
+  </div>
+  <div class="phase-gate">
+    <strong>⏸ 阶段门控</strong>: M0 demo 质量 ≥7/10 → 进入 W1 启动本 SOP;若 ≤6 → 暂停本 SOP,先换工具链
+  </div>
+</section>
+
+<section>
+  <h2>🎯 方案对比(M1 主推 Giffgaff · 闲鱼 8天 应急 · 泰国年卡 M4+ 备用)</h2>
+  <table>
+    <tr><th>维度</th><th>Giffgaff(<strong>M1 主推</strong>)</th><th>泰国 AIS 8天卡(<strong>W1 应急</strong>)</th><th>泰国 AIS 年卡(<strong>M4+ 备用</strong>)</th><th>推荐</th></tr>
+    <tr><td><strong>采购渠道</strong></td><td>✅ jd 国际购 / 闲鱼代购大量在售</td><td>✅ 闲鱼/淘宝大量在售</td><td>⚠ 朋友个人名下办理</td><td>🇬🇧 Giffgaff 胜</td></tr>
+    <tr><td><strong>到货速度</strong></td><td>✅ jd 自营 2-3 天</td><td>✅ 3-7 天(国际小包直邮)</td><td>⚠ 朋友代办 1 周</td><td>🇬🇧 Giffgaff 略胜</td></tr>
+    <tr><td><strong>成本(年化)</strong></td><td><strong>¥108 + £10/6 月 × 2 = ¥288/年</strong>(¥24/月均摊)</td><td>¥25-40 × 48 张 = ¥1200-1920(每 8 天换卡)</td><td>¥560/年(¥47/月均摊)</td><td>🇬🇧 Giffgaff 综合最优</td></tr>
+    <tr><td><strong>Google 风控</strong></td><td>✅ +44 MVNO 真号 = <strong>Workspace 99% 通过率</strong></td><td>✅ +66 真名注册 = Workspace 95%+</td><td>✅ +66 真名注册 = Workspace 95%+</td><td>🇬🇧 Giffgaff 胜</td></tr>
+    <tr><td><strong>保号复杂度</strong></td><td>✅ <strong>6 月充 £10 = 全年免操作</strong>(MVNO PAYG 标准)</td><td>⚠ <strong>每 8 天换卡 = 48 次/年手动操作</strong></td><td>✅ 1 年免操作</td><td>🇬🇧 Giffgaff / 🇹🇭 年卡 并列</td></tr>
+    <tr><td><strong>实体卡激活</strong></td><td>✅ <strong>英国官网远程激活</strong>(收卡后 15 min 走完)</td><td>✅ 卡到手即激活</td><td>✅ 朋友代办激活</td><td>🇬🇧 Giffgaff 略胜(自主)</td></tr>
+    <tr><td><strong>适用阶段</strong></td><td><strong>M1 主推 → M18 全程</strong></td><td><strong>W1-W2 应急</strong>(Giffgaff 未到手前)</td><td><strong>M4+ 备用号</strong>(8 语种矩阵化时)</td><td>—</td></tr>
+  </table>
+  <div class="tip">
+    <strong>✅ 决策结论(2026-07-20 更新)</strong>:
+    <ol style="margin-top:8px;padding-left:24px">
+      <li><strong>M1 主推</strong>:Giffgaff(jd ¥108 + £10/6 月)→ 实体卡收卡后立即英国官网激活 +44 号 → Workspace 验证</li>
+      <li><strong>W1 应急</strong>:闲鱼拍 1 张泰国 8 天卡(¥30)→ 仅作 Giffgaff 未到货前的链路备份</li>
+      <li><strong>M4+ 备用</strong>:办 1 张泰国 AIS 年卡(¥560/朋友渠道)→ 8 语种矩阵化时作为 +66 备用号</li>
+      <li><strong>全年主卡</strong>:Giffgaff 单卡搞定 M1-M12 全程,6 月 £10 续费 = 1 年总成本 ¥288(<strong>比原泰国年卡省 ¥272</strong>)</li>
+    </ol>
+  </div>
+  <div class="warning">
+    <strong>⚠ 关键优势</strong>: Giffgaff 是英国 O2 真基站的 MVNO(Mobile Virtual Network Operator),有真实 IMSI。Google 看到 +44-7xxx 开头 = <strong>黄金标准英国手机</strong>,Workspace 通过率 **99%**。¥108 一次性买卡 + 6 月 £10 = 国内能买到的最低门槛英国实体 SIM 卡。
+  </div>
+</section>
+
+<section>
+  <h2>📝 操作流程</h2>
+  <div class="steps">
+
+    <div class="step">
+      <h3>步骤 1 · 京东搜索"Giffgaff SIM 卡"</h3>
+      <div class="body">
+        <strong>关键词策略(按成功率排序)</strong>:
+        <table style="margin-top:8px;font-size:12px;width:100%">
+          <tr><th style="width:60px">轮次</th><th>关键词</th><th style="width:120px">预期结果</th></tr>
+          <tr><td>①</td><td><code>Giffgaff SIM 卡</code></td><td>10-30 个(首推 jd 国际购)</td></tr>
+          <tr><td>②</td><td><code>Giffgaff 英国 电话卡</code></td><td>5-15 个</td></tr>
+          <tr><td>③</td><td><code>英国 giffgaff 实体卡</code></td><td>10-20 个</td></tr>
+          <tr><td>④</td><td><code>UK SIM 卡 国内收</code></td><td>5-10 个</td></tr>
+          <tr><td>⑤</td><td><code>Giffgaff 中国 激活</code></td><td>5-10 个(代激活服务)</td></tr>
+        </table>
+      </div>
+      <div class="tip">
+        <strong>💡 优先选 jd 国际购自营</strong>: 2-3 天到货 + 平台担保 + ¥108 标准价。闲鱼代购 ¥80-120 但需自辨真伪。
+      </div>
+      <div class="shot">📷 截图位: 关键词轮换 5 轮搜索结果</div>
+    </div>
+
+    <div class="step">
+      <h3>步骤 2 · 店铺筛选 + 产品对比</h3>
+      <div class="body">
+        <strong>优先条件</strong>:<br>
+        • <strong>卡片类型</strong>:Giffgaff Standard SIM(三合一裁切卡,iPhone/安卓/老手机通用)<br>
+        • <strong>卡片来源</strong>:英国原产,卡面有 Giffgaff logo + O2 Network 字样<br>
+        • <strong>店铺类型</strong>:jd 自营 > 京东国际购 > 天猫国际 > 闲鱼代购<br>
+        • <strong>销量</strong>:> 200(jd 头部店)<br>
+        • <strong>评价</strong>:> 4.8(看追评,警惕"已过期"差评)<br>
+        • <strong>价格带</strong>:¥80-120(<strong>¥108 是合理均价</strong>)<br><br>
+        <strong>3 款常见产品对比</strong>:
+        <table style="margin-top:8px;font-size:12px">
+          <tr><th>产品</th><th>卡型</th><th>激活方式</th><th>价格</th></tr>
+          <tr><td>Giffgaff Standard SIM</td><td>三合一裁切</td><td>英国官网远程激活</td><td>¥108</td></tr>
+          <tr><td>Giffgaff + £5 充值套</td><td>三合一裁切</td><td>英国官网激活 + 充值到账</td><td>¥150-180</td></tr>
+          <tr><td>Giffgaff Micro SIM(老 iPhone)</td><td>单一裁切</td><td>英国官网远程激活</td><td>¥90-110</td></tr>
+        </table>
+      </div>
+      <div class="tip">
+        <strong>💡 推荐 ¥108 标准款</strong>: 收到卡 → 官网激活(填卡背 9 字头激活码)→ 充值 £10 → 立即可用。无需 £5 套(激活后再充更稳)。
+      </div>
+    </div>
+
+    <div class="step">
+      <h3>步骤 3 · 联系客服 + 下单</h3>
+      <div class="body">
+        点 "客服" → 输入:<br>
+        <code>在吗?要 1 张 Giffgaff Standard SIM(英国原产),能寄中国 [你的城市] 吗?卡背 9 字头激活码能看到吗?</code><br><br>
+        客服 3 分钟内回复 + 确认 2 件事:<br>
+        • <strong>卡片是否英国原产未激活</strong>(未激活款需自己激活,激活款贵 ¥20-30 但可跳过步骤 4)<br>
+        • <strong>卡背 9 字头激活码是否完整可见</strong>(部分店卖"已磨码"残卡)<br>
+        付款金额:<code>¥108</code>(Giffgaff jd 均价)
+      </div>
+      <div class="shot">📷 截图位: 客服对话 + 卡片信息截图(关键证据)</div>
+    </div>
+
+    <div class="step">
+      <h3>步骤 4 · 英国官网远程激活(关键!)</h3>
+      <div class="body">
+        <strong>到货后立即操作</strong>(全程 15 分钟,无需 VPN,用国内网络即可):<br><br>
+        <strong>4.1 访问官网</strong>:<code>https://www.giffgaff.com/activate</code><br>
+        <strong>4.2 输入卡背 9 字头激活码</strong>(如:<code>123456789</code>)<br>
+        <strong>4.3 选套餐</strong>:选 <strong>£10 Goodybag</strong>(含 500 分钟 + 无限短信 + 1GB 流量,30 天有效)—— <strong>首充必备</strong>,否则无网络不能收 SMS<br>
+        <strong>4.4 充值方式</strong>(任选 1):<br>
+        • <strong>Visa/Master 信用卡</strong>(推荐,有国内 V/M 双币卡即可)<br>
+        • <strong>PayPal</strong>(需 PayPal 账户绑定)<br>
+        • <strong>Giffgaff 充值码</strong>(闲鱼有售,£10 ≈ ¥90)<br>
+        <strong>4.5 激活成功</strong> → 系统分配 +44-7xxx 真实英国号码<br><br>
+        <strong>⚠ 关键点</strong>:激活完成后,**+44 号立即可收 SMS**(Workspace 验证用);**流量/通话需 £10 Goodybag 激活后才有**。
+      </div>
+      <div class="tip">
+        <strong>💡 不想用信用卡?</strong>:用闲鱼买 Giffgaff 充值码(¥85-95),下单时选 "Voucher" 输入 → 等同 £10 充值。
+      </div>
+      <div class="shot">📷 截图位: 激活成功页 +44 号显示 + 充值到账确认</div>
+    </div>
+
+    <div class="step">
+      <h3>步骤 5 · 验证激活 + 首测 SMS</h3>
+      <div class="body">
+        <strong>验证卡的真实性</strong>(关键!):<br>
+        1. 官网登录账号 → "My Giffgaff" → 看 +44-7xxx 号码是否显示<br>
+        2. 把 SIM 卡插到 <strong>支持 GSM 的手机</strong>(国内双卡双待机均可)<br>
+        3. 等 30 秒 → 收到英国 O2 信号(显示 Giffgaff / 234-10)<br>
+        4. 用国内手机给你 Giffgaff 号发 1 条 SMS → 30 秒内应能收到(国际短信费 ¥0.39/条)<br>
+        5. 或拨打 <code>*100#</code> 查询余额 → 应显示 £10<br><br>
+        <strong>激活倒计时开始</strong>: £10 Goodybag 30 天有效期,过期前充值新 Goodybag 即可(后续 6 月 £10 续费保号)。
+      </div>
+    </div>
+
+    <div class="step">
+      <h3>步骤 6 · 应急方案(激活失败或卡不能用)</h3>
+      <div class="body">
+        如果官网激活报错,或卡插手机无信号 → 启动应急链路(按优先级):<br><br>
+        <strong>方案 A · 闲鱼个人卖家(成功率 90%)</strong>:<br>
+        关键词:<code>Giffgaff 激活</code> / <code>Giffgaff 代激活</code><br>
+        优点:卖家多已测试可用;缺点:需信任何<br><br>
+        <strong>方案 B · 切换泰国 8天卡(成功率 95%)</strong>:<br>
+        闲鱼搜:<code>泰国 AIS 8天</code> ¥30 → 立即到手<br>
+        用 +66 号验证 Workspace(Giffgaff 备用至下次激活成功)<br><br>
+        <strong>方案 C · 联系 jd 客服退款</strong>:<br>
+        凭卡背激活码 + 激活失败截图 → 7 天无理由退款<br><br>
+        <strong>方案 D · 切换其他英国 MVNO</strong>:<br>
+        Lebara(同样 +44 O2 网络,闲鱼 ¥90-130)<br>
+        Three UK(闲鱼 ¥100-150,£5 起充)<br>
+        缺点:店铺少,选择性差
+      </div>
+      <div class="warning">
+        <strong>⚠ 红线</strong>: 不要买"虚拟号"或"网络电话"冒充的英国卡 → Google 100% 识别 VoIP 拒收;坚持买"Giffgaff 真实体 SIM + O2 真基站号"。
+      </div>
+    </div>
+
+    <div class="step">
+      <h3>步骤 7 · 记录下单信息</h3>
+      <div class="body">
+        在 <code>sop/_records/giffgaff.log</code> 记录:<br>
+        • jd/闲鱼订单号<br>
+        • 店铺名 + 客服 ID<br>
+        • 卡类型:Giffgaff Standard SIM(三合一)<br>
+        • 卡背 9 字头激活码(到手后填)<br>
+        • +44-7xxx 分配号码(激活后填)<br>
+        • £10 Goodybag 充值日期 + 30 天到期日<br>
+        • 下单时间 + 预期到货(2-3 天 jd / 5-7 天闲鱼)<br>
+        • 客服微信(便于追件)
+      </div>
+    </div>
+
+    <div class="step">
+      <h3>步骤 8 · 时间窗口管理(关键!)</h3>
+      <div class="body">
+        <strong>£10 Goodybag 30 天有效期分配建议</strong>:
+        <table style="margin-top:8px;font-size:12px">
+          <tr><th>天数</th><th>动作</th><th>耗时</th></tr>
+          <tr><td>Day 1</td><td>卡片到手 → 官网激活 → £10 充值 → 插卡验证 +44 信号</td><td>30 min</td></tr>
+          <tr><td>Day 1-2</td><td><a href="01-bright-data.html">SOP-03 Bright Data</a> 注册 + 配置(同步执行)</td><td>1-2 h</td></tr>
+          <tr><td>Day 2-3</td><td><a href="01-gologin.html">SOP-04 GoLogin</a> 试用 7 天 + 档案配置(同步执行)</td><td>1 h</td></tr>
+          <tr><td>Day 3-5</td><td><strong>Workspace 14 天试用注册</strong>(用 +44 接收验证码)</td><td>30 min</td></tr>
+          <tr><td>Day 5-30</td><td>备用 / YT 频道注册等其他验证场景</td><td>—</td></tr>
+        </table>
+      </div>
+      <div class="warning">
+        <strong>⚠ 红线</strong>: 切勿拖延!Workspace 注册若卡在 Day 6+ 失败,Goodybag 过期就前功尽弃 → 必须 <strong>Day 1-3 全部就绪</strong>,Day 3-5 主攻验证
+      </div>
+      <div class="tip">
+        <strong>💡 后续动作</strong>: 卡片到手后,立即并行执行 <a href="01-bright-data.html">SOP-03 Bright Data</a> + <a href="01-gologin.html">SOP-04 GoLogin</a>(两者独立可并行);Workspace 注册在 M1 W2 启动
+      </div>
+    </div>
+
+    <div class="step">
+      <h3>步骤 9 · 存档备用</h3>
+      <div class="body">
+        +44-7xxx 号码 + 激活时间截图保存到 <code>sop/_records/giffgaff-photo.png</code><br>
+        同步记录到主计划 [执行计划清单.md § 阶段 B] 备注栏<br>
+        卡片保留至 Workspace 验证成功 + 14 天试用跑通后再丢弃<br><br>
+        <strong>保号策略</strong>:<br>
+        • Goodybag 到期前 1-3 天 → 闲鱼买 £10 充值码(¥85-95)→ 充值激活新 Goodybag<br>
+        • 每 6 个月总成本 ¥85-95 = <strong>全年总成本 ¥108(买卡)+ ¥180(2 次充值) = ¥288</strong><br>
+        • 比泰国 AIS 年卡 ¥560 省 <strong>¥272/年</strong>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <h2>✅ 验收清单</h2>
+  <ul class="checklist" id="checklist">
+    <li onclick="this.classList.toggle('done')">已尝试 5 轮关键词搜索,选定 jd 国际购 Giffgaff Standard SIM</li>
+    <li onclick="this.classList.toggle('done')">已对比 3 家以上店铺,选定 jd 自营 / 国际购自营(¥108 标准价)</li>
+    <li onclick="this.classList.toggle('done')">已和客服确认:英国原产未激活卡 + 卡背 9 字头激活码完整可见</li>
+    <li onclick="this.classList.toggle('done')">已下单付款 ¥108,订单号已记录</li>
+    <li onclick="this.classList.toggle('done')">已记录店铺名 / 客服 ID / 卡片类型 / 预期到货(2-3 天 jd)</li>
+    <li onclick="this.classList.toggle('done')">已收到卡片,实物拍照验收 + 卡背激活码截图</li>
+    <li onclick="this.classList.toggle('done')">已访问 giffgaff.com/activate 输入 9 字头激活码完成激活</li>
+    <li onclick="this.classList.toggle('done')">已充值 £10 Goodybag(VISA/PayPal/充值码任选)</li>
+    <li onclick="this.classList.toggle('done')">已获取 +44-7xxx 真实英国号码,验证插卡收到 O2 信号</li>
+    <li onclick="this.classList.toggle('done')">已规划 Day 1-30 时间窗口(£10 30 天有效期)同步 SOP-03/04 + Workspace 注册</li>
+    <li onclick="this.classList.toggle('done')">已在主计划 § 阶段 B 备注栏记录本 SOP 完成 + +44 号</li>
+    <li onclick="this.classList.toggle('done')">已设置 Day 28 过期前提醒(Goodybag 30 天到期)</li>
+  </ul>
+</section>
+
+<section class="acceptance">
+  <h2>🎯 验收标准(可量化"完成"定义)</h2>
+  <p><strong>SOP 完成的判定条件</strong>(必须 100% 满足):</p>
+  <div class="criteria-grid">
+    <div class="criterion"><strong>买卡成本</strong>:¥108(jd Giffgaff Standard SIM)</div>
+    <div class="criterion"><strong>首充</strong>:£10 Goodybag(¥90 左右)</div>
+    <div class="criterion"><strong>时效</strong>:≤3 天到货(国内 jd)</div>
+    <div class="criterion"><strong>激活</strong>:giffgaff.com/activate 15 min 完成</div>
+    <div class="criterion"><strong>真实号</strong>:插卡显示 Giffgaff + +44-7xxx</div>
+    <div class="criterion"><strong>有效期</strong>:30 天(Goodybag)</div>
+    <div class="criterion"><strong>Workspace 通过率</strong>:99%(基于 +44 UK 风控零标签)</div>
+  </div>
+  <div class="warning" style="margin-top:12px">
+    <strong>⚠ 失败回退</strong>: 若 3 天未到 → 联系 jd 客服查询物流;若激活报错 → 闲鱼搜 "Giffgaff 激活" 找代激活(¥20-30);若仍失败 → 切换闲鱼泰国 8天卡(¥30 应急)或 Lebara/Three UK 其他英国 MVNO
+  </div>
+</section>
+
+<section>
+  <h2>📊 资金与时间汇总</h2>
+  <table>
+    <tr><th>项</th><th>金额</th><th>备注</th></tr>
+    <tr><td>Giffgaff Standard SIM(京东)</td><td>¥108</td><td>英国原产未激活卡</td></tr>
+    <tr><td>£10 Goodybag 首充</td><td>¥90</td><td>30 天有效期(可用 VISA/PayPal/闲鱼充值码)</td></tr>
+    <tr><td>国际邮费</td><td>¥0</td><td>已含在卡价</td></tr>
+    <tr><td><strong>本 SOP 首次合计</strong></td><td><strong>¥198</strong></td><td>买卡 + 首充</td></tr>
+    <tr><td>后续每 6 个月续费</td><td>¥90</td><td>闲鱼买 £10 充值码,保号</td></tr>
+    <tr><td><strong>全年总成本</strong></td><td><strong>¥288/年</strong></td><td>¥108 + 2×¥90 = ¥288(¥24/月均摊)</td></tr>
+    <tr><td>vs 泰国 AIS 年卡</td><td>省 ¥272</td><td>¥560(泰国年卡) - ¥288(Giffgaff) = ¥272</td></tr>
+    <tr><td>vs 闲鱼泰国 8天卡(W1 应急)</td><td>¥30 备用</td><td>Giffgaff 激活前临时验证用</td></tr>
+  </table>
+  <div class="tip" style="margin-top:12px">
+    <strong>💡 双轨策略</strong>: Giffgaff 为主推(M1 W1 启动链路),闲鱼泰国 8天 ¥30 卡为 W1 应急备份(若 Giffgaff 激活失败立即顶上);两者并行下单可压缩 W1 启动时间到 1 天
+  </div>
+</section>
+
+<div class="confirm-bar">
+  <div>
+    <div class="progress" id="progress">已完成 0/12 项</div>
+    <div class="timestamp" id="timestamp">未确认</div>
+  </div>
+  <button id="confirmBtn" onclick="confirmDone()">✓ 确认完成本 SOP</button>
+</div>
+
+<script>
+function updateProgress(){
+  const total=document.querySelectorAll('#checklist li').length;
+  const done=document.querySelectorAll('#checklist li.done').length;
+  document.getElementById('progress').textContent=`已完成 ${done}/${total} 项`;
+  document.getElementById('confirmBtn').disabled=done<total;
+}
+document.querySelectorAll('#checklist li').forEach(li=>{
+  li.addEventListener('click',updateProgress);
+});
+function confirmDone(){
+  const now=new Date();
+  const ts=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  document.getElementById('timestamp').textContent=`✅ 已完成 · ${ts}`;
+  document.getElementById('confirmBtn').textContent='✓ 已归档';
+  document.getElementById('confirmBtn').disabled=true;
+  document.getElementById('confirmBtn').style.background='#475569';
+  console.log('[SOP-01 Giffgaff UK SIM] 完成时间:',ts);
+}
+updateProgress();
+</script>
+
+</body>
+</html>

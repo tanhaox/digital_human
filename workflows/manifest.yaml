@@ -1,0 +1,25 @@
+workflows:
+  - name: character_three_view
+    source: character_three_view.json
+    runtime_path: E:/AI/ComfyUI_windows_portable/ComfyUI/user/default/workflows/character_three_view.json
+    auto_sync: true
+    last_verified: 2026-07-26 (krea2 type)
+    description: 角色多视图定型(正脸/侧脸/全身) — 基于"数字人多维度定型图生成器"
+    api_prompt_endpoint: /prompt
+    api_history_endpoint: /history/{prompt_id}
+    output_count: 3
+    output_view_order: [front, side, full]
+
+  # digital_human_video_ltx23: 数字人说话视频 (音频 + 分镜图 → MP4)
+  # 注意: 实际 workflow 由 app/services/lit_video_builder.py Python 字典构造,
+  # 此 JSON 仅为项目侧 SSOT 占位 + 同步到 ComfyUI 运行时 (用户可在 ComfyUI UI 中查看/修改).
+  - name: digital_human_video_ltx23
+    source: digital_human_video_ltx23.json
+    runtime_path: E:/AI/ComfyUI_windows_portable/ComfyUI/user/default/workflows/digital_human_video_ltx23.json
+    auto_sync: true
+    last_verified: 2026-07-26 (stub)
+    description: 数字人说话视频 — LTX 2.3 音频+分镜图→视频 (由 lit_video_builder.py 动态构造, 此 JSON 为占位/参考)
+    api_prompt_endpoint: /prompt
+    api_history_endpoint: /history/{prompt_id}
+    output_count: 1
+    output_type: video/h264-mp4

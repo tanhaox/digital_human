@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<!-- ============================================================
+  hf_bookinfo_v1 — 拆书线书籍信息卡 B-08 (2026-09-05, 版式源 .tmp/style_book_card.html)
+  内容层: title(书名) + author(作者) + guide(阅读指南) + bio(简介, ||| 分段, ≤3 段)
+  固定件: About the Book 小标 / 品牌尾注 / logo PNG (logo_b64 注入)
+  强调规则: guide 的 「…」《…》锈红; bio 的 《…》墨色加重 (确定性正则, 无 LLM)
+  长书名自适应: >11 字降 72px, >16 字降 60px。
+  协议: HyperFrames — #root data-* + GSAP paused timeline 注册
+        window.__timelines, 入场 ≤2s + 尾部保持段。
+  ============================================================ -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Noto+Serif+SC:wght@600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F2EEE6; --paper-2:#EAE4D8; --ink:#1C1613; --ink-soft:#3B2424;
+    --taupe:#A1836E; --rust:#9E4A2F; --hair:rgba(28,22,19,.28);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1920px;height:1080px;overflow:hidden;background:var(--paper)}
+  body{font-family:"Noto Serif SC",serif;color:var(--ink)}
+  #root{position:relative;width:1920px;height:1080px;background:var(--paper);overflow:hidden}
+  .grain{position:absolute;inset:0;opacity:.5;pointer-events:none;
+    background-image:radial-gradient(rgba(28,22,19,.06) 1px,transparent 1px);background-size:5px 5px}
+  .caps{font-family:Manrope,sans-serif;font-weight:700;letter-spacing:.34em;text-transform:uppercase}
+
+  .wrap{position:absolute;inset:0;padding:96px 110px 88px;display:flex;flex-direction:column}
+  .head{display:flex;justify-content:space-between;align-items:baseline}
+  .head .caps{font-size:28px}
+  h2{font-weight:900;font-size:88px;letter-spacing:.04em}
+  .tag{font-family:Manrope,sans-serif;font-weight:700;font-size:21px;
+       letter-spacing:.34em;color:var(--taupe);text-transform:uppercase;flex:none}
+  .block{margin-top:46px;display:flex;align-items:baseline;gap:44px}
+  .author .who{font-size:42px;font-weight:700;letter-spacing:.02em}
+  .guide .txt{font-size:34px;font-weight:700;line-height:1.7}
+  .guide .txt em{font-style:normal;color:var(--rust)}
+  .bio .txt{display:flex;flex-direction:column;gap:20px;font-size:32px;font-weight:600;
+            line-height:1.75;color:var(--ink-soft);flex:1}
+  .bio .txt b{color:var(--ink);font-weight:700}
+  .tail{margin-top:auto;font-size:26px;color:var(--ink-soft);display:flex;
+        justify-content:space-between;align-items:center}
+  .tail img{height:120px;width:auto;display:block}
+</style>
+</head>
+<body>
+<div id="root"
+     data-composition-id="hf_bookinfo_v1"
+     data-start="0"
+     data-duration="{{duration_sec}}"
+     data-width="1920"
+     data-height="1080"
+     data-title="{{title}}"
+     data-author="{{author}}"
+     data-guide="{{guide}}"
+     data-bio="{{bio}}"
+     data-brand="{{brand_name}}"
+     data-logo="{{logo_b64}}">
+  <div class="grain"></div>
+  <div class="wrap">
+    <div class="head"><h2 id="title"></h2><span class="caps" id="caps">About the Book</span></div>
+    <div class="block author" id="blk-author"><span class="tag">作者</span><span class="who" id="author"></span></div>
+    <div class="block guide" id="blk-guide"><span class="tag">指南</span><div class="txt" id="guide"></div></div>
+    <div class="block bio" id="blk-bio"><span class="tag">简介</span><div class="txt" id="bio"></div></div>
+    <div class="tail" id="tail"><span id="brand-line"></span><img id="logo" alt=""></div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<script>
+(function () {
+  var root = document.getElementById("root");
+  var DUR = parseFloat(root.getAttribute("data-duration")) || 5;
+  var title = root.getAttribute("data-title") || "";
+  var author = root.getAttribute("data-author") || "";
+  var guide = root.getAttribute("data-guide") || "";
+  var bio = root.getAttribute("data-bio") || "";
+  var brand = root.getAttribute("data-brand") || "静读书";
+  var logo = root.getAttribute("data-logo") || "";
+
+  // ── 书名自适应: 长名降号 (1920 画布 110px 边距, 内容区 1700px) ──
+  var h2 = document.getElementById("title");
+  h2.textContent = title;
+  var n = title.replace(/\s/g, "").length;
+  if (n > 16) h2.style.fontSize = "60px";
+  else if (n > 11) h2.style.fontSize = "72px";
+
+  document.getElementById("author").textContent = author;
+
+  // ── 指南: 「…」《…》锈红 (确定性, textContent 分段防注入) ──
+  var g = document.getElementById("guide");
+  guide.split(/(「[^」]*」|《[^》]*》)/g).forEach(function (part) {
+    if (!part) return;
+    if (/^[「《]/.test(part)) {
+      var em = document.createElement("em"); em.textContent = part; g.appendChild(em);
+    } else {
+      g.appendChild(document.createTextNode(part));
+    }
+  });
+
+  // ── 简介: ||| 分段 ≤3 段; 《…》墨色加重 ──
+  var b = document.getElementById("bio");
+  bio.split("|||").slice(0, 3).forEach(function (para) {
+    if (!para.trim()) return;
+    var p = document.createElement("p");
+    para.split(/(《[^》]*》)/g).forEach(function (part) {
+      if (!part) return;
+      if (/^《/.test(part)) {
+        var bold = document.createElement("b"); bold.textContent = part; p.appendChild(bold);
+      } else {
+        p.appendChild(document.createTextNode(part));
+      }
+    });
+    b.appendChild(p);
+  });
+
+  document.getElementById("brand-line").textContent = brand + " · 读透一本好书";
+  if (logo) document.getElementById("logo").src = logo;
+
+  var tl = gsap.timeline({ paused: true });
+  tl.from(h2, { opacity: 0, x: -90, duration: 1, ease: "power3.out" }, .15)
+    .from(document.getElementById("caps"), { opacity: 0, duration: .6 }, .3)
+    .from("#blk-author", { opacity: 0, y: 64, duration: .9, ease: "power3.out" }, .32)
+    .from("#blk-guide", { opacity: 0, y: 64, duration: .9, ease: "power3.out" }, .5)
+    .from("#blk-bio", { opacity: 0, y: 64, duration: .9, ease: "power3.out" }, .68)
+    .from("#tail", { opacity: 0, duration: .5 }, 1.3);
+
+  // HyperFrames 协议: paused timeline 注册 + 尾部保持段
+  window.__timelines = window.__timelines || {};
+  window.__timelines["hf_bookinfo_v1"] = tl;
+  tl.to({}, { duration: Math.max(0.5, DUR - 2.0) }, 2.0);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M0-SOP-02 · SadTalker 安装 + 测试</title>
+<style>
+:root{
+  --bg:#0f172a;--surface:#1e293b;--surface2:#334155;--border:#475569;
+  --text:#e2e8f0;--muted:#94a3b8;--accent:#06b6d4;--green:#10b981;
+  --yellow:#f59e0b;--red:#ef4444;--purple:#a855f7;--code-bg:#020617;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;padding:24px;max-width:960px;margin:0 auto}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.top-home-bar{position:sticky;top:0;z-index:100;background:rgba(15,23,42,0.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:-24px -24px 16px;font-size:13px}
+.top-home-bar a.home-link{color:var(--accent);text-decoration:none;font-weight:600;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(6,182,212,0.1);border:1px solid var(--accent);border-radius:6px}
+.top-home-bar .breadcrumbs{color:var(--muted);font-size:12px;font-family:Consolas,monospace}
+.top-home-bar .breadcrumbs a{color:var(--muted);text-decoration:none}
+.top-home-bar .breadcrumbs .sep{margin:0 6px;color:var(--border)}
+header{background:linear-gradient(135deg,#7c3aed 0%,#ec4899 100%);padding:24px 32px;border-radius:12px;margin-bottom:24px}
+.badge{display:inline-block;background:rgba(255,255,255,0.2);padding:4px 12px;border-radius:12px;font-size:12px;margin-right:8px;font-weight:600}
+h1{font-size:24px;margin:8px 0 4px}
+.subtitle{font-size:14px;opacity:0.9}
+.meta-line{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-size:13px;opacity:0.95}
+.meta-line .m{background:rgba(0,0,0,0.25);padding:4px 10px;border-radius:4px}
+section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:14px}
+h2{font-size:17px;margin-bottom:10px;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:6px}
+.tip{background:rgba(16,185,129,0.1);border-left:3px solid var(--green);padding:10px 14px;border-radius:6px;margin:10px 0;font-size:13px}
+.warning{background:rgba(239,68,68,0.1);border-left:3px solid var(--red);padding:10px 14px;border-radius:6px;margin:10px 0;font-size:13px}
+.note{background:rgba(168,85,247,0.1);border-left:3px solid var(--purple);padding:10px 14px;border-radius:6px;margin:10px 0;font-size:13px}
+.task{background:var(--surface2);border-left:3px solid var(--accent);padding:14px 18px;border-radius:8px;margin-bottom:14px;transition:opacity 0.2s}
+.task.done{opacity:0.55;border-left-color:var(--green)}
+.task.done .task-title::after{content:" ✅"}
+.task-head{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+.task-head input[type=checkbox]{width:20px;height:20px;cursor:pointer;accent-color:var(--green)}
+.task-title{font-weight:600;font-size:15px;color:var(--accent);flex:1}
+.task-tag{font-size:11px;background:var(--bg);padding:2px 8px;border-radius:4px;color:var(--muted);font-family:Consolas,monospace}
+.task-body{margin-top:10px;padding-left:30px;font-size:13px;color:var(--text)}
+.task-body ol{padding-left:20px;margin:6px 0}
+.task-body li{margin:4px 0}
+.cmd{background:var(--code-bg);border:1px solid var(--border);padding:10px 14px;border-radius:6px;font-family:Consolas,monospace;font-size:13px;color:var(--yellow);white-space:pre-wrap;word-break:break-all;margin:6px 0;user-select:all;cursor:pointer}
+.cmd::before{content:"$ ";color:var(--green);font-weight:700}
+.cmd:hover{border-color:var(--accent)}
+.shot{margin-top:6px;padding:8px 12px;background:var(--bg);border:1px dashed var(--border);border-radius:4px;font-size:12px;color:var(--muted);font-style:italic}
+.accept{background:rgba(16,185,129,0.1);border-left:3px solid var(--green);padding:6px 12px;border-radius:4px;margin-top:6px;font-size:12px;color:var(--green)}
+.next{color:var(--accent);font-size:12px;margin-top:4px}
+.progress-bar{height:24px;background:var(--surface2);border-radius:12px;overflow:hidden;position:relative;margin:10px 0;border:1px solid var(--border)}
+.progress-fill{height:100%;background:linear-gradient(90deg,#7c3aed 0%,#ec4899 100%);transition:width 0.3s}
+.progress-label{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.6)}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:10px 0}
+.kpi{background:var(--surface2);padding:10px 14px;border-radius:8px;border-left:3px solid var(--accent);text-align:center}
+.kpi .num{font-size:18px;font-weight:700;color:var(--accent)}
+.kpi .label{font-size:11px;color:var(--muted);margin-top:2px}
+.footer-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.btn{padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer;border:none;transition:opacity 0.15s}
+.btn:hover{opacity:0.85}
+.btn-reset{background:var(--red);color:#fff}
+.btn-back{background:var(--surface2);color:var(--accent);border:1px solid var(--accent);text-decoration:none;display:inline-block}
+</style>
+</head>
+<body>
+
+<nav class="top-home-bar">
+  <a href="README.html" class="home-link">📋 回 M0 索引</a>
+  <div class="breadcrumbs">
+    <a href="README.html">M0 索引</a><span class="sep">›</span><span>M0-SOP-02 SadTalker</span>
+  </div>
+</nav>
+
+<header>
+  <span class="badge">M0-SOP-02</span>
+  <span class="badge">W2</span>
+  <span class="badge">¥0 成本</span>
+  <span class="badge">耗时 ≈2-3 小时(含下载)</span>
+  <h1>🎭 SadTalker 安装 + 测试</h1>
+  <div class="subtitle">开源数字人 · 静态图 + 音频 → 唇形同步视频 · GitHub 开源 · 需 NVIDIA GPU</div>
+  <div class="meta-line">
+    <div class="m">📦 工具:Git · Python 3.10 · PyTorch · NVIDIA GPU(可选 Colab)</div>
+    <div class="m">🎯 产出:第 1 个数字人 MP4(5 秒,256x256)</div>
+    <div class="m">⏱ 累计:≈2-3 小时</div>
+    <div class="m">🧪 验收:MP4 播放 + 唇形动</div>
+  </div>
+</header>
+
+<section>
+  <h2>📊 当前进度</h2>
+  <div class="progress-bar">
+    <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    <div class="progress-label" id="progressLabel">0/10 (0%)</div>
+  </div>
+  <div class="kpi-row">
+    <div class="kpi"><div class="num" id="kpiDone">0</div><div class="label">已完成</div></div>
+    <div class="kpi" style="border-left-color:var(--green)"><div class="num" id="kpiLeft">10</div><div class="label">剩余</div></div>
+    <div class="kpi" style="border-left-color:var(--yellow)"><div class="num" id="kpiTime">150</div><div class="label">预计分钟</div></div>
+  </div>
+  <div class="warning">
+    <strong>⚠ GPU 强制</strong>:SadTalker 必须 NVIDIA GPU(显存 ≥4GB)。如本机无独立显卡 → 跳过步骤 1-7,直接走 <strong>方案 B · Google Colab 免费版</strong>(限 4h/天,够 M0 测试)。
+  </div>
+</section>
+
+<section>
+  <h2>🎯 为什么选 SadTalker</h2>
+  <ul style="padding-left:24px;font-size:14px">
+    <li><strong>开源</strong>:GitHub 开源,4 万 star,持续更新(<a href="https://github.com/OpenTalker/SadTalker" target="_blank">github.com/OpenTalker/SadTalker</a>)</li>
+    <li><strong>效果好</strong>:唇形 / 表情 / 头部运动 自然度,在开源方案中第一梯队</li>
+    <li><strong>本地推理</strong>:本机 GPU 跑一次 5 秒视频 ≈20-30 秒(3060/4060)</li>
+    <li><strong>替代</strong>:MuseTalk(更新,效果更好) / LivePortrait(更快,但只头部运动)</li>
+  </ul>
+</section>
+
+<section>
+  <h2>✅ 10 步执行清单</h2>
+
+  <div class="task" id="t1">
+    <label class="task-head">
+      <input type="checkbox" id="c1" onchange="save()">
+      <span class="task-title">1️⃣ 检查 GPU + CUDA(本机方案)</span>
+      <span class="task-tag">≈2 min</span>
+    </label>
+    <div class="task-body">
+      <strong>命令</strong>(Windows CMD):
+      <div class="cmd">nvidia-smi</div>
+      <strong>期望输出</strong>: 显示 GPU 型号 + CUDA Version(≥11.7)+ 显存 ≥4GB<br>
+      <strong>若无 NVIDIA 卡</strong>: 跳过此步,直接走步骤 7(Colab 方案)
+      <div class="shot">📷 截图位: GPU 信息(型号 + 显存)</div>
+      <div class="accept">✅ 验收:看到 NVIDIA 显卡信息 OR 决定用 Colab</div>
+    </div>
+  </div>
+
+  <div class="task" id="t2">
+    <label class="task-head">
+      <input type="checkbox" id="c2" onchange="save()">
+      <span class="task-title">2️⃣ 安装 PyTorch(CUDA 版)</span>
+      <span class="task-tag">≈5 min</span>
+    </label>
+    <div class="task-body">
+      <strong>命令</strong>(根据 CUDA 版本,NVIDIA 官网选对应命令):
+      <div class="cmd">pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118</div>
+      <strong>注</strong>: <code>cu118</code> = CUDA 11.8;若 CUDA 12.x 用 <code>cu121</code><br>
+      <strong>验证</strong>:
+      <div class="cmd">python -c "import torch; print(torch.cuda.is_available())"</div>
+      <strong>期望</strong>: 输出 <code>True</code>
+      <div class="warning">
+        <strong>⚠ 慢</strong>:PyTorch 安装 2-5 GB,看网络。失败重试 3 次。
+      </div>
+      <div class="accept">✅ 验收:<code>torch.cuda.is_available()</code> 返回 <code>True</code></div>
+    </div>
+  </div>
+
+  <div class="task" id="t3">
+    <label class="task-head">
+      <input type="checkbox" id="c3" onchange="save()">
+      <span class="task-title">3️⃣ 安装 Git LFS(下载模型用)</span>
+      <span class="task-tag">≈3 min</span>
+    </label>
+    <div class="task-body">
+      <strong>命令</strong>:
+      <div class="cmd">git lfs install</div>
+      <strong>若 git lfs 未装</strong>: 下载 <a href="https://git-lfs.github.com/" target="_blank">git-lfs.github.com</a> 安装<br>
+      <strong>为什么</strong>:SadTalker 模型权重 >2GB,必须 LFS 下载
+      <div class="accept">✅ 验收:<code>git lfs install</code> 无报错</div>
+    </div>
+  </div>
+
+  <div class="task" id="t4">
+    <label class="task-head">
+      <input type="checkbox" id="c4" onchange="save()">
+      <span class="task-title">4️⃣ git clone SadTalker 仓库</span>
+      <span class="task-tag">≈5 min</span>
+    </label>
+    <div class="task-body">
+      <strong>命令</strong>:
+      <div class="cmd">cd F:\AI-Agent-Local\数字人计划
+git clone https://github.com/OpenTalker/SadTalker.git</div>
+      <strong>期望</strong>: 生成 <code>SadTalker/</code> 目录,大小 ≈150MB(不含模型)
+      <div class="warning">
+        <strong>⚠ 网速慢</strong>:GitHub 国内不稳定,失败可用 Gitee 镜像:<br>
+        <div class="cmd">git clone https://gitee.com/mirrors/SadTalker.git</div>
+      </div>
+      <div class="shot">📷 截图位: SadTalker 目录结构(应有 <code>inference.py</code> + <code>checkpoints/</code>)</div>
+      <div class="accept">✅ 验收:目录存在 + 有 <code>inference.py</code></div>
+    </div>
+  </div>
+
+  <div class="task" id="t5">
+    <label class="task-head">
+      <input type="checkbox" id="c5" onchange="save()">
+      <span class="task-title">5️⃣ 下载 SadTalker 模型权重(2 GB+)</span>
+      <span class="task-tag">≈10-30 min</span>
+    </label>
+    <div class="task-body">
+      <strong>方法 A · 用 SadTalker 自带脚本</strong>(推荐):
+      <div class="cmd">cd SadTalker
+bash scripts/download_models.sh</div>
+      <strong>方法 B · 手动下载</strong>(网络不稳时):<br>
+      1. 访问 <a href="https://github.com/OpenTalker/SadTalker/releases" target="_blank">SadTalker Releases</a><br>
+      2. 下载 <code>epoch_20.pth</code>(≈80MB)+ <code>SadTalker_V0.0.2_*.safetensors</code>(≈2GB)<br>
+      3. 放到 <code>SadTalker/checkpoints/</code><br>
+      4. 下载 <code>epoch_5.pth</code> 等其他模型
+      <div class="warning">
+        <strong>⚠ 失败 3 次</strong>: 可能是 HuggingFace 被墙,改镜像 <code>HF_ENDPOINT=https://hf-mirror.com bash scripts/download_models.sh</code>
+      </div>
+      <div class="shot">📷 截图位: <code>checkpoints/</code> 目录列表,文件总大小 >2GB</div>
+      <div class="accept">✅ 验收:checkpoints 目录有 <code>epoch_20.pth</code> 等关键模型</div>
+    </div>
+  </div>
+
+  <div class="task" id="t6">
+    <label class="task-head">
+      <input type="checkbox" id="c6" onchange="save()">
+      <span class="task-title">6️⃣ 安装 Python 依赖</span>
+      <span class="task-tag">≈5 min</span>
+    </label>
+    <div class="task-body">
+      <strong>命令</strong>:
+      <div class="cmd">cd SadTalker
+pip install -r requirements.txt</div>
+      <strong>期望</strong>: 安装 dlib / face-alignment / librosa 等<br>
+      <strong>常见错误</strong>:
+      <ul style="padding-left:20px;font-size:12px">
+        <li><code>dlib install failed</code>: 装 Visual Studio Build Tools(C++ 编译器)</li>
+        <li><code>ffmpeg not found</code>: 装 <a href="https://www.gyan.dev/ffmpeg/builds/" target="_blank">ffmpeg</a> 加入 PATH</li>
+      </ul>
+      <div class="accept">✅ 验收:<code>pip install</code> 无报错退出</div>
+    </div>
+  </div>
+
+  <div class="task" id="t7">
+    <label class="task-head">
+      <input type="checkbox" id="c7" onchange="save()">
+      <span class="task-title">7️⃣ 准备测试输入图 + 音频</span>
+      <span class="task-tag">≈5 min</span>
+    </label>
+    <div class="task-body">
+      <strong>目的</strong>:准备 1 张正面图(512x512+)+ 1 个音频(MP3/WAV)<br>
+      <strong>图要求</strong>:
+      <ul style="padding-left:20px;font-size:12px">
+        <li>正面照,1 张脸,无遮挡(眼镜 / 口罩会降低效果)</li>
+        <li>分辨率 ≥512x512,推荐 1024x1024</li>
+        <li>格式:JPG / PNG,大小 <5MB</li>
+      </ul>
+      <strong>来源</strong>:
+      <ol style="padding-left:20px;font-size:12px">
+        <li><strong>先用 SadTalker 自带示例</strong>: <code>SadTalker/examples/source_image/</code> 有 4 张默认图</li>
+        <li>或下载 Pexels 免费人像(关键词 "portrait man front")</li>
+        <li>或用 <a href="m0-04-avatar-image.html">M0-SOP-04</a> 准备的形象照</li>
+      </ol>
+      <strong>音频</strong>:用 <a href="m0-01-edge-tts.html">M0-SOP-01</a> 生成的 <code>test_zh.mp3</code>(或任一段 5-10 秒音频)
+      <div class="shot">📷 截图位: 测试图文件 + 音频文件</div>
+      <div class="accept">✅ 验收:有 1 张 512x512+ 的正面图 + 1 个 5-10 秒音频</div>
+    </div>
+  </div>
+
+  <div class="task" id="t8">
+    <label class="task-head">
+      <input type="checkbox" id="c8" onchange="save()">
+      <span class="task-title">8️⃣ 跑第 1 个数字人视频(本地)</span>
+      <span class="task-tag">≈30-90 秒</span>
+    </label>
+    <div class="task-body">
+      <strong>命令</strong>(假设图叫 <code>avatar.jpg</code>,音频 <code>test_zh.mp3</code>):
+      <div class="cmd">cd SadTalker
+python inference.py --driven_audio test_zh.mp3 --source_image avatar.jpg --result_dir ./results --enhancer gfpgan</div>
+      <strong>期望</strong>:
+      <ul style="padding-left:20px;font-size:12px">
+        <li>终端输出 <code>Loading...</code> → <code>Inferencing...</code> → <code>Done!</code></li>
+        <li>耗时 30-90 秒(3060/4060)</li>
+        <li>产出:<code>results/2026_07_20_xx_xx_xx/full.mp4</code>(5-15 秒)</li>
+      </ul>
+      <div class="warning">
+        <strong>⚠ OOM 显存不够</strong>: 加 <code>--size 256</code> 降低分辨率;或加 <code>--batch_size 1</code>
+      </div>
+      <div class="shot">📷 截图位: 终端 Done + results 目录列出 MP4</div>
+      <div class="accept">✅ 验收:results 目录有 MP4 + 文件大小 >100KB</div>
+    </div>
+  </div>
+
+  <div class="task" id="t9">
+    <label class="task-head">
+      <input type="checkbox" id="c9" onchange="save()">
+      <span class="task-title">9️⃣ 播放 + 评分(唇形 + 表情)</span>
+      <span class="task-tag">≈10 min</span>
+    </label>
+    <div class="task-body">
+      <strong>打开 MP4</strong>(VLC / 系统播放器 / Chrome)<br>
+      <strong>评分维度</strong>(满分 10):
+      <table style="width:100%;font-size:12px;margin-top:6px">
+        <tr><th>维度</th><th>≥7 分标准</th></tr>
+        <tr><td>唇形同步</td><td>嘴巴开合与发音基本对齐</td></tr>
+        <tr><td>面部表情</td><td>眉毛 / 眼睛有自然微动</td></tr>
+        <tr><td>头部运动</td><td>有自然点头 / 偏转(非僵硬)</td></tr>
+        <tr><td>画质</td><td>256x256+ 清晰,无明显马赛克</td></tr>
+      </table>
+      <strong>记录</strong>: 评分 <input type="text" placeholder="8" style="background:var(--bg);color:var(--yellow);border:1px solid var(--border);padding:2px 6px;border-radius:3px;width:40px"> /10<br>
+      <div class="warning">
+        <strong>⚠ 评分 ≤6</strong>: 换 <a href="https://github.com/TMElyralab/MuseTalk" target="_blank">MuseTalk</a>(效果更好但慢)或用 <a href="https://github.com/KwaiVGI/LivePortrait" target="_blank">LivePortrait</a>(只头部运动,5 秒视频 1 秒出)
+      </div>
+      <div class="accept">✅ 验收:MP4 播放正常 + 评分 ≥7</div>
+    </div>
+  </div>
+
+  <div class="task" id="t10">
+    <label class="task-head">
+      <input type="checkbox" id="c10" onchange="save()">
+      <span class="task-title">🔟 Colab 备选(无 GPU 用户)</span>
+      <span class="task-tag">≈30 min</span>
+    </label>
+    <div class="task-body">
+      <strong>何时启用</strong>:本机无 NVIDIA 显卡,跳到本步<br>
+      <strong>步骤</strong>:
+      <ol style="padding-left:20px;font-size:13px">
+        <li>打开 <a href="https://colab.research.google.com/" target="_blank">Google Colab</a></li>
+        <li>新建笔记本 → 运行时 → 更改运行时类型 → 选 <strong>GPU (T4)</strong></li>
+        <li>第 1 格:
+          <div class="cmd">!git clone https://github.com/OpenTalker/SadTalker.git
+%cd SadTalker
+!bash scripts/download_models.sh
+!pip install -r requirements.txt</div>
+        </li>
+        <li>第 2 格: 上传 <code>avatar.jpg</code> + <code>test_zh.mp3</code> 到 Colab 文件树</li>
+        <li>第 3 格:
+          <div class="cmd">!python inference.py --driven_audio test_zh.mp3 --source_image avatar.jpg --result_dir ./results</div>
+        </li>
+        <li>从 Colab 下载 <code>results/*.mp4</code> 到本地</li>
+      </ol>
+      <div class="warning">
+        <strong>⚠ Colab 限制</strong>: 免费版 4h/天,GPU 偶尔被抢;月活超 10h 会被限速。M0 测试够用,M4+ 需要算力机。
+      </div>
+      <div class="tip">
+        <strong>💡 替代</strong>: 每天自动跑用 Kaggle(每周 30h GPU 免费)或 AutoDL(国内,¥1-2/h)
+      </div>
+      <div class="accept">✅ 验收:Colab 跑出 MP4 + 下载到本地</div>
+      <div class="next">👉 完成 → 进入 <a href="m0-03-ffmpeg.html">M0-SOP-03 FFmpeg 拼接</a></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>🚨 应急方案</h2>
+  <div class="warning">
+    <strong>方案 A · OOM(CUDA out of memory)</strong><br>
+    1. 加 <code>--size 256</code> 降低分辨率(256x256)<br>
+    2. 关闭其他 GPU 程序(浏览器硬件加速 / 游戏)<br>
+    3. 升级到 8GB+ 显存显卡(二手 RTX 3060 ¥800)
+  </div>
+  <div class="warning">
+    <strong>方案 B · SadTalker 效果差(评分 ≤6)</strong><br>
+    换工具链(按推荐度):<br>
+    1. <a href="https://github.com/TMElyralab/MuseTalk" target="_blank">MuseTalk</a>(效果更好,2024 新)<br>
+    2. <a href="https://github.com/KwaiVGI/LivePortrait" target="_blank">LivePortrait</a>(超快,只头部)<br>
+    3. <a href="https://www.heygen.com/" target="_blank">HeyGen API</a>($24/月,商业级,但成本高)<br>
+    4. <a href="https://synesthesia.ai/" target="_blank">D-ID</a>($5.9/月,云端,免 GPU)
+  </div>
+  <div class="warning">
+    <strong>方案 C · 模型下载失败 5+ 次</strong><br>
+    HuggingFace 被墙 → 设环境变量:<br>
+    <div class="cmd">set HF_ENDPOINT=https://hf-mirror.com</div>
+    重跑下载脚本
+  </div>
+</section>
+
+<section>
+  <h2>🎯 完成定义</h2>
+  <div class="tip">
+    <strong>本 SOP 完成标准</strong>(全部满足):
+    <ul style="padding-left:24px;margin-top:6px">
+      <li>✅ 10 个 checkbox 全部勾选</li>
+      <li>✅ SadTalker/checkpoints 有完整模型</li>
+      <li>✅ 本地或 Colab 跑出第 1 个 MP4</li>
+      <li>✅ MP4 评分 ≥7(唇形 + 表情 + 画质)</li>
+    </ul>
+  </div>
+</section>
+
+<div class="footer-actions">
+  <a href="README.html" class="btn btn-back">← 回 M0 索引</a>
+  <a href="m0-01-edge-tts.html" class="btn btn-back">← 上一 SOP: Edge TTS</a>
+  <a href="m0-03-ffmpeg.html" class="btn btn-back">下一 SOP: FFmpeg →</a>
+  <button class="btn btn-reset" onclick="resetThis()">🗑 重置本 SOP 进度</button>
+</div>
+
+<script>
+const KEY='m0-02';
+const TOTAL=10;
+
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||[];}catch(e){return [];}}
+function save(){
+  const arr=[];
+  for(let i=1;i<=TOTAL;i++){arr.push(document.getElementById('c'+i).checked);}
+  localStorage.setItem(KEY, JSON.stringify(arr));
+  try{window.parent.postMessage({key:KEY,arr:arr},'*');}catch(e){}
+  refresh();
+}
+function refresh(){
+  const arr=load();
+  let done=0;
+  for(let i=1;i<=TOTAL;i++){
+    const cb=document.getElementById('c'+i);
+    if(cb) cb.checked=arr[i-1]||false;
+    const t=document.getElementById('t'+i);
+    if(t&&arr[i-1]) t.classList.add('done');
+    else if(t) t.classList.remove('done');
+    if(arr[i-1]) done++;
+  }
+  const pct=Math.round(done/TOTAL*100);
+  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('progressLabel').textContent=`${done}/${TOTAL} (${pct}%)`;
+  document.getElementById('kpiDone').textContent=done;
+  document.getElementById('kpiLeft').textContent=TOTAL-done;
+  document.getElementById('kpiTime').textContent=Math.round((TOTAL-done)*12);
+}
+function resetThis(){
+  if(!confirm('确定清除本 SOP 全部进度?')) return;
+  localStorage.removeItem(KEY);
+  refresh();
+}
+refresh();
+</script>
+
+</body>
+</html>

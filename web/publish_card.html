@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>发布卡 · 打样</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  :root{
+    --bg:#12100e; --panel:#1a1714; --panel2:#211d18; --frame:#14110d;
+    --line:#332d25; --line2:#4a4234;
+    --text:#ece5d8; --muted:#a2988a; --faint:#6f665a;
+    --gold:#d2a85e; --gold-strong:#e6c078; --gold-ink:#221a0c;
+    --seal:#c0564a; --mark:#5b5142;
+    --serif:Georgia,"Times New Roman","Noto Serif SC","Source Han Serif SC","SimSun",serif;
+    --sans:"Segoe UI","Microsoft YaHei",system-ui,sans-serif;
+    --mono:Consolas,"Courier New",monospace;
+  }
+  body{font-family:var(--sans);background:var(--bg);color:var(--text);margin:0;padding:1.4rem 1rem 3rem;line-height:1.55}
+  body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.045;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.7'/%3E%3C/svg%3E")}
+  .wrap{max-width:1180px;margin:0 auto;position:relative;z-index:1}
+
+  /* ── 刊头 ─────────────────────────── */
+  .mast{animation:rise .45s ease both;border-bottom:3px double var(--line2);padding-bottom:.7rem}
+  .mast-top{display:flex;align-items:flex-end;justify-content:space-between;gap:1rem}
+  h1{font-family:var(--serif);font-size:1.7rem;font-weight:600;letter-spacing:.42em;margin:0;color:var(--text)}
+  .mast-sub{font-family:var(--mono);font-size:.62rem;letter-spacing:.34em;color:var(--gold);display:block;margin-top:.15rem}
+  .stamp{font-family:var(--serif);color:var(--seal);border:1.5px solid var(--seal);border-radius:3px;
+    padding:.28rem .7rem;font-size:.95rem;letter-spacing:.18em;transform:rotate(-3deg);opacity:.9;white-space:nowrap;user-select:none}
+  .stamp b{font-size:1.25rem;margin:0 .18rem;font-weight:600}
+  .mast-meta{margin:.6rem 0 0;font-size:.8rem;color:var(--muted)}
+  .mast-meta .bk{color:var(--gold-strong);font-family:var(--serif)}
+  .sep{color:var(--faint);margin:0 .45rem}
+
+  /* ── 版面 ─────────────────────────── */
+  .grid{display:grid;grid-template-columns:1fr minmax(340px,440px);gap:1.1rem;margin-top:1.1rem;align-items:start}
+  @media (max-width:920px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:1rem 1rem .9rem}
+  .card.a{animation:rise .45s .08s ease both}
+  .card.b{animation:rise .45s .16s ease both}
+  .wrap[data-booted] .card,.wrap[data-booted] .mast{animation:none}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+  .sec{display:flex;align-items:baseline;gap:.55rem;border-bottom:1px solid var(--line);padding-bottom:.5rem;margin-bottom:.75rem}
+  .sec .no{font-family:var(--mono);font-size:.68rem;color:var(--gold);letter-spacing:.12em}
+  .sec .t{font-family:var(--serif);font-size:1.02rem;letter-spacing:.14em}
+  .sec .spacer{flex:1}
+  .fine{font-family:var(--mono);font-size:.66rem;color:var(--faint);line-height:1.7;margin:0}
+
+  /* ── 封面打样 ─────────────────────── */
+  .proofs{display:flex;gap:.9rem;align-items:flex-start}
+  .proof{margin:0;flex:1;min-width:0}
+  .proof.wide{flex:1.35}
+  .frame{position:relative;background:var(--frame);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;
+    background-image:
+      linear-gradient(var(--mark),var(--mark)),linear-gradient(var(--mark),var(--mark)),
+      linear-gradient(var(--mark),var(--mark)),linear-gradient(var(--mark),var(--mark)),
+      linear-gradient(var(--mark),var(--mark)),linear-gradient(var(--mark),var(--mark)),
+      linear-gradient(var(--mark),var(--mark)),linear-gradient(var(--mark),var(--mark));
+    background-repeat:no-repeat;
+    background-size:14px 1px,1px 14px,14px 1px,1px 14px,14px 1px,1px 14px,14px 1px,1px 14px;
+    background-position:top left,top left,top right,top right,bottom left,bottom left,bottom right,bottom right;
+    transition:border-color .2s}
+  .frame:hover{border-color:var(--gold)}
+  .ratio-v{aspect-ratio:9/16}
+  .ratio-h{aspect-ratio:16/9}
+  .frame img{display:block;width:100%;height:100%;object-fit:cover;cursor:zoom-in}
+  .frame .empty{font-family:var(--mono);font-size:.7rem;color:var(--faint);text-align:center;line-height:1.9}
+  figcaption{display:flex;justify-content:space-between;align-items:baseline;margin-top:.4rem;font-family:var(--mono);font-size:.68rem;color:var(--muted)}
+  .dl{color:var(--gold);text-decoration:none;border-bottom:1px dotted var(--gold)}
+  .dl:hover{color:var(--gold-strong)}
+
+  /* ── 表单件 ───────────────────────── */
+  label{font-size:.74rem;color:var(--muted);letter-spacing:.06em;display:flex;justify-content:space-between;align-items:baseline;margin:.85rem 0 .3rem}
+  label .cnt{font-family:var(--mono);font-size:.66rem;color:var(--faint)}
+  textarea,input{width:100%;background:var(--frame);color:var(--text);border:1px solid var(--line);border-radius:4px;
+    padding:.5rem .6rem;font-size:.85rem;font-family:var(--sans);box-sizing:border-box;transition:border-color .15s}
+  textarea:focus,input:focus{outline:none;border-color:var(--gold)}
+  textarea[readonly]{color:var(--muted);background:var(--panel2)}
+  #tagbox{margin-top:.35rem;display:flex;flex-wrap:wrap;gap:.3rem}
+  .tag{font-family:var(--mono);font-size:.7rem;color:var(--gold-strong);background:var(--panel2);border:1px solid var(--line);
+    border-radius:3px;padding:.1rem .45rem}
+
+  button{font-family:var(--sans);font-size:.84rem;letter-spacing:.04em;border-radius:4px;padding:.5rem 1rem;cursor:pointer;
+    transition:background .15s,border-color .15s,transform .08s}
+  button:active{transform:translateY(1px)}
+  button:disabled{opacity:.55;cursor:wait}
+  .btn-gold{background:var(--gold);border:1px solid var(--gold);color:var(--gold-ink);font-weight:600}
+  .btn-gold:hover:not(:disabled){background:var(--gold-strong);border-color:var(--gold-strong)}
+  .btn-line{background:transparent;border:1px solid var(--line2);color:var(--text)}
+  .btn-line:hover:not(:disabled){border-color:var(--gold);color:var(--gold-strong)}
+  .btn-block{width:100%;margin-top:.9rem}
+
+  details.mat{margin-top:1rem;border-top:1px dashed var(--line);padding-top:.6rem}
+  details.mat summary{cursor:pointer;font-size:.74rem;color:var(--muted);letter-spacing:.06em;user-select:none}
+  details.mat summary:hover{color:var(--gold-strong)}
+  .flow-chip{font-family:var(--mono);font-size:.64rem;letter-spacing:.05em;border-radius:3px;
+    padding:.12rem .45rem;white-space:nowrap}
+  .flow-ok{color:var(--gold-strong);border:1px solid var(--line2);background:var(--panel2)}
+  .flow-warn{color:#d98b6a;border:1px dashed #7a5642;background:transparent}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">加载中…</div>
+<script src="/web/lightbox.js"></script>
+<script>
+const QS = new URLSearchParams(location.search);
+const BOOK = QS.get('book_id'), EP = QS.get('ep');
+const API = '/books/' + encodeURIComponent(BOOK) + '/episodes/' + EP + '/publish-card';
+let DATA = null;
+
+async function load() {
+  const r = await fetch(API);
+  DATA = await r.json();
+  if (!r.ok) { app.innerHTML = '加载失败: ' + (DATA.detail || r.status); return; }
+  render();
+  requestAnimationFrame(() => app.dataset.booted = 1);  // 入场动画只播一次, 后续 render 不重放
+}
+
+function render() {
+  const d = DATA;
+  app.innerHTML = `
+    <header class="mast">
+      <div class="mast-top">
+        <div><h1>发布卡</h1><span class="mast-sub">PUBLISH SHEET</span></div>
+        <div class="stamp">第<b>${esc(EP)}</b>集</div>
+      </div>
+      <p class="mast-meta"><span class="bk">《${esc(d.book_title)}》</span>${d.theme ? `<span class="sep">·</span>主题 ${esc(d.theme)}` : ''}
+        <span class="sep">·</span>数据源: 本集大纲 / 讲稿 (程序调取 · 零 LLM)</p>
+    </header>
+    <div class="grid">
+      <div class="card a">
+        <div class="sec"><span class="no">01</span><span class="t">发布文案</span><span class="spacer"></span>
+          <span class="flow-chip ${d.copy ? 'flow-ok' : 'flow-warn'}">${d.copy ? '已调取' : '未调取 · 先做这步'}</span>
+          <button class="btn-line" style="margin:0 0 0 .7rem;padding:.32rem .8rem;font-size:.78rem" onclick="genCopy()" id="btn-copy">一键调取文案</button></div>
+        <label>标题 <span class="cnt" id="c-title"></span></label>
+        <textarea id="f-title" rows="2">${esc(d.copy?.title || '')}</textarea>
+        <label>视频简介 <span class="cnt" id="c-desc"></span></label>
+        <textarea id="f-desc" rows="4">${esc(d.copy?.desc || '')}</textarea>
+        <label>热点标签 <span class="cnt">固定五件套 · 全集一致 · 抖音上限 5 个</span></label>
+        <input id="f-tags" value="${esc((d.copy?.tags || []).join(' '))}">
+        <div id="tagbox"></div>
+        <label>评论引导 · 置顶评用 <span class="cnt">程序调取 · 可编辑 · 一键调取后生成</span></label>
+        <textarea id="f-cue" rows="3" placeholder="一键调取文案后自动生成 (话题+钩子)">${esc(d.copy?.comment_cue || '')}</textarea>
+        <button class="btn-line btn-block" style="margin-top:.5rem" onclick="copyCue()" id="btn-cue">📋 复制评论文案</button>
+        <details class="mat"><summary>素材底料 · 生成输入 · 只读</summary>
+          <textarea rows="3" readonly style="margin-top:.5rem">${esc(d.material || '')}</textarea>
+        </details>
+      </div>
+      <div class="card b">
+        <div class="sec"><span class="no">02</span><span class="t">封面打样</span><span class="spacer"></span>
+          <span class="flow-chip ${d.copy?.cover_sub ? 'flow-ok' : 'flow-warn'}">${d.copy?.cover_sub ? '红字已锻造' : '红字走主题兜底'}</span></div>
+        <p class="fine">竖 1080×1920 · 书名+红字钩子同级大字 · 角标升格 · 内容收 48% 安全区 (主页 1:1/3:4 双裁安全) · 书卷风</p>
+        <div class="proofs">
+          <figure class="proof">
+            <div class="frame ratio-v" id="cover-v">${d.cover_v ? img(d.cover_v, '竖版 1080×1920') : '<div class="empty">竖版 9:16<br>待生成</div>'}</div>
+            <figcaption><span>竖 1080×1920</span>${d.cover_v ? `<a class="dl" href="${d.cover_v}" download="${esc(dlName('竖版'))}">下载</a>` : ''}</figcaption>
+          </figure>
+          <figure class="proof wide">
+            <div class="frame ratio-h" id="cover-h">${d.cover_h ? img(d.cover_h, '横版 1920×1080') : '<div class="empty">横版 16:9<br>待生成</div>'}</div>
+            <figcaption><span>横 1920×1080</span>${d.cover_h ? `<a class="dl" href="${d.cover_h}" download="${esc(dlName('横版'))}">下载</a>` : ''}</figcaption>
+          </figure>
+        </div>
+        <label>红字钩子 <span class="cnt">${d.copy?.cover_sub ? '调取自本集主题' : '调取后自动填入 (取自主题)'}</span></label>
+        <input id="f-sub" value="${esc(d.copy?.cover_sub || '')}" maxlength="26" placeholder="调取后自动填入 (取自本集主题)">
+        <button class="btn-gold btn-block" onclick="genCovers()" id="btn-cover">生成封面 · 横 + 竖</button>
+      </div>
+    </div>`;
+  syncCounts(); syncTags();
+}
+
+/* 计数 + 标签芯片实时同步 (委托在 #app 上, render 重建后依然有效) */
+app.addEventListener('input', e => {
+  if (e.target.id === 'f-title' || e.target.id === 'f-desc') syncCounts();
+  if (e.target.id === 'f-tags') syncTags();
+});
+function syncCounts() {
+  const t = document.getElementById('f-title'), d = document.getElementById('f-desc');
+  const c1 = document.getElementById('c-title'), c2 = document.getElementById('c-desc');
+  if (c1 && t) c1.textContent = (t.value || '').length + ' 字';
+  if (c2 && d) c2.textContent = (d.value || '').length + ' 字';
+}
+function syncTags() {
+  const f = document.getElementById('f-tags'), box = document.getElementById('tagbox');
+  if (!f || !box) return;
+  box.innerHTML = f.value.split(/\s+/).filter(Boolean).map(t => `<span class="tag">#${esc(t)}</span>`).join('');
+}
+
+async function copyCue() {
+  const f = document.getElementById('f-cue');
+  if (!f) return;
+  const txt = (f.value || '').trim();
+  if (!txt) { alert('评论引导为空 — 先点「一键调取文案」'); return; }
+  try {
+    await navigator.clipboard.writeText(txt);
+    setBtn('btn-cue', '✅ 已复制', true);
+    setTimeout(() => setBtn('btn-cue', '📋 复制评论文案', false), 1600);
+  } catch (e) {  // http 环境/旧浏览器无 clipboard API → 选中兜底
+    f.select(); document.execCommand('copy');
+    setBtn('btn-cue', '✅ 已复制 (选中)', true);
+    setTimeout(() => setBtn('btn-cue', '📋 复制评论文案', false), 1600);
+  }
+}
+
+function setBtn(id, txt, dis) {
+  const b = document.getElementById(id);  // 显式重查: render() 重建 innerHTML 后旧引用是死节点
+  if (b) { b.textContent = txt; b.disabled = dis; }
+}
+
+async function genCopy() {
+  setBtn('btn-copy', '调取中…', true);
+  try {
+    const r = await fetch(API, {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'copy'})});
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.detail || r.status);
+    DATA.copy = j;
+    render();
+  } catch (e) { alert('调取失败: ' + e.message); }
+  setBtn('btn-copy', '一键调取文案', false);
+}
+
+async function genCovers() {
+  setBtn('btn-cover', '渲染中…', true);
+  const sub = (document.getElementById('f-sub')?.value || '').trim();
+  try {
+    const r = await fetch(API, {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'covers', sub})});
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.detail || r.status);
+    DATA.cover_v = j.cover_v; DATA.cover_h = j.cover_h;
+    render();
+    const f = document.getElementById('f-sub');
+    if (f) f.value = sub;  // render() 重建后回填刚用的红字
+  } catch (e) { alert('封面生成失败: ' + e.message); }
+  setBtn('btn-cover', '生成封面 · 横 + 竖', false);
+}
+
+function img(url, tip) { return `<img src="${url}" title="${tip} · 点击放大" onclick="zoomCover(this.src)" alt="${tip}">`; }
+
+/* 下载命名规则: 书名+第几集+横版/竖版 (全站发布卡统一); 书名剔除 Windows 非法字符与书名号 */
+function dlName(ori) {
+  const bk = (DATA?.book_title || '').replace(/[\\/:*?"<>|《》\s]/g, '');
+  return `${bk}第${EP}集${ori}.png`;
+}
+
+function zoomCover(src) { lbOpen(src); }  // 0923 统一灯箱
+
+function esc(s) { return String(s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+load();
+</script>
+</body>
+</html>

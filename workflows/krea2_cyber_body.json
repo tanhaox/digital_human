@@ -1,0 +1,112 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "krea2_turbo_fp8_scaled.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+      "type": "krea2",
+      "device": "default"
+    }
+  },
+  "3": {
+    "class_type": "LoraLoaderModelOnly",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "lora_name": "Klein\\一致性lora-f2k_consist_20260225.safetensors",
+      "strength_model": 1.0
+    }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "2",
+        0
+      ],
+      "text": "2.5D render, cyberpunk anime style, a beautiful young woman, 18 years old, large expressive amber eyes with subtle glow, delicate facial features, small nose, soft lips, straight long black hair with subtle neon cyan and magenta highlights, fair smooth skin, wearing a futuristic cyberpunk outfit: white high-tech cropped jacket with glowing cyan circuit patterns, black bodysuit underneath, neon glowing trims, silver tech accessories, clean pure white background, professional studio lighting, soft shadow, high detail, 8k, sharp focus, full body front view, standing straight, complete figure from head to toe, arms relaxed at sides, frontal camera angle"
+    }
+  },
+  "5": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "2",
+        0
+      ],
+      "text": "low quality, blurry, distorted face, bad anatomy, extra limbs, malformed hands, watermark, text, signature, messy background, dark background, monochrome, grayscale, noise, jpeg artifacts, deformed, ugly, duplicate"
+    }
+  },
+  "6": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "width": 768,
+      "height": 1024,
+      "batch_size": 1
+    }
+  },
+  "7": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "3",
+        0
+      ],
+      "seed": 3166032620,
+      "steps": 15,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "positive": [
+        "4",
+        0
+      ],
+      "negative": [
+        "5",
+        0
+      ],
+      "latent_image": [
+        "6",
+        0
+      ],
+      "denoise": 1.0
+    }
+  },
+  "8": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    }
+  },
+  "9": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "7",
+        0
+      ],
+      "vae": [
+        "8",
+        0
+      ]
+    }
+  },
+  "10": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "krea2_cyber_body",
+      "images": [
+        "9",
+        0
+      ]
+    }
+  }
+}

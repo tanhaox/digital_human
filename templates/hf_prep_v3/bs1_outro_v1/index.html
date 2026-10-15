@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<!-- bs1_outro_v1 — 老谭拆书·深空蓝金 尾页 (0908 重排·终章式)
+  四角金线画框 + 眉标 + 品牌句主字(0908 用户令: 固定品牌句上主字位) + 互动问 + NEXT 预告卡(居中)
+  data: quote(收尾金句) question(互动问) next(下期预告) brand_tag foot logo_b64 img(底图) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Noto+Serif+SC:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root{--navy-1:#0A1320;--navy-2:#10233D;--gold:#C9A25E;--gold-2:#E3C689;--paper:#EDEAE0;--sub:#9AA6B5}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1920px;height:1080px;overflow:hidden}
+  body{font-family:"Noto Serif SC",serif;color:var(--paper)}
+  #root{position:relative;width:1920px;height:1080px;overflow:hidden;
+        background:radial-gradient(1500px 1000px at 50% 36%,var(--navy-2) 0%,var(--navy-1) 100%)}
+  .bg{position:absolute;inset:0;display:none}
+  .bg .ph{width:100%;height:100%;object-fit:cover;display:block}
+  .bg .veil{position:absolute;inset:0;
+        background:linear-gradient(180deg,rgba(10,19,32,.92) 0%,rgba(10,19,32,.85) 55%,rgba(12,22,38,.94) 100%)}
+  .caps{font-family:Manrope,sans-serif;font-weight:700;letter-spacing:.42em;text-transform:uppercase}
+
+  /* 四角画框角标 — 终章仪式感 */
+  .corner{position:absolute;width:96px;height:96px;pointer-events:none}
+  .corner::before,.corner::after{content:"";position:absolute;background:var(--gold)}
+  .corner.tl{top:64px;left:64px}
+  .corner.tr{top:64px;right:64px;transform:scaleX(-1)}
+  .corner.bl{bottom:64px;left:64px;transform:scaleY(-1)}
+  .corner.br{bottom:64px;right:64px;transform:scale(-1)}
+  .corner::before{width:96px;height:2px;top:0;left:0}
+  .corner::after{width:2px;height:96px;top:0;left:0}
+
+  .ep-tag{position:absolute;top:110px;left:0;right:0;text-align:center;
+          font-size:24px;color:var(--gold);letter-spacing:.3em;font-weight:700}
+  .quote{position:absolute;top:212px;left:200px;right:200px;text-align:center;
+         font-size:96px;font-weight:900;line-height:1.5;color:#F5EFE2;letter-spacing:.02em}
+  .q-rule{position:absolute;top:518px;left:50%;transform:translateX(-50%);
+          width:150px;height:3px;background:linear-gradient(90deg,transparent,var(--gold),transparent)}
+
+  /* NEXT 预告卡 — 居中 (0908 用户令: 剧中) */
+  .next-card{position:absolute;left:0;right:0;margin:0 auto;top:566px;width:640px;padding:36px 46px 32px;
+       background:linear-gradient(150deg,rgba(201,162,94,.14),rgba(12,22,38,.72));
+       border:1px solid rgba(201,162,94,.5);border-left:5px solid var(--gold)}
+  .next-card .label{font-size:20px;color:var(--gold);letter-spacing:.44em;margin-bottom:16px}
+  .next-card .t{font-size:36px;font-weight:900;color:var(--gold-2);line-height:1.55}
+
+    .logo{position:absolute;top:190px;right:150px;height:96px;width:auto}
+</style>
+</head>
+<body>
+<div id="root"
+     data-composition-id="bs1_outro_v1" data-start="0" data-duration="{{duration_sec}}"
+     data-width="1920" data-height="1080"
+     data-quote="{{quote}}" data-question="{{question}}" data-next="{{next}}"
+     data-brand="{{brand_tag}}" data-foot="{{foot}}" data-logo="{{logo_b64}}" data-img="{{img}}">
+  <div class="bg" id="bg"><img class="ph" id="ph" alt=""><div class="veil"></div></div>
+  <div class="corner tl"></div><div class="corner tr"></div>
+  <div class="corner bl"></div><div class="corner br"></div>
+  <div class="ep-tag" id="ep-tag"></div>
+  <div class="quote" id="quote"></div>
+  <div class="q-rule" id="q-rule"></div>
+  <div class="next-card">
+    <div class="label caps">NEXT · 下期预告</div>
+    <div class="t" id="next"></div>
+  </div>
+  <img class="logo" id="logo" alt="">
+</div>
+<script>
+// 预览自适应 (0907): 小容器自动缩放; 生产 1920 渲染不触发
+(function () {
+  var w = window.innerWidth, h = window.innerHeight;
+  if (w >= 1900) return;
+  var s = Math.min(w / 1920, h / 1080);
+  var r = document.getElementById("root");
+  if (!r) return;
+  r.style.transform = "scale(" + s + ")";
+  r.style.transformOrigin = "top left";
+  try { document.body.style.background = getComputedStyle(r).background; } catch (e) {}
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<script>
+(function () {
+  var root = document.getElementById("root");
+  var DUR = parseFloat(root.getAttribute("data-duration")) || 5;
+  var img = root.getAttribute("data-img") || "";
+  if (img) { document.getElementById("ph").src = img; document.getElementById("bg").style.display = "block"; }
+  // 0908 用户令: 主字位固定品牌句 (与原金句同字体样式), 末个逗号断两行
+  var brandTxt = root.getAttribute("data-brand") || "";
+  var qel = document.getElementById("quote");
+  var ci = brandTxt.lastIndexOf("，");
+  if (ci > 0 && ci < brandTxt.length - 1) {
+    qel.innerHTML = "";
+    var l1 = document.createTextNode(brandTxt.slice(0, ci));
+    var br = document.createElement("br");
+    var l2 = document.createTextNode(brandTxt.slice(ci + 1));
+    qel.append(l1, br, l2);
+  } else {
+    qel.textContent = brandTxt;
+  }
+  var n = brandTxt.replace(/\s/g, "").length;
+  if (n > 10) qel.style.fontSize = "80px";
+  if (n > 16) qel.style.fontSize = "64px";
+  if (n > 24) qel.style.fontSize = "54px";
+  document.getElementById("next").textContent = root.getAttribute("data-next") || "";
+  document.getElementById("ep-tag").textContent = root.getAttribute("data-foot") || "";
+  var logo = root.getAttribute("data-logo") || "";
+  if (logo) document.getElementById("logo").src = logo;
+  var tl = gsap.timeline({paused: true});
+  tl.from(".corner", {scale: 0, autoAlpha: 0, duration: .55, stagger: .08, ease: "back.out(2)"}, .1)
+    .from("#ep-tag", {autoAlpha: 0, letterSpacing: ".8em", duration: .7, ease: "power2.out"}, .3)
+    .from("#quote", {y: 46, autoAlpha: 0, duration: .85, ease: "power3.out"}, .45)
+    .from("#q-rule", {scaleX: 0, duration: .5, ease: "power2.out"}, .95)
+    .from(".next-card", {y: 40, autoAlpha: 0, duration: .65, ease: "power3.out"}, 1.2)
+    .from("#logo", {autoAlpha: 0, duration: .4}, 1.35)
+    .from("#bg", {autoAlpha: 0, duration: 1.0, ease: "power1.out"}, .15)
+    .to({}, {duration: Math.max(0.2, DUR - 2.1)});
+  window.__timelines = window.__timelines || {};
+  window.__timelines["bs1_outro_v1"] = tl;
+  window.addEventListener("message", function (ev) {
+    if (ev.data && ev.data.type === "preview-play") { tl.restart(); }
+  });
+})();
+</script>
+</body>
+</html>

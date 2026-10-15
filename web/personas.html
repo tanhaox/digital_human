@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>人物管理 — 数字人口播流水线</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(10, 14, 26, 0.85);
+      backdrop-filter: blur(20px) saturate(1.2);
+      border-bottom: 1px solid rgba(99, 115, 146, 0.18);
+      padding: 0 2rem;
+      display: flex; align-items: center; height: 56px;
+    }
+    nav .logo {
+      font-size: 1.1rem; font-weight: 700;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      margin-right: 2rem;
+    }
+    nav .logo span { font-weight: 400; opacity: 0.7; }
+    nav a {
+      color: #8892a8; text-decoration: none; font-size: 0.85rem;
+      padding: 0.4rem 0.8rem; border-radius: 6px; transition: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    nav a:hover { color: #e8edf5; background: rgba(255,255,255,0.05); }
+    nav a.active { color: #3b82f6; background: rgba(59, 130, 246, 0.25); }
+    nav .spacer { flex: 1; }
+    .page-header { margin-bottom: 1.5rem; }
+    .page-header h1 { font-size: 1.5rem; font-weight: 700; background: linear-gradient(135deg, #fff 0%, #94a3b8 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .container { max-width: 900px; margin: 0 auto; padding: 1.5rem; }
+    .toolbar { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; align-items: center; }
+    button { padding: 0.6rem 1.2rem; border: none; border-radius: 0.4rem; background: #2563eb; color: white; cursor: pointer; font-size: 0.95rem; }
+    button:disabled { background: #475569; cursor: not-allowed; }
+    button.secondary { background: #475569; }
+    button.danger { background: #b91c1c; }
+    button.sm { padding: 0.35rem 0.7rem; font-size: 0.82rem; }
+
+    .persona-list { display: flex; flex-direction: column; gap: 1rem; }
+    .persona-card {
+      background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem;
+      padding: 1.25rem; display: grid; grid-template-columns: 1fr auto; gap: 1rem; align-items: center;
+    }
+    .persona-card .info h3 { margin: 0 0 0.5rem; font-size: 1.1rem; }
+    .persona-card .dims { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+    .persona-card .dim { font-size: 0.85rem; }
+    .persona-card .dim .label { color: #64748b; font-size: 0.75rem; display: block; margin-bottom: 0.15rem; }
+    .persona-card .dim .value { color: #93c5fd; }
+    .persona-card .dim .value.empty { color: #64748b; font-style: italic; }
+    .persona-card .actions { display: flex; gap: 0.5rem; }
+
+    .modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 100; }
+    .modal-bg.active { display: flex; }
+    .modal { background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1.5rem; width: min(520px, 95vw); }
+    .modal h2 { margin-top: 0; font-size: 1.1rem; }
+    .modal label { display: block; margin: 0.75rem 0 0.25rem; font-size: 0.85rem; color: #cbd5e1; }
+    .modal input, .modal select { width: 100%; padding: 0.6rem; border-radius: 0.4rem; border: 1px solid #475569; background: #0f172a; color: #e2e8f0; font-size: 0.9rem; }
+    .modal .row-btns { display: flex; gap: 0.5rem; margin-top: 1.25rem; justify-content: flex-end; }
+    .modal .brand-box { border: 1px solid #334155; border-radius: 0.5rem; padding: 0.75rem 0.75rem 0.25rem; margin-top: 0.75rem; }
+    .modal .brand-title { font-size: 0.8rem; color: #93c5fd; margin-bottom: 0.25rem; }
+    .status { margin-top: 0.5rem; padding: 0.6rem; border-radius: 0.4rem; background: #0f172a; font-size: 0.85rem; min-height: 1.5rem; }
+    .status.error { background: #450a0a; color: #fca5a5; }
+    .status.success { background: #064e3b; color: #6ee7b7; }
+    .empty-state { padding: 3rem; text-align: center; color: #64748b; }
+    .hint { font-size: 0.78rem; color: #64748b; margin-top: 0.25rem; }
+  </style>
+</head>
+<body>
+  <nav>
+    <div class="logo">Pipeline<span>Studio</span></div>
+    <a href="/web/books.html">拆书</a>
+    <a href="/web/index.html">新闻线索</a>
+    <a href="/web/writing.html">文字加工</a>
+    <a href="/web/audio.html">音频加工</a>
+    <a href="/web/director.html">导演控制台</a>
+    <a href="/web/library.html">视频库</a>
+    <a href="/web/templates.html">模板管理</a>
+    <a href="/web/visual_render.html">视觉渲染</a>
+    <a href="/web/voices.html">音色管理</a>
+    <a href="/web/roles.html">角色管理</a>
+    <a href="/web/personas.html" class="active">人物</a>
+    <div class="spacer"></div>
+    <a href="/docs" target="_blank">API Docs</a>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h1>🧑‍💼 人物管理</h1>
+    </div>
+    <div class="toolbar">
+      <button onclick="openModal()">+ 新建人物</button>
+      <button class="secondary" onclick="loadPersonas()">🔄 刷新</button>
+      <span style="font-size:0.85rem;color:#94a3b8;">人物 = 模板 + 音色 + 形象 + 账号/品牌 + 开结尾</span>
+    </div>
+    <div id="list" class="persona-list"></div>
+  </div>
+
+  <!-- 新建/编辑 Modal -->
+  <div id="modal" class="modal-bg">
+    <div class="modal">
+      <h2 id="modal-title">新建人物</h2>
+      <input type="hidden" id="f-id">
+      <label>人物名称 *</label>
+      <input type="text" id="f-name" placeholder="例: 老陈" maxlength="128">
+      <label>提示词模板 * (config/*.txt)</label>
+      <select id="f-template"><option value="">加载中…</option></select>
+      <div class="hint">选定模板后，流水线中音色和形象将自动锁定</div>
+      <label>音色</label>
+      <select id="f-voice"><option value="">— 未绑定 —</option></select>
+      <label>形象（角色）</label>
+      <select id="f-role"><option value="">— 未绑定 —</option></select>
+
+      <div class="brand-box">
+        <div class="brand-title">账号 / 品牌（此人物即账号，品牌随成片上屏）</div>
+        <label>频道名称 (brand_name)</label>
+        <input type="text" id="f-brand" placeholder="例: 老陈聊财经" maxlength="128">
+        <label>印章 (stamp_name) — 1~2 字</label>
+        <input type="text" id="f-stamp" placeholder="留空则取频道名前 2 字" maxlength="16">
+        <label>标语 (brand_tag)</label>
+        <input type="text" id="f-tag" placeholder="例: 解读宏观数据" maxlength="64">
+      </div>
+
+      <div class="brand-box">
+        <div class="brand-title">口播开结尾（可留空）</div>
+        <label>开场白</label>
+        <input type="text" id="f-opening" placeholder="例: 各位朋友大家好, 欢迎来到..." maxlength="200">
+        <label>结束语</label>
+        <input type="text" id="f-ending" placeholder="例: 关注我, 每天读懂财经" maxlength="200">
+      </div>
+
+      <div class="brand-box">
+        <div class="brand-title">目标读者画像（账号人设级，拆书/洗稿缺省继承）</div>
+        <label>目标读者</label>
+        <textarea id="f-reader" rows="2" placeholder="例: 对个人成长、商业规律感兴趣的普通职场人；刷抖音中长视频" maxlength="500"></textarea>
+        <div class="hint">拆书录入时不再要求人工补读者画像，自动继承此值</div>
+      </div>
+
+      <label>绑定账号 (host_id)</label>
+      <select id="f-host"><option value="">— 自动绑定 —</option></select>
+      <div class="hint">人物即账号：此处绑定后，洗稿页【数字人账号】将出现该人物</div>
+      <div class="row-btns">
+        <button class="secondary" onclick="closeModal()">取消</button>
+        <button onclick="submitForm()">保存</button>
+      </div>
+      <div class="status" id="modal-status"></div>
+    </div>
+  </div>
+
+<script>
+const API = '/api';
+let personas = [];
+let hosts = [];
+
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(API + path, opts);
+  if (r.status === 204) return null;
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.detail || r.statusText);
+  return data;
+}
+
+async function loadPersonas() {
+  try {
+    personas = await api('GET', '/personas');
+    render();
+  } catch (e) {
+    document.getElementById('list').innerHTML = `<div class="empty-state">加载失败: ${e.message}</div>`;
+  }
+}
+
+function render() {
+  const el = document.getElementById('list');
+  if (!personas.length) {
+    el.innerHTML = '<div class="empty-state">暂无人物关联 — 点击「+ 新建人物」创建第一套</div>';
+    return;
+  }
+  el.innerHTML = personas.map(p => `
+    <div class="persona-card">
+      <div class="info">
+        <h3>${esc(p.name)}</h3>
+        <div class="dims">
+          <div class="dim"><span class="label">提示词模板</span><span class="value">${esc(p.prompt_template)}</span></div>
+          <div class="dim"><span class="label">音色</span><span class="value ${p.voice ? '' : 'empty'}">${p.voice ? esc(p.voice.name) : '未绑定'}</span></div>
+          <div class="dim"><span class="label">形象</span><span class="value ${p.role ? '' : 'empty'}">${p.role ? esc(p.role.name) : '未绑定'}</span></div>
+          <div class="dim"><span class="label">账号</span><span class="value ${p.host_id ? '' : 'empty'}">${p.host_id ? esc((hosts.find(h => h.id === p.host_id) || {}).name || p.host_id) : '未绑定'}</span></div>
+          <div class="dim"><span class="label">频道名称</span><span class="value ${p.brand_name ? '' : 'empty'}">${esc(p.brand_name || '—')}</span></div>
+          <div class="dim"><span class="label">印章</span><span class="value ${p.stamp_name ? '' : 'empty'}">${esc(p.stamp_name || '—')}</span></div>
+          <div class="dim"><span class="label">标语</span><span class="value ${p.brand_tag ? '' : 'empty'}">${esc(p.brand_tag || '—')}</span></div>
+          ${p.fixed_opening ? `<div class="dim"><span class="label">开场白</span><span class="value">${esc(p.fixed_opening)}</span></div>` : ''}
+          ${p.fixed_ending ? `<div class="dim"><span class="label">结束语</span><span class="value">${esc(p.fixed_ending)}</span></div>` : ''}
+        </div>
+      </div>
+      <div class="actions">
+        <button class="sm secondary" onclick="openEdit('${p.id}')">编辑</button>
+        <button class="sm danger" onclick="del('${p.id}')">删除</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function esc(s) { const d = document.createElement('div'); d.textContent = s || ''; return d.innerHTML; }
+
+async function loadOptions() {
+  // Prompt templates
+  try {
+    const tpls = await api('GET', '/articles/prompt-templates');
+    const sel = document.getElementById('f-template');
+    sel.innerHTML = '<option value="">— 选择模板 —</option>' +
+      tpls.map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');
+  } catch (e) { console.error('templates', e); }
+  // Voices
+  try {
+    const voices = await api('GET', '/voices');
+    const sel = document.getElementById('f-voice');
+    sel.innerHTML = '<option value="">— 未绑定 —</option>' +
+      voices.map(v => `<option value="${v.id}">${esc(v.name)} (${esc(v.backend)})</option>`).join('');
+  } catch (e) { console.error('voices', e); }
+  // Roles
+  try {
+    const roles = await api('GET', '/roles');
+    const sel = document.getElementById('f-role');
+    sel.innerHTML = '<option value="">— 未绑定 —</option>' +
+      roles.map(r => `<option value="${r.id}">${esc(r.name)}</option>`).join('');
+  } catch (e) { console.error('roles', e); }
+  // Hosts (账号绑定)
+  try {
+    hosts = await api('GET', '/hosts');
+    const sel = document.getElementById('f-host');
+    sel.innerHTML = '<option value="">— 自动绑定 —</option>' +
+      hosts.map(h => `<option value="${h.id}">${esc(h.name)} · ${esc(h.persona_key)}</option>`).join('');
+  } catch (e) { console.error('hosts', e); }
+}
+
+function openModal() {
+  document.getElementById('modal-title').textContent = '新建人物';
+  document.getElementById('f-id').value = '';
+  document.getElementById('f-name').value = '';
+  document.getElementById('f-template').value = '';
+  document.getElementById('f-voice').value = '';
+  document.getElementById('f-role').value = '';
+  document.getElementById('f-brand').value = '';
+  document.getElementById('f-stamp').value = '';
+  document.getElementById('f-tag').value = '';
+  document.getElementById('f-opening').value = '';
+  document.getElementById('f-ending').value = '';
+  document.getElementById('f-host').value = '';
+  document.getElementById('modal-status').textContent = '';
+  document.getElementById('modal-status').className = 'status';
+  document.getElementById('modal').classList.add('active');
+}
+
+function openEdit(id) {
+  const p = personas.find(x => x.id === id);
+  if (!p) return;
+  document.getElementById('modal-title').textContent = '编辑人物';
+  document.getElementById('f-id').value = p.id;
+  document.getElementById('f-name').value = p.name;
+  document.getElementById('f-template').value = p.prompt_template;
+  document.getElementById('f-voice').value = p.voice_id || '';
+  document.getElementById('f-role').value = p.role_id || '';
+  document.getElementById('f-brand').value = p.brand_name || '';
+  document.getElementById('f-stamp').value = p.stamp_name || '';
+  document.getElementById('f-tag').value = p.brand_tag || '';
+  document.getElementById('f-opening').value = p.fixed_opening || '';
+  document.getElementById('f-ending').value = p.fixed_ending || '';
+  document.getElementById('f-reader').value = p.target_reader || '';
+  document.getElementById('f-host').value = p.host_id || '';
+  document.getElementById('modal-status').textContent = '';
+  document.getElementById('modal-status').className = 'status';
+  document.getElementById('modal').classList.add('active');
+}
+
+function closeModal() { document.getElementById('modal').classList.remove('active'); }
+
+async function submitForm() {
+  const id = document.getElementById('f-id').value;
+  const body = {
+    name: document.getElementById('f-name').value.trim(),
+    prompt_template: document.getElementById('f-template').value,
+    voice_id: document.getElementById('f-voice').value || null,
+    role_id: document.getElementById('f-role').value || null,
+    brand_name: document.getElementById('f-brand').value.trim() || null,
+    stamp_name: document.getElementById('f-stamp').value.trim() || null,
+    brand_tag: document.getElementById('f-tag').value.trim() || null,
+    fixed_opening: document.getElementById('f-opening').value.trim() || null,
+    fixed_ending: document.getElementById('f-ending').value.trim() || null,
+    target_reader: document.getElementById('f-reader').value.trim() || null,
+    host_id: document.getElementById('f-host').value || null,
+  };
+  const st = document.getElementById('modal-status');
+  if (!body.name || !body.prompt_template) {
+    st.textContent = '人物名称和提示词模板为必填项'; st.className = 'status error'; return;
+  }
+  try {
+    if (id) {
+      await api('PUT', `/personas/${id}`, body);
+    } else {
+      await api('POST', '/personas', body);
+    }
+    st.textContent = '已保存'; st.className = 'status success';
+    setTimeout(() => { closeModal(); loadPersonas(); }, 600);
+  } catch (e) {
+    st.textContent = e.message; st.className = 'status error';
+  }
+}
+
+async function del(id) {
+  if (!confirm('确认删除该人物关联？')) return;
+  try {
+    await api('DELETE', `/personas/${id}`);
+    loadPersonas();
+  } catch (e) { alert('删除失败: ' + e.message); }
+}
+
+// Init
+loadPersonas();
+loadOptions();
+</script>
+</body>
+</html>

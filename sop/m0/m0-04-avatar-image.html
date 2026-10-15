@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M0-SOP-04 · 数字人形象照准备</title>
+<style>
+:root{
+  --bg:#0f172a;--surface:#1e293b;--surface2:#334155;--border:#475569;
+  --text:#e2e8f0;--muted:#94a3b8;--accent:#06b6d4;--green:#10b981;
+  --yellow:#f59e0b;--red:#ef4444;--purple:#a855f7;--code-bg:#020617;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;padding:24px;max-width:960px;margin:0 auto}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.top-home-bar{position:sticky;top:0;z-index:100;background:rgba(15,23,42,0.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:-24px -24px 16px;font-size:13px}
+.top-home-bar a.home-link{color:var(--accent);text-decoration:none;font-weight:600;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(6,182,212,0.1);border:1px solid var(--accent);border-radius:6px}
+.top-home-bar .breadcrumbs{color:var(--muted);font-size:12px;font-family:Consolas,monospace}
+.top-home-bar .breadcrumbs a{color:var(--muted);text-decoration:none}
+.top-home-bar .breadcrumbs .sep{margin:0 6px;color:var(--border)}
+header{background:linear-gradient(135deg,#06b6d4 0%,#a855f7 100%);padding:24px 32px;border-radius:12px;margin-bottom:24px}
+.badge{display:inline-block;background:rgba(255,255,255,0.2);padding:4px 12px;border-radius:12px;font-size:12px;margin-right:8px;font-weight:600}
+h1{font-size:24px;margin:8px 0 4px}
+.subtitle{font-size:14px;opacity:0.9}
+.meta-line{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-size:13px;opacity:0.95}
+.meta-line .m{background:rgba(0,0,0,0.25);padding:4px 10px;border-radius:4px}
+section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:14px}
+h2{font-size:17px;margin-bottom:10px;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:6px}
+.tip{background:rgba(16,185,129,0.1);border-left:3px solid var(--green);padding:10px 14px;border-radius:6px;margin:10px 0;font-size:13px}
+.warning{background:rgba(239,68,68,0.1);border-left:3px solid var(--red);padding:10px 14px;border-radius:6px;margin:10px 0;font-size:13px}
+.note{background:rgba(168,85,247,0.1);border-left:3px solid var(--purple);padding:10px 14px;border-radius:6px;margin:10px 0;font-size:13px}
+.task{background:var(--surface2);border-left:3px solid var(--accent);padding:14px 18px;border-radius:8px;margin-bottom:14px;transition:opacity 0.2s}
+.task.done{opacity:0.55;border-left-color:var(--green)}
+.task.done .task-title::after{content:" ✅"}
+.task-head{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+.task-head input[type=checkbox]{width:20px;height:20px;cursor:pointer;accent-color:var(--green)}
+.task-title{font-weight:600;font-size:15px;color:var(--accent);flex:1}
+.task-tag{font-size:11px;background:var(--bg);padding:2px 8px;border-radius:4px;color:var(--muted);font-family:Consolas,monospace}
+.task-body{margin-top:10px;padding-left:30px;font-size:13px;color:var(--text)}
+.task-body ol{padding-left:20px;margin:6px 0}
+.task-body li{margin:4px 0}
+.cmd{background:var(--code-bg);border:1px solid var(--border);padding:10px 14px;border-radius:6px;font-family:Consolas,monospace;font-size:13px;color:var(--yellow);white-space:pre-wrap;word-break:break-all;margin:6px 0;user-select:all;cursor:pointer}
+.cmd::before{content:"$ ";color:var(--green);font-weight:700}
+.cmd:hover{border-color:var(--accent)}
+.shot{margin-top:6px;padding:8px 12px;background:var(--bg);border:1px dashed var(--border);border-radius:4px;font-size:12px;color:var(--muted);font-style:italic}
+.accept{background:rgba(16,185,129,0.1);border-left:3px solid var(--green);padding:6px 12px;border-radius:4px;margin-top:6px;font-size:12px;color:var(--green)}
+.next{color:var(--accent);font-size:12px;margin-top:4px}
+.progress-bar{height:24px;background:var(--surface2);border-radius:12px;overflow:hidden;position:relative;margin:10px 0;border:1px solid var(--border)}
+.progress-fill{height:100%;background:linear-gradient(90deg,#06b6d4 0%,#a855f7 100%);transition:width 0.3s}
+.progress-label{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.6)}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:10px 0}
+.kpi{background:var(--surface2);padding:10px 14px;border-radius:8px;border-left:3px solid var(--accent);text-align:center}
+.kpi .num{font-size:18px;font-weight:700;color:var(--accent)}
+.kpi .label{font-size:11px;color:var(--muted);margin-top:2px}
+.footer-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.btn{padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer;border:none;transition:opacity 0.15s}
+.btn:hover{opacity:0.85}
+.btn-reset{background:var(--red);color:#fff}
+.btn-back{background:var(--surface2);color:var(--accent);border:1px solid var(--accent);text-decoration:none;display:inline-block}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:13px}
+th{background:var(--surface2);padding:6px 10px;text-align:left;font-weight:600;color:var(--accent)}
+td{padding:6px 10px;border-bottom:1px solid var(--border)}
+</style>
+</head>
+<body>
+
+<nav class="top-home-bar">
+  <a href="README.html" class="home-link">📋 回 M0 索引</a>
+  <div class="breadcrumbs">
+    <a href="README.html">M0 索引</a><span class="sep">›</span><span>M0-SOP-04 形象照</span>
+  </div>
+</nav>
+
+<header>
+  <span class="badge">M0-SOP-04</span>
+  <span class="badge">W2-W3</span>
+  <span class="badge">¥0-100 成本</span>
+  <span class="badge">耗时 ≈2-4 小时</span>
+  <h1>🧑 数字人形象照准备</h1>
+  <div class="subtitle">SadTalker 输入素材 · 决定数字人最终观感 · 一次性投入长期使用</div>
+  <div class="meta-line">
+    <div class="m">📦 工具:Midjourney / 即梦 / Stable Diffusion / Pexels</div>
+    <div class="m">🎯 产出:1 张 1024x1024+ 正面照 + 5 张备用</div>
+    <div class="m">⏱ 累计:≈2-4 小时(含 prompt 调整)</div>
+    <div class="m">🧪 验收:形象一致 + 表情中性 + 无遮挡</div>
+  </div>
+</header>
+
+<section>
+  <h2>📊 当前进度</h2>
+  <div class="progress-bar">
+    <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    <div class="progress-label" id="progressLabel">0/7 (0%)</div>
+  </div>
+  <div class="kpi-row">
+    <div class="kpi"><div class="num" id="kpiDone">0</div><div class="label">已完成</div></div>
+    <div class="kpi" style="border-left-color:var(--green)"><div class="num" id="kpiLeft">7</div><div class="label">剩余</div></div>
+    <div class="kpi" style="border-left-color:var(--yellow)"><div class="num" id="kpiTime">120</div><div class="label">预计分钟</div></div>
+  </div>
+  <div class="tip">
+    <strong>🎯 为什么必须做这步</strong>:SadTalker 用静态图生成视频 → 静态图质量 = 视频质量天花板。形象一旦选定,M1-M18 全程不变(除非换频道),所以花时间选对的脸。
+  </div>
+</section>
+
+<section>
+  <h2>🎯 形象照硬性要求</h2>
+  <table>
+    <tr><th>维度</th><th>要求</th><th>原因</th></tr>
+    <tr><td>正面</td><td>正面照,正对镜头</td><td>SadTalker 检测人脸需要</td></tr>
+    <tr><td>遮挡</td><td>无眼镜(墨镜)/ 无口罩 / 无手遮挡</td><td>遮挡 = 唇形失真</td></tr>
+    <tr><td>表情</td><td>中性或微笑,嘴巴闭合</td><td>极端表情影响后续语音驱动</td></tr>
+    <tr><td>分辨率</td><td>≥512x512,推荐 1024x1024</td><td>SadTalker 输出尺寸直接受输入限制</td></tr>
+    <tr><td>背景</td><td>纯色或简单背景(白 / 灰 / 蓝)</td><td>复杂背景 = 视频背景抖动</td></tr>
+    <tr><td>光线</td><td>均匀 / 无阴影</td><td>面部阴影 = 唇形误判</td></tr>
+    <tr><td>形象</td><td>频道定位匹配(AR 频道 = 中东风格 / EN 频道 = 西方风格)</td><td>内容-形象一致 = 信任</td></tr>
+  </table>
+  <div class="warning">
+    <strong>⚠ 红线</strong>: 真人照片(自己 / 朋友)有肖像权风险,务必用 AI 生成或购买免版权图。M3+ 建议自己拍摄 + 永久授权。
+  </div>
+</section>
+
+<section>
+  <h2>✅ 7 步执行清单</h2>
+
+  <div class="task" id="t1">
+    <label class="task-head">
+      <input type="checkbox" id="c1" onchange="save()">
+      <span class="task-title">1️⃣ 确定频道定位(语种 + 风格)</span>
+      <span class="task-tag">≈10 min</span>
+    </label>
+    <div class="task-body">
+      <strong>问题清单</strong>(先回答完再生成):
+      <ol style="padding-left:20px;font-size:13px">
+        <li><strong>语种</strong>:M1 主推 AR 阿语 → 阿语频道形象 = 中东面孔?</li>
+        <li><strong>性别</strong>:女 / 男 / 中性?AR 频道女性更吸睛(中东男性用户偏好)?</li>
+        <li><strong>年龄</strong>:25-35(年轻专业感)vs 40+(权威感)?</li>
+        <li><strong>职业感</strong>:西装(新闻主播)/ 休闲(自媒体)/ 民族服饰(文化感)?</li>
+      </ol>
+      <strong>M1 AR 阿语频道推荐</strong>:
+      <ul style="padding-left:20px;font-size:13px">
+        <li>中东女性 / 28 岁 / 戴头巾(hijab)/ 西装外套 / 自信微笑</li>
+        <li>理由:符合中东观众期待 + 女性主播在 AR 频道 CTR 更高</li>
+      </ul>
+      <strong>记录你的定位</strong>:
+      <div class="cmd">语种: ___
+性别: ___
+年龄: ___
+职业: ___</div>
+      <div class="accept">✅ 验收:填写完 4 个字段</div>
+    </div>
+  </div>
+
+  <div class="task" id="t2">
+    <label class="task-head">
+      <input type="checkbox" id="c2" onchange="save()">
+      <span class="task-title">2️⃣ 选 AI 工具(MJ / 即梦 / SD)</span>
+      <span class="task-tag">≈10 min</span>
+    </label>
+    <div class="task-body">
+      <strong>方案对比</strong>:
+      <table>
+        <tr><th>工具</th><th>成本</th><th>质量</th><th>上手难度</th><th>推荐</th></tr>
+        <tr><td><strong>即梦(字节)</strong></td><td>免费 30 次/天</td><td>★★★★</td><td>★★★★★(中文 prompt)</td><td>⭐⭐⭐⭐⭐ M0 首选</td></tr>
+        <tr><td><strong>Midjourney</strong></td><td>$10/月</td><td>★★★★★</td><td>★★★★(英文 prompt)</td><td>⭐⭐⭐⭐ 最佳质量</td></tr>
+        <tr><td><strong>Stable Diffusion</strong></td><td>免费(本地 GPU)</td><td>★★★★</td><td>★★(需装 ComfyUI)</td><td>⭐⭐ 极客向</td></tr>
+        <tr><td><strong>Pexels 免费图</strong></td><td>免费</td><td>★★★</td><td>★★★★★(搜即可)</td><td>⭐⭐⭐ 应急/快速验证</td></tr>
+        <tr><td><strong>HeyGen AI 形象库</strong></td><td>$24/月</td><td>★★★★★</td><td>★★★★★(直接选)</td><td>⭐⭐⭐ M4+ 商用</td></tr>
+      </table>
+      <div class="tip">
+        <strong>M0 推荐路线</strong>: 即梦免费先用 → 效果满意 → 长期用 MJ(质量更稳);如不愿花钱 → Pexels 找免费人像 + SadTalker 跑测
+      </div>
+      <div class="accept">✅ 验收:选定 1 个工具,记录选择</div>
+    </div>
+  </div>
+
+  <div class="task" id="t3">
+    <label class="task-head">
+      <input type="checkbox" id="c3" onchange="save()">
+      <span class="task-title">3️⃣ 写 Prompt(中英双语)</span>
+      <span class="task-tag">≈20 min</span>
+    </label>
+    <div class="task-body">
+      <strong>即梦中文 prompt 模板</strong>(直接复制粘贴):
+      <div class="cmd">专业新闻主播形象,正面照,胸像,纯白背景,均匀光线,高分辨率,真实感,8k画质,精致妆容,自信微笑,嘴巴自然闭合。
+[中东女性 / 阿拉伯女性 / 西方男性等,根据步骤 1 定位]
+年龄 [25-30] 岁。
+职业正装。
+参考风格:CCTV 新闻主播 / Al Jazeera 主播。</div>
+      <strong>Midjourney 英文 prompt 模板</strong>:
+      <div class="cmd">Professional news anchor portrait, front-facing, chest shot, pure white background, even lighting, high resolution, photorealistic, 8k, elegant makeup, confident subtle smile, natural closed mouth. Arab woman, age 28, wearing hijab and professional blazer. Reference style: Al Jazeera news anchor. --ar 1:1 --v 6 --style raw</div>
+      <strong>关键参数</strong>:
+      <ul style="padding-left:20px;font-size:12px">
+        <li><code>--ar 1:1</code> = 正方形(头像必备)</li>
+        <li><code>--v 6</code> = Midjourney v6(2024 最新)</li>
+        <li><code>--style raw</code> = 减少风格化,更真实</li>
+      </ul>
+      <div class="warning">
+        <strong>⚠ Prompt 红线</strong>: 不要写 "smiling with teeth / 露齿笑" → SadTalker 嘴部运动范围受限,露齿起始帧会异常
+      </div>
+      <div class="accept">✅ 验收:写出 1 段 prompt,准备 3 次生成</div>
+    </div>
+  </div>
+
+  <div class="task" id="t4">
+    <label class="task-head">
+      <input type="checkbox" id="c4" onchange="save()">
+      <span class="task-title">4️⃣ 生成 + 挑选(MJ/即梦 3 次生成)</span>
+      <span class="task-tag">≈30-60 min</span>
+    </label>
+    <div class="task-body">
+      <strong>执行</strong>:
+      <ol style="padding-left:20px;font-size:13px">
+        <li>登录即梦(<a href="https://jimeng.jianying.com/" target="_blank">jimeng.jianying.com</a>)或 Discord MJ</li>
+        <li>输入 prompt(步骤 3 的模板)</li>
+        <li>每次生成 4 张,共 3 次(共 12 张候选)</li>
+        <li>逐张检查是否符合"硬性要求"(7 项)</li>
+        <li>挑出 <strong>5 张最佳</strong> 保存到 <code>m0-test/avatars/candidates/</code></li>
+      </ol>
+      <div class="tip">
+        <strong>💡 评估清单</strong>(每张图过一遍):
+        <ul style="padding-left:20px;font-size:12px">
+          <li>✅ 正面?低头/侧头?</li>
+          <li>✅ 闭嘴?张嘴?</li>
+          <li>✅ 戴眼镜?无眼镜?</li>
+          <li>✅ 表情自然?僵硬?</li>
+          <li>✅ 背景纯色?杂乱?</li>
+          <li>✅ 光线均匀?阴影重?</li>
+          <li>✅ 像真人?像 AI?</li>
+        </ul>
+      </div>
+      <div class="shot">📷 截图位: 12 张候选图,标注 ⭐ 给前 5</div>
+      <div class="accept">✅ 验收:5 张候选图全部符合 7 项硬性要求</div>
+    </div>
+  </div>
+
+  <div class="task" id="t5">
+    <label class="task-head">
+      <input type="checkbox" id="c5" onchange="save()">
+      <span class="task-title">5️⃣ 选定最终形象 + 下载</span>
+      <span class="task-tag">≈10 min</span>
+    </label>
+    <div class="task-body">
+      <strong>从 5 张候选选 1 张</strong>:
+      <ul style="padding-left:20px;font-size:13px">
+        <li>综合 7 项硬性要求最高分</li>
+        <li>个人偏好(自己看着舒服 = 长期相处不厌)</li>
+        <li>SadTalker 测试 1 次再定(<a href="m0-02-sadtalker.html">M0-SOP-02 步骤 8</a>)</li>
+      </ul>
+      <strong>下载</strong>:
+      <div class="cmd">存到 F:\AI-Agent-Local\数字人计划\m0-test\avatar.jpg
+要求分辨率 ≥1024x1024</div>
+      <strong>为什么 ≥1024</strong>:SadTalker 默认输出 = 输入尺寸,1024 输入可输出 512x512 视频(推荐)
+      <div class="warning">
+        <strong>⚠ 后期换形象成本高</strong>: 频道品牌 = 形象脸。M1-M12 同一张图 → 换脸 = 观众认不出,涨粉重置。所以一次选对!
+      </div>
+      <div class="accept">✅ 验收:avatar.jpg 保存到 m0-test + ≥1024x1024</div>
+    </div>
+  </div>
+
+  <div class="task" id="t6">
+    <label class="task-head">
+      <input type="checkbox" id="c6" onchange="save()">
+      <span class="task-title">6️⃣ SadTalker 测试 + 评分</span>
+      <span class="task-tag">≈5-10 min</span>
+    </label>
+    <div class="task-body">
+      <strong>用选定图跑 SadTalker</strong>(参考 <a href="m0-02-sadtalker.html">M0-SOP-02 步骤 8</a>):
+      <div class="cmd">cd F:\AI-Agent-Local\数字人计划\SadTalker
+python inference.py --driven_audio F:\AI-Agent-Local\数字人计划\m0-test\test_zh.mp3 --source_image F:\AI-Agent-Local\数字人计划\m0-test\avatar.jpg --result_dir F:\AI-Agent-Local\数字人计划\m0-test\avatar_test --enhancer gfpgan</div>
+      <strong>播放输出</strong>(test_avatar.mp4),评分维度:
+      <ul style="padding-left:20px;font-size:12px">
+        <li>唇形同步:嘴巴开合匹配发音</li>
+        <li>面部自然:无明显扭曲 / 抖动</li>
+        <li>形象气质:是否符合频道定位</li>
+      </ul>
+      <strong>记录</strong>: 形象评分 <input type="text" placeholder="8" style="background:var(--bg);color:var(--yellow);border:1px solid var(--border);padding:2px 6px;border-radius:3px;width:40px"> /10
+      <div class="warning">
+        <strong>⚠ 评分 ≤6</strong>: 退回步骤 4 重选 / 改 prompt 重生成
+      </div>
+      <div class="accept">✅ 验收:SadTalker 输出正常 + 形象评分 ≥7</div>
+    </div>
+  </div>
+
+  <div class="task" id="t7">
+    <label class="task-head">
+      <input type="checkbox" id="c7" onchange="save()">
+      <span class="task-title">7️⃣ 备份 + 进 M1</span>
+      <span class="task-tag">≈5 min</span>
+    </label>
+    <div class="task-body">
+      <strong>备份</strong>(防丢失):
+      <ol style="padding-left:20px;font-size:13px">
+        <li>复制 avatar.jpg 到云盘(OneDrive / 百度网盘)</li>
+        <li>复制 prompt 文本到 <code>sop/_records/avatar-prompt.txt</code></li>
+        <li>记录候选图清单到 <code>sop/_records/avatar-candidates.md</code></li>
+      </ol>
+      <strong>更新主计划</strong>:
+      <ul style="padding-left:20px;font-size:13px">
+        <li><a href="../执行计划清单.md">执行计划清单.md § 3.1 W2</a> → 标注"形象照已定"</li>
+        <li>记录形象描述 + 备份路径</li>
+      </ul>
+      <div class="tip">
+        <strong>🎉 M0-SOP-04 完成!</strong><br>
+        4 个 M0 SOP 全部完成后:<br>
+        ✅ Edge TTS 跑通(中/英/阿)<br>
+        ✅ SadTalker 跑通<br>
+        ✅ FFmpeg 端到端 MP4 跑通<br>
+        ✅ 形象照确定<br>
+        → <strong>M0 阶段门控达成</strong> → 启动 <a href="../执行计划清单.html">阶段 B · M1 单语种上线</a>
+      </div>
+      <div class="accept">✅ 验收:3 份备份文件齐全 + 主计划更新</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>🚨 应急方案</h2>
+  <div class="warning">
+    <strong>方案 A · 即梦 / MJ 账号注册困难</strong><br>
+    1. 用 Pexels(<a href="https://www.pexels.com/zh-cn/search/portrait%20man/" target="_blank">pexels.com</a>)免费人像搜索<br>
+    2. 关键词:<code>portrait front view no glasses professional</code><br>
+    3. 选 1 张 → 直接进步骤 5
+  </div>
+  <div class="warning">
+    <strong>方案 B · 12 张候选都不满意</strong><br>
+    1. 检查 prompt 是否太抽象(加具体描述:发型 / 服装 / 表情)<br>
+    2. 试不同 AI 工具(切 MJ / SD / HeyGen)<br>
+    3. 用真人自拍 + AI 滤镜(Stable Diffusion + IP-Adapter)
+  </div>
+  <div class="warning">
+    <strong>方案 C · SadTalker 跑该图报错 / 效果差</strong><br>
+    1. 试 SadTalker 自带的 4 张示例图(<code>SadTalker/examples/source_image/</code>),确认是图问题还是工具问题<br>
+    2. 工具问题 → 换 LivePortrait(更宽松)<br>
+    3. 图问题 → 调整 prompt 重生成(避免极端角度 / 大眼镜)
+  </div>
+</section>
+
+<section>
+  <h2>🎯 完成定义(M0-SOP-04 验收)</h2>
+  <div class="tip">
+    <strong>本 SOP 完成标准</strong>(全部满足):
+    <ul style="padding-left:24px;margin-top:6px">
+      <li>✅ 7 个 checkbox 全部勾选</li>
+      <li>✅ avatar.jpg 保存到 m0-test/ + ≥1024x1024</li>
+      <li>✅ SadTalker 跑该图评分 ≥7</li>
+      <li>✅ 云盘 + 本地备份各 1 份</li>
+      <li>✅ prompt 文本记录到 sop/_records/</li>
+    </ul>
+    <strong>✅ 4 个 M0 SOP 全 100% + 5 条 demo MP4 = M0 阶段门控达成,可进 M1</strong>
+  </div>
+</section>
+
+<div class="footer-actions">
+  <a href="README.html" class="btn btn-back">← 回 M0 索引</a>
+  <a href="m0-03-ffmpeg.html" class="btn btn-back">← 上一 SOP: FFmpeg</a>
+  <button class="btn btn-reset" onclick="resetThis()">🗑 重置本 SOP 进度</button>
+</div>
+
+<script>
+const KEY='m0-04';
+const TOTAL=7;
+
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||[];}catch(e){return [];}}
+function save(){
+  const arr=[];
+  for(let i=1;i<=TOTAL;i++){arr.push(document.getElementById('c'+i).checked);}
+  localStorage.setItem(KEY, JSON.stringify(arr));
+  try{window.parent.postMessage({key:KEY,arr:arr},'*');}catch(e){}
+  refresh();
+}
+function refresh(){
+  const arr=load();
+  let done=0;
+  for(let i=1;i<=TOTAL;i++){
+    const cb=document.getElementById('c'+i);
+    if(cb) cb.checked=arr[i-1]||false;
+    const t=document.getElementById('t'+i);
+    if(t&&arr[i-1]) t.classList.add('done');
+    else if(t) t.classList.remove('done');
+    if(arr[i-1]) done++;
+  }
+  const pct=Math.round(done/TOTAL*100);
+  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('progressLabel').textContent=`${done}/${TOTAL} (${pct}%)`;
+  document.getElementById('kpiDone').textContent=done;
+  document.getElementById('kpiLeft').textContent=TOTAL-done;
+  document.getElementById('kpiTime').textContent=Math.round((TOTAL-done)*12);
+}
+function resetThis(){
+  if(!confirm('确定清除本 SOP 全部进度?')) return;
+  localStorage.removeItem(KEY);
+  refresh();
+}
+refresh();
+</script>
+
+</body>
+</html>

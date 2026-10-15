@@ -1,0 +1,49 @@
+# 实体字典 (2026-08-30): 素材摄入产线的搜索口径 — 数据非代码, UI 可编辑扩充。
+# 字段: name(库内实体标签) | type(person/org/place/concept) | search(搜索词)
+#       | max_videos(每次批量的部数) | max_duration(时长上限秒)
+# 补弹规则: 库内该实体干净素材 < min_stock 时 UI 提示可补。
+
+entities:
+  # ── 地缘人物 (高频) ──
+  - {name: 特朗普, type: person, search: "Trump rally speech", max_videos: 2, max_duration: 3600, min_stock: 20}
+  - {name: 高市早苗, type: person, search: "Takaichi Sanae press conference", max_videos: 3, max_duration: 3600, min_stock: 20}
+  - {name: 普京, type: person, search: "Putin speech highlights", max_videos: 3, max_duration: 3600, min_stock: 20}
+  - {name: 泽连斯基, type: person, search: "Zelensky speech", max_videos: 2, max_duration: 3600, min_stock: 15}
+  - {name: 李在明, type: person, search: "Lee Jae-myung speech", max_videos: 3, max_duration: 3600, min_stock: 15}
+  - {name: 尹锡悦, type: person, search: "Yoon Suk Yeol speech", max_videos: 2, max_duration: 3600, min_stock: 10}
+  - {name: 马科斯, type: person, search: "Marcos speech", max_videos: 2, max_duration: 3600, min_stock: 10}
+  - {name: 石破茂, type: person, search: "Ishiba Shigeru speech", max_videos: 2, max_duration: 3600, min_stock: 10}
+  - {name: 小泉进次郎, type: person, search: "Koizumi Shinjiro speech", max_videos: 2, max_duration: 3600, min_stock: 10}
+  - {name: 万斯, type: person, search: "JD Vance speech", max_videos: 2, max_duration: 3600, min_stock: 10}
+  - {name: 鲁比奥, type: person, search: "Marco Rubio press conference", max_videos: 2, max_duration: 3600, min_stock: 10}
+  - {name: 马斯克, type: person, search: "Elon Musk press conference", max_videos: 2, max_duration: 3600, min_stock: 10}
+  - {name: 哈梅内伊, type: person, search: "Khamenei speech", max_videos: 2, max_duration: 3600, min_stock: 10}
+  - {name: 佩泽希齐扬, type: person, search: "Pezeshkian speech", max_videos: 2, max_duration: 3600, min_stock: 10}
+  - {name: 拉夫罗夫, type: person, search: "Lavrov press conference", max_videos: 2, max_duration: 3600, min_stock: 10}
+  - {name: 冯德莱恩, type: person, search: "von der Leyen speech", max_videos: 2, max_duration: 3600, min_stock: 20}
+  - {name: 马克龙, type: person, search: "Macron speech", max_videos: 2, max_duration: 3600, min_stock: 10}
+  - {name: 默茨, type: person, search: "Friedrich Merz speech", max_videos: 2, max_duration: 3600, min_stock: 10}
+  - {name: 卡拉斯, type: person, search: "Kaja Kallas speech", max_videos: 2, max_duration: 3600, min_stock: 10}
+  - {name: 吕特, type: person, search: "Mark Rutte NATO speech", max_videos: 2, max_duration: 3600, min_stock: 10}
+  - {name: 莎拉杜特尔特, type: person, search: "Sara Duterte speech", max_videos: 2, max_duration: 3600, min_stock: 10}
+  - {name: 梅德韦杰夫, type: person, search: "Medvedev interview", max_videos: 2, max_duration: 3600, min_stock: 10}
+  - {name: 阿拉格齐, type: person, search: "Araghchi interview", max_videos: 2, max_duration: 3600, min_stock: 10}
+
+  # ── 国家/地区 都市空镜 (都市向, 非风景 — 用户令 2026-08-29) ──
+  - {name: 美国, type: place, search: "New York City 4K timelapse", max_videos: 3, max_duration: 600, min_stock: 15}
+  - {name: 日本, type: place, search: "Tokyo city 4K aerial night", max_videos: 2, max_duration: 600, min_stock: 15}
+  - {name: 韩国, type: place, search: "Seoul Korea 4K timelapse", max_videos: 3, max_duration: 600, min_stock: 15}
+  - {name: 菲律宾, type: place, search: "Manila Philippines city 4K", max_videos: 2, max_duration: 600, min_stock: 15}
+  - {name: 伊朗, type: place, search: "Tehran Iran city 4K", max_videos: 2, max_duration: 600, min_stock: 15}
+  - {name: 俄罗斯, type: place, search: "Moscow city 4K aerial", max_videos: 2, max_duration: 600, min_stock: 15}
+  - {name: 乌克兰, type: place, search: "Kyiv Ukraine city 4K", max_videos: 2, max_duration: 600, min_stock: 15}
+  - {name: 欧盟, type: place, search: "Brussels EU quarter city 4K", max_videos: 2, max_duration: 600, min_stock: 15}
+
+  # ── 科技公司 (官频宣传片 — 已有库存的维护位) ──
+  - {name: 英伟达, type: org, search: "NVIDIA", max_videos: 2, max_duration: 600, min_stock: 50, channel: "@NVIDIA"}
+  - {name: 台积电, type: org, search: "TSMC", max_videos: 3, max_duration: 600, min_stock: 15, channel: "@TSMCOfficial"}
+  - {name: 小米, type: org, search: "Xiaomi", max_videos: 2, max_duration: 600, min_stock: 30, channel: "@Xiaomi"}
+  - {name: 英特尔, type: org, search: "Intel", max_videos: 2, max_duration: 600, min_stock: 15, channel: "@intel"}
+
+  # ── 事件/聚合 ──
+  - {name: G7峰会, type: concept, search: "G7 summit leaders", max_videos: 3, max_duration: 3600, min_stock: 10}

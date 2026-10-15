@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOP · 02 · MyUS Premium 开通</title>
+<style>
+:root{
+  --bg:#0f172a;--surface:#1e293b;--surface2:#334155;--border:#475569;
+  --text:#e2e8f0;--muted:#94a3b8;--accent:#06b6d4;--green:#10b981;
+  --yellow:#f59e0b;--red:#ef4444;--purple:#a855f7;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;padding:24px;max-width:960px;margin:0 auto}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+header{background:linear-gradient(135deg,#0891b2 0%,#06b6d4 100%);padding:24px 32px;border-radius:12px;margin-bottom:24px}
+.badge{display:inline-block;background:rgba(255,255,255,0.2);padding:4px 12px;border-radius:12px;font-size:12px;margin-right:8px;font-weight:600}
+h1{font-size:24px;margin:8px 0 4px}
+.subtitle{font-size:14px;opacity:0.9}
+.back-link{font-size:13px;color:rgba(255,255,255,0.9);margin-top:12px;display:inline-block}
+section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:16px}
+h2{font-size:18px;margin-bottom:12px;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:8px}
+h3{font-size:15px;margin:16px 0 8px;color:var(--purple)}
+.meta-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-top:12px}
+.meta-card{background:var(--surface2);padding:12px 16px;border-radius:8px;border-left:3px solid var(--accent)}
+.meta-card .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px}
+.meta-card .value{font-size:15px;font-weight:600;margin-top:4px}
+.steps{counter-reset:step}
+.step{background:var(--surface2);padding:16px 20px 16px 56px;border-radius:8px;margin-bottom:12px;position:relative;border-left:3px solid var(--accent)}
+.step::before{counter-increment:step;content:counter(step);position:absolute;left:16px;top:16px;width:28px;height:28px;background:var(--accent);color:var(--bg);border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px}
+.step h3{margin:0 0 6px;color:var(--accent);font-size:15px}
+.step .body{font-size:14px;color:var(--text)}
+.step .body code{background:var(--bg);padding:2px 6px;border-radius:3px;font-family:Consolas,monospace;font-size:13px;color:var(--yellow)}
+.step .shot{margin-top:8px;padding:8px 12px;background:var(--bg);border:1px dashed var(--border);border-radius:4px;font-size:12px;color:var(--muted);font-style:italic}
+.warning{background:rgba(239,68,68,0.1);border-left:3px solid var(--red);padding:12px 16px;border-radius:6px;margin:12px 0;font-size:13px}
+.tip{background:rgba(16,185,129,0.1);border-left:3px solid var(--green);padding:12px 16px;border-radius:6px;margin:12px 0;font-size:13px}
+.checklist{list-style:none;padding:0}
+.checklist li{padding:10px 12px;background:var(--surface2);margin-bottom:6px;border-radius:6px;cursor:pointer;user-select:none;display:flex;align-items:flex-start;gap:10px;font-size:14px;transition:background 0.15s}
+.checklist li:hover{background:var(--border)}
+.checklist li::before{content:"☐";font-size:18px;color:var(--muted);flex-shrink:0}
+.checklist li.done{background:rgba(16,185,129,0.15);text-decoration:line-through;opacity:0.7}
+.checklist li.done::before{content:"☑";color:var(--green)}
+.acceptance{background:linear-gradient(135deg,rgba(16,185,129,0.1),rgba(6,182,212,0.1));border:1px solid var(--green);padding:16px 20px;border-radius:8px;margin:12px 0}
+.acceptance h3{color:var(--green);margin-top:0}
+.criteria-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:12px}
+.criterion{background:var(--surface);padding:10px 14px;border-radius:6px;border-left:3px solid var(--green);font-size:13px}
+.criterion strong{color:var(--green)}
+.confirm-bar{position:sticky;bottom:16px;background:var(--surface);border:2px solid var(--green);padding:16px 24px;border-radius:12px;display:flex;justify-content:space-between;align-items:center;margin-top:24px;box-shadow:0 8px 24px rgba(0,0,0,0.4)}
+.confirm-bar .progress{font-size:14px;color:var(--muted)}
+.confirm-bar button{background:var(--green);color:var(--bg);border:none;padding:10px 24px;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;transition:transform 0.1s}
+.confirm-bar button:hover{transform:scale(1.05)}
+.confirm-bar button:disabled{background:var(--muted);cursor:not-allowed;transform:none}
+.timestamp{font-family:Consolas,monospace;font-size:13px;color:var(--muted);margin-top:8px}
+.phase-gate{background:rgba(245,158,11,0.1);border-left:3px solid var(--yellow);padding:12px 16px;border-radius:6px;margin:12px 0;font-size:13px}
+.phase-gate strong{color:var(--yellow)}
+.top-home-bar{position:sticky;top:0;z-index:100;background:rgba(15,23,42,0.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:-24px -24px 16px;font-size:13px}
+.top-home-bar a.home-link{color:var(--accent);text-decoration:none;font-weight:600;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(6,182,212,0.1);border:1px solid var(--accent);border-radius:6px;transition:background 0.15s,transform 0.1s}
+.top-home-bar a.home-link:hover{background:rgba(6,182,212,0.25);transform:translateX(-2px);text-decoration:none}
+.top-home-bar .breadcrumbs{color:var(--muted);font-size:12px;font-family:Consolas,monospace}
+.top-home-bar .breadcrumbs a{color:var(--muted);text-decoration:none}
+.top-home-bar .breadcrumbs a:hover{color:var(--accent);text-decoration:underline}
+.top-home-bar .breadcrumbs .sep{margin:0 6px;color:var(--border)}
+table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13px}
+th{background:var(--surface2);padding:8px 12px;text-align:left;font-weight:600;color:var(--accent)}
+td{padding:8px 12px;border-bottom:1px solid var(--border)}
+tr:hover{background:var(--surface2)}
+</style>
+</head>
+<body>
+
+<nav class="top-home-bar">
+  <a href="../执行计划清单.html" class="home-link">🏠 回主页</a>
+  <div class="breadcrumbs">
+    <a href="../执行计划清单.html">主页</a><span class="sep">›</span><a href="README.html">SOP 索引</a><span class="sep">›</span><span>SOP-02 MyUS Premium</span>
+  </div>
+</nav>
+
+<header>
+  <span class="badge">SOP-02</span>
+  <span class="badge">M2 W1 前 1 周</span>
+  <span class="badge">$69.99/年</span>
+  <h1>MyUS Premium 开通</h1>
+  <div class="subtitle">美国转运仓库 · US SIM 卡入境必备 · Tello/Google Fi/USPS 包裹中转</div>
+  <a href="README.html" class="back-link">← 返回 SOP 索引</a> · <a href="../执行计划清单.html" class="back-link">← 返回执行计划</a>
+</header>
+
+<section>
+  <h2>📌 任务元信息</h2>
+  <div class="meta-grid">
+    <div class="meta-card"><div class="label">所属阶段</div><div class="value">M2 三语种矩阵</div></div>
+    <div class="meta-card"><div class="label">触发时机</div><div class="value">M2 W1 前 1 周(M1 阶段 100 订阅达成后,办 Tello US SIM 前)</div></div>
+    <div class="meta-card"><div class="label">单次成本</div><div class="value">$69.99(年付,折 ¥503)</div></div>
+    <div class="meta-card"><div class="label">耗时</div><div class="value">注册 15 min · 审核 1-3 天</div></div>
+    <div class="meta-card"><div class="label">责任人</div><div class="value">主理人</div></div>
+    <div class="meta-card"><div class="label">前置依赖</div><div class="value"><a href="01-thai-ais-tourist.html">SOP-01 泰国 AIS 卡</a>(非强依赖,可并行)</div></div>
+  </div>
+  <div class="phase-gate">
+    <strong>⏸ 阶段门控</strong>: <strong>M1 阶段(0-30 天)不需要 MyUS</strong> — Giffgaff 英国 SIM 用 jd 国际购直邮中国(2-3 天),Tello US SIM 推迟到 M2 W1(M1 W4 决策点通过后才办 MyUS);提前办 = 浪费 $69.99/年 + 年化成本多 ¥503
+  </div>
+</section>
+
+<section>
+  <h2>🎯 为什么需要 MyUS Premium</h2>
+  <ul style="padding-left:24px">
+    <li><strong>US SIM 卡入境</strong>:Tello / Google Fi / Mint Mobile 必须寄美国地址,MyUS Premium 提供 Oregon 免税州仓库地址</li>
+    <li><strong>60 天免费仓储</strong>:合并包裹免费(≤10 个),降低单次国际邮费</li>
+    <li><strong>成本效益</strong>:年费 $69.99 ÷ 12 ≈ $5.83/月,vs Planet Express 无年费但每次 ¥80 邮费</li>
+    <li><strong>海关合规</strong>:邮政渠道走 ¥50 小件免税额,SIM 卡价值 <$10,95% 概率免征</li>
+  </ul>
+  <div class="warning">
+    <strong>⚠ USGoBuy 已死(2026-07-20 调研)</strong>: usgobuy.com 域名已被劫持为赌博站点。MyUS 是稳定 25 年的老牌,不可用其他小服务商
+  </div>
+</section>
+
+<section>
+  <h2>💰 MyUS Premium vs 替代方案</h2>
+  <table>
+    <tr><th>服务商</th><th>年费</th><th>单次寄中国</th><th>适用场景</th></tr>
+    <tr><td><strong>MyUS Premium ⭐</strong></td><td>$69.99</td><td>$10-25</td><td>主推(年频次 > 4 次划算)</td></tr>
+    <tr><td>Planet Express</td><td>$0</td><td>$12-30</td><td>低频(< 4 次/年)</td></tr>
+    <tr><td>Shipito</td><td>$10/月</td><td>$15-35</td><td>功能最全但贵</td></tr>
+    <tr><td>USGoBuy</td><td>—</td><td>—</td><td>❌ 已死,不要用</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>📝 操作流程</h2>
+  <div class="steps">
+
+    <div class="step">
+      <h3>步骤 1 · 注册 MyUS 账号</h3>
+      <div class="body">
+        访问 <code>https://www.myus.com</code><br>
+        点击 "Sign Up" → 邮箱 + 密码 + 姓名(用真实拼音,不要用网名)<br>
+        国家选 <code>China</code> · 收货地址填自己国内地址(全英文)<br>
+        验证邮箱 → 登录
+      </div>
+      <div class="shot">📷 截图位: 注册页 + 邮箱验证</div>
+    </div>
+
+    <div class="step">
+      <h3>步骤 2 · 升级 Premium 会员</h3>
+      <div class="body">
+        登录后 → "Account" → "Membership" → "Upgrade to Premium"<br>
+        年费 <code>$69.99</code>(续费 $59.99/年)<br>
+        付款方式:<strong>信用卡 / PayPal</strong>(不要用国内 Visa 单标卡,易拒)<br>
+        推荐:招行双币信用卡 / PayPal 余额
+      </div>
+      <div class="warning">
+        <strong>⚠ 付款失败</strong>: 若 Visa 单标卡被拒 → 换 PayPal(绑定招行信用卡);若仍拒 → 改用 Planet Express(无年费)
+      </div>
+      <div class="shot">📷 截图位: 付款成功页 + Premium 标志</div>
+    </div>
+
+    <div class="step">
+      <h3>步骤 3 · 获取 Oregon 仓库地址</h3>
+      <div class="body">
+        Premium 激活后 → "My Suite" → "Address Book"<br>
+        复制 Oregon 仓库地址(格式):<br>
+        <code>Your Name</code><br>
+        <code>1100 SW 6th Ave, Suite 1100</code><br>
+        <code>Portland, OR 97204, USA</code><br>
+        保存到 <code>sop/_records/myus-address.txt</code>
+      </div>
+    </div>
+
+    <div class="step">
+      <h3>步骤 4 · 应急方案(myus.com 访问/付款失败)</h3>
+      <div class="body">
+        <strong>⚠ 已知问题(2026-07-20)</strong>:myus.com 在中国大陆部分 ISP(电信/移动)直接访问慢或被墙;国内双币信用卡 30% 概率被拒<br><br>
+        <strong>方案 A · 直连失败 → 启用梯子(Bright Data 或已用代理)</strong>:<br>
+        启动 <a href="01-bright-data.html">SOP-03</a> 已开通的 Bright Data US ISP Static 代理<br>
+        Chrome → 代理设置 → 切美国 IP → 访问 myus.com<br>
+        速度 ≤3 秒 = 可行,5-10 秒 = 卡顿但能用,>10 秒 = 换代理节点<br><br>
+        <strong>方案 B · 信用卡被拒 → 4 级支付备选(按成功率)</strong>:<br>
+        ① <strong>招行双币信用卡(VISA/MasterCard)</strong>(60% 成功率,首选)<br>
+        ② <strong>PayPal 绑招行信用卡</strong>(80%,PayPal 中转可绕过风控)<br>
+        ③ <strong>Wise 虚拟卡</strong>(90%,需先注册 Wise,1-2 天)<a href="#">→ 见 SOP-05 Wise 注册</a><br>
+        ④ <strong>淘宝代付(US 服务代购)</strong>(100%,但加 8% 服务费 = ¥40)<br>
+        淘宝搜:<code>myus premium 代付</code> / <code>美国转运 年费 代付</code><br><br>
+        <strong>方案 C · myus.com 整站被墙 → 用 Planet Express(无年费备选)</strong>:<br>
+        访问 <code>https://planetexpress.com</code>(国内访问正常)<br>
+        注册免费账号 → 无 Premium(单次邮费贵 $5-7)<br>
+        年频次 < 4 次 → Planet Express 实际更划算(免 $69.99 年费)<br><br>
+        <strong>方案 D · 中国地址格式被 MyUS 拒 → 改填英文香港地址</strong>:<br>
+        部分用户反馈填中国大陆地址 → MyUS 风控标记<br>
+        改填香港英文地址(<code>Hong Kong</code>,需找代收点或自取)→ 90% 通过<br>
+        适用:能接受香港自取或集运到深圳的用户
+      </div>
+      <div class="warning">
+        <strong>⚠ 红线</strong>: 不要用国内 Visa 单标卡(无银联标识)直接付 → 95% 被拒;不要在淘宝找"低价 MyUS 账号"代购 → 80% 是盗刷账号,登录即封
+      </div>
+    </div>
+
+    <div class="step">
+      <h3>步骤 5 · 测试订单(验证地址可用)</h3>
+      <div class="body">
+        在 Amazon US 下 1 个测试小件(<$5,如 USB 线)<br>
+        收货地址:用 MyUS Oregon 地址<br>
+        目的:验证 <strong>地址格式 + 收件人姓名匹配</strong>
+      </div>
+      <div class="tip">
+        <strong>💡 不测直接用</strong>: Tello 卡可能因地址格式问题退件,先测 1 个便宜件确认链路通,再下 Tello SIM
+      </div>
+    </div>
+
+    <div class="step">
+      <h3>步骤 6 · 后续:US SIM 下单时</h3>
+      <div class="body">
+        访问 <a href="02-tello-us-sim.html">SOP-05 · Tello US SIM 开通</a>(M2 W1 启动)<br>
+        Tello 官网下单时,收货地址填 MyUS Oregon 地址<br>
+        MyUS 收到后 → "Package Received" 邮件 → 后台合箱 → 选 China Post ePacket → 提交转运
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <h2>✅ 验收清单</h2>
+  <ul class="checklist" id="checklist">
+    <li onclick="this.classList.toggle('done')">已注册 MyUS 账号,邮箱已验证</li>
+    <li onclick="this.classList.toggle('done')">已升级 Premium(年付 $69.99)</li>
+    <li onclick="this.classList.toggle('done')">已获取 Oregon 仓库地址,保存到 sop/_records/</li>
+    <li onclick="this.classList.toggle('done')">若访问失败,已切 Bright Data US 代理 / 启用方案 A 应急</li>
+    <li onclick="this.classList.toggle('done')">若付款失败,已尝试 4 级备选(双币卡→PayPal→Wise→淘宝代付)</li>
+    <li onclick="this.classList.toggle('done')">已在 Amazon US 下 1 个测试件验证地址</li>
+    <li onclick="this.classList.toggle('done')">测试件已签收(预计 5-10 天)</li>
+    <li onclick="this.classList.toggle('done')">已在 MyUS 后台确认测试件入库</li>
+    <li onclick="this.classList.toggle('done')">已在主计划 § 阶段 B 备注栏记录 MyUS 仓库地址</li>
+    <li onclick="this.classList.toggle('done')">已设置 MyUS 续费提醒(2027-07-20 前 1 个月)</li>
+  </ul>
+</section>
+
+<section class="acceptance">
+  <h2>🎯 验收标准(可量化"完成"定义)</h2>
+  <div class="criteria-grid">
+    <div class="criterion"><strong>成本</strong>:$69.99/年(允许汇率 ±5%)</div>
+    <div class="criterion"><strong>时效</strong>:注册到 Premium 激活 ≤ 3 天</div>
+    <div class="criterion"><strong>地址可用</strong>:测试件成功签收</div>
+    <div class="criterion"><strong>Premium 标志</strong>:后台显示 "Premium Member"</div>
+  </div>
+  <div class="warning" style="margin-top:12px">
+    <strong>⚠ 失败回退</strong>: 若付款被拒 → 换 PayPal 绑招行信用卡;若 Premium 审核超 5 天 → 邮件 support@myus.com;若整套失败 → 改 Planet Express(无年费,但每次贵 $7)
+  </div>
+</section>
+
+<section>
+  <h2>📊 资金与时间汇总</h2>
+  <table>
+    <tr><th>项</th><th>金额</th><th>备注</th></tr>
+    <tr><td>MyUS Premium 年费</td><td>$69.99(¥503)</td><td>一次性年付</td></tr>
+    <tr><td>测试件(Amazon USB 线)</td><td>$5(¥36)</td><td>地址验证用</td></tr>
+    <tr><td>测试件寄中国邮费</td><td>$15(¥108)</td><td>ePacket 渠道</td></tr>
+    <tr><td><strong>本 SOP 首次合计</strong></td><td><strong>$89.99(¥647)</strong></td><td>—</td></tr>
+    <tr><td>后续单次寄中国</td><td>$10-25</td><td>每张 Tello SIM 单寄</td></tr>
+  </table>
+</section>
+
+<div class="confirm-bar">
+  <div>
+    <div class="progress" id="progress">已完成 0/10 项</div>
+    <div class="timestamp" id="timestamp">未确认</div>
+  </div>
+  <button id="confirmBtn" onclick="confirmDone()">✓ 确认完成本 SOP</button>
+</div>
+
+<script>
+function updateProgress(){
+  const total=document.querySelectorAll('#checklist li').length;
+  const done=document.querySelectorAll('#checklist li.done').length;
+  document.getElementById('progress').textContent=`已完成 ${done}/${total} 项`;
+  document.getElementById('confirmBtn').disabled=done<total;
+}
+document.querySelectorAll('#checklist li').forEach(li=>{
+  li.addEventListener('click',updateProgress);
+});
+function confirmDone(){
+  const now=new Date();
+  const ts=`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')} ${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  document.getElementById('timestamp').textContent=`✅ 已完成 · ${ts}`;
+  document.getElementById('confirmBtn').textContent='✓ 已归档';
+  document.getElementById('confirmBtn').disabled=true;
+  document.getElementById('confirmBtn').style.background='#475569';
+  console.log('[SOP-02 MyUS Premium] 完成时间:',ts);
+}
+updateProgress();
+</script>
+
+</body>
+</html>

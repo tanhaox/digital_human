@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<!-- bs1_quote_v1 — 老谭拆书·深空蓝金 金句页: 全屏大字 (切片/花字位), 出处=书名 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Playfair+Display:ital,wght@0,700;1,700&family=Noto+Serif+SC:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root{--navy-1:#0C1626;--navy-2:#10233D;--gold:#C9A25E;--paper:#EDEAE0}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1920px;height:1080px;overflow:hidden}
+  body{font-family:"Noto Serif SC",serif;color:var(--paper)}
+  #root{position:relative;width:1920px;height:1080px;overflow:hidden;
+        background:radial-gradient(1400px 800px at 50% 40%,var(--navy-2) 0%,var(--navy-1) 100%)}
+  .mark{position:absolute;font-family:"Playfair Display","Noto Serif SC",serif;
+        font-weight:700;font-size:170px;line-height:1;color:var(--gold);
+        text-shadow:0 0 50px rgba(201,162,94,.35);user-select:none;pointer-events:none}
+  /* 引号定位 (0908 用户红标): 开引号在句首斜上(水平1/3, 垂直1/5), 闭引号句尾斜下对称
+     —— 抱向文字而非角落; 垂直带仍与文字带(380~700)分离, 不压字 */
+  .mark.open{top:200px;left:620px;transform:rotate(-6deg)}
+  .mark.close{bottom:210px;right:620px;transform:rotate(-6deg);opacity:.85}
+  .q{position:absolute;top:380px;left:280px;right:280px;text-align:center;
+     font-weight:900;font-size:110px;line-height:1.5;color:#F5EFE2;letter-spacing:.04em}
+  .src{position:absolute;bottom:216px;left:0;right:0;text-align:center;
+       font-size:30px;color:var(--gold);letter-spacing:.28em;font-weight:700}
+  .src::before,.src::after{content:"—";margin:0 22px;color:#5E6B7C}
+  .foot{position:absolute;top:112px;right:150px;left:auto;text-align:right;
+        font-size:22px;color:#77808F;letter-spacing:.18em}
+</style>
+</head>
+<body>
+<div id="root"
+     data-composition-id="bs1_quote_v1" data-start="0" data-duration="{{duration_sec}}"
+     data-width="1920" data-height="1080"
+     data-quote="{{quote}}" data-source="{{quote_src}}" data-foot="{{foot}}">
+  <div class="mark open">“</div>
+  <div class="mark close">”</div>
+  <div class="q" id="q"></div>
+  <div class="src" id="src"></div>
+  <div class="foot" id="foot"></div>
+</div>
+<script>
+// 预览自适应 (0907): 小容器 (风格页 iframe) 自动缩放到视口; 生产 1920 渲染不触发
+(function () {
+  var w = window.innerWidth, h = window.innerHeight;
+  if (w >= 1900) return;
+  var s = Math.min(w / 1920, h / 1080);
+  var r = document.getElementById("root");
+  if (!r) return;
+  r.style.transform = "scale(" + s + ")";
+  r.style.transformOrigin = "top left";
+  try { document.body.style.background = getComputedStyle(r).background; } catch (e) {}
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<script>
+(function () {
+  var root = document.getElementById("root");
+  var DUR = parseFloat(root.getAttribute("data-duration")) || 5;
+  var q = root.getAttribute("data-quote") || "";
+  var qel = document.getElementById("q");
+  // 文字包 inline span — 测「文字实际宽度」而非容器宽 (0908: 引号曾贴到容器边界=画面边缘的根因)
+  var sp = document.createElement("span");
+  sp.id = "qt";
+  sp.textContent = q;
+  qel.appendChild(sp);
+  var n = q.replace(/\s/g, "").length;
+  if (n > 10) qel.style.fontSize = "88px";
+  if (n > 16) qel.style.fontSize = "72px";
+  if (n > 24) qel.style.fontSize = "58px";
+  // 引号贴附 (0908 定稿): 与金句同行 — 开引号挂句首左上 / 闭引号挂句尾右下, 各让半个字。
+  // 位置按 span 实际边界动态计算 (span.offsetParent=#q, 需叠加容器偏移)。
+  function placeMarks() {
+    var open = document.querySelector(".mark.open");
+    var close = document.querySelector(".mark.close");
+    var span = document.getElementById("qt");
+    if (!open || !close || !span) return;
+    var ql = qel.offsetLeft + span.offsetLeft;
+    var qw = span.offsetWidth;
+    var qt = qel.offsetTop + span.offsetTop;
+    var qh = span.offsetHeight;
+    var fs = parseFloat(getComputedStyle(open).fontSize) || 230;
+    // 悬挂式 (0908 视觉迭代②): 引号墨迹在 em 框上部约 0~45% 区间、宽约 40% em —
+    // 开引号墨迹右缘贴句首左缘(压角), 闭引号挂句尾右下(压角), 对角呼应
+    open.style.left = (ql - fs * 0.5) + "px";
+    open.style.top = (qt - fs * 0.42) + "px";
+    close.style.left = (ql + qw - fs * 0.12) + "px";
+    close.style.top = (qt + qh - fs * 0.08) + "px";
+    close.style.bottom = "auto"; open.style.bottom = "auto";
+  }
+  placeMarks();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(placeMarks);
+  document.getElementById("src").textContent = root.getAttribute("data-source") || "";
+  document.getElementById("foot").textContent = root.getAttribute("data-foot") || "";
+  var tl = gsap.timeline({paused: true});
+  tl.from(".mark.open", {scale: .3, autoAlpha: 0, rotation: -30, duration: .6, ease: "back.out(1.7)"}, .1)
+    .from(".mark.close", {scale: .3, autoAlpha: 0, rotation: 20, duration: .6, ease: "back.out(1.7)"}, .25)
+    .from("#q", {y: 44, autoAlpha: 0, duration: .8, ease: "power3.out"}, .38)
+    .from("#src", {autoAlpha: 0, duration: .5}, .85)
+    .from("#foot", {autoAlpha: 0, duration: .4}, .95)
+    .to({}, {duration: Math.max(0.2, DUR - 1.6)});
+  window.__timelines = window.__timelines || {};
+  window.__timelines["bs1_quote_v1"] = tl;
+  window.addEventListener("message", function (ev) {
+    if (ev.data && ev.data.type === "preview-play") { tl.restart(); }
+  });
+})();
+</script>
+</body>
+</html>

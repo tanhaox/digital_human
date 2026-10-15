@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>道具提示词工坊</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+  :root{
+    --ground:#F7F7F3;
+    --surface:#FFFFFF;
+    --ink:#20262D;
+    --ink-soft:#5B6470;
+    --line:#E4E3DB;
+    --accent:#1F6E8C;
+    --accent-ink:#17556E;
+    --accent-wash:rgba(31,110,140,.09);
+    --red:#C23B2E;
+    --red-wash:rgba(194,59,46,.09);
+    --sans:'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+    --disp:'Fraunces','Noto Sans SC',serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#14181C;
+      --surface:#1B2127;
+      --ink:#E8EBEE;
+      --ink-soft:#97A1AB;
+      --line:#2C343C;
+      --accent:#6FB7D4;
+      --accent-ink:#9CCFE4;
+      --accent-wash:rgba(111,183,212,.13);
+      --red:#E2685A;
+      --red-wash:rgba(226,104,90,.13);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#14181C;
+    --surface:#1B2127;
+    --ink:#E8EBEE;
+    --ink-soft:#97A1AB;
+    --line:#2C343C;
+    --accent:#6FB7D4;
+    --accent-ink:#9CCFE4;
+    --accent-wash:rgba(111,183,212,.13);
+    --red:#E2685A;
+    --red-wash:rgba(226,104,90,.13);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:var(--ground);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:14px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:32px 28px 64px}
+
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding-bottom:20px;border-bottom:1px solid var(--line);margin-bottom:28px}
+  .eyebrow{font-family:var(--disp);font-style:italic;font-weight:500;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-ink);margin:0 0 4px}
+  h1{font-size:26px;font-weight:700;letter-spacing:.02em;margin:0}
+  h1 small{display:block;font-size:13px;font-weight:400;color:var(--ink-soft);margin-top:6px;letter-spacing:0}
+  .side{display:flex;flex-direction:column;align-items:flex-end;gap:12px}
+  .pagenav{display:flex;gap:16px;font-family:var(--mono);font-size:11.5px}
+  .pagenav a{color:var(--ink-soft);text-decoration:none;padding-bottom:2px;border-bottom:1px solid transparent}
+  .pagenav a:hover{color:var(--ink)}
+  .pagenav a.on{color:var(--accent-ink);border-bottom-color:var(--accent)}
+  .pagenav a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .sheet-diagram{flex:none;color:var(--ink-soft)}
+  .sheet-diagram text{font-family:var(--mono);font-size:7px;fill:currentColor}
+
+  main{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,6fr);gap:32px;align-items:start}
+  @media (max-width:960px){
+    main{grid-template-columns:1fr}
+    .outcol{position:static !important}
+    header{flex-direction:column;align-items:flex-start;gap:12px}
+    .side{align-items:flex-start}
+  }
+
+  .group{margin-bottom:26px}
+  .group-title{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin:0 0 14px}
+  .group-title::after{content:"";flex:1;height:1px;background:var(--line)}
+  .group.core{border-left:3px solid var(--accent);padding-left:16px}
+  .group.core .group-title{color:var(--accent-ink)}
+  .chip{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;color:var(--accent-ink);background:var(--accent-wash);border-radius:3px;padding:2px 6px}
+  .chip.draft{color:var(--red);background:var(--red-wash)}
+  .field{margin-bottom:14px}
+  .field:last-child{margin-bottom:0}
+  .field label{display:block;font-size:13px;font-weight:500;margin-bottom:5px}
+  .field label .en{font-family:var(--mono);font-size:11px;color:var(--ink-soft);font-weight:400;margin-left:6px}
+  .field input[type=text],.field textarea{
+    width:100%;background:var(--surface);border:1px solid var(--line);border-radius:8px;
+    padding:9px 12px;font-family:var(--mono);font-size:12.5px;color:var(--ink);
+    resize:vertical;transition:border-color .15s;
+  }
+  .field textarea{min-height:56px;line-height:1.6}
+  .field input::placeholder,.field textarea::placeholder{color:var(--ink-soft);opacity:.65}
+  .field input:focus,.field textarea:focus{outline:none;border-color:var(--accent)}
+  .field input:focus-visible,.field textarea:focus-visible{box-shadow:0 0 0 2px var(--accent-wash)}
+
+  .pills{display:flex;gap:8px;flex-wrap:wrap}
+  .pill{position:relative;cursor:pointer}
+  .pill input{position:absolute;opacity:0;width:100%;height:100%;left:0;top:0;margin:0;cursor:pointer}
+  .pill span{
+    display:inline-block;font-family:var(--mono);font-size:12.5px;padding:7px 18px;
+    border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink-soft);
+    transition:all .15s;
+  }
+  .pill input:checked + span{background:var(--accent);border-color:var(--accent);color:#fff}
+  :root[data-theme="dark"] .pill input:checked + span{color:#0F1418}
+  .pill input:focus-visible + span{outline:2px solid var(--accent);outline-offset:2px}
+  .draft-note{margin-top:10px;font-size:12.5px;color:var(--ink-soft);background:var(--surface);border:1px dashed var(--line);border-radius:6px;padding:8px 12px}
+
+  .outcol{position:sticky;top:24px}
+  .out-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px}
+  .out-head .group-title{margin:0}
+  .count{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+  .out-card{
+    background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    padding:18px 20px;box-shadow:0 1px 3px rgba(0,0,0,.05);
+  }
+  .out-card pre{
+    margin:0;font-family:var(--mono);font-size:12px;line-height:1.8;
+    white-space:pre-wrap;word-break:break-word;max-height:58vh;overflow:auto;color:var(--ink-soft);
+  }
+  .out-card pre .sec{font-weight:600;color:var(--ink-soft)}
+  .out-card pre .note{color:var(--red)}
+  mark.slot{background:var(--accent-wash);color:var(--accent-ink);border-bottom:1px dotted var(--accent);border-radius:2px;padding:0 1px}
+  .actions{display:flex;gap:10px;margin-top:16px}
+  .copy-btn{
+    flex:1;font-family:var(--sans);font-size:14px;font-weight:500;color:#fff;background:var(--accent);
+    border:none;border-radius:8px;padding:11px 20px;cursor:pointer;transition:filter .15s;
+  }
+  .copy-btn:hover{filter:brightness(1.08)}
+  .copy-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .copy-btn:disabled{cursor:not-allowed;opacity:.5;filter:none}
+  .copy-btn .en{font-family:var(--mono);font-size:11px;opacity:.75;margin-left:6px}
+  :root[data-theme="dark"] .copy-btn{color:#0F1418}
+  footer{margin-top:28px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-soft)}
+</style>
+</head>
+<body>
+
+<header class="wrap" style="padding-bottom:20px">
+  <div>
+    <p class="eyebrow">Prop Sheet Prompt Studio</p>
+    <h1>道具提示词工坊<small>多视角道具设定图 — 材质锚点锁定跨视图一致性 · 布局站位版，模板测试中</small></h1>
+  </div>
+  <div class="side">
+    <nav class="pagenav" aria-label="页面切换">
+      <a href="index.html">首页</a>
+      <a href="threeview_prompt_builder.html">人物</a>
+      <a class="on" href="prop_prompt_builder.html" aria-current="page">道具</a>
+      <a href="scene_prompt_builder.html">场景</a>
+      <a href="shot_prompt_builder.html">镜头</a>
+      <a href="reverse_prompt_builder.html">反推</a>
+    </nav>
+    <svg class="sheet-diagram" width="148" height="60" viewBox="0 0 148 60" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+      <rect x="1" y="1" width="146" height="52" rx="4"/>
+      <g>
+        <rect x="20" y="26" width="12" height="18" rx="2.5"/>
+        <rect x="23.5" y="19" width="5" height="7"/>
+        <line x1="22" y1="19" x2="30" y2="19"/>
+      </g>
+      <g>
+        <rect x="53" y="26" width="12" height="18" rx="2.5"/>
+        <rect x="56.5" y="19" width="5" height="7"/>
+        <line x1="55" y1="19" x2="63" y2="19"/>
+      </g>
+      <g>
+        <rect x="86" y="26" width="12" height="18" rx="2.5"/>
+        <rect x="89.5" y="19" width="5" height="7"/>
+        <line x1="88" y1="19" x2="96" y2="19"/>
+      </g>
+      <circle cx="124" cy="30" r="11"/>
+      <line x1="98" y1="32" x2="113" y2="30" stroke-dasharray="2.5 2.5"/>
+      <path d="M124 26 v8 M120 30 h8"/>
+      <text x="6" y="49">3-VIEW</text>
+      <text x="113" y="49">DETAIL</text>
+    </svg>
+  </div>
+</header>
+
+<div class="wrap" style="padding-top:0">
+<main>
+  <section aria-label="填写区">
+    <div class="draft-note" style="margin-bottom:24px;border-style:solid;border-color:var(--red);background:var(--red-wash);color:var(--ink)">
+      <b>本页还在实测，暂不能生成提示词。</b> 现在就想拿到道具描述？去 <a href="reverse_prompt_builder.html" style="color:var(--accent-ink)">「反推」页</a>——选一张道具图 + 类型选「道具」，AI 直接帮你拆解材质细节。
+    </div>
+    <div class="group">
+      <p class="group-title">道具 · Prop</p>
+      <div class="field">
+        <label for="f-name">名称 / 类别<span class="en">name</span></label>
+        <input type="text" id="f-name" placeholder="Vintage brass pocket watch / 复古黄铜怀表">
+      </div>
+      <div class="field">
+        <label for="f-material">材质<span class="en">material</span></label>
+        <textarea id="f-material" placeholder="Brushed brass body, brown leather strap, glass cover…"></textarea>
+      </div>
+      <div class="field">
+        <label for="f-finish">颜色与表面处理<span class="en">finish</span></label>
+        <input type="text" id="f-finish" placeholder="Aged gold with patina, matte leather">
+      </div>
+      <div class="field">
+        <label for="f-scale">尺寸参照<span class="en">scale reference</span></label>
+        <input type="text" id="f-scale" placeholder="Palm-sized, fits in one hand">
+      </div>
+    </div>
+
+    <div class="group core">
+      <p class="group-title">一致性锚点 <span class="chip">MATERIAL LOCK</span></p>
+      <div class="field">
+        <label for="f-anchors">材质锚点<span class="en">anchors · 跨视图必须一致</span></label>
+        <textarea id="f-anchors" placeholder="Brushed brass with visible grain, one darker solder seam near the crown…"></textarea>
+      </div>
+      <div class="field">
+        <label for="f-identifier">磨损与标记<span class="en">wear identifier</span></label>
+        <input type="text" id="f-identifier" placeholder="A deep scratch across the back cover, top-left">
+      </div>
+    </div>
+
+    <div class="group">
+      <p class="group-title">视图与风格 · Views &amp; Style</p>
+      <div class="field">
+        <label>视图组合<span class="en">views</span></label>
+        <div class="pills" role="radiogroup" aria-label="视图组合">
+          <label class="pill"><input type="radio" name="views" value="3v" checked><span>三视图 + 细节</span></label>
+          <label class="pill"><input type="radio" name="views" value="1v"><span>单视图 + 细节</span></label>
+        </div>
+      </div>
+      <div class="field">
+        <label>成片风格<span class="en">style</span></label>
+        <div class="pills" role="radiogroup" aria-label="成片风格">
+          <label class="pill"><input type="radio" name="style" value="photo" checked><span>写实产品图</span></label>
+          <label class="pill"><input type="radio" name="style" value="concept"><span>概念设定图</span></label>
+        </div>
+        <div class="draft-note">视图组合与风格仅站位，具体提示词策略待实测后接入。</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="outcol" aria-label="生成结果">
+    <div class="out-head">
+      <p class="group-title">生成提示词 <span class="chip draft">DRAFT</span></p>
+      <span class="count">TEMPLATE PENDING</span>
+    </div>
+    <div class="out-card">
+      <pre><span class="note">— 草案骨架 · 待实测定稿后接入生成引擎（同人物页） —</span>
+
+<span class="sec">[画面构成与比例]</span>
+多视角道具设定图：纯白背景，工作室布光
+视图划分与比例 {{待实测：三视图均分 / 特写占比}}
+
+<span class="sec">[材质一致性锁定]</span>
+1. GROUND TRUTH：某一视图为母版，其余视图复刻同款道具
+2. 材质锚点：{{material_anchors}}
+3. 磨损与标记：{{wear_identifier}} — 每个视图同一位置可见
+4. PROHIBITION：跨视图不改形、不改材质、不改磨损
+
+<span class="sec">[细节特写区]</span>
+{{detail_what：放大哪个局部、展示什么工艺}}
+
+<span class="sec">[负面提示词]</span>
+{{negative_draft：多件不同道具 / 材质漂移 / 风格混入}}</pre>
+      <div class="actions">
+        <button class="copy-btn" id="copy" type="button" disabled title="模板定稿后启用">复制提示词<span class="en">PENDING</span></button>
+      </div>
+    </div>
+    <footer>
+      道具页与人物页同款骨架：锚点单源定义、母版视图单向声明、磨损标记即道具版「唯一标识」。字段名与分组为草案，测试定稿后同步调整。
+    </footer>
+  </section>
+</main>
+</div>
+
+</body>
+</html>

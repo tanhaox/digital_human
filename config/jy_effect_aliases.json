@@ -1,0 +1,9 @@
+{
+  "_说明": "人工对号别名表: 草稿 name 为空且注册表查不到的资源ID在此对号。build_jy_effect_catalog.py 重跑自动叠加。baseline=true 为卖家模板基线预设(复刻可忽略,不进推荐池)。证据记 note。",
+  "7416258989467374091": {
+    "name": "智能调色·基线画质预设",
+    "category": "effect",
+    "note": "本机缓存实探=AmazingFeature调色算法簇(adjustColor/colorMigration/curves/hsl/sharpen), 快照1185次≈每模板必带, 卖家工程基线, 复刻可忽略",
+    "baseline": true
+  }
+}

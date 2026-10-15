@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<!-- bs1_data_v1 — 老谭拆书·深空蓝金 数据页 (0908 重排: 行式报表, 数字一行放下)
+  data-stats: "67亿美元|季度营收|同比涨一成八|||123亿美元|同期经营亏损|窟窿比进账宽"
+  (组间|||, 组内|, split maxsplit=2 — 注解含 | 不再被切碎)
+  数字自动降号: ≤4字 88px / 5-7字 68px / >7字 52px, nowrap 保证一行 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Noto+Serif+SC:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root{--navy-1:#0C1626;--navy-2:#10233D;--gold:#C9A25E;--paper:#EDEAE0;--sub:#9AA6B5}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1920px;height:1080px;overflow:hidden}
+  body{font-family:"Noto Serif SC",serif;color:var(--paper)}
+  #root{position:relative;width:1920px;height:1080px;overflow:hidden;
+        background:linear-gradient(135deg,var(--navy-1) 0%,var(--navy-2) 100%)}
+  .caps{font-family:Manrope,sans-serif;font-weight:700;letter-spacing:.42em;text-transform:uppercase}
+  .kicker{position:absolute;top:104px;left:150px;font-size:24px;color:var(--gold);letter-spacing:.4em}
+  h1{position:absolute;top:158px;left:150px;font-weight:900;font-size:72px;color:#F5EFE2}
+  .rows{position:absolute;top:340px;left:150px;right:150px;bottom:280px;
+        display:flex;flex-direction:column;justify-content:space-evenly}
+  .row{display:flex;align-items:center;gap:70px;padding:10px 0;
+       border-bottom:1px solid rgba(201,162,94,.22)}
+  .row:last-child{border-bottom:none}
+  .num{font-family:Manrope,"Noto Serif SC",serif;font-weight:800;font-size:88px;
+       color:var(--gold);line-height:1.1;white-space:nowrap;flex:none;min-width:620px}
+  .txt{display:flex;flex-direction:column;gap:12px;min-width:0}
+  .label{font-size:38px;font-weight:900;color:#F5EFE2}
+  .desc{font-size:28px;line-height:1.6;color:var(--sub);font-weight:700}
+  .note{position:absolute;bottom:216px;left:150px;font-size:26px;color:var(--sub)}
+  .foot{position:absolute;top:112px;right:150px;left:auto;font-size:22px;color:#77808F;letter-spacing:.18em;text-align:right}
+</style>
+</head>
+<body>
+<div id="root"
+     data-composition-id="bs1_data_v1" data-start="0" data-duration="{{duration_sec}}"
+     data-width="1920" data-height="1080"
+     data-kicker="{{kicker}}" data-title="{{title}}" data-stats="{{stats}}"
+     data-note="{{note}}" data-foot="{{foot}}">
+  <div class="kicker caps" id="kicker"></div>
+  <h1 id="title"></h1>
+  <div class="rows" id="rows"></div>
+  <div class="note" id="note"></div>
+  <div class="foot" id="foot"></div>
+</div>
+<script>
+// 预览自适应 (0907): 小容器自动缩放; 生产 1920 渲染不触发
+(function () {
+  var w = window.innerWidth, h = window.innerHeight;
+  if (w >= 1900) return;
+  var s = Math.min(w / 1920, h / 1080);
+  var r = document.getElementById("root");
+  if (!r) return;
+  r.style.transform = "scale(" + s + ")";
+  r.style.transformOrigin = "top left";
+  try { document.body.style.background = getComputedStyle(r).background; } catch (e) {}
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<script>
+(function () {
+  var root = document.getElementById("root");
+  var DUR = parseFloat(root.getAttribute("data-duration")) || 5;
+  document.getElementById("kicker").textContent = root.getAttribute("data-kicker") || "";
+  document.getElementById("title").textContent = root.getAttribute("data-title") || "";
+  document.getElementById("note").textContent = root.getAttribute("data-note") || "";
+  document.getElementById("foot").textContent = root.getAttribute("data-foot") || "";
+  var wrap = document.getElementById("rows");
+  (root.getAttribute("data-stats") || "").split("|||").filter(Boolean).slice(0, 3).forEach(function (g) {
+    var parts = g.split("|", 2);  // maxsplit=2: 注解内的 | 不再切碎 (0908 逻辑修正)
+    var d = document.createElement("div");
+    d.className = "row";
+    d.innerHTML = '<div class="num"></div><div class="txt"><div class="label"></div><div class="desc"></div></div>';
+    var num = (parts[0] || "").trim();
+    var numEl = d.querySelector(".num");
+    numEl.textContent = num;
+    // 数字自动降号 (0908): 字多必换行的根除法 — nowrap + 按字数降号
+    var n = num.replace(/\s/g, "").length;
+    if (n > 4) numEl.style.fontSize = "68px";
+    if (n > 7) numEl.style.fontSize = "52px";
+    if (n > 10) numEl.style.fontSize = "44px";
+    d.querySelector(".label").textContent = (parts[1] || "").trim();
+    d.querySelector(".desc").textContent = (parts[2] || "").trim();
+    wrap.appendChild(d);
+  });
+  var tn = (root.getAttribute("data-title") || "").replace(/\s/g, "").length;
+  if (tn > 12) document.getElementById("title").style.fontSize = "58px";
+  var tl = gsap.timeline({paused: true});
+  tl.from("#kicker, #title", {y: 28, autoAlpha: 0, duration: .6, ease: "power3.out"}, .1)
+    .from(".row", {x: -56, autoAlpha: 0, duration: .6, stagger: .2, ease: "power3.out"}, .32)
+    .from("#note", {autoAlpha: 0, duration: .5}, .9)
+    .from("#foot", {autoAlpha: 0, duration: .4}, .98)
+    .to({}, {duration: Math.max(0.2, DUR - 1.9)});
+  window.__timelines = window.__timelines || {};
+  window.__timelines["bs1_data_v1"] = tl;
+  window.addEventListener("message", function (ev) {
+    if (ev.data && ev.data.type === "preview-play") { tl.restart(); }
+  });
+})();
+</script>
+</body>
+</html>

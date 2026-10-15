@@ -1,0 +1,52 @@
+{
+  "_meta": {
+    "source": "用户标注 + 模板实战使用统计 (2026-08-16 起)",
+    "usage": "J线远期'推荐BGM轨(预挂不预混)'的选型依据; 音量/循环/淡出参数见设计方案 §4.2",
+    "harvest": "data/jy_bgm/ (从草稿 materials/audio 收割)"
+  },
+  "bgms": {
+    "Judgment Day": {
+      "file": "Judgment Day.m4a",
+      "semantics": "理性分析、背景陈述；片头钩子",
+      "user_note": "一般表示理性分析，背景陈述；2026-08-16 补充：这段音乐也属于下钩子专属了",
+      "used_in": ["10-女性情感", "17-二手车", "49-财经 (1)"],
+      "pipeline_signal": "★双场景 BGM：① 钩子段（与 Wallis 并列的钩子选择，49期 0s 起铺即钩子）② 论证/陈述底噪。二选一看内容：争议事件钩子用 Judgment Day，泛提问钩子用 Wallis"
+    },
+    "Push Up（剪辑版）": {
+      "file": "Push Up（剪辑版）",
+      "semantics": "事情有点严重的叙述",
+      "user_note": "表示事情有点严重的叙述",
+      "used_in": ["39-知识付费", "56-律师"],
+      "pipeline_signal": "事件升级/严重性陈述段; 与 R4 冲击/R14 否定等重段落适配",
+      "note": "文件本体待收割（权限拦截本地复制，可手动拷入 data/jy_bgm/）"
+    },
+    "Veil of Darkness - 黑暗之幕": {
+      "file": "Veil of Darkness",
+      "semantics": "慢慢发展、层层推进",
+      "user_note": "有慢慢发展、层层推进的感觉",
+      "used_in": ["54-家庭教育"],
+      "pipeline_signal": "叙事推进/层层递进段落（七层洗稿的中段展开正好适配）; 悬念铺垫"
+    },
+    "Peter_Sandberg_-_Dismantle": {
+      "file": "Peter_Sandberg_-_Dismantle.mp3",
+      "semantics": "积极的成长历程",
+      "user_note": "一种积极的成长，类似于创业到上市历程介绍之类",
+      "used_in": ["50-法律"],
+      "pipeline_signal": "成长叙事/企业历程/从低谷到成功段（L4 硬实力底牌/L6 商业降维打击的历程讲述适配）"
+    },
+    "Abel_Korzeniowski_-_Dance_For_Me_Wallis": {
+      "file": "Abel Korzeniowski - Dance For Me Wallis.mp3",
+      "semantics": "片头抛问题/钩子的万能底",
+      "user_note": "太常用了，抖音 10 条有 8 条用；一般用在片头抛出问题、钩子，用它再加上一堆综艺音效",
+      "used_in": ["25-法律", "37-银行贷款", "31-知识付费", "48-金融"],
+      "pipeline_signal": "★默认钩子 BGM（R7 开场钩子段标准配乐）; 组合公式 = Wallis 底 + 综艺音效群（悬疑不对劲/沙锤/咚）叠打; 全行业通用（法律/金融/知识付费均实战）"
+    },
+    "Bridge over Troubled Water": {
+      "file": "Bridge over Troubled Water",
+      "semantics": "温情、家庭、回忆",
+      "user_note": "慢速口播，温情、家庭、回忆",
+      "used_in": [],
+      "pipeline_signal": "温情段专用（家庭/亲情/回忆叙事）; 地缘/财经人设的煽情收尾段适配; 语速需配慢速口播（配合音色语速体系）"
+    }
+  }
+}

@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>角色设计台 — 人物定妆沉淀</title>
+<link rel="stylesheet" href="/web/books.css">
+<style>
+  body{background:#14110d;color:#ece5d8}
+  [hidden]{display:none!important}
+  .flow{display:flex;gap:.4rem;align-items:center;font-size:.78rem;color:#6f665a;margin:.4rem 0 1rem}
+  .flow b{color:#d2a85e}
+  .cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:1rem;margin-top:.8rem}
+  .ccard{background:#1a1714;border:1px solid #332d25;border-radius:8px;padding:.8rem}
+  .ccard h3{margin:0 0 .3rem;font-size:.95rem;color:#e6c078}
+  .ccard .role{font-size:.72rem;color:#a2988a;margin-bottom:.4rem}
+  .ccard img{width:100%;aspect-ratio:9/16;object-fit:cover;border-radius:6px;border:1px solid #332d25;
+    cursor:zoom-in;background:#14110d;margin-bottom:.5rem;min-height:60px}
+  .ccard .noimg{display:flex;align-items:center;justify-content:center;aspect-ratio:9/16;
+    border:1px dashed #4a4234;border-radius:6px;color:#6f665a;font-size:.75rem;margin-bottom:.5rem}
+  .ccard textarea{width:100%;background:#14110d;color:#ece5d8;border:1px solid #332d25;border-radius:5px;
+    padding:.4rem .5rem;font-size:.78rem;font-family:inherit;box-sizing:border-sizing}
+  .ccard textarea:focus{outline:none;border-color:#d2a85e}
+  .ccard .acts{display:flex;gap:.4rem;margin-top:.5rem;flex-wrap:wrap}
+  .ccard .props-row{margin-top:.4rem;font-size:.72rem;line-height:1.7}
+  .ccard .prop-ck{margin-right:.6rem;white-space:nowrap;color:#a2988a;cursor:pointer}
+  .banner{margin:.6rem 0;padding:.55rem .9rem;border-radius:6px;font-size:.85rem}
+  .banner.warn{background:#3d2a0f;color:#fcd34d;border:1px solid #7c5a12}
+  #live{font-size:.72rem;color:#a2988a;background:#1a1714;border:1px solid #332d25;border-radius:6px;
+    padding:.5rem .7rem;margin-top:.6rem;line-height:1.8;max-height:150px;overflow:auto;white-space:pre-wrap}
+  .busy{color:#e6c078;font-size:.82rem}
+</style>
+</head>
+<body>
+<nav>
+  <div class="logo">Pipeline<span>Studio</span></div>
+  <a href="/web/books.html">拆书</a>
+  <div class="spacer"></div>
+  <a href="/docs" target="_blank">API Docs</a>
+</nav>
+<div class="container">
+  <div class="flownav" data-page="chars"></div>
+  <script src="/web/flownav.js"></script>
+  <div class="panel">
+    <h2>👥 角色设计台 <span class="badge" id="bk">…</span></h2>
+    <div class="flow">大纲 ➜ 风格选型 ➜ 艺术圣经 ➜ <b>人物造型</b> (定妆照沉淀) ➜ 分镜开工</div>
+    <div class="banner warn" id="gate" hidden></div>
+    <div id="main" hidden>
+      <div class="toolbar">
+        <button id="btn-derive" class="sm" onclick="deriveChars()">🎲 从各集提炼角色</button>
+        <button id="btn-all" onclick="designAll()">🖼 全部角色生成定妆照 <span style="font-weight:400">(无定妆照时=先试第一张)</span></button>
+        <button class="sm warn" onclick="saveChars()">💾 保存角色卡 (回写圣经)</button>
+        <button class="sm secondary" onclick="addChar()">➕ 加角色</button>
+        <span id="busy" class="busy"></span>
+      </div>
+      <div id="live" hidden></div>
+      <div class="cards" id="cards"></div>
+      <p class="hint" style="margin-top:.8rem">定妆照 = 书级风格配方 × 角色卡 look (全身立绘·道具齐全·违禁守门),
+        沉淀到 _资产/角色设计/ — 全书人物锚: 分镜参考 / 未来图生图一致性底图。改 look 后重新生成即换装。</p>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="/web/lightbox.js"></script>
+<script>
+const BOOK = new URLSearchParams(location.search).get('book_id');
+const API = '/books/' + encodeURIComponent(BOOK) + '/style-characters';
+const $ = id => document.getElementById(id);
+const esc = s => String(s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function toast(m){ const t = $('toast'); t.textContent = m; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2600); }
+
+let V = null, es = null, timer = null;
+function closeSSE(){ if(es){ es.close(); es = null; } }
+function openSSE(id){
+  if(!id) return;
+  closeSSE();
+  es = new EventSource('/api/jobs/' + id + '/events');
+  es.onmessage = e => {
+    let d; try{ d = JSON.parse(e.data); }catch{ return; }
+    addLive(d.message || d.type);
+    if(/_(done|error|cancelled)$/.test(d.type || '')){ closeSSE(); poll(); setTimeout(poll, 1500); }
+  };
+  es.onerror = () => closeSSE();
+}
+function addLive(msg){
+  const el = $('live');
+  el.hidden = false;
+  el.textContent += (el.textContent ? '\n' : '') + '· ' + msg;
+  el.scrollTop = el.scrollHeight;
+  while(el.textContent.split('\n').length > 30)
+    el.textContent = el.textContent.split('\n').slice(1).join('\n');
+}
+
+function render(v){
+  V = v;
+  $('bk').textContent = '《' + (v.book_title || '') + '》';
+  if(!v.bound){
+    $('gate').hidden = false;
+    $('gate').innerHTML = '本书尚未选定风格 — 先 <a href="/web/style_board.html?book_id=' + BOOK +
+      '" target="_blank">🎨 风格选型</a> 再做人物造型。';
+    $('main').hidden = true;
+    return;
+  }
+  if(!(v.characters || []).length){
+    $('gate').hidden = false;
+    $('gate').innerHTML = '圣经还没有角色卡 — 点上方 <b>🎲 从各集提炼角色</b> 自动生成 '
+      + '(吃各集贯穿人物 + 成稿 + 故事库, 人检后定妆照), 或 ➕加角色 手填。';
+    $('main').hidden = false;
+    renderCards(v);
+    return;
+  }
+  $('gate').hidden = true;
+  $('main').hidden = false;
+  renderCards(v);
+  const running = v.job && v.job.status === 'running';
+  $('btn-all').disabled = !!running;
+  $('busy').textContent = running ? '⏳ 生成中…' : '';
+}
+
+function renderCards(v){
+  const imgs = Object.fromEntries((v.designs || []).map(d => [d.name, d.file]));
+  const props = v.props || [];
+  $('cards').innerHTML = (v.characters || []).map((c, i) => {
+    const f = imgs[c.name];
+    // 1008 P9: 关联道具勾选 (从道层 props 勾, 存角色卡 linked_props)
+    const linked = new Set(c.linked_props || []);
+    const propCks = props.length ? '<div class="props-row"><span class="hint">🪝 关联道具:</span>'
+      + props.map(p => `<label class="prop-ck" title="${esc(p.concept)}">`
+        + `<input type="checkbox" data-pi="${i}" value="${esc(p.ref)}" ${linked.has(p.ref) ? 'checked' : ''}>`
+        + esc(p.ref) + '</label>').join('') + '</div>' : '';
+    return `<div class="ccard">
+      <h3>${esc(c.name)} <span style="font-weight:400;font-size:.72rem;color:#6f665a">${esc(c.role || '')}</span></h3>
+      ${f ? `<img src="${API}/img/${encodeURIComponent(f)}?t=${Date.now()}" onclick="lbOpen(this.src, '${esc(c.name)} 定妆照')">`
+          : '<div class="noimg">未生成定妆照</div>'}
+      <textarea id="look-${i}" rows="3" placeholder="服饰+脸型发型+标志道具 关键词">${esc(c.look)}</textarea>
+      ${propCks}
+      <div class="acts">
+        <button class="sm" onclick="designOne('${esc(c.name)}', ${i})">🎲 重roll</button>
+        <button class="sm secondary" onclick="delChar(${i})">✕ 移除</button>
+      </div></div>`;
+  }).join('');
+}
+
+async function api(path, body){
+  const r = await fetch(API + path, body ? {method:'POST',
+    headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)} : {method:'POST'});
+  const j = await r.json().catch(() => ({}));
+  if(!r.ok) throw new Error(j.detail || r.status);
+  return j;
+}
+function collectChars(){
+  return (V.characters || []).map((c, i) => {
+    // P9: 关联道具勾选随卡收集 (data-pi=卡序 定位本卡的勾选组)
+    const linked = [...document.querySelectorAll(`input[data-pi="${i}"]:checked`)].map(el => el.value);
+    return {name: c.name, role: c.role, look: $('look-' + i)?.value || c.look,
+            linked_props: linked.length ? linked : (c.linked_props || [])};
+  });
+}
+async function designOne(name, idx){
+  // 0923 一步到位: 以当前文本框的 look 生成并自动回写圣经 (改完直接点 🖼)
+  const looks = {};
+  (V.characters || []).forEach((c, i) => { looks[c.name] = $('look-' + i)?.value || c.look; });
+  await start({names:[name], looks});
+}
+async function designAll(){
+  // 0928 用户令: 先生成一张, 人检对了再批量 (批=补缺, 首张已验不重渲)
+  if(!(V.designs || []).length){
+    const first = (V.characters || [])[0];
+    if(!first){ toast('还没有角色卡 — 先 🎲 提炼'); return; }
+    toast('先试渲第一张「' + first.name + '」— 对了再点全部批量');
+    await start({names:[first.name]});
+    return;
+  }
+  await start({names:[]});
+}
+async function start(body){
+  try{ const r = await api('/design', body); openSSE(r.id); poll(); }
+  catch(e){ toast('未启动: ' + e.message); }
+}
+async function saveChars(){
+  try{ const r = await api('/save', {characters: collectChars()}); toast('✓ 角色卡已回写圣经 (' + r.saved + '个)'); poll(); }
+  catch(e){ toast('保存失败: ' + e.message); }
+}
+async function deriveChars(){
+  // 0928 角色生成归本页: 各集贯穿人物+成稿+故事库 → 卡 (替换已有卡, 需确认)
+  if((V.characters || []).length &&
+     !confirm('已有 ' + V.characters.length + ' 张角色卡 — 重新提炼会替换 (改过的 look 将丢失)。继续?')) return;
+  const btn = $('btn-derive'), old = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ 提炼中 (约半分钟)…';
+  try{
+    const r = await api('/derive');
+    toast('✓ 提炼 ' + r.saved + ' 张角色卡' + ((r.coverage_misses || []).length
+      ? ' — 覆盖缺口: ' + r.coverage_misses.join('、') + ' (可手补)' : ' — 贯穿人物全覆盖'));
+    poll();
+  }catch(e){ toast('提炼失败: ' + e.message); }
+  btn.disabled = false; btn.textContent = old;
+}
+function addChar(){
+  V.characters = (V.characters || []).concat([{name:'新角色' + ((V.characters||[]).length+1), role:'', look:''}]);
+  renderCards(V);
+}
+function delChar(i){
+  V.characters.splice(i, 1);
+  renderCards(V);
+}
+
+async function poll(){
+  clearTimeout(timer);
+  let v;
+  try{ v = await fetch(API).then(r => r.json()); }
+  catch{ timer = setTimeout(poll, 5000); return; }
+  render(v);
+  if(v.job && v.job.status === 'running'){
+    openSSE(v.job.id);
+    timer = setTimeout(poll, 4000);
+  } else closeSSE();
+}
+poll();
+</script>
+</body>
+</html>

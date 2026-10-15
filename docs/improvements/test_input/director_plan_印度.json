@@ -1,0 +1,3526 @@
+{
+  "slots": [
+    {
+      "slot_index": 0,
+      "start_sec": 0.0,
+      "end_sec": 5.5,
+      "duration_sec": null,
+      "text_context": "印度班加罗尔一栋公寓楼里，高知夫妻双双自杀，凶手竟然是一台台服务器。",
+      "segment_id": null,
+      "visual_type": "hf_opening",
+      "workflow": "hf_opening",
+      "params": {
+        "fallback_reason": "forced_opening_card",
+        "render_config": {
+          "lines": [
+            "印度班加罗尔公寓",
+            "高知夫妻双双自杀",
+            "凶手竟是服务器"
+          ],
+          "red_words": [
+            "自杀",
+            "服务器"
+          ]
+        },
+        "intensity": "high",
+        "emotion": "opening"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 1,
+      "start_sec": 5.5,
+      "end_sec": 8.5,
+      "duration_sec": null,
+      "text_context": "印度班加罗尔一栋公寓楼里，高知夫妻双双自杀，凶手竟然是一台台服务器。",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "dark corridor",
+          "flickering light",
+          "portrait",
+          "shadows"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "城市",
+        "intensity": "high",
+        "emotion": "shock",
+        "scenes": "城市",
+        "shot_types": "特写",
+        "tone": "dark",
+        "motion_level": "fast",
+        "content_density": "dense",
+        "time_of_day": "night",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 2,
+      "start_sec": 8.5,
+      "end_sec": 13.5,
+      "duration_sec": null,
+      "text_context": "他们引以为傲的印度IT神话，不过是把人当成代码搬运工，一美金一美金倒卖。",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "印度IT神话",
+          "subtitle": "不过是代码搬运工"
+        },
+        "intensity": "medium",
+        "emotion": "rising"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 3,
+      "start_sec": 13.5,
+      "end_sec": 17.5,
+      "duration_sec": null,
+      "text_context": "他们引以为傲的印度IT神话，不过是把人当成代码搬运工，一美金一美金倒卖。",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "crowded bus stop",
+          "portrait",
+          "daily life"
+        ],
+        "location": "foreign",
+        "people": "people",
+        "category": "街景",
+        "intensity": "medium",
+        "emotion": "expose",
+        "scenes": "街景",
+        "shot_types": "特写",
+        "tone": "neutral",
+        "motion_level": "medium",
+        "content_density": "moderate",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 4,
+      "start_sec": 17.5,
+      "end_sec": 25.0,
+      "duration_sec": null,
+      "text_context": "讽刺的是，他们靠便宜劳动力赚的钱，最后连给自己买墓地都不够。",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "rusted metal railing",
+          "close up",
+          "dark"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "工业",
+        "intensity": "medium",
+        "emotion": "sarcastic",
+        "scenes": "工业",
+        "shot_types": "特写",
+        "tone": "dark",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 5,
+      "start_sec": 25.0,
+      "end_sec": 33.0,
+      "duration_sec": null,
+      "text_context": "当AI只需一度电就干完一百人的活，全球产业链谁会是下一个跳楼的？这事儿咱们得剥开看，因为印度今天的惨剧，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "rotating mechanical gears",
+          "close up",
+          "fast pace"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "科技",
+        "intensity": "high",
+        "emotion": "urgency",
+        "scenes": "科技",
+        "shot_types": "特写",
+        "tone": "monochrome",
+        "motion_level": "fast",
+        "content_density": "dense",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 6,
+      "start_sec": 33.0,
+      "end_sec": 38.0,
+      "duration_sec": null,
+      "text_context": "当AI只需一度电就干完一百人的活，全球产业链谁会是下一个跳楼的？这事儿咱们得剥开看，因为印度今天的惨剧，",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "剥开看！",
+          "subtitle": "印度惨剧不是简单抢饭碗"
+        },
+        "intensity": "high",
+        "emotion": "suspense"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 7,
+      "start_sec": 38.0,
+      "end_sec": 42.5,
+      "duration_sec": null,
+      "text_context": "根本不是简单的\"机器抢人饭碗\"。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "taut steel cable",
+          "close up",
+          "tension"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "工业",
+        "intensity": "medium",
+        "emotion": "tension",
+        "scenes": "工业",
+        "shot_types": "特写",
+        "tone": "monochrome",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 8,
+      "start_sec": 42.5,
+      "end_sec": 48.75,
+      "duration_sec": null,
+      "text_context": "表面看，这是一个年薪折合近六十万人民币的人生赢家，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "dark suit sleeve",
+          "close up",
+          "office"
+        ],
+        "location": "foreign",
+        "people": "people",
+        "category": "商业",
+        "intensity": "low",
+        "emotion": "calm",
+        "scenes": "商业",
+        "shot_types": "特写",
+        "tone": "dark",
+        "motion_level": "slow",
+        "content_density": "moderate",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 9,
+      "start_sec": 48.75,
+      "end_sec": 54.0,
+      "duration_sec": null,
+      "text_context": "被AI砸了饭碗，一年内心态和资产双双崩盘的惨案。||但往深了看，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "tall building shadow",
+          "city",
+          "portrait"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "城市",
+        "intensity": "high",
+        "emotion": "collapse",
+        "scenes": "城市",
+        "shot_types": "航拍",
+        "tone": "dark",
+        "motion_level": "slow",
+        "content_density": "dense",
+        "time_of_day": "sunset",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 10,
+      "start_sec": 54.0,
+      "end_sec": 56.75,
+      "duration_sec": null,
+      "text_context": "被AI砸了饭碗，一年内心态和资产双双崩盘的惨案。||但往深了看，",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "往深了看",
+          "subtitle": "蓄谋三十年的产业谋杀"
+        },
+        "intensity": "high",
+        "emotion": "reveal"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 11,
+      "start_sec": 56.75,
+      "end_sec": 61.75,
+      "duration_sec": null,
+      "text_context": "这是一场蓄谋了三十年的\"产业谋杀\"。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "closing heavy wooden door",
+          "slow motion",
+          "dark"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "生活",
+        "intensity": "high",
+        "emotion": "ominous",
+        "scenes": "生活",
+        "shot_types": "特写",
+        "tone": "dark",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "night",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 12,
+      "start_sec": 61.75,
+      "end_sec": 65.0,
+      "duration_sec": null,
+      "text_context": "印度IT业，很多人以为它是高科技。||错。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "blurred glass reflection",
+          "close up",
+          "mysterious"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "科技",
+        "intensity": "medium",
+        "emotion": "skeptical",
+        "scenes": "科技",
+        "shot_types": "特写",
+        "tone": "cool",
+        "motion_level": "medium",
+        "content_density": "moderate",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 13,
+      "start_sec": 65.0,
+      "end_sec": 67.5,
+      "duration_sec": null,
+      "text_context": "印度IT业，很多人以为它是高科技。||错。||",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "错！",
+          "subtitle": "这不是高科技"
+        },
+        "intensity": "high",
+        "emotion": "shock"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 14,
+      "start_sec": 67.5,
+      "end_sec": 74.0,
+      "duration_sec": null,
+      "text_context": "它的本质，就是一场跨越太平洋的\"数字苦力\"套利。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "factory assembly line",
+          "workers",
+          "portrait"
+        ],
+        "location": "foreign",
+        "people": "people",
+        "category": "工业",
+        "intensity": "medium",
+        "emotion": "expose",
+        "scenes": "工业",
+        "shot_types": "特写",
+        "tone": "neutral",
+        "motion_level": "medium",
+        "content_density": "moderate",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 15,
+      "start_sec": 74.0,
+      "end_sec": 80.5,
+      "duration_sec": null,
+      "text_context": "整个产业盘子两千八百亿美元，占印度GDP的百分之七，",
+      "segment_id": null,
+      "visual_type": "hf_chart",
+      "workflow": "hf_chart",
+      "params": {
+        "render_config": {
+          "chart_type": "bar_chart",
+          "label": "印度IT产业",
+          "unit": "亿美元",
+          "growth": "",
+          "color_scheme": "暗调金",
+          "data": [
+            {
+              "label": "产业规模(亿美元)",
+              "value": 2800
+            },
+            {
+              "label": "占GDP(%)",
+              "value": 7
+            }
+          ]
+        },
+        "intensity": "high",
+        "emotion": "breathing"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 16,
+      "start_sec": 80.5,
+      "end_sec": 84.25,
+      "duration_sec": null,
+      "text_context": "养活了五百六十多万工程师。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "lit windows at dawn",
+          "residential building",
+          "portrait"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "生活",
+        "intensity": "low",
+        "emotion": "relax",
+        "scenes": "生活",
+        "shot_types": "航拍",
+        "tone": "warm",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 17,
+      "start_sec": 84.25,
+      "end_sec": 87.5,
+      "duration_sec": null,
+      "text_context": "靠的是什么？||不是核心技术，就四个字：||卖人头。||",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "靠什么？",
+          "subtitle": "卖人头"
+        },
+        "intensity": "medium",
+        "emotion": "breathing"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 18,
+      "start_sec": 87.5,
+      "end_sec": 91.25,
+      "duration_sec": null,
+      "text_context": "靠的是什么？||不是核心技术，就四个字：||卖人头。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "empty factory floor",
+          "wide shot",
+          "slow pan"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "工业",
+        "intensity": "low",
+        "emotion": "relax",
+        "scenes": "工业",
+        "shot_types": "空镜",
+        "tone": "monochrome",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 19,
+      "start_sec": 91.25,
+      "end_sec": 98.5,
+      "duration_sec": null,
+      "text_context": "美国程序员年薪十五万美元，印度工程师只要一万五到两万。||",
+      "segment_id": null,
+      "visual_type": "hf_chart",
+      "workflow": "hf_chart",
+      "params": {
+        "render_config": {
+          "chart_type": "bar_chart",
+          "label": "薪资对比",
+          "unit": "万美元",
+          "growth": "91.7%",
+          "color_scheme": "黑金",
+          "data": [
+            {
+              "label": "美国程序员",
+              "value": 15
+            },
+            {
+              "label": "印度工程师",
+              "value": 1.8
+            }
+          ]
+        },
+        "intensity": "high",
+        "emotion": "contrast"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 20,
+      "start_sec": 98.5,
+      "end_sec": 102.5,
+      "duration_sec": null,
+      "text_context": "客户要一百个人做测试、改bug，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "crowded office",
+          "open space",
+          "workers"
+        ],
+        "location": "foreign",
+        "people": "people",
+        "category": "商业",
+        "intensity": "medium",
+        "emotion": "tense",
+        "scenes": "商业",
+        "shot_types": "人像",
+        "tone": "neutral",
+        "motion_level": "medium",
+        "content_density": "dense",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 21,
+      "start_sec": 102.5,
+      "end_sec": 107.0,
+      "duration_sec": null,
+      "text_context": "印度公司就真给你派一百个人过去。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "crowded bus stop",
+          "slow motion",
+          "portrait"
+        ],
+        "location": "foreign",
+        "people": "people",
+        "category": "街景",
+        "intensity": "low",
+        "emotion": "relax",
+        "scenes": "街景",
+        "shot_types": "航拍",
+        "tone": "neutral",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 22,
+      "start_sec": 107.0,
+      "end_sec": 110.75,
+      "duration_sec": null,
+      "text_context": "赚的就是这个海量人力差价。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "closed safe side",
+          "rust",
+          "close up"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "财经",
+        "intensity": "medium",
+        "emotion": "secretive",
+        "scenes": "财经",
+        "shot_types": "特写",
+        "tone": "dark",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 23,
+      "start_sec": 110.75,
+      "end_sec": 114.5,
+      "duration_sec": null,
+      "text_context": "这根本不是什么硅谷，这就是数字时代的\"富士康流水线\"。||",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "数字时代的",
+          "subtitle": "富士康流水线"
+        },
+        "intensity": "medium",
+        "emotion": "breathing"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 24,
+      "start_sec": 114.5,
+      "end_sec": 118.0,
+      "duration_sec": null,
+      "text_context": "这根本不是什么硅谷，这就是数字时代的\"富士康流水线\"。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "factory conveyor belt",
+          "workers",
+          "portrait"
+        ],
+        "location": "foreign",
+        "people": "people",
+        "category": "工业",
+        "intensity": "low",
+        "emotion": "relax",
+        "scenes": "工业",
+        "shot_types": "特写",
+        "tone": "neutral",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 25,
+      "start_sec": 118.0,
+      "end_sec": 122.5,
+      "duration_sec": null,
+      "text_context": "【花边小新闻】||讲个圈内的梗。||",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "花边小新闻",
+          "subtitle": "圈内的梗"
+        },
+        "intensity": "low",
+        "emotion": "light"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 26,
+      "start_sec": 122.5,
+      "end_sec": 125.5,
+      "duration_sec": null,
+      "text_context": "以前硅谷的投资人看项目，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "usa",
+          "silicon valley",
+          "office building",
+          "portrait"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "商业",
+        "intensity": "low",
+        "emotion": "narrative",
+        "scenes": "商业",
+        "shot_types": "建筑",
+        "tone": "bright",
+        "motion_level": "static",
+        "content_density": "moderate",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 27,
+      "start_sec": 125.5,
+      "end_sec": 129.5,
+      "duration_sec": null,
+      "text_context": "如果发现一家公司里全是印度外包，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "crowded office",
+          "workers",
+          "portrait"
+        ],
+        "location": "foreign",
+        "people": "people",
+        "category": "商业",
+        "intensity": "medium",
+        "emotion": "ironic",
+        "scenes": "商业",
+        "shot_types": "人像",
+        "tone": "neutral",
+        "motion_level": "medium",
+        "content_density": "dense",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 28,
+      "start_sec": 129.5,
+      "end_sec": 133.0,
+      "duration_sec": null,
+      "text_context": "就会开玩笑说这是\"班加罗尔的劳动密集型产业\"。||",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "班加罗尔的",
+          "subtitle": "劳动密集型产业"
+        },
+        "intensity": "low",
+        "emotion": "light"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 29,
+      "start_sec": 133.0,
+      "end_sec": 135.75,
+      "duration_sec": null,
+      "text_context": "就会开玩笑说这是\"班加罗尔的劳动密集型产业\"。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "bangalore street",
+          "traffic",
+          "portrait"
+        ],
+        "location": "foreign",
+        "people": "people",
+        "category": "街景",
+        "intensity": "low",
+        "emotion": "relax",
+        "scenes": "街景",
+        "shot_types": "交通",
+        "tone": "neutral",
+        "motion_level": "medium",
+        "content_density": "moderate",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 30,
+      "start_sec": 135.75,
+      "end_sec": 140.75,
+      "duration_sec": null,
+      "text_context": "看似是调侃，实则早就看穿了这套把戏。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "distant city skyline",
+          "shadows",
+          "slow zoom"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "城市",
+        "intensity": "low",
+        "emotion": "relax",
+        "scenes": "城市",
+        "shot_types": "航拍",
+        "tone": "dark",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "sunset",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 31,
+      "start_sec": 140.75,
+      "end_sec": 144.5,
+      "duration_sec": null,
+      "text_context": "你可以用极低的价格买来一堆手，但永远买不来一个脑子。||",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "低价买一堆手",
+          "subtitle": "永远买不来脑子"
+        },
+        "intensity": "medium",
+        "emotion": "climax"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 32,
+      "start_sec": 144.5,
+      "end_sec": 147.75,
+      "duration_sec": null,
+      "text_context": "你可以用极低的价格买来一堆手，但永远买不来一个脑子。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "still balance scale",
+          "close up",
+          "dark"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "财经",
+        "intensity": "medium",
+        "emotion": "reflective",
+        "scenes": "财经",
+        "shot_types": "特写",
+        "tone": "monochrome",
+        "motion_level": "static",
+        "content_density": "sparse",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 33,
+      "start_sec": 147.75,
+      "end_sec": 151.0,
+      "duration_sec": null,
+      "text_context": "那既然只是\"卖手\"的生意，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "factory workers hands",
+          "close up",
+          "detail"
+        ],
+        "location": "foreign",
+        "people": "people",
+        "category": "工业",
+        "intensity": "low",
+        "emotion": "continuation",
+        "scenes": "工业",
+        "shot_types": "特写",
+        "tone": "neutral",
+        "motion_level": "medium",
+        "content_density": "moderate",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 34,
+      "start_sec": 151.0,
+      "end_sec": 154.5,
+      "duration_sec": null,
+      "text_context": "为什么以前过得那么滋润？||",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "为什么以前",
+          "subtitle": "过得那么滋润？"
+        },
+        "intensity": "low",
+        "emotion": "questioning"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 35,
+      "start_sec": 154.5,
+      "end_sec": 159.0,
+      "duration_sec": null,
+      "text_context": "这得感谢三十年前的一场全球恐慌。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "old book pages turning",
+          "close up",
+          "nostalgia"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "教育",
+        "intensity": "low",
+        "emotion": "history",
+        "scenes": "教育",
+        "shot_types": "特写",
+        "tone": "monochrome",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 36,
+      "start_sec": 159.0,
+      "end_sec": 166.5,
+      "duration_sec": null,
+      "text_context": "一九九几年那会儿，印度经济差点崩盘，外汇储备只够撑两周。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "old clock in twilight",
+          "dramatic sky",
+          "ticking"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "生活",
+        "intensity": "medium",
+        "emotion": "crisis",
+        "scenes": "生活",
+        "shot_types": "特写",
+        "tone": "dark",
+        "motion_level": "slow",
+        "content_density": "moderate",
+        "time_of_day": "sunset",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 37,
+      "start_sec": 166.5,
+      "end_sec": 171.5,
+      "duration_sec": null,
+      "text_context": "恰在此时，全球爆发了\"千年虫\"危机。||",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "千年虫危机",
+          "subtitle": "全球恐慌"
+        },
+        "intensity": "high",
+        "emotion": "alarm"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 38,
+      "start_sec": 171.5,
+      "end_sec": 174.5,
+      "duration_sec": null,
+      "text_context": "欧美那些老旧的电脑系统，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "vintage computer",
+          "close up",
+          "dark room"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "科技",
+        "intensity": "low",
+        "emotion": "nostalgic",
+        "scenes": "科技",
+        "shot_types": "特写",
+        "tone": "monochrome",
+        "motion_level": "static",
+        "content_density": "sparse",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 39,
+      "start_sec": 174.5,
+      "end_sec": 177.75,
+      "duration_sec": null,
+      "text_context": "为了省内存只用年份后两位，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "blurred screen reflection",
+          "close up",
+          "code"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "科技",
+        "intensity": "medium",
+        "emotion": "mystery",
+        "scenes": "科技",
+        "shot_types": "特写",
+        "tone": "dark",
+        "motion_level": "fast",
+        "content_density": "dense",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 40,
+      "start_sec": 177.75,
+      "end_sec": 183.25,
+      "duration_sec": null,
+      "text_context": "二零零零年一到，系统会以为是一九零零年。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "clock hands moving backward",
+          "close up",
+          "dark"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "生活",
+        "intensity": "high",
+        "emotion": "panic",
+        "scenes": "生活",
+        "shot_types": "特写",
+        "tone": "dark",
+        "motion_level": "fast",
+        "content_density": "dense",
+        "time_of_day": "night",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 41,
+      "start_sec": 183.25,
+      "end_sec": 188.5,
+      "duration_sec": null,
+      "text_context": "整个金融、电力、民航系统面临瘫痪风险。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "rusted chain link fence",
+          "close up",
+          "danger"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "工业",
+        "intensity": "high",
+        "emotion": "threat",
+        "scenes": "工业",
+        "shot_types": "特写",
+        "tone": "dark",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "night",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 42,
+      "start_sec": 188.5,
+      "end_sec": 196.25,
+      "duration_sec": null,
+      "text_context": "解决办法极其笨拙：||海量的人力一行一行去检查和修改代码。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "pile of paper documents",
+          "crowded desk",
+          "workers"
+        ],
+        "location": "foreign",
+        "people": "people",
+        "category": "商业",
+        "intensity": "medium",
+        "emotion": "retro",
+        "scenes": "商业",
+        "shot_types": "人像",
+        "tone": "neutral",
+        "motion_level": "medium",
+        "content_density": "dense",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 43,
+      "start_sec": 196.25,
+      "end_sec": 200.5,
+      "duration_sec": null,
+      "text_context": "这活没有技术门槛，但极度耗人。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "lit window at night",
+          "residential",
+          "overtime"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "生活",
+        "intensity": "low",
+        "emotion": "tired",
+        "scenes": "生活",
+        "shot_types": "特写",
+        "tone": "dark",
+        "motion_level": "static",
+        "content_density": "sparse",
+        "time_of_day": "night",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 44,
+      "start_sec": 200.5,
+      "end_sec": 205.0,
+      "duration_sec": null,
+      "text_context": "英语好、工资低、能熬夜加班的印度人，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "crowded bus stop night",
+          "portrait",
+          "workers"
+        ],
+        "location": "foreign",
+        "people": "people",
+        "category": "街景",
+        "intensity": "medium",
+        "emotion": "hustle",
+        "scenes": "街景",
+        "shot_types": "人像",
+        "tone": "dark",
+        "motion_level": "medium",
+        "content_density": "moderate",
+        "time_of_day": "night",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 45,
+      "start_sec": 205.0,
+      "end_sec": 211.0,
+      "duration_sec": null,
+      "text_context": "完美接住了这波\"数字体力活\"。||在美刀诱惑下，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "shadow of tall building",
+          "street",
+          "capital"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "城市",
+        "intensity": "medium",
+        "emotion": "temptation",
+        "scenes": "城市",
+        "shot_types": "航拍",
+        "tone": "dark",
+        "motion_level": "slow",
+        "content_density": "moderate",
+        "time_of_day": "sunset",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 46,
+      "start_sec": 211.0,
+      "end_sec": 213.75,
+      "duration_sec": null,
+      "text_context": "无数印度最聪明的脑袋，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "crowd from above",
+          "busy street",
+          "portrait"
+        ],
+        "location": "foreign",
+        "people": "people",
+        "category": "街景",
+        "intensity": "medium",
+        "emotion": "mass",
+        "scenes": "街景",
+        "shot_types": "航拍",
+        "tone": "neutral",
+        "motion_level": "medium",
+        "content_density": "dense",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 47,
+      "start_sec": 213.75,
+      "end_sec": 217.75,
+      "duration_sec": null,
+      "text_context": "从那时起就把人生目标调成了：||",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "人生目标",
+          "subtitle": "在海得拉巴买房..."
+        },
+        "intensity": "low",
+        "emotion": "transition"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 48,
+      "start_sec": 217.75,
+      "end_sec": 227.25,
+      "duration_sec": null,
+      "text_context": "\"在海得拉巴买房，在安得拉邦置地，在美国赚钱养家。\"||全印度最顶级的智商，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "city street evening",
+          "portrait",
+          "neon"
+        ],
+        "location": "foreign",
+        "people": "people",
+        "category": "街景",
+        "intensity": "medium",
+        "emotion": "ambition",
+        "scenes": "街景",
+        "shot_types": "交通",
+        "tone": "warm",
+        "motion_level": "medium",
+        "content_density": "moderate",
+        "time_of_day": "sunset",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 49,
+      "start_sec": 227.25,
+      "end_sec": 231.75,
+      "duration_sec": null,
+      "text_context": "全部流向了给别人打杂的套利模式。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "factory workers uniform",
+          "conveyor",
+          "blue collar"
+        ],
+        "location": "foreign",
+        "people": "people",
+        "category": "工业",
+        "intensity": "low",
+        "emotion": "drudgery",
+        "scenes": "工业",
+        "shot_types": "特写",
+        "tone": "neutral",
+        "motion_level": "medium",
+        "content_density": "moderate",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 50,
+      "start_sec": 231.75,
+      "end_sec": 235.0,
+      "duration_sec": null,
+      "text_context": "这就埋下了今天的祸根。||",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "埋下祸根",
+          "subtitle": "三十年的陷阱"
+        },
+        "intensity": "high",
+        "emotion": "ominous"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 51,
+      "start_sec": 235.0,
+      "end_sec": 240.25,
+      "duration_sec": null,
+      "text_context": "谷歌、微软、Adobe的CEO都是印度裔，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "dark suit sleeve",
+          "executive",
+          "close up"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "商业",
+        "intensity": "medium",
+        "emotion": "success",
+        "scenes": "商业",
+        "shot_types": "特写",
+        "tone": "dark",
+        "motion_level": "fast",
+        "content_density": "dense",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 52,
+      "start_sec": 240.25,
+      "end_sec": 246.25,
+      "duration_sec": null,
+      "text_context": "硅谷高管里印度裔一大把。||但这些最聪明的大脑，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "high building shadow",
+          "street crowd",
+          "portrait"
+        ],
+        "location": "foreign",
+        "people": "people",
+        "category": "城市",
+        "intensity": "medium",
+        "emotion": "crowd",
+        "scenes": "城市",
+        "shot_types": "航拍",
+        "tone": "dark",
+        "motion_level": "medium",
+        "content_density": "dense",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 53,
+      "start_sec": 246.25,
+      "end_sec": 251.5,
+      "duration_sec": null,
+      "text_context": "没有给本土留下一家有竞争力的产品公司。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "abandoned factory",
+          "empty",
+          "portrait"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "工业",
+        "intensity": "low",
+        "emotion": "lost",
+        "scenes": "工业",
+        "shot_types": "空镜",
+        "tone": "monochrome",
+        "motion_level": "static",
+        "content_density": "sparse",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 54,
+      "start_sec": 251.5,
+      "end_sec": 257.5,
+      "duration_sec": null,
+      "text_context": "他们只是利用同胞的廉价，把自己卖了个好价钱。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "closed safe side",
+          "money",
+          "rust"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "财经",
+        "intensity": "medium",
+        "emotion": "betrayal",
+        "scenes": "财经",
+        "shot_types": "特写",
+        "tone": "dark",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 55,
+      "start_sec": 257.5,
+      "end_sec": 263.0,
+      "duration_sec": null,
+      "text_context": "现在AI来了，这种模式直接被物理超度了。||",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "AI来了",
+          "subtitle": "物理超度"
+        },
+        "intensity": "high",
+        "emotion": "climax"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 56,
+      "start_sec": 263.0,
+      "end_sec": 265.75,
+      "duration_sec": null,
+      "text_context": "以前改bug、写测试，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "shadows moving hand",
+          "close up",
+          "dark"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "科技",
+        "intensity": "low",
+        "emotion": "transition",
+        "scenes": "科技",
+        "shot_types": "特写",
+        "tone": "dark",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 57,
+      "start_sec": 265.75,
+      "end_sec": 272.25,
+      "duration_sec": null,
+      "text_context": "需要几十个初级程序员蹲在那里磨洋工。||现在呢？||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "crowded cubicles",
+          "office",
+          "slow zoom"
+        ],
+        "location": "foreign",
+        "people": "people",
+        "category": "商业",
+        "intensity": "low",
+        "emotion": "drone",
+        "scenes": "商业",
+        "shot_types": "人像",
+        "tone": "neutral",
+        "motion_level": "slow",
+        "content_density": "dense",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 58,
+      "start_sec": 272.25,
+      "end_sec": 278.25,
+      "duration_sec": null,
+      "text_context": "一个拿着AI工具的熟练工，几分钟就全干完了。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "rotating gears",
+          "fast pace",
+          "close up"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "科技",
+        "intensity": "high",
+        "emotion": "efficiency",
+        "scenes": "科技",
+        "shot_types": "特写",
+        "tone": "cool",
+        "motion_level": "fast",
+        "content_density": "dense",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 59,
+      "start_sec": 278.25,
+      "end_sec": 285.25,
+      "duration_sec": null,
+      "text_context": "AI不知疲倦、不用交社保、不租办公室，成本就是那点电费，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "empty corridor flickering light",
+          "cold",
+          "portrait"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "科技",
+        "intensity": "medium",
+        "emotion": "cold",
+        "scenes": "科技",
+        "shot_types": "空镜",
+        "tone": "cool",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "night",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 60,
+      "start_sec": 285.25,
+      "end_sec": 289.5,
+      "duration_sec": null,
+      "text_context": "处理代码的速度却是人的几十倍。||",
+      "segment_id": null,
+      "visual_type": "hf_chart",
+      "workflow": "hf_chart",
+      "params": {
+        "render_config": {
+          "chart_type": "bar_chart",
+          "label": "处理速度对比",
+          "unit": "倍速",
+          "growth": "50x",
+          "color_scheme": "黑金",
+          "data": [
+            {
+              "label": "人",
+              "value": 1
+            },
+            {
+              "label": "AI",
+              "value": 50
+            }
+          ]
+        },
+        "intensity": "high",
+        "emotion": "climax"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 61,
+      "start_sec": 289.5,
+      "end_sec": 295.25,
+      "duration_sec": null,
+      "text_context": "印度赖以生存的人力成本优势，一夜之间归零。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "broken steel cable",
+          "close up",
+          "damage"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "工业",
+        "intensity": "high",
+        "emotion": "collapse",
+        "scenes": "工业",
+        "shot_types": "特写",
+        "tone": "dark",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "night",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 62,
+      "start_sec": 295.25,
+      "end_sec": 304.5,
+      "duration_sec": null,
+      "text_context": "**【而这，只不过是序幕。真正细思极恐的连锁反应，还藏在更深的暗处。】**",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "这只是序幕",
+          "subtitle": "细思极恐的连锁反应"
+        },
+        "intensity": "high",
+        "emotion": "climax"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 63,
+      "start_sec": 304.5,
+      "end_sec": 308.0,
+      "duration_sec": null,
+      "text_context": "咱们得看透这背后的算盘。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "blurred glass reflection",
+          "mystery",
+          "dark"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "科技",
+        "intensity": "medium",
+        "emotion": "suspicious",
+        "scenes": "科技",
+        "shot_types": "特写",
+        "tone": "dark",
+        "motion_level": "static",
+        "content_density": "moderate",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 64,
+      "start_sec": 308.0,
+      "end_sec": 315.5,
+      "duration_sec": null,
+      "text_context": "美国公司OpenDoor，一刀把印度两百五十人的团队全砍了，",
+      "segment_id": null,
+      "visual_type": "hf_chart",
+      "workflow": "hf_chart",
+      "params": {
+        "render_config": {
+          "chart_type": "bar_chart",
+          "label": "OpenDoor裁撤印度团队",
+          "unit": "人",
+          "growth": "250",
+          "color_scheme": "暗红",
+          "data": [
+            {
+              "label": "裁员人数",
+              "value": 250
+            }
+          ]
+        },
+        "intensity": "high",
+        "emotion": "shock"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 65,
+      "start_sec": 315.5,
+      "end_sec": 320.5,
+      "duration_sec": null,
+      "text_context": "回美国本土搞了个更小的AI原生团队。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "usa",
+          "modern office",
+          "small team",
+          "portrait"
+        ],
+        "location": "foreign",
+        "people": "people",
+        "category": "商业",
+        "intensity": "medium",
+        "emotion": "contrast",
+        "scenes": "商业",
+        "shot_types": "人像",
+        "tone": "bright",
+        "motion_level": "medium",
+        "content_density": "moderate",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 66,
+      "start_sec": 320.5,
+      "end_sec": 324.0,
+      "duration_sec": null,
+      "text_context": "甲骨文在印度裁掉一万两千人，",
+      "segment_id": null,
+      "visual_type": "hf_chart",
+      "workflow": "hf_chart",
+      "params": {
+        "render_config": {
+          "chart_type": "bar_chart",
+          "label": "甲骨文印度裁员",
+          "unit": "人",
+          "growth": "12000",
+          "color_scheme": "暗红",
+          "data": [
+            {
+              "label": "裁员人数",
+              "value": 12000
+            }
+          ]
+        },
+        "intensity": "high",
+        "emotion": "alarming"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 67,
+      "start_sec": 324.0,
+      "end_sec": 328.5,
+      "duration_sec": null,
+      "text_context": "转头把省下来的钱全砸进AI研发。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "rotating gear mechanism",
+          "investment",
+          "portrait"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "科技",
+        "intensity": "high",
+        "emotion": "investment",
+        "scenes": "科技",
+        "shot_types": "特写",
+        "tone": "cool",
+        "motion_level": "fast",
+        "content_density": "dense",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 68,
+      "start_sec": 328.5,
+      "end_sec": 331.75,
+      "duration_sec": null,
+      "text_context": "这就是场不对等的战争。||",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "不对等的战争",
+          "subtitle": "人 vs AI"
+        },
+        "intensity": "high",
+        "emotion": "confrontation"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 69,
+      "start_sec": 331.75,
+      "end_sec": 335.5,
+      "duration_sec": null,
+      "text_context": "你以前的用处是\"我比你便宜\"，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "closed laptop",
+          "dusty",
+          "obsolete"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "科技",
+        "intensity": "low",
+        "emotion": "obsolete",
+        "scenes": "科技",
+        "shot_types": "特写",
+        "tone": "monochrome",
+        "motion_level": "static",
+        "content_density": "sparse",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 70,
+      "start_sec": 335.5,
+      "end_sec": 341.25,
+      "duration_sec": null,
+      "text_context": "现在的现实是\"你对我没用了\"。||人力再便宜，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "empty dark corridor",
+          "end of hallway",
+          "portrait"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "生活",
+        "intensity": "medium",
+        "emotion": "rejection",
+        "scenes": "生活",
+        "shot_types": "空镜",
+        "tone": "dark",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "night",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 71,
+      "start_sec": 341.25,
+      "end_sec": 345.75,
+      "duration_sec": null,
+      "text_context": "能便宜得过一行不眠不休的代码吗？||",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "不眠不休的代码",
+          "subtitle": "人力怎能比？"
+        },
+        "intensity": "high",
+        "emotion": "rhetoric"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 72,
+      "start_sec": 345.75,
+      "end_sec": 352.0,
+      "duration_sec": null,
+      "text_context": "**【这就像你还在和老板谈涨薪五百，隔壁工位那个不吃饭不睡觉的同事已经把你的活儿全干了，还顺手把老板的咖啡也写成了自动化脚本。】",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "empty office chair",
+          "contrast",
+          "portrait"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "商业",
+        "intensity": "high",
+        "emotion": "analogy",
+        "scenes": "商业",
+        "shot_types": "特写",
+        "tone": "monochrome",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 73,
+      "start_sec": 352.0,
+      "end_sec": 364.25,
+      "duration_sec": null,
+      "text_context": "**【横向对照】||这一幕，像极了咱们前些年制造业遇到的冲击。||",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "横向对照",
+          "subtitle": "像极了我们制造业的冲击"
+        },
+        "intensity": "high",
+        "emotion": "transition"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 74,
+      "start_sec": 364.25,
+      "end_sec": 370.0,
+      "duration_sec": null,
+      "text_context": "这一幕，像极了咱们前些年制造业遇到的冲击。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "china",
+          "factory assembly line",
+          "workers",
+          "portrait"
+        ],
+        "location": "domestic",
+        "people": "people",
+        "category": "工业",
+        "intensity": "medium",
+        "emotion": "serious",
+        "scenes": "工业",
+        "shot_types": "特写",
+        "tone": "neutral",
+        "motion_level": "medium",
+        "content_density": "dense",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 75,
+      "start_sec": 370.0,
+      "end_sec": 373.75,
+      "duration_sec": null,
+      "text_context": "当欧美工业机器人的精度和成本，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "china",
+          "industrial robot arm",
+          "factory",
+          "precision"
+        ],
+        "location": "domestic",
+        "people": "none",
+        "category": "工业",
+        "intensity": "medium",
+        "emotion": "tech",
+        "scenes": "工业",
+        "shot_types": "特写",
+        "tone": "cool",
+        "motion_level": "medium",
+        "content_density": "moderate",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 76,
+      "start_sec": 373.75,
+      "end_sec": 378.0,
+      "duration_sec": null,
+      "text_context": "卷赢了咱们流水线上最熟练的工人时，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "china",
+          "tired worker face",
+          "close up",
+          "factory"
+        ],
+        "location": "domestic",
+        "people": "people",
+        "category": "工业",
+        "intensity": "high",
+        "emotion": "defeat",
+        "scenes": "工业",
+        "shot_types": "特写",
+        "tone": "dark",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 77,
+      "start_sec": 378.0,
+      "end_sec": 384.0,
+      "duration_sec": null,
+      "text_context": "靠\"人口红利\"吃饭的老路，瞬间就走到了尽头。||",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "人口红利",
+          "subtitle": "走到尽头"
+        },
+        "intensity": "high",
+        "emotion": "conclusion"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 78,
+      "start_sec": 384.0,
+      "end_sec": 387.0,
+      "duration_sec": null,
+      "text_context": "不同的是，咱们痛定思痛，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "china",
+          "sunlight through gap",
+          "hope",
+          "warehouse"
+        ],
+        "location": "domestic",
+        "people": "none",
+        "category": "工业",
+        "intensity": "medium",
+        "emotion": "hope",
+        "scenes": "工业",
+        "shot_types": "空镜",
+        "tone": "bright",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 79,
+      "start_sec": 387.0,
+      "end_sec": 392.5,
+      "duration_sec": null,
+      "text_context": "去拼新能源、搞产业升级了。||而印度呢？||",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "我们拼新能源",
+          "subtitle": "印度还在赚快钱"
+        },
+        "intensity": "medium",
+        "emotion": "contrast"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 80,
+      "start_sec": 392.5,
+      "end_sec": 395.25,
+      "duration_sec": null,
+      "text_context": "赚了三十年容易的快钱，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "busy street fast motion",
+          "portrait",
+          "blur"
+        ],
+        "location": "foreign",
+        "people": "people",
+        "category": "街景",
+        "intensity": "medium",
+        "emotion": "speed",
+        "scenes": "街景",
+        "shot_types": "交通",
+        "tone": "neutral",
+        "motion_level": "fast",
+        "content_density": "dense",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 81,
+      "start_sec": 395.25,
+      "end_sec": 399.25,
+      "duration_sec": null,
+      "text_context": "已经不知道怎么站着把钱挣了。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "closing heavy door",
+          "slow",
+          "finality"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "生活",
+        "intensity": "medium",
+        "emotion": "lost",
+        "scenes": "生活",
+        "shot_types": "特写",
+        "tone": "dark",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "night",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 82,
+      "start_sec": 399.25,
+      "end_sec": 410.5,
+      "duration_sec": null,
+      "text_context": "**【有些人管这叫“全球化红利”，但在我看来，这更像一场持续三十年的“智力大出血”。】**",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "不是全球化红利",
+          "subtitle": "是三十年的智力大出血"
+        },
+        "intensity": "high",
+        "emotion": "climax"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 83,
+      "start_sec": 410.5,
+      "end_sec": 415.25,
+      "duration_sec": null,
+      "text_context": "你看全印度所谓的AI独角兽，只有三家，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "tech park empty",
+          "portrait",
+          "silicon"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "科技",
+        "intensity": "low",
+        "emotion": "ironic",
+        "scenes": "科技",
+        "shot_types": "建筑",
+        "tone": "neutral",
+        "motion_level": "static",
+        "content_density": "moderate",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 84,
+      "start_sec": 415.25,
+      "end_sec": 419.25,
+      "duration_sec": null,
+      "text_context": "估值加起来还不到四十亿美元。||",
+      "segment_id": null,
+      "visual_type": "hf_chart",
+      "workflow": "hf_chart",
+      "params": {
+        "render_config": {
+          "chart_type": "bar_chart",
+          "label": "印度AI独角兽估值",
+          "unit": "亿美元",
+          "growth": "40",
+          "color_scheme": "黑金",
+          "data": [
+            {
+              "label": "总估值",
+              "value": 40
+            }
+          ]
+        },
+        "intensity": "medium",
+        "emotion": "mockery"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 85,
+      "start_sec": 419.25,
+      "end_sec": 423.0,
+      "duration_sec": null,
+      "text_context": "最搞笑的一家叫Krutrim，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "shabby office building",
+          "portrait",
+          "decrepit"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "商业",
+        "intensity": "low",
+        "emotion": "mockery",
+        "scenes": "商业",
+        "shot_types": "建筑",
+        "tone": "monochrome",
+        "motion_level": "static",
+        "content_density": "sparse",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 86,
+      "start_sec": 423.0,
+      "end_sec": 428.0,
+      "duration_sec": null,
+      "text_context": "当初吹牛要对标OpenAI，结果呢？||",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "对标OpenAI？",
+          "subtitle": "结果呢？"
+        },
+        "intensity": "medium",
+        "emotion": "sarcasm"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 87,
+      "start_sec": 428.0,
+      "end_sec": 433.0,
+      "duration_sec": null,
+      "text_context": "两年不到，AI助手下架了，芯片研发停了，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "flickering light dying",
+          "close up",
+          "darkness"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "科技",
+        "intensity": "medium",
+        "emotion": "failure",
+        "scenes": "科技",
+        "shot_types": "特写",
+        "tone": "dark",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "night",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 88,
+      "start_sec": 433.0,
+      "end_sec": 438.25,
+      "duration_sec": null,
+      "text_context": "团队砍掉一大半，转头去卖AI云服务了。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "empty office chairs",
+          "abandoned",
+          "portrait"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "商业",
+        "intensity": "low",
+        "emotion": "despair",
+        "scenes": "商业",
+        "shot_types": "空镜",
+        "tone": "monochrome",
+        "motion_level": "static",
+        "content_density": "sparse",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 89,
+      "start_sec": 438.25,
+      "end_sec": 444.0,
+      "duration_sec": null,
+      "text_context": "就这，九成的收入还是来自母公司内部倒腾。||这哪是搞AI啊？||这是自己哄自己玩。||",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "自己哄自己玩",
+          "subtitle": "30年路径依赖"
+        },
+        "intensity": "high",
+        "emotion": "ridicule"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 90,
+      "start_sec": 444.0,
+      "end_sec": 451.25,
+      "duration_sec": null,
+      "text_context": "就这，九成的收入还是来自母公司内部倒腾。||这哪是搞AI啊？||这是自己哄自己玩。||三十年的路径依赖，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "factory repetitive motion",
+          "assembly line",
+          "drone"
+        ],
+        "location": "foreign",
+        "people": "people",
+        "category": "工业",
+        "intensity": "medium",
+        "emotion": "drone",
+        "scenes": "工业",
+        "shot_types": "特写",
+        "tone": "neutral",
+        "motion_level": "medium",
+        "content_density": "dense",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 91,
+      "start_sec": 451.25,
+      "end_sec": 456.75,
+      "duration_sec": null,
+      "text_context": "已经像毒瘾一样锁死了这个国家的产业升级。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "rusty chain close up",
+          "lock",
+          "binding"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "工业",
+        "intensity": "high",
+        "emotion": "trapped",
+        "scenes": "工业",
+        "shot_types": "特写",
+        "tone": "dark",
+        "motion_level": "static",
+        "content_density": "sparse",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 92,
+      "start_sec": 456.75,
+      "end_sec": 460.0,
+      "duration_sec": null,
+      "text_context": "给美国人写代码就能赚快钱，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "rotating gears",
+          "cycle",
+          "money"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "科技",
+        "intensity": "low",
+        "emotion": "cycle",
+        "scenes": "科技",
+        "shot_types": "特写",
+        "tone": "cool",
+        "motion_level": "fast",
+        "content_density": "moderate",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 93,
+      "start_sec": 460.0,
+      "end_sec": 464.75,
+      "duration_sec": null,
+      "text_context": "谁还愿意坐十年冷板凳去搞基础模型？||",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "谁愿坐冷板凳？",
+          "subtitle": "搞基础模型"
+        },
+        "intensity": "low",
+        "emotion": "question"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 98,
+      "start_sec": 497.5,
+      "end_sec": 502.75,
+      "duration_sec": null,
+      "text_context": "越来越多的中高层管理岗正在被连根拔起。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "building demolition shadow",
+          "collapse",
+          "portrait"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "城市",
+        "intensity": "high",
+        "emotion": "collapse",
+        "scenes": "城市",
+        "shot_types": "航拍",
+        "tone": "dark",
+        "motion_level": "slow",
+        "content_density": "dense",
+        "time_of_day": "sunset",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 95,
+      "start_sec": 477.0,
+      "end_sec": 481.0,
+      "duration_sec": null,
+      "text_context": "代价最终全砸在了年轻人头上。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "young crowd job market",
+          "hopeless",
+          "portrait"
+        ],
+        "location": "foreign",
+        "people": "people",
+        "category": "街景",
+        "intensity": "medium",
+        "emotion": "sadness",
+        "scenes": "街景",
+        "shot_types": "人像",
+        "tone": "dark",
+        "motion_level": "slow",
+        "content_density": "dense",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 96,
+      "start_sec": 481.0,
+      "end_sec": 492.0,
+      "duration_sec": null,
+      "text_context": "二零二六年，印度二十五岁以下大学生的失业率，狂飙到了百分之四十。||班加罗尔的那对夫妻，",
+      "segment_id": null,
+      "visual_type": "hf_chart",
+      "workflow": "hf_chart",
+      "params": {
+        "render_config": {
+          "chart_type": "pie_chart",
+          "label": "印度25岁以下失业率",
+          "unit": "%",
+          "growth": "40%",
+          "color_scheme": "暗红",
+          "data": [
+            {
+              "label": "失业率",
+              "value": 40
+            },
+            {
+              "label": "就业率",
+              "value": 60
+            }
+          ]
+        },
+        "intensity": "high",
+        "emotion": "climax"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 97,
+      "start_sec": 492.0,
+      "end_sec": 497.5,
+      "duration_sec": null,
+      "text_context": "不过是这场雪崩下，最先滚落的那两颗石头。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "rain on glass",
+          "melancholy",
+          "portrait"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "自然",
+        "intensity": "low",
+        "emotion": "mourning",
+        "scenes": "自然",
+        "shot_types": "特写",
+        "tone": "dark",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "night",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 94,
+      "start_sec": 464.75,
+      "end_sec": 477.0,
+      "duration_sec": null,
+      "text_context": "**【你孩子要是现在正学计算机，你最好问问他选的方向，会不会在毕业那天直接变成AI的说明书。】**",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "你孩子学计算机",
+          "subtitle": "毕业成AI说明书？"
+        },
+        "intensity": "high",
+        "emotion": "warning"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 99,
+      "start_sec": 502.75,
+      "end_sec": 507.0,
+      "duration_sec": null,
+      "text_context": "因为AI不需要项目经理去分配任务，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "gears rotating automatically",
+          "close up",
+          "mechanism"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "科技",
+        "intensity": "medium",
+        "emotion": "automation",
+        "scenes": "科技",
+        "shot_types": "特写",
+        "tone": "cool",
+        "motion_level": "fast",
+        "content_density": "dense",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 100,
+      "start_sec": 507.0,
+      "end_sec": 511.5,
+      "duration_sec": null,
+      "text_context": "算法自己就能把活儿拆得明明白白。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "interlocking gears",
+          "precision",
+          "portrait"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "科技",
+        "intensity": "medium",
+        "emotion": "efficiency",
+        "scenes": "科技",
+        "shot_types": "特写",
+        "tone": "cool",
+        "motion_level": "medium",
+        "content_density": "dense",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 101,
+      "start_sec": 511.5,
+      "end_sec": 517.25,
+      "duration_sec": null,
+      "text_context": "这里面有个坑，很多人以为这只是别人的笑话。||",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "以为是笑话？",
+          "subtitle": "这个坑离你不远"
+        },
+        "intensity": "medium",
+        "emotion": "warning"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 102,
+      "start_sec": 517.25,
+      "end_sec": 521.5,
+      "duration_sec": null,
+      "text_context": "但这个剧本，离咱们一点都不远。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "china",
+          "city street pedestrians",
+          "portrait",
+          "daily"
+        ],
+        "location": "domestic",
+        "people": "people",
+        "category": "街景",
+        "intensity": "medium",
+        "emotion": "proximity",
+        "scenes": "街景",
+        "shot_types": "交通",
+        "tone": "neutral",
+        "motion_level": "medium",
+        "content_density": "moderate",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 103,
+      "start_sec": 521.5,
+      "end_sec": 527.75,
+      "duration_sec": null,
+      "text_context": "过去几十年，所有后发国家崛起的剧本都是同一个：||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "china",
+          "factory conveyor belt",
+          "workers",
+          "portrait"
+        ],
+        "location": "domestic",
+        "people": "people",
+        "category": "工业",
+        "intensity": "low",
+        "emotion": "universal",
+        "scenes": "工业",
+        "shot_types": "特写",
+        "tone": "neutral",
+        "motion_level": "medium",
+        "content_density": "moderate",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 104,
+      "start_sec": 527.75,
+      "end_sec": 534.25,
+      "duration_sec": null,
+      "text_context": "吃人口红利，当世界工厂，搞低价代工，再攒钱升级。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "china",
+          "assembly line workers",
+          "portrait",
+          "industry"
+        ],
+        "location": "domestic",
+        "people": "people",
+        "category": "工业",
+        "intensity": "medium",
+        "emotion": "reality",
+        "scenes": "工业",
+        "shot_types": "人像",
+        "tone": "neutral",
+        "motion_level": "medium",
+        "content_density": "dense",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 105,
+      "start_sec": 534.25,
+      "end_sec": 537.0,
+      "duration_sec": null,
+      "text_context": "但现在AI这把大剪刀，",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "AI这把大剪刀",
+          "subtitle": "通关副本被删"
+        },
+        "intensity": "high",
+        "emotion": "climax"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 106,
+      "start_sec": 537.0,
+      "end_sec": 542.75,
+      "duration_sec": null,
+      "text_context": "直接把这个通关副本给删了。||印度今天的麻烦，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "broken cable",
+          "cut",
+          "finality"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "工业",
+        "intensity": "high",
+        "emotion": "rupture",
+        "scenes": "工业",
+        "shot_types": "特写",
+        "tone": "monochrome",
+        "motion_level": "static",
+        "content_density": "sparse",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 107,
+      "start_sec": 542.75,
+      "end_sec": 548.25,
+      "duration_sec": null,
+      "text_context": "就是很多发展中国家明天绕不开的生死考题。||",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "明天的生死考题",
+          "subtitle": "发展中国家绕不开"
+        },
+        "intensity": "high",
+        "emotion": "conclusion"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 108,
+      "start_sec": 548.25,
+      "end_sec": 552.0,
+      "duration_sec": null,
+      "text_context": "这年头，最怕的不是你处在低端，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "china",
+          "low end factory",
+          "workers",
+          "portrait"
+        ],
+        "location": "domestic",
+        "people": "people",
+        "category": "工业",
+        "intensity": "low",
+        "emotion": "sober",
+        "scenes": "工业",
+        "shot_types": "人像",
+        "tone": "neutral",
+        "motion_level": "static",
+        "content_density": "moderate",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 109,
+      "start_sec": 552.0,
+      "end_sec": 559.25,
+      "duration_sec": null,
+      "text_context": "而是你习惯了跪着赚钱，突然有一天，连跪着的资格都没了。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "china",
+          "closing door slowly",
+          "final",
+          "portrait"
+        ],
+        "location": "domestic",
+        "people": "none",
+        "category": "生活",
+        "intensity": "high",
+        "emotion": "finality",
+        "scenes": "生活",
+        "shot_types": "特写",
+        "tone": "dark",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "night",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 110,
+      "start_sec": 559.25,
+      "end_sec": 572.5,
+      "duration_sec": null,
+      "text_context": "**【现在，摆在你面前的只有两个选择：要么继续迷信“低成本就能活”，要么重新理解这个时代的生存法则。】**",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "两个选择",
+          "subtitle": "继续低成本，还是重新理解规则？"
+        },
+        "intensity": "high",
+        "emotion": "climax"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 111,
+      "start_sec": 572.5,
+      "end_sec": 583.0,
+      "duration_sec": null,
+      "text_context": "【下期，老谭会直接拆解AI时代下最先消失的岗位名单，没关注的话，你只能等别人转述。】",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "下期预告",
+          "subtitle": "AI时代最先消失的岗位"
+        },
+        "intensity": "low",
+        "emotion": "hook"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 112,
+      "start_sec": 583.0,
+      "end_sec": 587.5,
+      "duration_sec": null,
+      "text_context": "点赞给班加罗尔那栋公寓里熄灭的灯光，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "light going out",
+          "apartment",
+          "dark"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "生活",
+        "intensity": "low",
+        "emotion": "mourn",
+        "scenes": "生活",
+        "shot_types": "特写",
+        "tone": "dark",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "night",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 113,
+      "start_sec": 587.5,
+      "end_sec": 593.5,
+      "duration_sec": null,
+      "text_context": "他们是全球化旧秩序崩坏时，最先被献祭的代价。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "india",
+          "high building shadow",
+          "sunset",
+          "ruins"
+        ],
+        "location": "foreign",
+        "people": "none",
+        "category": "城市",
+        "intensity": "medium",
+        "emotion": "solemn",
+        "scenes": "城市",
+        "shot_types": "航拍",
+        "tone": "dark",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "sunset",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 114,
+      "start_sec": 593.5,
+      "end_sec": 600.0,
+      "duration_sec": null,
+      "text_context": "点赞给那些清醒意识到，廉价套利不是护城河的清醒头脑，",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "廉价套利不是护城河",
+          "subtitle": "点赞清醒头脑"
+        },
+        "intensity": "low",
+        "emotion": "positive"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 115,
+      "start_sec": 600.0,
+      "end_sec": 603.5,
+      "duration_sec": null,
+      "text_context": "看懂周期，才能跨越周期。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "china",
+          "book pages turning",
+          "close up",
+          "knowledge"
+        ],
+        "location": "domestic",
+        "people": "none",
+        "category": "教育",
+        "intensity": "low",
+        "emotion": "wisdom",
+        "scenes": "教育",
+        "shot_types": "特写",
+        "tone": "warm",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 116,
+      "start_sec": 603.5,
+      "end_sec": 606.25,
+      "duration_sec": null,
+      "text_context": "点赞给咱们这块土地上，",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "点赞",
+          "subtitle": "咱们这片土地"
+        },
+        "intensity": "low",
+        "emotion": "patriotic"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 117,
+      "start_sec": 606.25,
+      "end_sec": 610.75,
+      "duration_sec": null,
+      "text_context": "那些没有沉迷于\"代工美梦\"的破局者，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "china",
+          "new energy factory",
+          "solar panels",
+          "portrait"
+        ],
+        "location": "domestic",
+        "people": "people",
+        "category": "工业",
+        "intensity": "medium",
+        "emotion": "innovation",
+        "scenes": "工业",
+        "shot_types": "人像",
+        "tone": "bright",
+        "motion_level": "medium",
+        "content_density": "moderate",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 118,
+      "start_sec": 610.75,
+      "end_sec": 615.75,
+      "duration_sec": null,
+      "text_context": "正是因为咱们的产业没有满足于埋头赚快钱，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "china",
+          "research lab",
+          "scientists",
+          "portrait"
+        ],
+        "location": "domestic",
+        "people": "people",
+        "category": "科技",
+        "intensity": "medium",
+        "emotion": "focus",
+        "scenes": "科技",
+        "shot_types": "人像",
+        "tone": "bright",
+        "motion_level": "medium",
+        "content_density": "moderate",
+        "time_of_day": "indoor",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 119,
+      "start_sec": 615.75,
+      "end_sec": 620.25,
+      "duration_sec": null,
+      "text_context": "而是咬着牙去攻克新能源、砸向大模型，",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "china",
+          "wind turbine",
+          "clean energy",
+          "portrait"
+        ],
+        "location": "domestic",
+        "people": "none",
+        "category": "工业",
+        "intensity": "high",
+        "emotion": "pride",
+        "scenes": "工业",
+        "shot_types": "航拍",
+        "tone": "bright",
+        "motion_level": "slow",
+        "content_density": "moderate",
+        "time_of_day": "day",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 120,
+      "start_sec": 620.25,
+      "end_sec": 623.25,
+      "duration_sec": null,
+      "text_context": "才让咱们在今天的牌桌上，",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "坐在牌桌上",
+          "subtitle": "安全的位置"
+        },
+        "intensity": "medium",
+        "emotion": "confidence"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 121,
+      "start_sec": 623.25,
+      "end_sec": 628.0,
+      "duration_sec": null,
+      "text_context": "还能坐在一个相对安全的位置。||听懂逻辑，少走弯路。||",
+      "segment_id": null,
+      "visual_type": "broll_pexels",
+      "workflow": "broll_pexels",
+      "params": {
+        "keywords": [
+          "china",
+          "city night skyline",
+          "portrait",
+          "peaceful"
+        ],
+        "location": "domestic",
+        "people": "none",
+        "category": "城市",
+        "intensity": "low",
+        "emotion": "closure",
+        "scenes": "城市",
+        "shot_types": "航拍",
+        "tone": "bright",
+        "motion_level": "slow",
+        "content_density": "sparse",
+        "time_of_day": "night",
+        "orientation": "portrait"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    },
+    {
+      "slot_index": 122,
+      "start_sec": 628.0,
+      "end_sec": 633.0,
+      "duration_sec": null,
+      "text_context": "我是老谭，下期见。||",
+      "segment_id": null,
+      "visual_type": "hf_title",
+      "workflow": "hf_title",
+      "params": {
+        "render_config": {
+          "title": "听懂逻辑",
+          "subtitle": "下期见"
+        },
+        "intensity": "low",
+        "emotion": "closing"
+      },
+      "camera_angle": 1,
+      "view_group_index": 0
+    }
+  ],
+  "title": "刚刚，印度IT被AI连根拔！2800亿神话一夜归零，40%青年失业",
+  "reasoning": null
+}

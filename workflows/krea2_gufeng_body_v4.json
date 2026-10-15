@@ -1,0 +1,112 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "krea2_turbo_fp8_scaled.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+      "type": "krea2",
+      "device": "default"
+    }
+  },
+  "3": {
+    "class_type": "LoraLoaderModelOnly",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "lora_name": "Klein\\一致性lora-f2k_consist_20260225.safetensors",
+      "strength_model": 1.0
+    }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "2",
+        0
+      ],
+      "text": "<sks> front view eye-level shot wide shot, character named Xiao Fengxian, 25-year-old ancient Chinese female warrior, sharp almond-shaped eyes with subtle amber glow, fair smooth skin, delicate facial features, determined calm expression, small nose, soft lips, long black hair tied in a high ponytail with a simple jade hairpin carved with a small phoenix pattern and a tiny silver cloud-shaped hair ornament on the left side, full body front view, standing straight, complete figure from head to toe, wearing traditional Chinese martial arts heroine outfit: white inner robe, dark blue silk outer cloak, jade belt with silver buckle, black warrior boots, embroidered silver cloud patterns, holding a straight Chinese jian sword in right hand at side, arms relaxed at sides, frontal camera angle, clean pure white background, professional studio lighting, high detail, 8k, sharp focus"
+    }
+  },
+  "5": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "2",
+        0
+      ],
+      "text": "low quality, blurry, distorted face, bad anatomy, extra limbs, malformed hands, watermark, text, signature, messy background, dark background, noise, jpeg artifacts, deformed, ugly, duplicate, cartoon, anime, 2.5D, painting, illustration, different face, changed face, altered face, different hairstyle, hair length change, bangs, different hair accessories, different headwear, altered hairpin, changed hair ornament, hat, crown, tiara, heavy makeup, age change, different eye color, extra face, no face"
+    }
+  },
+  "6": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "width": 768,
+      "height": 1024,
+      "batch_size": 1
+    }
+  },
+  "7": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "3",
+        0
+      ],
+      "seed": 684210839,
+      "steps": 15,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "positive": [
+        "4",
+        0
+      ],
+      "negative": [
+        "5",
+        0
+      ],
+      "latent_image": [
+        "6",
+        0
+      ],
+      "denoise": 1.0
+    }
+  },
+  "8": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    }
+  },
+  "9": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "7",
+        0
+      ],
+      "vae": [
+        "8",
+        0
+      ]
+    }
+  },
+  "10": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "krea2_gufeng_body_v4",
+      "images": [
+        "9",
+        0
+      ]
+    }
+  }
+}

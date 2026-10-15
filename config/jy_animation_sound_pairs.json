@@ -1,0 +1,1006 @@
+{
+ "_meta": {
+  "source": "快照 2-1-文字动画和音效常用搭配(横版教学科) 时间轴同帧配对提取",
+  "date": "2026-08-16",
+  "pairs": 83,
+  "animations": 42,
+  "usage": "jy_effect_library: 应用 TextIntro/Outro/Loop 动画时查 sound 族轮换"
+ },
+ "animation_sound_family": {
+  "向上滑动": {
+   "sounds": [
+    "综艺悬疑 不对劲"
+   ],
+   "type": "in",
+   "dur_ms": 400
+  },
+  "随机上升": {
+   "sounds": [
+    "纸张抖动声"
+   ],
+   "type": "in",
+   "dur_ms": 500
+  },
+  "向上露出": {
+   "sounds": [
+    "“呼”1",
+    "“呼”的转场音效"
+   ],
+   "type": "in",
+   "dur_ms": 400
+  },
+  "模糊发光": {
+   "sounds": [
+    "一滴水滴声",
+    "空灵的水滴声"
+   ],
+   "type": "in",
+   "dur_ms": 400
+  },
+  "向下露出": {
+   "sounds": [
+    "嗖 转场音效",
+    "回忆-刷一下"
+   ],
+   "type": "in",
+   "dur_ms": 400
+  },
+  "向右缓入": {
+   "sounds": [
+    "拔刀 游戏音效 宝剑出鞘"
+   ],
+   "type": "in",
+   "dur_ms": 400
+  },
+  "冰雪飘动": {
+   "sounds": [
+    "仙尘音效",
+    "高音闪光转场",
+    "忽然出现 卡通音效"
+   ],
+   "type": "in",
+   "dur_ms": 700
+  },
+  "向左模糊": {
+   "sounds": [
+    "旋风",
+    "“呼”的转场音效"
+   ],
+   "type": "in",
+   "dur_ms": 700
+  },
+  "向右模糊 II": {
+   "sounds": [
+    "旋风"
+   ],
+   "type": "in",
+   "dur_ms": 700
+  },
+  "向右集合": {
+   "sounds": [
+    "发条转动"
+   ],
+   "type": "in",
+   "dur_ms": 700
+  },
+  "放大": {
+   "sounds": [
+    "卡通弹簧拉伸",
+    "提示音"
+   ],
+   "type": "in",
+   "dur_ms": 400
+  },
+  "轻微放大": {
+   "sounds": [
+    "叮，提示音4",
+    "叮3",
+    "提示音",
+    "卡通弹簧拉伸"
+   ],
+   "type": "in",
+   "dur_ms": 500
+  },
+  "呐喊声波": {
+   "sounds": [
+    "综艺嘭字幕音效震撼出场",
+    "撞击光1",
+    "咚",
+    "咚 重磅",
+    "敲响西藏颂钵"
+   ],
+   "type": "in",
+   "dur_ms": 500
+  },
+  "生长": {
+   "sounds": [
+    "拔",
+    "敲击碗 叮的一声"
+   ],
+   "type": "in",
+   "dur_ms": 500
+  },
+  "缩小": {
+   "sounds": [
+    "撞击光1",
+    "击鼓声",
+    "诡异的滴水声",
+    "一声响铃"
+   ],
+   "type": "in",
+   "dur_ms": 500
+  },
+  "缩小 II": {
+   "sounds": [
+    "悬疑咚声",
+    "刀砍下去震撼电影开始",
+    "悬疑氛围 咚 长音",
+    "影视 咚"
+   ],
+   "type": "in",
+   "dur_ms": 500
+  },
+  "辉光": {
+   "sounds": [
+    "高音闪光转场",
+    "扫光音效4",
+    "闪回"
+   ],
+   "type": "in",
+   "dur_ms": 500
+  },
+  "激光雕刻": {
+   "sounds": [
+    "光效转场",
+    "突然出现音效",
+    "高科技 显示出来"
+   ],
+   "type": "in",
+   "dur_ms": 500
+  },
+  "流光扩散": {
+   "sounds": [
+    "叮铃～魔法音效",
+    "光效转场"
+   ],
+   "type": "in",
+   "dur_ms": 400
+  },
+  "发光模糊": {
+   "sounds": [
+    "一声响铃",
+    "水滴回响声音效"
+   ],
+   "type": "in",
+   "dur_ms": 700
+  },
+  "雪光模糊": {
+   "sounds": [
+    "开场音效咚"
+   ],
+   "type": "in",
+   "dur_ms": 700
+  },
+  "逐字显影": {
+   "sounds": [
+    "综艺悬疑 沙锤长",
+    "沙锤的声音"
+   ],
+   "type": "in",
+   "dur_ms": 500
+  },
+  "向上重叠": {
+   "sounds": [
+    "沙锤的声音",
+    "收银机-钱到账了",
+    "钱 到账"
+   ],
+   "type": "in",
+   "dur_ms": 400
+  },
+  "收拢": {
+   "sounds": [
+    "综艺影视紧张回响",
+    "哐，撞击轻响"
+   ],
+   "type": "in",
+   "dur_ms": 700
+  },
+  "折叠": {
+   "sounds": [
+    "纸张抖动声",
+    "枪拉栓"
+   ],
+   "type": "in",
+   "dur_ms": 500
+  },
+  "便利贴": {
+   "sounds": [
+    "纸张抖动声"
+   ],
+   "type": "in",
+   "dur_ms": 400
+  },
+  "滚入": {
+   "sounds": [
+    "叮，收银机提示音1",
+    "发条旋钮转动齿轮"
+   ],
+   "type": "in",
+   "dur_ms": 400
+  },
+  "圆柱体滚动": {
+   "sounds": [
+    "超市电子钱柜 结账"
+   ],
+   "type": "in",
+   "dur_ms": 400
+  },
+  "星光闪闪": {
+   "sounds": [
+    "钱(money)"
+   ],
+   "type": "in",
+   "dur_ms": 400
+  },
+  "晕开": {
+   "sounds": [
+    "气泡弹出"
+   ],
+   "type": "in",
+   "dur_ms": 400
+  },
+  "吸入": {
+   "sounds": [
+    "综艺拉扯",
+    "综艺开始 系统音"
+   ],
+   "type": "in",
+   "dur_ms": 400
+  },
+  "波浪弹入": {
+   "sounds": [
+    "综艺当当当当",
+    "大明王朝悬疑"
+   ],
+   "type": "in",
+   "dur_ms": 400
+  },
+  "打字光标": {
+   "sounds": [
+    "打字声"
+   ],
+   "type": "in",
+   "dur_ms": 400
+  },
+  "生长 II": {
+   "sounds": [
+    "综艺紧张噔噔"
+   ],
+   "type": "in",
+   "dur_ms": 400
+  },
+  "慢速放大": {
+   "sounds": [
+    "时间冻结"
+   ],
+   "type": "in",
+   "dur_ms": 500
+  },
+  "开幕": {
+   "sounds": [
+    "纸张抖动声"
+   ],
+   "type": "in",
+   "dur_ms": 500
+  },
+  "左上弹入": {
+   "sounds": [
+    "嗖，咻"
+   ],
+   "type": "in",
+   "dur_ms": 400
+  },
+  "跃进": {
+   "sounds": [
+    "综艺紧张噔噔"
+   ],
+   "type": "in",
+   "dur_ms": 400
+  },
+  "炸开 II": {
+   "sounds": [
+    "心碎声"
+   ],
+   "type": "out",
+   "dur_ms": 300
+  },
+  "喷涌": {
+   "sounds": [
+    "光洙发抖声"
+   ],
+   "type": "loop",
+   "dur_ms": 500
+  },
+  "文字泛光": {
+   "sounds": [
+    "闪的一声"
+   ],
+   "type": "loop",
+   "dur_ms": 500
+  },
+  "飘起": {
+   "sounds": [
+    "“呼”2"
+   ],
+   "type": "loop",
+   "dur_ms": 1300
+  }
+ },
+ "raw_pairs": [
+  {
+   "sound": "综艺悬疑 不对劲",
+   "text_label": "向上滑动",
+   "animation": "向上滑动",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 0.0
+  },
+  {
+   "sound": "纸张抖动声",
+   "text_label": "随机上升",
+   "animation": "随机上升",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 1.57
+  },
+  {
+   "sound": "“呼”1",
+   "text_label": "向上露出",
+   "animation": "向上露出",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 2.3
+  },
+  {
+   "sound": "“呼”的转场音效",
+   "text_label": "向上露出",
+   "animation": "向上露出",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 3.47
+  },
+  {
+   "sound": "一滴水滴声",
+   "text_label": "模糊发光",
+   "animation": "模糊发光",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 5.0
+  },
+  {
+   "sound": "空灵的水滴声",
+   "text_label": "模糊发光",
+   "animation": "模糊发光",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 6.27
+  },
+  {
+   "sound": "嗖 转场音效",
+   "text_label": "向下露出",
+   "animation": "向下露出",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 7.53
+  },
+  {
+   "sound": "回忆-刷一下",
+   "text_label": "向下露出",
+   "animation": "向下露出",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 8.63
+  },
+  {
+   "sound": "拔刀 游戏音效 宝剑出鞘",
+   "text_label": "向右缓入",
+   "animation": "向右缓入",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 9.23
+  },
+  {
+   "sound": "仙尘音效",
+   "text_label": "冰雪飘动",
+   "animation": "冰雪飘动",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 10.53
+  },
+  {
+   "sound": "高音闪光转场",
+   "text_label": "冰雪飘动",
+   "animation": "冰雪飘动",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 11.63
+  },
+  {
+   "sound": "忽然出现 卡通音效",
+   "text_label": "冰雪飘动",
+   "animation": "冰雪飘动",
+   "anim_type": "in",
+   "anim_dur_ms": 700,
+   "at_s": 13.07
+  },
+  {
+   "sound": "旋风",
+   "text_label": "向左模糊",
+   "animation": "向左模糊",
+   "anim_type": "in",
+   "anim_dur_ms": 700,
+   "at_s": 14.13
+  },
+  {
+   "sound": "“呼”的转场音效",
+   "text_label": "向左模糊",
+   "animation": "向左模糊",
+   "anim_type": "in",
+   "anim_dur_ms": 700,
+   "at_s": 15.2
+  },
+  {
+   "sound": "旋风",
+   "text_label": "向右模糊",
+   "animation": "向右模糊 II",
+   "anim_type": "in",
+   "anim_dur_ms": 700,
+   "at_s": 16.27
+  },
+  {
+   "sound": "发条转动",
+   "text_label": "向右集合",
+   "animation": "向右集合",
+   "anim_type": "in",
+   "anim_dur_ms": 700,
+   "at_s": 17.33
+  },
+  {
+   "sound": "卡通弹簧拉伸",
+   "text_label": "放大",
+   "animation": "放大",
+   "anim_type": "in",
+   "anim_dur_ms": 700,
+   "at_s": 18.23
+  },
+  {
+   "sound": "提示音",
+   "text_label": "放大",
+   "animation": "放大",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 19.13
+  },
+  {
+   "sound": "叮，提示音4",
+   "text_label": "轻微放大",
+   "animation": "轻微放大",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 19.83
+  },
+  {
+   "sound": "叮3",
+   "text_label": "轻微放大",
+   "animation": "轻微放大",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 20.73
+  },
+  {
+   "sound": "提示音",
+   "text_label": "轻微放大",
+   "animation": "轻微放大",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 21.47
+  },
+  {
+   "sound": "卡通弹簧拉伸",
+   "text_label": "轻微放大",
+   "animation": "轻微放大",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 22.2
+  },
+  {
+   "sound": "综艺嘭字幕音效震撼出场",
+   "text_label": "呐喊声波",
+   "animation": "呐喊声波",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 23.5
+  },
+  {
+   "sound": "撞击光1",
+   "text_label": "呐喊声波",
+   "animation": "呐喊声波",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 24.4
+  },
+  {
+   "sound": "咚",
+   "text_label": "呐喊声波",
+   "animation": "呐喊声波",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 25.3
+  },
+  {
+   "sound": "咚",
+   "text_label": "呐喊声波",
+   "animation": "呐喊声波",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 26.2
+  },
+  {
+   "sound": "咚 重磅",
+   "text_label": "呐喊声波",
+   "animation": "呐喊声波",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 27.1
+  },
+  {
+   "sound": "敲响西藏颂钵",
+   "text_label": "呐喊声波",
+   "animation": "呐喊声波",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 28.0
+  },
+  {
+   "sound": "拔",
+   "text_label": "生长",
+   "animation": "生长",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 30.97
+  },
+  {
+   "sound": "敲击碗 叮的一声",
+   "text_label": "生长",
+   "animation": "生长",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 31.67
+  },
+  {
+   "sound": "撞击光1",
+   "text_label": "缩小",
+   "animation": "缩小",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 32.33
+  },
+  {
+   "sound": "悬疑咚声",
+   "text_label": "缩小II",
+   "animation": "缩小 II",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 33.23
+  },
+  {
+   "sound": "击鼓声",
+   "text_label": "缩小",
+   "animation": "缩小",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 35.4
+  },
+  {
+   "sound": "诡异的滴水声",
+   "text_label": "缩小",
+   "animation": "缩小",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 37.0
+  },
+  {
+   "sound": "一声响铃",
+   "text_label": "缩小",
+   "animation": "缩小",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 38.6
+  },
+  {
+   "sound": "刀砍下去震撼电影开始",
+   "text_label": "缩小",
+   "animation": "缩小 II",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 40.2
+  },
+  {
+   "sound": "悬疑氛围 咚 长音",
+   "text_label": "缩小",
+   "animation": "缩小 II",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 43.77
+  },
+  {
+   "sound": "影视 咚",
+   "text_label": "缩小II",
+   "animation": "缩小 II",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 47.33
+  },
+  {
+   "sound": "高音闪光转场",
+   "text_label": "辉光",
+   "animation": "辉光",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 50.3
+  },
+  {
+   "sound": "扫光音效4",
+   "text_label": "辉光",
+   "animation": "辉光",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 51.9
+  },
+  {
+   "sound": "闪回",
+   "text_label": "辉光",
+   "animation": "辉光",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 53.27
+  },
+  {
+   "sound": "光效转场",
+   "text_label": "光效转场",
+   "animation": "激光雕刻",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 54.63
+  },
+  {
+   "sound": "光效转场",
+   "text_label": "激光雕刻",
+   "animation": "激光雕刻",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 56.0
+  },
+  {
+   "sound": "突然出现音效",
+   "text_label": "激光雕刻",
+   "animation": "激光雕刻",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 57.17
+  },
+  {
+   "sound": "高科技 显示出来",
+   "text_label": "激光雕刻",
+   "animation": "激光雕刻",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 58.4
+  },
+  {
+   "sound": "叮铃～魔法音效",
+   "text_label": "流光扩散",
+   "animation": "流光扩散",
+   "anim_type": "in",
+   "anim_dur_ms": 700,
+   "at_s": 59.63
+  },
+  {
+   "sound": "一声响铃",
+   "text_label": "发光模糊",
+   "animation": "发光模糊",
+   "anim_type": "in",
+   "anim_dur_ms": 700,
+   "at_s": 61.33
+  },
+  {
+   "sound": "水滴回响声音效",
+   "text_label": "发光模糊",
+   "animation": "发光模糊",
+   "anim_type": "in",
+   "anim_dur_ms": 700,
+   "at_s": 63.77
+  },
+  {
+   "sound": "开场音效咚",
+   "text_label": "雪光模糊",
+   "animation": "雪光模糊",
+   "anim_type": "in",
+   "anim_dur_ms": 700,
+   "at_s": 66.2
+  },
+  {
+   "sound": "综艺悬疑 沙锤长",
+   "text_label": "逐字显影",
+   "animation": "逐字显影",
+   "anim_type": "in",
+   "anim_dur_ms": 700,
+   "at_s": 68.63
+  },
+  {
+   "sound": "沙锤的声音",
+   "text_label": "向上重叠",
+   "animation": "向上重叠",
+   "anim_type": "in",
+   "anim_dur_ms": 700,
+   "at_s": 72.57
+  },
+  {
+   "sound": "收银机-钱到账了",
+   "text_label": "向上重叠",
+   "animation": "向上重叠",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 74.1
+  },
+  {
+   "sound": "综艺影视紧张回响",
+   "text_label": "收拢",
+   "animation": "收拢",
+   "anim_type": "in",
+   "anim_dur_ms": 700,
+   "at_s": 75.27
+  },
+  {
+   "sound": "哐，撞击轻响",
+   "text_label": "收拢",
+   "animation": "收拢",
+   "anim_type": "in",
+   "anim_dur_ms": 700,
+   "at_s": 76.27
+  },
+  {
+   "sound": "纸张抖动声",
+   "text_label": "折叠",
+   "animation": "折叠",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 77.67
+  },
+  {
+   "sound": "枪拉栓",
+   "text_label": "折叠",
+   "animation": "折叠",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 78.6
+  },
+  {
+   "sound": "纸张抖动声",
+   "text_label": "折叠",
+   "animation": "便利贴",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 79.37
+  },
+  {
+   "sound": "叮，收银机提示音1",
+   "text_label": "滚入",
+   "animation": "滚入",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 80.0
+  },
+  {
+   "sound": "超市电子钱柜 结账",
+   "text_label": "圆柱体滚动",
+   "animation": "圆柱体滚动",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 80.97
+  },
+  {
+   "sound": "发条旋钮转动齿轮",
+   "text_label": "滚入",
+   "animation": "滚入",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 81.93
+  },
+  {
+   "sound": "钱 到账",
+   "text_label": "滚入",
+   "animation": "向上重叠",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 82.9
+  },
+  {
+   "sound": "钱(money)",
+   "text_label": "滚入",
+   "animation": "星光闪闪",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 83.67
+  },
+  {
+   "sound": "气泡弹出",
+   "text_label": "水墨散开",
+   "animation": "晕开",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 84.43
+  },
+  {
+   "sound": "综艺拉扯",
+   "text_label": "吸入",
+   "animation": "吸入",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 85.2
+  },
+  {
+   "sound": "综艺开始 系统音",
+   "text_label": "吸入",
+   "animation": "吸入",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 85.97
+  },
+  {
+   "sound": "综艺当当当当",
+   "text_label": "波浪弹入",
+   "animation": "波浪弹入",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 86.73
+  },
+  {
+   "sound": "大明王朝悬疑",
+   "text_label": "波浪弹入",
+   "animation": "波浪弹入",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 87.67
+  },
+  {
+   "sound": "打字声",
+   "text_label": "打字光标",
+   "animation": "打字光标",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 88.9
+  },
+  {
+   "sound": "打字声",
+   "text_label": "新年打字机",
+   "animation": "打字光标",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 90.2
+  },
+  {
+   "sound": "综艺紧张噔噔",
+   "text_label": "生长II",
+   "animation": "生长 II",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 91.5
+  },
+  {
+   "sound": "时间冻结",
+   "text_label": "慢速放大",
+   "animation": "慢速放大",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 92.17
+  },
+  {
+   "sound": "沙锤的声音",
+   "text_label": "逐字显影",
+   "animation": "逐字显影",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 93.2
+  },
+  {
+   "sound": "纸张抖动声",
+   "text_label": "开幕",
+   "animation": "开幕",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 94.57
+  },
+  {
+   "sound": "纸张抖动声",
+   "text_label": "折叠",
+   "animation": "折叠",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 95.3
+  },
+  {
+   "sound": "纸张抖动声",
+   "text_label": "随机上升",
+   "animation": "随机上升",
+   "anim_type": "in",
+   "anim_dur_ms": 500,
+   "at_s": 96.03
+  },
+  {
+   "sound": "嗖，咻",
+   "text_label": "左上弹入",
+   "animation": "左上弹入",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 96.77
+  },
+  {
+   "sound": "光效转场",
+   "text_label": "流光扩撒",
+   "animation": "流光扩散",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 97.23
+  },
+  {
+   "sound": "综艺紧张噔噔",
+   "text_label": "跃进",
+   "animation": "跃进",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 98.6
+  },
+  {
+   "sound": "综艺紧张噔噔",
+   "text_label": "生长II",
+   "animation": "生长 II",
+   "anim_type": "in",
+   "anim_dur_ms": 400,
+   "at_s": 99.3
+  },
+  {
+   "sound": "心碎声",
+   "text_label": "生长II",
+   "animation": "炸开 II",
+   "anim_type": "out",
+   "anim_dur_ms": 300,
+   "at_s": 100.0
+  },
+  {
+   "sound": "光洙发抖声",
+   "text_label": "喷涌",
+   "animation": "喷涌",
+   "anim_type": "loop",
+   "anim_dur_ms": 500,
+   "at_s": 101.03
+  },
+  {
+   "sound": "闪的一声",
+   "text_label": "文字泛光",
+   "animation": "文字泛光",
+   "anim_type": "loop",
+   "anim_dur_ms": 500,
+   "at_s": 102.33
+  },
+  {
+   "sound": "“呼”2",
+   "text_label": "飘起",
+   "animation": "飘起",
+   "anim_type": "loop",
+   "anim_dur_ms": 1300,
+   "at_s": 103.17
+  }
+ ]
+}

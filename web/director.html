@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>视觉导演 Agent 2.0</title>
+  <link rel="stylesheet" href="/web/director.css">
+</head>
+<body>
+  <nav>
+    <div class="logo">Director<span>Agent</span></div>
+    <a href="/web/books.html">拆书</a>
+    <a href="/web/index.html">新闻线索</a>
+    <a href="/web/writing.html">文字加工</a>
+    <a href="/web/audio.html">音频加工</a>
+    <a href="/web/director.html" class="active">导演控制台</a>
+    <a href="/web/library.html">视频库</a>
+    <a href="/web/templates.html">模板管理</a>
+    <a href="/web/visual_render.html">视觉渲染</a>
+    <a href="/web/voices.html">音色管理</a>
+    <a href="/web/roles.html">角色管理</a>
+    <a href="/web/personas.html">人物</a>
+    <div class="spacer"></div>
+    <a href="/docs" target="_blank">API Docs</a>
+  </nav>
+
+  <div class="container">
+    <div class="pipeline-header">
+      <h1>视觉导演 Agent 2.0</h1>
+      <p>音频对齐 → LLM 工序单 → Slot 执行 → 合成输出</p>
+    </div>
+
+    <div class="steps" id="step-indicator">
+      <div class="step-dot" data-step="create"><div class="num">1</div>创建任务</div>
+      <div class="step-line"></div>
+      <div class="step-dot" data-step="execute"><div class="num">2</div>执行 Slots</div>
+      <div class="step-line"></div>
+      <div class="step-dot" data-step="compose"><div class="num">3</div>合成视频</div>
+      <div class="step-line"></div>
+      <div class="step-dot" data-step="download"><div class="num">4</div>下载产物</div>
+    </div>
+
+    <div style="display:grid; grid-template-columns: 340px 1fr; gap: 1.5rem;">
+      <!-- Left: Job List -->
+      <div style="min-width:0;">
+        <div class="card">
+          <h3><span class="icon">📋</span> 导演任务</h3>
+          <div class="btn-group" style="margin-bottom:1rem;">
+            <button class="btn btn-secondary btn-sm" onclick="refreshJobs()">刷新</button>
+            <button class="btn btn-secondary btn-sm" onclick="cleanupJobs()" title="删除从未产出视频的任务">🗑 清理空任务</button>
+            <select id="filter-status" onchange="refreshJobs()" style="width:auto;flex:0 1 auto;font-size:0.78rem;padding:0.3rem 0.5rem;">
+              <option value="">全部</option>
+              <option value="completed">已完成</option>
+              <option value="failed">已失败</option>
+              <option value="executing">执行中</option>
+              <option value="reviewing">待合成</option>
+            </select>
+          </div>
+          <div id="jobs-list">
+            <div class="empty"><div class="icon">🎬</div><p>暂无导演任务</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Detail Panel -->
+      <div style="min-width:0;">
+        <div class="card" id="card-create">
+          <h3><span class="icon">🚀</span> 创建导演任务</h3>
+          <div class="form-row">
+            <div>
+              <label>视频标题</label>
+              <input type="text" id="input-script-title" placeholder="从下方选择视频" readonly>
+              <input type="hidden" id="input-script-id">
+            </div>
+            <div>
+              <label>音频 Audio File ID（可选）</label>
+              <input type="text" id="input-audio-id" placeholder="留空则自动选取最新音频">
+            </div>
+          </div>
+          <div class="form-row">
+            <div>
+              <label>快速选择视频</label>
+              <div style="display:flex;gap:0.4rem;">
+                <select id="script-select" onchange="onScriptSelect(this.value)" style="flex:1;">
+                  <option value="">— 加载脚本列表 —</option>
+                </select>
+                <button class="btn btn-danger btn-sm" id="btn-delete-script"
+                        onclick="deleteScript()" title="删除选中的脚本（音频文件将放入回收站，源文章保留）"
+                        disabled>🗑 删除</button>
+              </div>
+            </div>
+            <div>
+              <label>快速选择音频</label>
+              <select id="audio-select" onchange="onAudioSelect(this.value)">
+                <option value="">— 先选脚本 —</option>
+              </select>
+              <button class="btn btn-secondary btn-sm hidden" id="btn-regenerate-audio" onclick="regenerateAudio()" title="该脚本未生成过音频，立即用默认音色生成">
+                🎙️ 生成音频
+              </button>
+              <div class="hidden" id="audio-gen-progress" style="font-size:0.72rem;color:var(--accent);margin-top:0.3rem;"></div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div>
+              <label>形象组 (host 出镜用哪组图)</label>
+              <select id="view-group-select">
+                <option value="0">组0 (默认)</option>
+              </select>
+            </div>
+            <div>
+              <label>视频画幅 (默认横屏, 以下拉为准)</label>
+              <select id="format-select">
+                <option value="portrait">竖屏 9:16</option>
+                <option value="landscape" selected>横屏 16:9</option>
+                <option value="square">方形 1:1</option>
+              </select>
+              <div id="script-fmt-hint" style="font-size:0.72rem;color:var(--text-muted);margin-top:0.2rem;"></div>
+            </div>
+          </div>
+          <!-- 管线开关 (2026-08-07 与流水线页 index.html 同源持久化到 localStorage) -->
+          <div class="pipeline-toggles" style="display:flex;gap:1.5rem;align-items:center;margin:0.75rem 0 0 0;padding:0.6rem 0.8rem;background:var(--bg-secondary);border-radius:8px;">
+            <span style="font-size:0.8rem;font-weight:600;color:var(--text-muted);">启用的管线:</span>
+            <label class="toggle-switch" title="C线 — ComfyUI (host/mixed_broll)">
+              <input type="checkbox" id="toggle-c" onchange="onPipelineToggle()">
+              <span class="toggle-slider"></span>
+              <span class="toggle-label">C线 <small>ComfyUI</small></span>
+            </label>
+            <label class="toggle-switch" title="P线 — 在线素材 (broll_pexels 下载 / evidence_image 证据图)">
+              <input type="checkbox" id="toggle-p" checked onchange="onPipelineToggle()">
+              <span class="toggle-slider"></span>
+              <span class="toggle-label">P线 <small>在线素材</small></span>
+            </label>
+            <label class="toggle-switch" title="H线 — HuggingFace (hf_chart / hf_title)">
+              <input type="checkbox" id="toggle-h" checked onchange="onPipelineToggle()">
+              <span class="toggle-slider"></span>
+              <span class="toggle-label">H线 <small>HF</small></span>
+            </label>
+          </div>
+          <div class="btn-group">
+            <button class="btn btn-primary" id="btn-create" onclick="createJob()">
+              <span class="spinner hidden" id="spinner-create"></span>
+              创建并规划
+            </button>
+          </div>
+        </div>
+
+        <div class="card hidden" id="card-detail">
+          <h3>
+            <span class="icon">🎯</span>
+            <span id="detail-title">任务详情</span>
+            <span class="badge queued" id="detail-badge" style="margin-left:auto;"></span>
+            <span id="detail-format" style="font-size:0.72rem;color:var(--text-muted);margin-left:0.5rem;"></span>
+          </h3>
+          <!-- 剪映草稿名 (2026-08-25): J 线导出后常驻, 剪映里按名找 -->
+          <div id="detail-jy-draft" style="display:none;margin:-0.4rem 0 0.6rem;padding:0.4rem 0.7rem;border:1px solid var(--border);border-radius:6px;background:var(--bg-secondary);font-size:0.82rem;color:var(--text-secondary);"></div>
+          <div class="stats" id="detail-stats">
+            <div class="stat-card"><div class="stat-value" id="stat-total">0</div><div class="stat-label">总 Slots</div></div>
+            <div class="stat-card success"><div class="stat-value" id="stat-completed">0</div><div class="stat-label">已完成</div></div>
+            <div class="stat-card warning"><div class="stat-value" id="stat-running">0</div><div class="stat-label">执行中</div></div>
+            <div class="stat-card danger"><div class="stat-value" id="stat-failed">0</div><div class="stat-label">已失败</div></div>
+          </div>
+          <div style="margin-bottom:1rem;">
+            <label>Slot 时间轴</label>
+            <div class="timeline" id="timeline"></div>
+          </div>
+          <div class="slot-detail" id="slot-detail">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+              <span style="font-weight:600;font-size:0.9rem;" id="slot-detail-title">Slot #0</span>
+              <div style="display:flex;gap:0.4rem;">
+                <button class="btn btn-warning btn-sm hidden" id="btn-retry-workflow" onclick="retryByWorkflow(this)">重试同类</button>
+                <button class="btn btn-danger btn-sm" id="btn-retry-slot" onclick="retrySlot(this)">重试</button>
+                <button class="btn btn-secondary btn-sm" onclick="closeSlotDetail()">✕</button>
+              </div>
+            </div>
+            <div class="field"><div class="field-label">类型</div><div class="field-value" id="slot-type">—</div></div>
+            <div class="field"><div class="field-label">时间范围</div><div class="field-value mono" id="slot-time">—</div></div>
+            <div class="field"><div class="field-label">文本</div><div class="field-value" id="slot-text">—</div></div>
+            <div class="field"><div class="field-label">机位</div><div class="field-value" id="slot-camera">—</div></div>
+            <div class="field"><div class="field-label">产物路径</div><div class="field-value mono" id="slot-output">—</div></div>
+            <div class="field"><div class="field-label">错误信息</div><div class="field-value" id="slot-error" style="color:var(--danger)">—</div></div>
+            <!-- Slot 视频预览 + 素材替换 (2026-08-12) -->
+            <div class="video-preview hidden" id="slot-video-preview">
+              <video controls id="slot-video-player"></video>
+            </div>
+            <div class="field hidden" id="slot-replace-row" style="margin-top:0.5rem;">
+              <div class="field-label">替换素材 (素材库编号)</div>
+              <div class="field-value" style="display:flex;gap:0.4rem;align-items:center;">
+                <input type="text" id="slot-replace-no" placeholder="如 V20260803-0177" style="flex:1;padding:0.35rem 0.5rem;font-size:0.8rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-card);color:var(--ink);" />
+                <button class="btn btn-warning btn-sm" id="btn-replace-material" onclick="replaceSlotMaterial(this)">替换</button>
+                <button class="btn btn-danger btn-sm" id="btn-disable-material" onclick="disableSlotMaterial(this)" title="当前素材不好 → 打禁用标, 后续不再选用">🚫 禁用素材</button>
+              </div>
+            </div>
+            <div class="field hidden" id="slot-retry-force-row" style="margin-top:0.4rem;">
+              <label style="display:flex;gap:0.4rem;align-items:center;font-size:0.78rem;color:var(--text-secondary);cursor:pointer;">
+                <input type="checkbox" id="retry-force-pexels" /> 重新生成时强制 P 线下载新素材（跳过本地素材库）
+              </label>
+            </div>
+          </div>
+          <div class="btn-group" style="margin-top:1.25rem;">
+            <button class="btn btn-primary" id="btn-execute" onclick="executeJob()">执行 Slots</button>
+            <button class="btn btn-danger hidden" id="btn-cancel" onclick="cancelJob()">■ 停止</button>
+            <button class="btn btn-danger hidden" id="btn-force-stop" onclick="forceStopJob()" title="杀掉该任务全部子进程(ffmpeg/ComfyUI/HF)并立即终止, 已完成的 slot 保留, 可稍后重试">⚠ 强制停止</button>
+            <button class="btn btn-secondary btn-sm" id="btn-purge-replaced" onclick="purgeReplaced()" title="清理 fallback 链产生的旧 replaced 条目">🧹 清理已替换</button>
+            <button class="btn btn-violet" id="btn-compose" onclick="composeJob()">合成视频</button>
+            <button class="btn" id="btn-script-txt" onclick="exportScriptTxt()" title="不跑合成, 单独生成稿件txt并打开合成文件夹">文稿.txt</button>
+            <button class="btn btn-violet" id="btn-jy-export" onclick="exportJyDraft()" title="J线: 导出剪映草稿到剪映草稿文件夹(音画不合成, 打开剪映即可审片/调BGM/导出)">🎬 导出剪映草稿</button>
+            <button class="btn btn-success" id="btn-download" onclick="downloadJob()">下载 MP4</button>
+            <button class="btn btn-secondary btn-sm" id="btn-open-folder" onclick="openOutputFolder()" title="在资源管理器中打开产物文件夹">📂 打开文件夹</button>
+            <button class="btn btn-secondary" id="btn-toggle-log" onclick="toggleExecLog()">📡 日志</button>
+          </div>
+          <div class="replace-char-module" style="margin-top:1.25rem;padding:0.75rem;border:1px solid var(--border);border-radius:8px;">
+            <div style="display:flex;align-items:center;margin-bottom:0.6rem;">
+              <span style="font-weight:600;font-size:0.85rem;">错别字音频替换</span>
+              <span style="font-size:0.7rem;color:var(--dim);margin-left:0.5rem;">生僻字(TTS读错) → 重做含该字段 → 替换wav</span>
+            </div>
+            <div style="display:flex;gap:0.4rem;align-items:center;flex-wrap:wrap;">
+              <span class="field-label" style="font-size:0.8rem;">把</span>
+              <input type="text" id="replace-from" style="width:60px;padding:0.3rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-card);color:var(--ink);" maxlength="4" />
+              <span class="field-label" style="font-size:0.8rem;">换成</span>
+              <input type="text" id="replace-to" style="width:60px;padding:0.3rem;border:1px solid var(--border);border-radius:4px;background:var(--bg-card);color:var(--ink);" maxlength="4" />
+              <button class="btn btn-warning btn-sm" id="btn-replace-char" onclick="replaceCharAudio(this)">执行替换</button>
+              <span id="replace-status" style="font-size:0.8rem;color:var(--dim);"></span>
+            </div>
+          </div>
+          <div class="video-preview hidden" id="video-preview">
+            <video controls id="video-player"></video>
+          </div>
+        </div>
+
+        <div class="card" id="card-empty">
+          <div class="empty">
+            <div class="icon">🎬</div>
+            <p>选择一个任务查看详情，或创建新的导演任务</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Execution Log (fixed bottom drawer, outside grid) -->
+  <div class="exec-log" id="exec-log">
+    <div class="exec-log-header">
+      <span>📡 执行日志</span>
+      <div style="display:flex;gap:0.5rem;">
+        <button class="btn btn-secondary btn-sm" onclick="toggleExecLog()">收起</button>
+        <button class="btn btn-secondary btn-sm" onclick="clearExecLog()">清空</button>
+      </div>
+    </div>
+    <div class="exec-log-body" id="exec-log-body"><pre id="exec-log-pre" style="margin:0;padding:0;font:inherit;white-space:pre-wrap;word-wrap:break-word;color:#8892a8;"></pre></div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+  <script src="/web/director.js?v=9"></script>
+</body>
+</html>

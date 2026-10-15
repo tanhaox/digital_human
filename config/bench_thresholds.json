@@ -1,0 +1,11 @@
+{
+  "comment": "对标阶段判定阈值 (0911 v1) — 政策允许随赛道校准, 改此处不改代码",
+  "hit_min_likes": 100000,
+  "stage_max_age_weeks": 6,
+  "stage_max_followers": 20000,
+  "stage_median_min": 50,
+  "stage_median_max": 5000,
+  "stage_lift_ratio": 1.5,
+  "dead_median_max": 20,
+  "old_account_weeks": 12
+}

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>提示工坊</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+  :root{
+    --ground:#F7F7F3; --surface:#FFFFFF; --ink:#20262D; --ink-soft:#5B6470;
+    --line:#E4E3DB; --accent:#1F6E8C; --accent-ink:#17556E; --accent-wash:rgba(31,110,140,.09);
+    --red:#C23B2E; --red-wash:rgba(194,59,46,.09);
+    --sans:'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+    --disp:'Fraunces','Noto Sans SC',serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#14181C; --surface:#1B2127; --ink:#E8EBEE; --ink-soft:#97A1AB;
+      --line:#2C343C; --accent:#6FB7D4; --accent-ink:#9CCFE4; --accent-wash:rgba(111,183,212,.13);
+      --red:#E2685A; --red-wash:rgba(226,104,90,.13);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#14181C; --surface:#1B2127; --ink:#E8EBEE; --ink-soft:#97A1AB;
+    --line:#2C343C; --accent:#6FB7D4; --accent-ink:#9CCFE4; --accent-wash:rgba(111,183,212,.13);
+    --red:#E2685A; --red-wash:rgba(226,104,90,.13);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:880px;margin:0 auto;padding:48px 28px 72px}
+  header{margin-bottom:36px}
+  .eyebrow{font-family:var(--disp);font-style:italic;font-weight:500;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-ink);margin:0 0 6px}
+  h1{font-size:34px;font-weight:700;letter-spacing:.02em;margin:0;text-wrap:balance}
+  h1 small{display:block;font-size:15px;font-weight:400;color:var(--ink-soft);margin-top:10px;letter-spacing:0;line-height:1.7}
+  .pagenav{display:flex;gap:16px;font-family:var(--mono);font-size:11.5px;margin-top:18px}
+  .pagenav a{color:var(--ink-soft);text-decoration:none;padding-bottom:2px;border-bottom:1px solid transparent}
+  .pagenav a:hover{color:var(--ink)}
+  .pagenav a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  .cards{display:grid;grid-template-columns:1fr;gap:14px;margin-bottom:36px}
+  .card{
+    display:flex;align-items:center;gap:20px;background:var(--surface);border:1px solid var(--line);
+    border-radius:14px;padding:22px 26px;text-decoration:none;color:var(--ink);
+    transition:border-color .15s, box-shadow .15s;
+  }
+  .card:hover{border-color:var(--accent);box-shadow:0 2px 10px rgba(31,110,140,.12)}
+  .card:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+  .card .no{font-family:var(--disp);font-style:italic;font-weight:600;font-size:26px;color:var(--accent);flex:none;width:30px;text-align:center}
+  .card .tt{flex:1;min-width:0}
+  .card .tt b{display:block;font-size:17px;font-weight:700;margin-bottom:4px}
+  .card .tt span{font-size:13px;color:var(--ink-soft);line-height:1.65}
+  .card .go{flex:none;font-family:var(--mono);font-size:13px;color:var(--accent-ink)}
+  .card.soon{opacity:.55}
+  .card.soon:hover{border-color:var(--line);box-shadow:none;cursor:not-allowed}
+  .soon-tag{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;color:var(--red);background:var(--red-wash);border-radius:3px;padding:2px 6px;margin-left:8px;vertical-align:2px}
+
+  .flow{background:var(--surface);border:1px dashed var(--line);border-radius:12px;padding:18px 22px}
+  .flow .ft{font-family:var(--mono);font-size:11px;font-weight:600;letter-spacing:.12em;color:var(--ink-soft);margin:0 0 10px}
+  .flow .steps{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:13px;color:var(--ink-soft)}
+  .flow .steps b{color:var(--ink);font-weight:500}
+  .flow .steps .arr{font-family:var(--mono);color:var(--accent)}
+  .flow .where{margin-top:12px;padding-top:12px;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-soft)}
+  .flow .where b{color:var(--accent-ink);font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">Prompt Workshop</p>
+    <h1>提示工坊<small>不会写提示词也能用。下面选一件你想做的事，跟着步骤走就行——每一步都有说明，不用猜。</small></h1>
+    <nav class="pagenav" aria-label="页面切换">
+      <a class="on" href="index.html" aria-current="page">首页</a>
+      <a href="reverse_prompt_builder.html">反推</a>
+      <a href="threeview_prompt_builder.html">人物</a>
+      <a href="shot_prompt_builder.html">镜头</a>
+      <a href="prop_prompt_builder.html">道具</a>
+      <a href="scene_prompt_builder.html">场景</a>
+    </nav>
+  </header>
+
+  <div class="cards">
+    <a class="card" href="reverse_prompt_builder.html">
+      <span class="no">1</span>
+      <span class="tt">
+        <b>我有一张图，想知道它的提示词</b>
+        <span>上传照片或搜一张网图 → AI 自动拆解出长相、材质、场景描述 → 一键带走。最适合「照着这个感觉做」。</span>
+      </span>
+      <span class="go">进入 →</span>
+    </a>
+    <a class="card" href="threeview_prompt_builder.html">
+      <span class="no">2</span>
+      <span class="tt">
+        <b>我要设计一个角色（设定图）</b>
+        <span>填几个空：长相、发型、穿着 → 自动生成「正面+侧面+背面+特写」四合一设定图的完整提示词，保证四个视角是同一个人。</span>
+      </span>
+      <span class="go">进入 →</span>
+    </a>
+    <a class="card" href="shot_prompt_builder.html">
+      <span class="no">3</span>
+      <span class="tt">
+        <b>我要写视频的生成提示词</b>
+        <span>简易模式只需三步：说拍什么 → 选风格 → 选时长。适合即梦 / 可灵 / Sora 等视频工具。</span>
+      </span>
+      <span class="go">进入 →</span>
+    </a>
+    <a class="card soon" href="prop_prompt_builder.html">
+      <span class="no">4</span>
+      <span class="tt">
+        <b>我要做道具设定图<span class="soon-tag">测试中</span></b>
+        <span>模板还在实测。急着用？先去「反推」选道具类型，同样能拿到材质细节。</span>
+      </span>
+      <span class="go">暂缓</span>
+    </a>
+    <a class="card soon" href="scene_prompt_builder.html">
+      <span class="no">5</span>
+      <span class="tt">
+        <b>我要做场景设定图<span class="soon-tag">测试中</span></b>
+        <span>模板还在实测。急着用？先去「反推」选场景类型，同样能拿到环境描述。</span>
+      </span>
+      <span class="go">暂缓</span>
+    </a>
+  </div>
+
+  <div class="flow">
+    <p class="ft">怎么用 · 通用三步</p>
+    <div class="steps">
+      <b>选页面填空 / 选图反推</b><span class="arr">→</span>
+      <b>复制生成的提示词</b><span class="arr">→</span>
+      <b>粘贴到生图工具</b>
+    </div>
+    <div class="where">
+      提示词粘贴到哪？——生图：<b>即梦 / 豆包 / Midjourney / 剪映</b>；生视频：<b>即梦 / 可灵 / Sora / Runway</b>。国内工具直接粘贴中文描述也行，英文提示词通用性最好。
+    </div>
+  </div>
+</div>
+</body>
+</html>

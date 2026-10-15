@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M0-SOP-01 · Edge TTS 安装 + 三语种测试</title>
+<style>
+:root{
+  --bg:#0f172a;--surface:#1e293b;--surface2:#334155;--border:#475569;
+  --text:#e2e8f0;--muted:#94a3b8;--accent:#06b6d4;--green:#10b981;
+  --yellow:#f59e0b;--red:#ef4444;--purple:#a855f7;--code-bg:#020617;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;padding:24px;max-width:960px;margin:0 auto}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.top-home-bar{position:sticky;top:0;z-index:100;background:rgba(15,23,42,0.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:-24px -24px 16px;font-size:13px}
+.top-home-bar a.home-link{color:var(--accent);text-decoration:none;font-weight:600;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(6,182,212,0.1);border:1px solid var(--accent);border-radius:6px}
+.top-home-bar .breadcrumbs{color:var(--muted);font-size:12px;font-family:Consolas,monospace}
+.top-home-bar .breadcrumbs a{color:var(--muted);text-decoration:none}
+.top-home-bar .breadcrumbs .sep{margin:0 6px;color:var(--border)}
+header{background:linear-gradient(135deg,#0891b2 0%,#10b981 100%);padding:24px 32px;border-radius:12px;margin-bottom:24px}
+.badge{display:inline-block;background:rgba(255,255,255,0.2);padding:4px 12px;border-radius:12px;font-size:12px;margin-right:8px;font-weight:600}
+h1{font-size:24px;margin:8px 0 4px}
+.subtitle{font-size:14px;opacity:0.9}
+.meta-line{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-size:13px;opacity:0.95}
+.meta-line .m{background:rgba(0,0,0,0.25);padding:4px 10px;border-radius:4px}
+section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:14px}
+h2{font-size:17px;margin-bottom:10px;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:6px}
+.tip{background:rgba(16,185,129,0.1);border-left:3px solid var(--green);padding:10px 14px;border-radius:6px;margin:10px 0;font-size:13px}
+.warning{background:rgba(239,68,68,0.1);border-left:3px solid var(--red);padding:10px 14px;border-radius:6px;margin:10px 0;font-size:13px}
+.note{background:rgba(168,85,247,0.1);border-left:3px solid var(--purple);padding:10px 14px;border-radius:6px;margin:10px 0;font-size:13px}
+.task{background:var(--surface2);border-left:3px solid var(--accent);padding:14px 18px;border-radius:8px;margin-bottom:14px;transition:opacity 0.2s}
+.task.done{opacity:0.55;border-left-color:var(--green)}
+.task.done .task-title::after{content:" ✅"}
+.task-head{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+.task-head input[type=checkbox]{width:20px;height:20px;cursor:pointer;accent-color:var(--green)}
+.task-title{font-weight:600;font-size:15px;color:var(--accent);flex:1}
+.task-tag{font-size:11px;background:var(--bg);padding:2px 8px;border-radius:4px;color:var(--muted);font-family:Consolas,monospace}
+.task-body{margin-top:10px;padding-left:30px;font-size:13px;color:var(--text)}
+.task-body ol{padding-left:20px;margin:6px 0}
+.task-body li{margin:4px 0}
+.cmd{background:var(--code-bg);border:1px solid var(--border);padding:10px 14px;border-radius:6px;font-family:Consolas,monospace;font-size:13px;color:var(--yellow);white-space:pre-wrap;word-break:break-all;margin:6px 0;user-select:all;cursor:pointer}
+.cmd::before{content:"$ ";color:var(--green);font-weight:700}
+.cmd:hover{border-color:var(--accent)}
+.shot{margin-top:6px;padding:8px 12px;background:var(--bg);border:1px dashed var(--border);border-radius:4px;font-size:12px;color:var(--muted);font-style:italic}
+.accept{background:rgba(16,185,129,0.1);border-left:3px solid var(--green);padding:6px 12px;border-radius:4px;margin-top:6px;font-size:12px;color:var(--green)}
+.next{color:var(--accent);font-size:12px;margin-top:4px}
+.progress-bar{height:24px;background:var(--surface2);border-radius:12px;overflow:hidden;position:relative;margin:10px 0;border:1px solid var(--border)}
+.progress-fill{height:100%;background:linear-gradient(90deg,#06b6d4 0%,#10b981 100%);transition:width 0.3s}
+.progress-label{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.6)}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:10px 0}
+.kpi{background:var(--surface2);padding:10px 14px;border-radius:8px;border-left:3px solid var(--accent);text-align:center}
+.kpi .num{font-size:18px;font-weight:700;color:var(--accent)}
+.kpi .label{font-size:11px;color:var(--muted);margin-top:2px}
+.footer-actions{display:flex;gap:10px;margin-top:16px}
+.btn{padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer;border:none;transition:opacity 0.15s}
+.btn:hover{opacity:0.85}
+.btn-reset{background:var(--red);color:#fff}
+.btn-back{background:var(--surface2);color:var(--accent);border:1px solid var(--accent);text-decoration:none;display:inline-block}
+</style>
+</head>
+<body>
+
+<nav class="top-home-bar">
+  <a href="README.html" class="home-link">📋 回 M0 索引</a>
+  <div class="breadcrumbs">
+    <a href="README.html">M0 索引</a><span class="sep">›</span><span>M0-SOP-01 Edge TTS</span>
+  </div>
+</nav>
+
+<header>
+  <span class="badge">M0-SOP-01</span>
+  <span class="badge">W1(第一天完成)</span>
+  <span class="badge">¥0 成本</span>
+  <span class="badge">耗时 ≈30 min</span>
+  <h1>🗣️ Edge TTS 安装 + 三语种测试</h1>
+  <div class="subtitle">Python 库 + Microsoft Edge 在线 TTS · 免费 · 无需 API key · 输出 MP3</div>
+  <div class="meta-line">
+    <div class="m">📦 工具:Python 3.10+ · pip · edge-tts</div>
+    <div class="m">🎯 产出:zh-CN + en-US + ar-SA 三个 MP3 文件</div>
+    <div class="m">⏱ 累计:≈30 分钟</div>
+    <div class="m">🧪 验收:3 个 MP3 可播放且发音准确</div>
+  </div>
+</header>
+
+<section>
+  <h2>📊 当前进度</h2>
+  <div class="progress-bar">
+    <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    <div class="progress-label" id="progressLabel">0/8 (0%)</div>
+  </div>
+  <div class="kpi-row">
+    <div class="kpi"><div class="num" id="kpiDone">0</div><div class="label">已完成</div></div>
+    <div class="kpi" style="border-left-color:var(--green)"><div class="num" id="kpiLeft">8</div><div class="label">剩余</div></div>
+    <div class="kpi" style="border-left-color:var(--yellow)"><div class="num" id="kpiTime">30</div><div class="label">预计分钟</div></div>
+  </div>
+  <div class="tip">
+    <strong>💾 持久化</strong>:checkbox 状态自动保存到 localStorage `m0-01` 键。刷新页面 / 换电脑仍保留(同浏览器)。完成 100% 后状态传回 [M0 索引](README.html)。
+  </div>
+</section>
+
+<section>
+  <h2>🎯 为什么用 Edge TTS</h2>
+  <ul style="padding-left:24px;font-size:14px">
+    <li><strong>零成本</strong>:Microsoft Edge 浏览器内置 TTS,通过 Python 库免费调用,无需 Azure 账号</li>
+    <li><strong>多语种</strong>:支持 100+ 语种 / 400+ 声音,中文 / 英文 / 阿语均有 Neural 级别音色</li>
+    <li><strong>离线推理</strong>:Python 库只发起 HTTP 请求,Edge 服务返回 MP3,本地无 GPU 也能跑</li>
+    <li><strong>零依赖</strong>:pip 一行安装,无 ffmpeg / 无 tensorflow / 无 CUDA</li>
+  </ul>
+  <div class="warning">
+    <strong>⚠ 限制</strong>:Edge TTS 商用风险?个人非商业可免费,商用建议升级 Azure($1/百万字符,首月 $200 免费)。本 SOP 仅用于 M0 验证,后续阶段会评估 Azure。
+  </div>
+</section>
+
+<section>
+  <h2>✅ 8 步执行清单(从下载到跑通)</h2>
+
+  <div class="task" id="t1">
+    <label class="task-head">
+      <input type="checkbox" id="c1" onchange="save()">
+      <span class="task-title">1️⃣ 检查 Python 版本(需 3.10+)</span>
+      <span class="task-tag">≈2 min</span>
+    </label>
+    <div class="task-body">
+      <strong>目的</strong>:确认机器已装 Python 且 ≥3.10(edge-tts 需要 asyncio 完整支持)<br>
+      <strong>命令</strong>:
+      <div class="cmd">python --version</div>
+      <strong>期望输出</strong>: <code>Python 3.10.x</code> 或更高(如 3.11 / 3.12)<br>
+      <strong>若版本过低</strong>: 访问 python.org 下载 3.11+ 安装;勾选 <code>Add to PATH</code>
+      <div class="shot">📷 截图位: 终端输出 <code>Python 3.11.9</code></div>
+      <div class="accept">✅ 验收:看到 <code>Python 3.10+</code> 字样</div>
+      <div class="next">👉 通过后进入第 2 步</div>
+    </div>
+  </div>
+
+  <div class="task" id="t2">
+    <label class="task-head">
+      <input type="checkbox" id="c2" onchange="save()">
+      <span class="task-title">2️⃣ 安装 edge-tts 库</span>
+      <span class="task-tag">≈3 min</span>
+    </label>
+    <div class="task-body">
+      <strong>目的</strong>:用 pip 安装 edge-tts Python 绑定<br>
+      <strong>命令</strong>(任选一种):
+      <div class="cmd">pip install edge-tts</div>
+      或:<div class="cmd">pip install edge-tts --upgrade</div>(已装则升级)<br>
+      <strong>期望输出</strong>: <code>Successfully installed edge-tts-6.1.x</code><br>
+      <strong>若报错 <code>pip not found</code></strong>: Python 安装时未勾选 Add to PATH → 重装或用 <code>python -m pip install edge-tts</code>
+      <div class="shot">📷 截图位: pip install 成功行</div>
+      <div class="accept">✅ 验收:看到 <code>Successfully installed</code></div>
+    </div>
+  </div>
+
+  <div class="task" id="t3">
+    <label class="task-head">
+      <input type="checkbox" id="c3" onchange="save()">
+      <span class="task-title">3️⃣ 验证 edge-tts 命令行可用</span>
+      <span class="task-tag">≈1 min</span>
+    </label>
+    <div class="task-body">
+      <strong>目的</strong>:确认 PATH 已注册 edge-tts 命令<br>
+      <strong>命令</strong>:
+      <div class="cmd">edge-tts --help</div>
+      <strong>期望输出</strong>: 列出 <code>--voice</code> / <code>--text</code> / <code>--write-media</code> 等参数说明<br>
+      <strong>若报错 <code>command not found</code></strong>: 试 <code>python -m edge_tts --help</code>;或重启终端让 PATH 生效
+      <div class="shot">📷 截图位: help 输出前 10 行</div>
+      <div class="accept">✅ 验收:看到命令行帮助</div>
+    </div>
+  </div>
+
+  <div class="task" id="t4">
+    <label class="task-head">
+      <input type="checkbox" id="c4" onchange="save()">
+      <span class="task-title">4️⃣ 创建测试目录 + 准备文本</span>
+      <span class="task-tag">≈2 min</span>
+    </label>
+    <div class="task-body">
+      <strong>目的</strong>:统一存放 M0 阶段所有产出<br>
+      <strong>命令</strong>(Windows CMD):
+      <div class="cmd">mkdir F:\AI-Agent-Local\数字人计划\m0-test
+cd F:\AI-Agent-Local\数字人计划\m0-test</div>
+      <strong>准备 3 段测试文本</strong>(记事本保存为 <code>texts.txt</code>):
+      <div class="cmd">中文: 你好,这是数字人计划的技术验证测试。
+English: This is a technical verification test for the digital human project.
+Arabic: هذا اختبار للتحقق التقني لمشروع الإنسان الرقمي.</div>
+      <div class="shot">📷 截图位: 文件夹列表 + texts.txt 内容</div>
+      <div class="accept">✅ 验收:目录已创建 + texts.txt 写好</div>
+    </div>
+  </div>
+
+  <div class="task" id="t5">
+    <label class="task-head">
+      <input type="checkbox" id="c5" onchange="save()">
+      <span class="task-title">5️⃣ 生成中文 TTS · zh-CN-XiaoxiaoNeural</span>
+      <span class="task-tag">≈3 min</span>
+    </label>
+    <div class="task-body">
+      <strong>目的</strong>:调用中文女声(晓晓)生成中文 MP3<br>
+      <strong>命令</strong>:
+      <div class="cmd">edge-tts --voice zh-CN-XiaoxiaoNeural --text "你好,这是数字人计划的技术验证测试。" --write-media test_zh.mp3</div>
+      <strong>期望输出</strong>: <code>Synthesizing speech...</code> 然后 <code>Speech synthesized</code><br>
+      <strong>常见错误</strong>:
+      <ul style="padding-left:20px;font-size:12px">
+        <li><code>NoAudioReceived</code>: 网络问题 → 改用 VPN 或重试 3 次</li>
+        <li><code>ModuleNotFoundError: edge_tts</code>: pip 装到了别的 Python → 用 <code>python -m edge_tts</code></li>
+      </ul>
+      <div class="shot">📷 截图位: 终端输出 + 听 5 秒验证发音</div>
+      <div class="accept">✅ 验收:test_zh.mp3 文件存在 + 双击能播放 + 发音是中文女声</div>
+    </div>
+  </div>
+
+  <div class="task" id="t6">
+    <label class="task-head">
+      <input type="checkbox" id="c6" onchange="save()">
+      <span class="task-title">6️⃣ 生成英文 TTS · en-US-JennyNeural</span>
+      <span class="task-tag">≈3 min</span>
+    </label>
+    <div class="task-body">
+      <strong>目的</strong>:调用英文女声(Jenny)生成英文 MP3<br>
+      <strong>命令</strong>:
+      <div class="cmd">edge-tts --voice en-US-JennyNeural --text "This is a technical verification test for the digital human project." --write-media test_en.mp3</div>
+      <strong>期望输出</strong>: 类似步骤 5,文件大小 30-80 KB(取决于时长)<br>
+      <div class="shot">📷 截图位: 终端输出 + 听 5 秒</div>
+      <div class="accept">✅ 验收:test_en.mp3 可播放 + 美式英语发音准确</div>
+    </div>
+  </div>
+
+  <div class="task" id="t7">
+    <label class="task-head">
+      <input type="checkbox" id="c7" onchange="save()">
+      <span class="task-title">7️⃣ 生成阿语 TTS · ar-SA-ZariyahNeural</span>
+      <span class="task-tag">≈3 min</span>
+    </label>
+    <div class="task-body">
+      <strong>目的</strong>:调用阿拉伯语女声(Zariyah)生成阿语 MP3 ⭐ M1 主推语种<br>
+      <strong>命令</strong>:
+      <div class="cmd">edge-tts --voice ar-SA-ZariyahNeural --text "هذا اختبار للتحقق التقني لمشروع الإنسان الرقمي." --write-media test_ar.mp3</div>
+      <strong>期望输出</strong>: 阿语女声,语速适中<br>
+      <div class="warning">
+        <strong>⚠ 阿语质量</strong>:Edge 阿语 Neural 比中文 / 英文差一档(语调略机械)。M0 阶段先用,M2 后如不满意 → 切 Azure TTS 阿语($200 免费额度)。
+      </div>
+      <div class="shot">📷 截图位: 终端输出 + 听 5 秒(给朋友试听,确认发音不像机器人)</div>
+      <div class="accept">✅ 验收:test_ar.mp3 可播放 + 阿语发音可懂(找阿拉伯朋友 / Reddit r/ar 测)</div>
+    </div>
+  </div>
+
+  <div class="task" id="t8">
+    <label class="task-head">
+      <input type="checkbox" id="c8" onchange="save()">
+      <span class="task-title">8️⃣ 列出 3 个文件 + 进入下一 SOP</span>
+      <span class="task-tag">≈2 min</span>
+    </label>
+    <div class="task-body">
+      <strong>目的</strong>:验证 3 个文件齐全<br>
+      <strong>命令</strong>(Windows):
+      <div class="cmd">dir *.mp3</div>
+      <strong>期望输出</strong>: 3 个 .mp3 文件,每个 20-100 KB<br>
+      <div class="note">
+        <strong>🎉 M0-SOP-01 完成!</strong><br>
+        下一步 → <a href="m0-02-sadtalker.html">M0-SOP-02 SadTalker 安装 + 测试</a>(W2 启动)<br>
+        W1 剩余时间: 阅读 3 份核心文档 + 准备 SadTalker 运行环境(检查 NVIDIA GPU + 安装 PyTorch)
+      </div>
+      <div class="shot">📷 截图位: dir 输出 3 个文件</div>
+      <div class="accept">✅ 验收:看到 3 个 MP3 文件,大小都 >10KB</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>🚨 应急方案</h2>
+  <div class="warning">
+    <strong>方案 A · NoAudioReceived / 网络失败</strong><br>
+    1. 重试 3 次(Edge 服务偶发超时)<br>
+    2. 改用 VPN / 代理(科学上网)<br>
+    3. 改用 <code>edge-tts --list-voices</code> 列出所有可用声音(网络通则能列)<br>
+    4. 还失败 → 备用 <a href="https://github.com/coqui-ai/TTS" target="_blank">Coqui TTS</a>(完全本地,但慢 + 模型大)
+  </div>
+  <div class="warning">
+    <strong>方案 B · 阿语发音差(打算放弃 Edge 阿语)</strong><br>
+    1. 试听后请阿拉伯语朋友评分(≥7 分继续用)<br>
+    2. 评分 ≤6 → M2 启动后切 Azure 阿语 Neural($1/百万字符,先试 100 条 ≈ ¥20)<br>
+    3. Azure 体验仍差 → 改 MUSE / ElevenLabs(更贵,$5/月起)
+  </div>
+  <div class="warning">
+    <strong>方案 C · pip 装错环境</strong><br>
+    若同时有 Python 3.8 / 3.11 多版本:用 <code>py -3.11 -m pip install edge-tts</code> 指定版本<br>
+    推荐:用 <code>conda</code> 或 <code>pyenv</code> 隔离环境
+  </div>
+</section>
+
+<section>
+  <h2>🎯 完成定义(M0-SOP-01 验收)</h2>
+  <div class="tip">
+    <strong>本 SOP 完成标准</strong>(全部满足才算 100%):
+    <ul style="padding-left:24px;margin-top:6px">
+      <li>✅ 8 个 checkbox 全部勾选</li>
+      <li>✅ m0-test 目录有 test_zh.mp3 / test_en.mp3 / test_ar.mp3 三个文件</li>
+      <li>✅ 3 个文件都能在系统播放器播放</li>
+      <li>✅ 阿语发音听感 ≥7/10(朋友评分)</li>
+    </ul>
+  </div>
+</section>
+
+<div class="footer-actions">
+  <a href="README.html" class="btn btn-back">← 回 M0 索引</a>
+  <a href="m0-02-sadtalker.html" class="btn btn-back">下一 SOP: SadTalker →</a>
+  <button class="btn btn-reset" onclick="resetThis()">🗑 重置本 SOP 进度</button>
+</div>
+
+<script>
+const KEY='m0-01';
+const TOTAL=8;
+
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||[];}catch(e){return [];}}
+function save(){
+  const arr=[];
+  for(let i=1;i<=TOTAL;i++){arr.push(document.getElementById('c'+i).checked);}
+  localStorage.setItem(KEY, JSON.stringify(arr));
+  // 通知父页面(若在 iframe 中)
+  try{window.parent.postMessage({key:KEY,arr:arr},'*');}catch(e){}
+  refresh();
+}
+function refresh(){
+  const arr=load();
+  let done=0;
+  for(let i=1;i<=TOTAL;i++){
+    const cb=document.getElementById('c'+i);
+    if(cb) cb.checked=arr[i-1]||false;
+    const t=document.getElementById('t'+i);
+    if(t&&arr[i-1]) t.classList.add('done');
+    else if(t) t.classList.remove('done');
+    if(arr[i-1]) done++;
+  }
+  const pct=Math.round(done/TOTAL*100);
+  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('progressLabel').textContent=`${done}/${TOTAL} (${pct}%)`;
+  document.getElementById('kpiDone').textContent=done;
+  document.getElementById('kpiLeft').textContent=TOTAL-done;
+  document.getElementById('kpiTime').textContent=Math.round((TOTAL-done)*3.5);
+}
+function resetThis(){
+  if(!confirm('确定清除本 SOP 全部进度?')) return;
+  localStorage.removeItem(KEY);
+  refresh();
+}
+refresh();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>艺术圣经 — 书级视觉身份</title>
+<link rel="stylesheet" href="/web/books.css">
+<style>
+  body{background:#14110d;color:#ece5d8}
+  [hidden]{display:none!important}
+  .flow{display:flex;gap:.4rem;align-items:center;font-size:.78rem;color:#6f665a;margin:.4rem 0 1rem}
+  .flow b{color:#d2a85e}
+  .style-card{display:flex;gap:1rem;align-items:center;background:#1a1714;border:1px solid #332d25;
+    border-radius:8px;padding:.7rem .9rem;margin-bottom:.9rem}
+  .style-card img{width:200px;aspect-ratio:16/9;object-fit:cover;border-radius:5px;border:1px solid #332d25;cursor:zoom-in}
+  .style-card .sname{font-size:1rem;color:#e6c078;font-weight:600}
+  .style-card .sdesc{font-size:.76rem;color:#a2988a;line-height:1.5;margin-top:.25rem}
+  .style-card .slora{font-size:.68rem;color:#6f665a;margin-top:.3rem;font-family:Consolas,monospace}
+  label{font-size:.76rem;color:#a2988a;margin:.7rem 0 .25rem;display:block}
+  label small{color:#6f665a;margin-left:.4rem}
+  textarea{width:100%;background:#14110d;color:#ece5d8;border:1px solid #332d25;border-radius:5px;
+    padding:.5rem .6rem;font-size:.85rem;font-family:inherit;box-sizing:border-box}
+  textarea:focus{outline:none;border-color:#d2a85e}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 1.2rem}
+  @media(max-width:860px){.grid2{grid-template-columns:1fr}}
+  .banner{margin:.6rem 0;padding:.55rem .9rem;border-radius:6px;font-size:.85rem}
+  .banner.ok{background:#14532d;color:#bbf7d0;border:1px solid #166534}
+  .banner.warn{background:#3d2a0f;color:#fcd34d;border:1px solid #7c5a12}
+  .busy{color:#e6c078;font-size:.82rem}
+  .samples{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:.7rem;margin-top:.7rem}
+  .samples .sc{border:1px solid #332d25;border-radius:6px;overflow:hidden;background:#1a1714}
+  .samples img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;cursor:zoom-in}
+  .samples .cap{font-size:.68rem;color:#a2988a;padding:.3rem .5rem;border-top:1px solid #332d25}
+  #live{font-size:.72rem;color:#a2988a;background:#1a1714;border:1px solid #332d25;border-radius:6px;
+    padding:.5rem .7rem;margin-top:.6rem;line-height:1.8;max-height:150px;overflow:auto;white-space:pre-wrap}/* ── 道层面板 (1007 P1) ── */
+.dao-section{margin-top:16px;display:flex;flex-direction:column;gap:10px}
+.dao-panel{border:1px solid #3b4256;border-radius:8px;overflow:hidden}
+.dao-panel summary{padding:10px 14px;cursor:pointer;font-weight:600;font-size:14px;
+  background:#1e2530;color:#e8ecf4;user-select:none}
+.dao-panel summary small{font-weight:400;color:#8b95a8;margin-left:8px;font-size:11px}
+.dao-card{padding:10px 14px;display:flex;flex-direction:column;gap:6px}
+.dao-row{display:flex;gap:8px;align-items:baseline;font-size:13px;line-height:1.5}
+.dao-row b{min-width:80px;color:#a8b3c7;font-size:12px;flex-shrink:0}
+.dao-row span{color:#d5dbe8}
+.dao-row .neg{color:#e8a0a0}
+.dao-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:4px}
+.dao-table th{text-align:left;color:#8b95a8;padding:4px 8px;border-bottom:1px solid #3b4256;font-weight:600}
+.dao-table td{padding:4px 8px;color:#d5dbe8;border-bottom:1px solid #2a3040}
+.dao-tag{display:inline-block;background:#2a3040;padding:2px 8px;border-radius:4px;
+  margin:2px;font-size:12px;color:#c8d0e0}
+.dao-forbidden{display:inline-block;background:#3a2020;color:#e8a0a0;padding:2px 8px;
+  border-radius:4px;margin:2px;font-size:12px}
+</style>
+
+</head>
+<body>
+<nav>
+  <div class="logo">Pipeline<span>Studio</span></div>
+  <a href="/web/books.html">拆书</a>
+  <div class="spacer"></div>
+  <a href="/docs" target="_blank">API Docs</a>
+</nav>
+<div class="container">
+  <div class="flownav" data-page="bible"></div>
+  <script src="/web/flownav.js"></script>
+  <div class="panel">
+    <h2>📖 艺术圣经 <span class="badge" id="bk">…</span></h2>
+    <div class="flow">大纲跑完 ➜ <b>风格选型</b> ➜ <b>艺术圣经</b> (本书统一视觉配方) ➜ 分镜开工</div>
+    <div class="banner warn" id="gate" hidden></div>
+    <div id="main" hidden>
+      <div id="style-card"></div>
+      <div class="toolbar">
+        <button id="btn-gen" onclick="gen(false)">✨ 生成圣经</button>
+        <button id="btn-reroll" class="secondary" onclick="gen(true)" title="无视缓存重掷一版 (色板/质感方向会变)">🎲 重掷</button>
+        <button id="btn-samples" class="sm" onclick="startSamples(false)" title="增量: 配方没变沿用旧片 (指纹一致)">🎨 圣经试渲</button>
+        <button id="btn-resample" class="sm" onclick="startSamples(true)" title="强制全量重掷并换种子 — 同种子重掷只会渲出同一张图; 不满意画面时用这个">🎲 重掷试渲</button>
+        <button id="btn-draft-motion" class="sm" onclick="draftMotion()" title="LLM 按全书配方(风格前缀/色彩/质感/角色策略/氛围/负词/时代锚)直接起草动画律 — 已有手调不覆盖; 重起草=清空该框再点">🎲 起草动画律</button>
+        <button id="btn-motion" class="sm" onclick="startMotion()" title="动画律眼验: 圣经试渲首帧 × 书级动画律 → 5s H3 样片; 不满意改「动画律」保存后再试">🎬 动画试渲</button>
+        <button class="sm warn" onclick="save()">💾 保存手调</button>
+        <span id="busy" class="busy"></span>
+      </div>
+      <div id="live" hidden></div>
+      <label style="margin-top:1rem">样张 — 文字配方到底长什么样
+        <small>试镜镜=选定风格原样张; 试渲=原镜+角色锁定卡+圣经主色 (同镜同种子 A/B)</small></label>
+      <div class="samples" id="samples"></div>
+      <div id="motion-block" hidden style="margin-top:.8rem">
+        <label>🎬 动画试渲 — 运动气质眼验 (同 H3 批产配方: 首帧+动画律)
+          <small>不满意 → 改「动画律」→ 💾保存 → 再🎬试渲; 产线 H3/r2v 同吃动画律</small></label>
+        <video id="motion-video" controls preload="metadata"
+               style="width:100%;max-width:640px;border-radius:6px;border:1px solid #332d25;background:#000"></video>
+      </div>
+      <div class="banner warn" id="note" hidden>还没有圣经 — 点【✨ 生成圣经】(读灵魂三问+受众+选定配方)。</div>
+      <div class="grid2" id="fields"></div>
+      <div id="dao-section" class="dao-section" hidden></div>
+      <p class="hint" style="margin-top:.8rem">圣经 = 全系列锁定的书级视觉身份; 分镜规划每镜必继承 (含角色锁定卡), 品牌卡吃圣经色板。
+        手调后【💾 保存手调】即生效 (优先于重掷)。试渲约 3-5 分钟, 出图自动过文字守门。</p>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="/web/lightbox.js"></script>
+<script>
+/* ── 常量 ── */
+const BOOK = new URLSearchParams(location.search).get('book_id');
+const API  = '/books/' + encodeURIComponent(BOOK) + '/style-bible';
+const FIELDS = [
+  ['style_prefix',   '风格前缀',   'ComfyUI 英文提示词前缀, 每镜必带'],
+  ['color_palette',  '色彩体系',   '主色/辅色/情绪色/禁用色'],
+  ['texture',        '线条与质感', '扁平/厚涂/水彩/3D 选一 + 描述'],
+  ['character_policy','角色出场策略','密度与叙事用法; 人物形态锚'],
+  ['text_graphic',   '大字卡融合', '底色/入场动画风格'],
+  ['mood_keywords',  '氛围关键词', '英文 3-5 个'],
+  ['negative_keywords','负关键词', '1010: 英文逗号表 3-8 个, 直进K2负通道 (如 plastic hair, ancient chinese costume)'],
+  ['era_anchor',     '时代锚',     '1010: 全书时空与服饰基调一句话 (替身/群演按它执法)'],
+  ['motion_style',   '动画律',     '1012: 全书运动风格军规一句话, 直进H3/r2v提示词 — 治动画随机 (液态/雾气)。圣经生成时 LLM 按全书配方自动起草 (存量经点【🎲 起草动画律】补); 手调后重掷保留 (清空+重掷=重起草); 换绑自动重起草'],
+];
+
+/* ── 道层字段 (1007 P1: 世界规则手册, JSON对象自动格式化) ── */
+const DAO_FIELDS = [
+  { key: 'identity',   title: '🏔 身份与调性',  hint: '这个世界是谁 / 不是谁',
+    render: b => {
+      const id = b.identity || {};
+      return `<div class="dao-card">
+        <div class="dao-row"><b>一句话</b><span>${esc(id.one_line)}</span></div>
+        <div class="dao-row"><b>情绪基调</b><span>${esc(Array.isArray(id.emotional_base) ? id.emotional_base.join(' · ') : id.emotional_base)}</span></div>
+        <div class="dao-row"><b>不是什么</b><span class="neg">${esc(Array.isArray(id.anti_identity) ? id.anti_identity.join(' / ') : id.anti_identity)}</span></div>
+      </div>`;
+    }},
+  { key: 'world',      title: '🌍 视觉世界',    hint: '什么存在 / 什么不存在',
+    render: b => {
+      const w = b.world || {};
+      return `<div class="dao-card">
+        <div class="dao-row"><b>✓ 存在</b><span>${esc((w.exists||[]).join('、'))}</span></div>
+        <div class="dao-row"><b>✗ 不存在</b><span class="neg">${esc((w.not_exists||[]).join('、'))}</span></div>
+        <div class="dao-row"><b>时代</b><span>${esc(w.era)}</span></div>
+      </div>`;
+    }},
+  { key: 'lighting',   title: '💡 光影法度',    hint: '光源哲学 + 情绪光比映射',
+    render: b => {
+      const l = b.lighting || {};
+      const moods = Object.entries(l.mood_map||{}).map(([m,c]) =>
+        `<tr><td>${esc(m)}</td><td>${esc(c.ratio||'')}</td><td>${esc(c.direction||'')}</td><td>${esc(c.temp||'')}</td></tr>`).join('');
+      return `<div class="dao-card">
+        <div class="dao-row"><b>哲学</b><span>${esc(l.doctrine)}</span></div>
+        <div class="dao-row"><b>✓ 允许光源</b><span>${esc((l.allowed_sources||[]).join('、'))}</span></div>
+        <div class="dao-row"><b>✗ 禁止光源</b><span class="neg">${esc((l.forbidden_sources||[]).join('、'))}</span></div>
+        ${moods ? `<table class="dao-table"><tr><th>情绪</th><th>光比</th><th>方向</th><th>色温</th></tr>${moods}</table>` : ''}
+      </div>`;
+    }},
+  { key: 'color',      title: '🎨 色彩脚本',    hint: '色板 + 情绪色 + 禁色',
+    render: b => {
+      const c = b.color || {};
+      const pal = c.palette||{};
+      const emos = Object.entries(c.emotion_colors||{}).map(([m,col]) => `<span class="dao-tag">${esc(m)}: ${esc(col)}</span>`).join(' ');
+      return `<div class="dao-card">
+        <div class="dao-row"><b>基底/主色/点缀</b><span>${esc(pal.base)} / ${esc(pal.primary)} / ${esc(pal.accent)}</span></div>
+        <div class="dao-row"><b>情绪色</b><span>${emos}</span></div>
+        <div class="dao-row"><b>✗ 禁色</b><span class="neg">${esc((c.never||[]).join('、'))}</span></div>
+      </div>`;
+    }},
+  { key: 'props',      title: '🔧 道具体系',    hint: '核心概念 → 视觉载体 + 生命周期',
+    render: b => {
+      const ps = b.props || [];
+      if (!ps.length) return '<div class="dao-card hint">无道具定义</div>';
+      return `<div class="dao-card"><table class="dao-table">
+        <tr><th>概念</th><th>道具</th><th>首现</th><th>收束</th></tr>
+        ${ps.map(p => { const lc = p.lifecycle||{};
+          return `<tr><td>${esc(p.concept)}</td><td>${esc((p.look||'').slice(0,50))}</td><td>${esc(lc.introduce||'')}</td><td>${esc(lc.resolve||'')}</td></tr>`; }).join('')}
+      </table></div>`;
+    }},
+  { key: 'motifs',     title: '🪶 视觉母题',    hint: '贯穿全系列的视觉符号',
+    render: b => {
+      const ms = b.motifs || [];
+      if (!ms.length) return '';
+      return `<div class="dao-card">${ms.map(m =>
+        `<div class="dao-row"><b>${esc(m.name)}</b><span>${esc(m.description)} <small>(${esc(m.ep_range||'')})</small></span></div>`).join('')}</div>`;
+    }},
+  { key: 'forbidden',  title: '🚫 禁区清单',    hint: '永远不出现的视觉元素',
+    render: b => {
+      const fs = b.forbidden || [];
+      if (!fs.length) return '';
+      return `<div class="dao-card">${fs.map(f =>
+        `<span class="dao-forbidden">✗ ${esc(f)}</span>`).join(' ')}</div>`;
+    }},
+];
+
+/* ── 工具 ── */
+const $ = id => document.getElementById(id);
+const esc = s => String(s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function toast(m){ const t = $('toast'); t.textContent = m; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2600); }
+async function api(path, body){
+  const r = await fetch(API + path, body ? {method:'POST',
+    headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)} : {method:'POST'});
+  const j = await r.json().catch(() => ({}));
+  if(!r.ok) throw new Error(j.detail || r.status);
+  return j;
+}
+
+/* ── 渲染 (纯函数式: 只吃 view, 盘上数据即事实源) ── */
+function render(v){
+  $('bk').textContent = '《' + (v.book_title || '') + '》';
+  if(!v.bound){
+    $('gate').hidden = false;
+    $('gate').innerHTML = '本书尚未选定风格 — 流程: 先 '
+      + `<a href="/web/style_board.html?book_id=${BOOK}" target="_blank">🎨 风格选型</a>`
+      + ', 圣经要吃选定配方的风格家族。';
+    $('main').hidden = true;
+    return;
+  }
+  $('gate').hidden = true;
+  $('main').hidden = false;
+  renderCard(v);
+  renderSamples(v.samples || [], v.samples_rev);
+  renderMotion(v.motion_sample, v.samples_rev);
+  renderFields(v.bible || {});
+  renderBusy(v.job);
+}
+
+function renderCard(v){
+  const r = v.style_recipe || {};
+  const thumb = (v.samples || [])[0];
+  $('style-card').innerHTML = `<div class="style-card">
+    ${thumb ? `<img src="/books/${BOOK}/style-board/img/${encodeURIComponent(thumb)}" onclick="lbOpen(this.src, '试镜镜1')" title="试镜镜1">` : ''}
+    <div><div class="sname">已选风格: ${esc(v.bound)}</div>
+    <div class="sdesc">${esc(r.desc || r.style_prompt_head || '')}</div>
+    <div class="slora">${esc(r.lora || '纯提示词')} @ ${esc(r.lora_strength ?? '')}</div></div></div>`;
+}
+
+function renderSamples(list, rev){
+  const board = list.filter(n => n.startsWith('style'));
+  const bible = list.filter(n => n.startsWith('圣经'));
+  const V = rev || Date.now();  // 1012: 破缓存 — 试渲重渲后浏览器不再吃旧图 (黑色描边旧版实锤)
+  const cell = (n, cap) => `<div class="sc">
+    <img src="/books/${BOOK}/style-board/img/${encodeURIComponent(n)}?v=${V}"
+         onclick="lbOpen(this.src, '${esc(cap)}')" title="${esc(cap)}">
+    <div class="cap">${esc(cap)}</div></div>`;
+  $('samples').innerHTML =
+    board.map((n, i) => cell(n, `试镜镜${i + 1} · 选定风格原样张`)).join('') +
+    bible.map((n, i) => cell(n, `圣经试渲${i + 1} · 原镜+角色卡+主色`)).join('') ||
+    '<span class="hint">无样张 — 先跑风格选型出试镜镜</span>';
+}
+
+function renderMotion(name, rev){
+  const blk = $('motion-block'), vid = $('motion-video');
+  if(!name){ blk.hidden = true; return; }
+  blk.hidden = false;
+  const src = `/books/${BOOK}/style-board/img/${encodeURIComponent(name)}?v=${rev || Date.now()}`;
+  if(vid.src !== location.origin + src) vid.src = src;
+  vid.load();
+}
+
+function renderFields(b){
+  window.__bible = b;  // 1010: save() 全量合并的数据源 (未编辑字段随请求带回)
+  if(!b.style_prefix){ $('fields').innerHTML = ''; $('note').hidden = false; return; }
+  $('note').hidden = true;
+  $('fields').innerHTML = FIELDS.map(([k, t, h]) =>
+    `<div><label>${t}<small>${h}</small></label>
+     <textarea id="f-${k}" rows="${k === 'style_prefix' ? 3 : 2}">${esc(b[k])}</textarea></div>`).join('');
+
+  /* ── 道层面板 (1007 P1): 有道数据则渲染, 无则隐藏 ── */
+  const daoEl = $('dao-section');
+  if (!daoEl) return;
+  const daoHTML = DAO_FIELDS.filter(f => b[f.key]).map(f =>
+    `<details class="dao-panel" open>
+      <summary>${f.title} <small>${f.hint}</small></summary>
+      ${f.render(b)}
+    </details>`).join('');
+  daoEl.innerHTML = daoHTML;
+  daoEl.hidden = !daoHTML;
+}
+
+function renderBusy(j){
+  const el = $('busy');
+  const running = j && j.status === 'running';
+  ['btn-gen', 'btn-reroll', 'btn-samples', 'btn-resample', 'btn-draft-motion', 'btn-motion'].forEach(id => { $(id).disabled = !!running; });
+  if(running){
+    el.textContent = j.kind === 'samples'
+      ? '⏳ 试渲中 (3 张 + 文字守门, 约 3-5 分钟)…'
+      : j.kind === 'motion'
+      ? '⏳ 动画试渲中 (5s H3 图生视频, 约 2-5 分钟)…'
+      : '⏳ 圣经生成中 (pro 链, 约 0.5-2 分钟)…';
+  } else {
+    el.textContent = '';
+    if(j && j.status === 'error') toast('失败: ' + (j.error || ''));
+  }
+}
+
+/* ── 动作 (弹窗绝迹: 一律 toast + 节流; 网络抖动静默重试) ── */
+let _lastToast = 0;
+function softToast(m){  // 同文案 10s 内只弹一次 (防旧标签页/连点轰炸)
+  const now = Date.now();
+  if(now - _lastToast < 10000) return;
+  _lastToast = now;
+  toast(m);
+}
+async function gen(force){
+  if(force && !confirm('重掷一版圣经? 色板/质感方向会变 (手调未保存将丢)。')) return;
+  try{ const r = await api('/generate', {force}); if(r.id) openSSE(r.id); poll(); }
+  catch(e){ softToast('生成未启动: ' + e.message); }
+}
+async function startSamples(force){  // 注: 勿命名 renderSamples — 与渲染函数撞名会被后者覆盖 (今晚实锤)
+  try{ const r = await api('/render-samples', force ? {force:true} : null); if(r.id) openSSE(r.id); poll(); }
+  catch(e){
+    if(e.message === 'Failed to fetch'){ softToast('网络波动 (后端重启中?), 稍后自动重试'); timer = setTimeout(poll, 8000); }
+    else softToast('试渲未启动: ' + e.message);
+  }
+}
+async function startMotion(){  // 1012 动画试渲: 动画律眼验 (改动动画律并保存后指纹自动变=重渲)
+  try{ const r = await api('/render-motion'); if(r.id) openSSE(r.id); poll(); }
+  catch(e){
+    if(e.message === 'Failed to fetch'){ softToast('网络波动 (后端重启中?), 稍后自动重试'); timer = setTimeout(poll, 8000); }
+    else softToast('动画试渲未启动: ' + e.message);
+  }
+}
+async function draftMotion(){  // 1012: LLM 按全书配方起草动画律 (试渲前就该填好 — 用户令)
+  try{
+    const r = await api('/draft-motion', {force:false});
+    if(r.kept) toast('已有动画律 (手调保护): ' + (r.motion_style||'').slice(0,40) + '…');
+    else { toast('动画律已起草 ✓ — 可直接微调, 或点【🎬 动画试渲】眼验'); poll(); }
+  }catch(e){ softToast('起草失败: ' + e.message); }
+}
+async function save(){
+  const b = {};
+  FIELDS.forEach(([k]) => b[k] = $('f-' + k)?.value || '');
+  // 1010 补修: 带上盘上全量 (角色卡/道层/era 旧值) — 后端为合并语义, 双保险
+  if (window.__bible) Object.assign(b, Object.fromEntries(
+    Object.entries(window.__bible).filter(([k]) => !(k in b) || !FIELDS.some(([fk]) => fk === k))));
+  try{ await api('/save', b); toast('✓ 手调已落盘 (未编辑字段保留), 全系列复用'); }
+  catch(e){ softToast('保存失败: ' + e.message); }
+}
+
+/* ── SSE 实时日志: 启动任务或发现 running job 即订阅 /api/jobs/{id}/events ── */
+let es = null;
+function closeSSE(){ if(es){ es.close(); es = null; } }
+function openSSE(id){
+  if(!id || es && es._id === id) return;
+  closeSSE();
+  es = new EventSource('/api/jobs/' + id + '/events');
+  es._id = id;
+  es.onmessage = e => {
+    let d; try{ d = JSON.parse(e.data); }catch{ return; }
+    addLive(d.message || d.type);
+    if(/_(done|error|cancelled)$/.test(d.type || '')){ closeSSE(); poll(); }
+  };
+  es.onerror = () => { closeSSE(); };   // 断流靠轮询兜底
+}
+function addLive(msg){
+  const el = $('live');
+  el.hidden = false;
+  el.textContent += (el.textContent ? '\n' : '') + '· ' + msg;
+  el.scrollTop = el.scrollHeight;
+  while(el.textContent.split('\n').length > 30)
+    el.textContent = el.textContent.split('\n').slice(1).join('\n');
+}
+
+/* ── 轮询: job 只当进度灯, 数据永远从盘读 ── */
+let timer = null;
+async function poll(){
+  clearTimeout(timer);
+  let v;
+  try{ v = await fetch(API).then(r => r.json()); }
+  catch{ timer = setTimeout(poll, 5000); return; }
+  render(v);
+  if(v.job && v.job.status === 'running'){
+    openSSE(v.job.id);
+    timer = setTimeout(poll, v.job.kind === 'samples' ? 4000 : 3000);
+  } else {
+    closeSSE();
+  }
+}
+poll();
+</script>
+</body>
+</html>

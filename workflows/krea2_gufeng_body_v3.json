@@ -1,0 +1,112 @@
+{
+  "1": {
+    "class_type": "UNETLoader",
+    "inputs": {
+      "unet_name": "krea2_turbo_fp8_scaled.safetensors",
+      "weight_dtype": "default"
+    }
+  },
+  "2": {
+    "class_type": "CLIPLoader",
+    "inputs": {
+      "clip_name": "qwen3vl_4b_fp8_scaled.safetensors",
+      "type": "krea2",
+      "device": "default"
+    }
+  },
+  "3": {
+    "class_type": "LoraLoaderModelOnly",
+    "inputs": {
+      "model": [
+        "1",
+        0
+      ],
+      "lora_name": "Klein\\一致性lora-f2k_consist_20260225.safetensors",
+      "strength_model": 1.0
+    }
+  },
+  "4": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "2",
+        0
+      ],
+      "text": "realistic photography, a young ancient Chinese female warrior, 25 years old, sharp almond-shaped eyes, fair smooth skin, delicate facial features, determined calm expression, long black hair tied in a high ponytail with exactly the same simple jade hairpin carved with a small phoenix pattern and the same tiny silver cloud-shaped hair ornament on the left side, clean pure white background, professional studio lighting, high detail, 8k, sharp focus, full body front view, standing straight, complete figure from head to toe, wearing traditional Chinese martial arts heroine outfit: white inner robe, dark blue silk outer cloak, jade belt with silver buckle, black warrior boots, embroidered silver cloud patterns, holding a straight Chinese jian sword in right hand at side, same jade hairpin and same silver cloud ornament as the face portrait, arms relaxed at sides, frontal camera angle"
+    }
+  },
+  "5": {
+    "class_type": "CLIPTextEncode",
+    "inputs": {
+      "clip": [
+        "2",
+        0
+      ],
+      "text": "low quality, blurry, distorted face, bad anatomy, extra limbs, malformed hands, watermark, text, signature, messy background, dark background, noise, jpeg artifacts, deformed, ugly, duplicate, cartoon, anime, 2.5D, painting, illustration, collar, high collar, neckline, clothing, fabric, robe, dress, armor, shirt, jacket, shoulders, chest, jewelry, accessories, necklace, earrings, headband, tiara, sword, weapon, blade, holding object"
+    }
+  },
+  "6": {
+    "class_type": "EmptyLatentImage",
+    "inputs": {
+      "width": 768,
+      "height": 1024,
+      "batch_size": 1
+    }
+  },
+  "7": {
+    "class_type": "KSampler",
+    "inputs": {
+      "model": [
+        "3",
+        0
+      ],
+      "seed": 3431258506,
+      "steps": 15,
+      "cfg": 1.0,
+      "sampler_name": "euler",
+      "scheduler": "simple",
+      "positive": [
+        "4",
+        0
+      ],
+      "negative": [
+        "5",
+        0
+      ],
+      "latent_image": [
+        "6",
+        0
+      ],
+      "denoise": 1.0
+    }
+  },
+  "8": {
+    "class_type": "VAELoader",
+    "inputs": {
+      "vae_name": "qwen_image_vae.safetensors"
+    }
+  },
+  "9": {
+    "class_type": "VAEDecode",
+    "inputs": {
+      "samples": [
+        "7",
+        0
+      ],
+      "vae": [
+        "8",
+        0
+      ]
+    }
+  },
+  "10": {
+    "class_type": "SaveImage",
+    "inputs": {
+      "filename_prefix": "krea2_gufeng_body_v3",
+      "images": [
+        "9",
+        0
+      ]
+    }
+  }
+}

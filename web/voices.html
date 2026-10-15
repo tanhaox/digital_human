@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>音色管理 - 数字人口播流水线</title>
+  <link rel="stylesheet" href="/web/voices.css">
+</head>
+<body>
+  <nav>
+    <div class="logo">Pipeline<span>Studio</span></div>
+    <a href="/web/books.html">拆书</a>
+    <a href="/web/index.html">新闻线索</a>
+    <a href="/web/writing.html">文字加工</a>
+    <a href="/web/audio.html">音频加工</a>
+    <a href="/web/director.html">导演控制台</a>
+    <a href="/web/library.html">视频库</a>
+    <a href="/web/templates.html">模板管理</a>
+    <a href="/web/visual_render.html">视觉渲染</a>
+    <a href="/web/voices.html" class="active">音色管理</a>
+    <a href="/web/roles.html">角色管理</a>
+    <a href="/web/personas.html">人物</a>
+    <div class="spacer"></div>
+    <a href="/docs" target="_blank">API Docs</a>
+  </nav>
+  <div class="container">
+    <div class="page-header">
+      <h1>🎙️ 音色管理</h1>
+    </div>
+
+    <!-- Status -->
+    <div id="global-status" class="status info">加载中...</div>
+
+    <!-- Voice List -->
+    <div class="card">
+      <h2>已保存的音色</h2>
+      <div id="voice-list"><div class="empty">暂无音色</div></div>
+      <button class="primary" onclick="openAddModal()" style="margin-top: 1rem;">+ 添加音色</button>
+    </div>
+
+  </div>
+
+  <!-- Add/Edit Modal -->
+  <div class="modal-overlay" id="voice-modal">
+    <div class="modal">
+      <h2 id="modal-title">添加音色</h2>
+      <input type="hidden" id="edit-id">
+
+      <div class="form-group">
+        <label>音色名称 *</label>
+        <input type="text" id="f-name" placeholder="例如：laochen_default">
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label>后端引擎</label>
+          <select id="f-backend">
+            <option value="fish">Fish Speech</option>
+            <option value="f5">F5-TTS</option>
+            <option value="indextts">IndexTTS2 (声音克隆)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>关联主播（可选）</label>
+          <select id="f-host"><option value="">-- 不关联 --</option></select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>参考音频路径</label>
+        <input type="text" id="f-ref-audio" placeholder="C:\path\to\reference.wav（可选）">
+      </div>
+
+      <div class="form-group">
+        <label>参考文本</label>
+        <textarea id="f-ref-text" placeholder="参考音频对应的文本（可选）"></textarea>
+      </div>
+
+      <div class="row">
+        <div class="form-group">
+          <label>Fish Speech URL</label>
+          <input type="text" id="f-url-fish" placeholder="http://127.0.0.1:7860">
+        </div>
+        <div class="form-group">
+          <label>F5-TTS URL</label>
+          <input type="text" id="f-url-f5" placeholder="http://127.0.0.1:7861">
+        </div>
+      </div>
+
+      <!-- IndexTTS2 master tape 区域 (仅 backend=indextts 可见) -->
+      <div id="indextts-fields" style="display:none; border:1px dashed #8b5cf6; padding:12px; margin:8px 0; border-radius:6px;">
+        <h4 style="margin-top:0; color:#8b5cf6;">🎙️ IndexTTS2 主音色 (master tape)</h4>
+
+        <div class="form-group">
+          <label>主音色参考音频 (master audio, 推荐 ≥ 10s 干净人声)</label>
+          <input type="file" id="f-master-audio" accept="audio/wav,audio/x-wav,audio/*">
+          <button type="button" class="btn btn-secondary" onclick="uploadMaster()" style="margin-top:6px;">⬆️ 上传到服务器</button>
+          <small id="master-path-display" style="display:block; margin-top:4px; color:#0891b2;"></small>
+        </div>
+
+        <div class="form-group">
+          <label>主音色参考文本 (master text)</label>
+          <textarea id="f-master-text" rows="2" placeholder="主音色音频中实际说出的准确文本"></textarea>
+        </div>
+
+        <div class="row">
+          <div class="form-group">
+            <label>主音色风格 (master style)</label>
+            <select id="f-master-style">
+              <option value="calm">沉稳</option>
+              <option value="excited">偏激昂</option>
+              <option value="relaxed">略松弛</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>IndexTTS2 服务地址</label>
+            <input type="text" id="f-url-indextts" placeholder="http://127.0.0.1:7862" value="http://127.0.0.1:7862">
+          </div>
+        </div>
+      </div>
+
+      <!-- Parameters Section -->
+      <div class="params-section">
+        <h3>&#x2699;&#xFE0F; 音色参数</h3>
+
+        <!-- Preset -->
+        <div class="form-group">
+          <label>快捷预设</label>
+          <select id="f-preset" onchange="presetChanged()">
+            <option value="">-- 手动调节 --</option>
+            <option value="default">默认</option>
+            <option value="male">男声</option>
+            <option value="female">女声</option>
+            <option value="deep_male">深沉男声</option>
+            <option value="loli">萝莉</option>
+            <option value="fast">超快播报</option>
+          </select>
+        </div>
+
+        <div id="modal-params">
+          <div class="form-group">
+            <label>语速: <span id="lp-speed">1.00</span>x</label>
+            <div style="display:flex; gap:0.5rem; align-items:center;"><input type="range" id="f-speed" min="0.5" max="2.0" step="0.05" value="1.0" oninput="onModalSliderInput('lp-speed', this, 'n-speed')" style="flex:1;"><input type="number" id="n-speed" class="num-inline" min="0.5" max="2.0" step="0.05" value="1.0" oninput="onModalNumInput('f-speed', this, 'lp-speed')"></div>
+          </div>
+          <div class="form-group">
+            <label>语调: <span id="lp-pitch">0</span> 半音</label>
+            <div style="display:flex; gap:0.5rem; align-items:center;"><input type="range" id="f-pitch" min="-12" max="12" step="0.5" value="0" oninput="onModalSliderInput('lp-pitch', this, 'n-pitch')" style="flex:1;"><input type="number" id="n-pitch" class="num-inline" min="-12" max="12" step="0.5" value="0" oninput="onModalNumInput('f-pitch', this, 'lp-pitch')"></div>
+          </div>
+          <div class="form-group">
+            <label>音量: <span id="lp-volume">1.00</span>x</label>
+            <div style="display:flex; gap:0.5rem; align-items:center;"><input type="range" id="f-volume" min="0.0" max="2.0" step="0.1" value="1.0" oninput="onModalSliderInput('lp-volume', this, 'n-volume')" style="flex:1;"><input type="number" id="n-volume" class="num-inline" min="0.0" max="2.0" step="0.1" value="1.0" oninput="onModalNumInput('f-volume', this, 'lp-volume')"></div>
+          </div>
+
+          <!-- Timbre / EQ shaping -->
+          <div class="form-group">
+            <label>低沉感: <span id="lp-bass_gain">0</span> dB</label>
+            <div style="display:flex; gap:0.5rem; align-items:center;"><input type="range" id="f-bass_gain" min="-24" max="24" step="1" value="0" oninput="onModalSliderInput('lp-bass_gain', this, 'n-bass_gain')" style="flex:1;"><input type="number" id="n-bass_gain" class="num-inline" min="-24" max="24" step="1" value="0" oninput="onModalNumInput('f-bass_gain', this, 'lp-bass_gain')"></div>
+          </div>
+          <div class="form-group">
+            <label>中气: <span id="lp-presence_gain">0</span> dB</label>
+            <div style="display:flex; gap:0.5rem; align-items:center;"><input type="range" id="f-presence_gain" min="-24" max="24" step="1" value="0" oninput="onModalSliderInput('lp-presence_gain', this, 'n-presence_gain')" style="flex:1;"><input type="number" id="n-presence_gain" class="num-inline" min="-24" max="24" step="1" value="0" oninput="onModalNumInput('f-presence_gain', this, 'lp-presence_gain')"></div>
+          </div>
+          <div class="form-group">
+            <label>明亮度: <span id="lp-air_gain">0</span> dB</label>
+            <div style="display:flex; gap:0.5rem; align-items:center;"><input type="range" id="f-air_gain" min="-24" max="24" step="1" value="0" oninput="onModalSliderInput('lp-air_gain', this, 'n-air_gain')" style="flex:1;"><input type="number" id="n-air_gain" class="num-inline" min="-24" max="24" step="1" value="0" oninput="onModalNumInput('f-air_gain', this, 'lp-air_gain')"></div>
+          </div>
+          <div style="font-size:0.75rem; color:#64748b; margin-bottom:0.5rem;">调节低沉感、中气、明亮度来改变声音的「底色」—— 不再只是拉伸同一个样本。</div>
+
+          <div style="margin-top:0.5rem;">
+            <span class="adv-toggle" onclick="toggleAdvParams('modal-adv')">&#x25B6; 高级参数（Fish Speech 引擎）</span>
+          </div>
+          <div id="modal-adv" class="adv-params">
+            <div class="form-group">
+              <label>发挥程度（低=稳定·高=自由）: <span id="lp-temperature">默认</span></label>
+              <div style="display:flex; gap:0.5rem; align-items:center;"><input type="range" id="f-temperature" min="0.1" max="1.5" step="0.1" value="0.7" oninput="onModalSliderInput('lp-temperature', this, 'n-temperature')" style="flex:1;"><input type="number" id="n-temperature" class="num-inline" min="0.1" max="1.5" step="0.1" value="0.7" oninput="onModalNumInput('f-temperature', this, 'lp-temperature')"></div>
+            </div>
+            <div class="form-group">
+              <label>词汇丰富度（低=保守·高=多变）: <span id="lp-top_p">默认</span></label>
+              <div style="display:flex; gap:0.5rem; align-items:center;"><input type="range" id="f-top_p" min="0.1" max="1.0" step="0.05" value="0.7" oninput="onModalSliderInput('lp-top_p', this, 'n-top_p')" style="flex:1;"><input type="number" id="n-top_p" class="num-inline" min="0.1" max="1.0" step="0.05" value="0.7" oninput="onModalNumInput('f-top_p', this, 'lp-top_p')"></div>
+            </div>
+            <div class="form-group">
+              <label>避免口癖（越高越不重复字词）: <span id="lp-repetition_penalty">默认</span></label>
+              <div style="display:flex; gap:0.5rem; align-items:center;"><input type="range" id="f-repetition_penalty" min="1.0" max="2.0" step="0.1" value="1.5" oninput="onModalSliderInput('lp-repetition_penalty', this, 'n-repetition_penalty')" style="flex:1;"><input type="number" id="n-repetition_penalty" class="num-inline" min="1.0" max="2.0" step="0.1" value="1.5" oninput="onModalNumInput('f-repetition_penalty', this, 'lp-repetition_penalty')"></div>
+            </div>
+            <div class="engine-hint">仅 Fish Speech 后端生效。设为左侧最小值等同于不覆盖（使用引擎默认）。</div>
+          </div>
+          <div class="form-group" style="margin-top:0.5rem;">
+            <label>随机种子（留空=随机，填数字=固定输出）</label>
+            <input type="number" id="f-seed" min="0" max="2147483647" step="1" placeholder="留空 = 随机，填 42 = 稳定">
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="secondary" onclick="closeModal()">取消</button>
+        <button class="primary" id="btn-save" onclick="saveVoice()">保存</button>
+      </div>
+      <div id="modal-status" class="status" style="display:none;"></div>
+    </div>
+  </div>
+
+  <script src="/web/voices.js"></script>
+</body>
+</html>

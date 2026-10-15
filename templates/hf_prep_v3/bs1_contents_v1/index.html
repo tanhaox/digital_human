@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<!-- bs1_contents_v1 — 老谭拆书·深空蓝金 目录页: kicker(本期内容) + 2~4 条 (编号+条目)
+  data-items: "01 两套定价模式|||02 KPI陷阱|||03 行动清单" (||| 分隔, 行内 "编号 空格 文本") -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Noto+Serif+SC:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root{--navy-1:#0C1626;--navy-2:#10233D;--gold:#C9A25E;--paper:#EDEAE0;--sub:#9AA6B5}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1920px;height:1080px;overflow:hidden}
+  body{font-family:"Noto Serif SC",serif;color:var(--paper)}
+  #root{position:relative;width:1920px;height:1080px;overflow:hidden;
+        background:linear-gradient(135deg,var(--navy-1) 0%,var(--navy-2) 100%)}
+  .caps{font-family:Manrope,sans-serif;font-weight:700;letter-spacing:.42em;text-transform:uppercase}
+  .kicker{position:absolute;top:120px;left:150px;font-family:Manrope,sans-serif;font-weight:700;
+          font-size:28px;letter-spacing:.4em;color:var(--gold)}
+  h1{position:absolute;top:172px;left:150px;font-weight:900;font-size:64px;color:#F5EFE2}
+  .list{position:absolute;top:322px;left:150px;right:150px;bottom:240px;display:flex;
+        flex-direction:column;justify-content:space-evenly}
+  .item{display:flex;align-items:baseline;gap:56px;padding:0 0 22px 0;
+        border-bottom:1px solid rgba(201,162,94,.24)}
+  .item:last-child{border-bottom:none;padding-bottom:0}
+  .no{font-family:Manrope,sans-serif;font-weight:800;font-size:54px;color:var(--gold);flex:none;width:118px}
+  .txt{font-size:44px;font-weight:700;color:var(--paper);line-height:1.45}
+  .foot{position:absolute;top:112px;right:150px;left:auto;font-size:22px;color:#77808F;letter-spacing:.18em;text-align:right}
+</style>
+</head>
+<body>
+<div id="root"
+     data-composition-id="bs1_contents_v1" data-start="0" data-duration="{{duration_sec}}"
+     data-width="1920" data-height="1080"
+     data-kicker="{{kicker}}" data-title="{{title}}" data-items="{{items}}"
+     data-foot="{{foot}}">
+  <div class="kicker caps" id="kicker"></div>
+  <h1 id="title"></h1>
+  <div class="list" id="list"></div>
+  <div class="foot" id="foot"></div>
+</div>
+<script>
+// 预览自适应 (0907): 小容器 (风格页 iframe) 自动缩放到视口; 生产 1920 渲染不触发
+(function () {
+  var w = window.innerWidth, h = window.innerHeight;
+  if (w >= 1900) return;
+  var s = Math.min(w / 1920, h / 1080);
+  var r = document.getElementById("root");
+  if (!r) return;
+  r.style.transform = "scale(" + s + ")";
+  r.style.transformOrigin = "top left";
+  try { document.body.style.background = getComputedStyle(r).background; } catch (e) {}
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<script>
+(function () {
+  var root = document.getElementById("root");
+  var DUR = parseFloat(root.getAttribute("data-duration")) || 5;
+  document.getElementById("kicker").textContent = root.getAttribute("data-kicker") || "CONTENTS";
+  document.getElementById("title").textContent = root.getAttribute("data-title") || "本期内容";
+  document.getElementById("foot").textContent = root.getAttribute("data-foot") || "";
+  var list = document.getElementById("list");
+  var raw = (root.getAttribute("data-items") || "").split("|||").filter(Boolean);
+  raw.slice(0, 4).forEach(function (seg) {
+    var m = seg.trim().match(/^(\d+)[\s.、]*(.*)$/);
+    var div = document.createElement("div");
+    div.className = "item";
+    div.innerHTML = '<span class="no">' + (m ? m[1] : "·") + '</span>' +
+      '<span class="txt"></span>';
+    div.querySelector(".txt").textContent = m ? m[2] : seg.trim();
+    list.appendChild(div);
+  });
+  var tl = gsap.timeline({paused: true});
+  tl.from("#kicker, #title", {y: 26, autoAlpha: 0, duration: .6, ease: "power3.out"}, .1)
+    .from(".item", {x: -46, autoAlpha: 0, duration: .55, stagger: .18, ease: "power3.out"}, .35)
+    .from("#foot", {autoAlpha: 0, duration: .4}, .9)
+    .to({}, {duration: Math.max(0.2, DUR - 1.7)});
+  window.__timelines = window.__timelines || {};
+  window.__timelines["bs1_contents_v1"] = tl;
+  window.addEventListener("message", function (ev) {
+    if (ev.data && ev.data.type === "preview-play") { tl.restart(); }
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>镜头提示词工坊</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+  :root{
+    --ground:#F7F7F3; --surface:#FFFFFF; --ink:#20262D; --ink-soft:#5B6470;
+    --line:#E4E3DB; --accent:#1F6E8C; --accent-ink:#17556E; --accent-wash:rgba(31,110,140,.09);
+    --red:#C23B2E; --red-wash:rgba(194,59,46,.09);
+    --sans:'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+    --disp:'Fraunces','Noto Sans SC',serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#14181C; --surface:#1B2127; --ink:#E8EBEE; --ink-soft:#97A1AB;
+      --line:#2C343C; --accent:#6FB7D4; --accent-ink:#9CCFE4; --accent-wash:rgba(111,183,212,.13);
+      --red:#E2685A; --red-wash:rgba(226,104,90,.13);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#14181C; --surface:#1B2127; --ink:#E8EBEE; --ink-soft:#97A1AB;
+    --line:#2C343C; --accent:#6FB7D4; --accent-ink:#9CCFE4; --accent-wash:rgba(111,183,212,.13);
+    --red:#E2685A; --red-wash:rgba(226,104,90,.13);
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--ground);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1180px;margin:0 auto;padding:32px 28px 64px}
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding-bottom:20px;border-bottom:1px solid var(--line);margin-bottom:28px}
+  .eyebrow{font-family:var(--disp);font-style:italic;font-weight:500;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-ink);margin:0 0 4px}
+  h1{font-size:26px;font-weight:700;letter-spacing:.02em;margin:0}
+  h1 small{display:block;font-size:13px;font-weight:400;color:var(--ink-soft);margin-top:6px;letter-spacing:0}
+  .side{display:flex;flex-direction:column;align-items:flex-end;gap:12px}
+  .pagenav{display:flex;gap:16px;font-family:var(--mono);font-size:11.5px}
+  .pagenav a{color:var(--ink-soft);text-decoration:none;padding-bottom:2px;border-bottom:1px solid transparent}
+  .pagenav a:hover{color:var(--ink)}
+  .pagenav a.on{color:var(--accent-ink);border-bottom-color:var(--accent)}
+  .pagenav a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .sheet-diagram{flex:none;color:var(--ink-soft)}
+  .sheet-diagram text{font-family:var(--mono);font-size:7px;fill:currentColor}
+  main{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,6fr);gap:32px;align-items:start}
+  @media (max-width:960px){
+    main{grid-template-columns:1fr}
+    .outcol{position:static !important}
+    header{flex-direction:column;align-items:flex-start;gap:12px}
+    .side{align-items:flex-start}
+  }
+  .group{margin-bottom:26px}
+  .group-title{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin:0 0 14px}
+  .group-title::after{content:"";flex:1;height:1px;background:var(--line)}
+  .stage-no{font-family:var(--disp);font-style:italic;font-weight:600;font-size:15px;color:var(--accent-ink)}
+  .chip{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;color:var(--accent-ink);background:var(--accent-wash);border-radius:3px;padding:2px 6px;flex:none}
+  .field{margin-bottom:14px}
+  .field:last-child{margin-bottom:0}
+  .field label{display:block;font-size:13px;font-weight:500;margin-bottom:5px}
+  .field label .en{font-family:var(--mono);font-size:11px;color:var(--ink-soft);font-weight:400;margin-left:6px}
+  .field input[type=text],.field textarea,.field select{
+    width:100%;background:var(--surface);border:1px solid var(--line);border-radius:8px;
+    padding:9px 12px;font-family:var(--mono);font-size:12.5px;color:var(--ink);resize:vertical;transition:border-color .15s;
+  }
+  .field textarea{min-height:56px;line-height:1.6}
+  .field input::placeholder,.field textarea::placeholder{color:var(--ink-soft);opacity:.65}
+  .field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--accent)}
+  .field input:focus-visible,.field textarea:focus-visible{box-shadow:0 0 0 2px var(--accent-wash)}
+  .hint{font-size:12px;color:var(--ink-soft);margin-top:5px;line-height:1.6}
+  .hint b{color:var(--accent-ink);font-weight:600}
+  .row{display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap}
+  .row .field{flex:1;min-width:180px;margin-bottom:0}
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .fchip{font-family:var(--mono);font-size:12px;padding:6px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink-soft);cursor:pointer;transition:all .15s}
+  .fchip:hover{border-color:var(--accent)}
+  .fchip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  :root[data-theme="dark"] .fchip.on{color:#0F1418}
+  .fchip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .pills{display:flex;gap:8px;flex-wrap:wrap}
+  .pill{position:relative;cursor:pointer}
+  .pill input{position:absolute;opacity:0;width:100%;height:100%;left:0;top:0;margin:0;cursor:pointer}
+  .pill span{display:inline-block;font-family:var(--mono);font-size:12.5px;padding:7px 18px;border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink-soft);transition:all .15s}
+  .pill input:checked + span{background:var(--accent);border-color:var(--accent);color:#fff}
+  :root[data-theme="dark"] .pill input:checked + span{color:#0F1418}
+  .pill input:focus-visible + span{outline:2px solid var(--accent);outline-offset:2px}
+  .check{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;margin-bottom:8px}
+  .check input{width:15px;height:15px;accent-color:var(--accent);cursor:pointer}
+  .check:focus-within{outline:2px solid var(--accent-wash);outline-offset:2px}
+  .link-btn{font-family:var(--mono);font-size:12px;color:var(--accent-ink);background:none;border:1px dashed var(--line);border-radius:6px;cursor:pointer;text-decoration:none;padding:6px 12px}
+  .link-btn:hover{border-color:var(--accent)}
+  .link-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .move-preview{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);background:var(--ground);border:1px dashed var(--line);border-radius:6px;padding:8px 10px;margin-top:6px;min-height:20px}
+  .q-status{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);margin-top:8px;min-height:18px}
+  .q-status.ok{color:var(--accent-ink)}
+  .q-status.err{color:var(--red)}
+  .combo-tip{font-size:12px;color:var(--ink-soft);background:var(--ground);border:1px dashed var(--line);border-radius:6px;padding:8px 12px;margin-top:10px;line-height:1.9}
+  .combo-tip .fchip{margin:0 2px}
+  .outcol{position:sticky;top:24px}
+  .out-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px}
+  .out-head .group-title{margin:0}
+  .count{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+  .model-note{font-size:12px;border-radius:6px;padding:8px 12px;margin-bottom:12px;line-height:1.7}
+  .model-note.info{color:var(--accent-ink);background:var(--accent-wash)}
+  .model-note.warn{color:var(--red);background:var(--red-wash)}
+  .out-card{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:18px 20px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+  .out-card pre{margin:0;font-family:var(--mono);font-size:12px;line-height:1.8;white-space:pre-wrap;word-break:break-word;max-height:56vh;overflow:auto;color:var(--ink)}
+  .out-card pre .sec{font-weight:600;color:var(--accent-ink)}
+  .out-card pre .neg-h{font-weight:600;color:var(--red)}
+  .actions{display:flex;gap:10px;margin-top:16px}
+  .copy-btn{flex:1;font-family:var(--sans);font-size:14px;font-weight:500;color:#fff;background:var(--accent);border:none;border-radius:8px;padding:11px 20px;cursor:pointer;transition:filter .15s}
+  .copy-btn:hover{filter:brightness(1.08)}
+  .copy-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .copy-btn.done{background:var(--accent-ink)}
+  .copy-btn .en{font-family:var(--mono);font-size:11px;opacity:.75;margin-left:6px}
+  :root[data-theme="dark"] .copy-btn{color:#0F1418}
+  details.master{margin-top:16px}
+  details.master summary{font-family:var(--mono);font-size:12px;color:var(--ink-soft);cursor:pointer;padding:4px 0;user-select:none;list-style:none}
+  details.master summary::before{content:"▸ ";color:var(--accent)}
+  details.master[open] summary::before{content:"▾ "}
+  details.master summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  details.master pre{margin:10px 0 0;font-family:var(--mono);font-size:11.5px;line-height:1.75;white-space:pre-wrap;word-break:break-word;color:var(--ink-soft);background:var(--ground);border:1px solid var(--line);border-radius:8px;padding:14px 16px;max-height:36vh;overflow:auto}
+  footer{margin-top:28px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-soft);line-height:1.7}
+  footer code{font-family:var(--mono);font-size:11px;background:var(--accent-wash);border-radius:3px;padding:1px 5px;color:var(--accent-ink)}
+</style>
+</head>
+<body>
+
+<header class="wrap" style="padding-bottom:20px">
+  <div>
+    <p class="eyebrow">Shot Prompt Studio</p>
+    <h1>镜头提示词工坊<small>简易模式三步出结果：说拍什么 → 选风格 → 选时长（方法论蒸馏自《丧尸清道夫》Mx-Shell）</small></h1>
+  </div>
+  <div class="side">
+    <nav class="pagenav" aria-label="页面切换">
+      <a href="index.html">首页</a>
+      <a href="threeview_prompt_builder.html">人物</a>
+      <a href="prop_prompt_builder.html">道具</a>
+      <a href="scene_prompt_builder.html">场景</a>
+      <a class="on" href="shot_prompt_builder.html" aria-current="page">镜头</a>
+      <a href="reverse_prompt_builder.html">反推</a>
+    </nav>
+    <svg class="sheet-diagram" width="148" height="60" viewBox="0 0 148 60" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+      <rect x="1" y="1" width="146" height="52" rx="4"/>
+      <rect x="8" y="10" width="30" height="22" rx="2"/>
+      <line x1="23" y1="32" x2="23" y2="40"/>
+      <circle cx="14" cy="17" r="3"/><path d="M12 24 q2 3 4 0"/>
+      <rect x="14" y="16" width="18" height="12" rx="1.5" transform="rotate(-4 23 22)"/>
+      <path d="M46 40 h96" stroke-dasharray="3 3"/>
+      <line x1="52" y1="30" x2="76" y2="30" stroke-width="2.2"/>
+      <line x1="82" y1="30" x2="102" y2="30" stroke-width="2.2"/>
+      <line x1="108" y1="30" x2="126" y2="30" stroke-width="2.2"/>
+      <path d="M134 26 l6 4 -6 4"/>
+      <text x="8" y="49">1</text><text x="46" y="49">2 3 4 5 → NEG</text>
+    </svg>
+  </div>
+</header>
+
+<div class="wrap" style="padding-top:0">
+<main>
+  <section aria-label="五段式填写">
+
+    <div class="group">
+      <p class="group-title">怎么用</p>
+      <div class="pills" role="radiogroup" aria-label="使用模式" style="margin-bottom:14px">
+        <label class="pill"><input type="radio" name="umode" value="quick" checked><span>简易模式（推荐）</span></label>
+        <label class="pill"><input type="radio" name="umode" value="expert"><span>专家模式（五段全控）</span></label>
+      </div>
+
+      <div id="quick-pane">
+        <div class="hint" style="margin:0 0 14px">三步出提示词：<b>说拍什么 → 选风格 → 选时长</b>，点一下按钮就生成。之后想调细节再切专家模式，内容都保留。</div>
+        <div class="field">
+          <label for="q-subject">拍什么？<span class="en">一句话就行</span></label>
+          <textarea id="q-subject" placeholder="例：一个机器人管家在海边别墅的院子里，跟一只鸵鸟跳80年代霹雳舞"></textarea>
+          <div class="hint">越具体越好：<b>谁 + 在哪 + 干什么</b>。中文可以直接用（即梦/可灵都认）；想要纯英文提示词就把这句换成英文。</div>
+        </div>
+        <div class="field">
+          <label>什么风格？<span class="en">选一个</span></label>
+          <div class="chips" id="q-genre"></div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="q-dur">多长？</label>
+            <select id="q-dur" aria-label="时长">
+              <option value="5s">5 秒</option>
+              <option value="8s" selected>8 秒（推荐）</option>
+              <option value="10s">10 秒</option>
+              <option value="15s">15 秒</option>
+            </select>
+          </div>
+        </div>
+        <button class="copy-btn" id="q-go" type="button" style="width:100%">一键生成提示词<span class="en">右侧立刻出</span></button>
+        <div class="q-status" id="q-status">填好上面两格，点按钮就出结果 — 想精细调随时切「专家模式」。</div>
+      </div>
+    </div>
+
+    <div id="expert-pane" hidden>
+
+    <div class="group">
+      <p class="group-title"><span class="stage-no">1</span> 核心主题 · Core Theme</p>
+      <div class="field">
+        <label>风格标签<span class="en">3-6 个, | 分隔输出</span></label>
+        <div class="chips" id="theme-chips"></div>
+      </div>
+      <div class="field">
+        <label for="f-theme-custom">自定义标签<span class="en">逗号分隔, 追加</span></label>
+        <input type="text" id="f-theme-custom" placeholder="如 atomic-punk robot, beachfront villa">
+      </div>
+    </div>
+
+    <div class="group">
+      <p class="group-title"><span class="stage-no">2</span> 人物与场景 · Character &amp; Scene</p>
+      <div class="field">
+        <label for="f-char">人物<span class="en">character</span>
+          <button class="link-btn" id="pull-person" type="button" style="float:right">读人物页暂存</button>
+        </label>
+        <textarea id="f-char" placeholder="An atomic-punk robot with a chrome chest plate; a confused ostrich"></textarea>
+      </div>
+      <div class="field">
+        <label for="f-flaws">瑕疵描述<span class="en">imperfections · 反直觉规则②</span></label>
+        <input type="text" id="f-flaws" placeholder="battle-damaged armor, paint worn off, oil in the joints, minor facial blemishes preserved">
+        <div class="hint">完美=假。战损/掉漆/油污/皮肤小瑕疵是真实感的来源，Mx-Shell 实测有效。</div>
+      </div>
+      <div class="field">
+        <label for="f-scene">场景<span class="en">scene</span></label>
+        <textarea id="f-scene" placeholder="a beachfront villa after a zombie apocalypse, golden dusk, empty pool"></textarea>
+      </div>
+    </div>
+
+    <div class="group">
+      <p class="group-title"><span class="stage-no">3</span> 氛围质感 · Atmosphere</p>
+      <div class="field">
+        <label for="f-atmos-select">氛围预制<span class="en">选完可在下方改</span></label>
+        <select id="f-atmos-select" aria-label="氛围预制">
+          <option value="">— 不用预制, 自己写 —</option>
+        </select>
+        <textarea id="f-atmos" style="min-height:110px;margin-top:8px" placeholder="Visual base / Color & tone / Style core 三段式氛围块, 或选上方预制自动填入"></textarea>
+      </div>
+      <div class="field">
+        <label for="f-camera">相机机身+镜头<span class="en">反直觉规则①</span></label>
+        <select id="f-camera" aria-label="相机预设"></select>
+        <div class="hint">不写 "cinematic feel" — 写<b>真实机身+镜头型号</b>，训练数据把这些字符串绑在真实电影美学上。</div>
+      </div>
+    </div>
+
+    <div class="group">
+      <p class="group-title"><span class="stage-no">4</span> 镜头规则 · Camera Rules</p>
+      <div class="field">
+        <label>镜头结构<span class="en">structure</span></label>
+        <div class="pills" role="radiogroup" aria-label="镜头结构">
+          <label class="pill"><input type="radio" name="struct" value="single" checked><span>单镜头</span></label>
+          <label class="pill"><input type="radio" name="struct" value="multi"><span>多镜头剪辑</span></label>
+        </div>
+      </div>
+      <div class="field">
+        <label for="f-move">运镜库<span class="en">50 moves · 选中后点加入</span></label>
+        <div class="row">
+          <select id="f-move" aria-label="运镜库"></select>
+          <button class="link-btn" id="add-move" type="button" style="flex:none">加入 ↓</button>
+        </div>
+        <div class="move-preview" id="move-preview">选一个运镜看措辞…</div>
+        <textarea id="f-moves" style="min-height:64px;margin-top:8px" placeholder="已加入的运镜措辞会叠在这里, 可手改"></textarea>
+        <div class="combo-tip">类型速配（点一下自动加 3 个运镜）：
+          <button class="fchip" data-combo="horror" type="button">恐怖</button>
+          <button class="fchip" data-combo="action" type="button">动作</button>
+          <button class="fchip" data-combo="romance" type="button">爱情</button>
+          <button class="fchip" data-combo="suspense" type="button">悬疑</button>
+          <button class="fchip" data-combo="epic" type="button">史诗科幻</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>两条家规<span class="en">house rules</span></label>
+        <label class="check"><input type="checkbox" id="f-breath" checked> 呼吸感手持 — "extremely subtle, breath-like camera float throughout"</label>
+        <label class="check"><input type="checkbox" id="f-sound" checked> 现场声 — "No score. Production audio only."</label>
+        <input type="text" id="f-ambient" placeholder="环境音枚举, 如 rain on metal, distant thunder, ostrich footsteps">
+      </div>
+    </div>
+
+    <div class="group">
+      <p class="group-title"><span class="stage-no">5</span> 分镜 · Storyboard</p>
+      <div class="row">
+        <div class="field">
+          <label for="f-dur">时长<span class="en">按模型上限</span></label>
+          <select id="f-dur" aria-label="时长">
+            <option value="5s">5s</option>
+            <option value="8s" selected>8s</option>
+            <option value="10s">10s</option>
+            <option value="15s">15s</option>
+            <option value="25s">25s (Sora Pro / Pikaframes)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="f-model">目标模型<span class="en">决定负面词机制</span></label>
+          <select id="f-model" aria-label="目标模型"></select>
+        </div>
+      </div>
+      <div class="field">
+        <label for="f-board">逐秒/逐镜分解<span class="en">storyboard</span></label>
+        <textarea id="f-board" style="min-height:96px" placeholder="0-2s: hexagonal energy cells light up unevenly, some flicker as if faulty&#10;2-5s: rain bends around a 2m dome shield&#10;5-8s: the robot turns its head toward the ostrich, servos whirring"></textarea>
+      </div>
+      <div class="field">
+        <label class="check"><input type="checkbox" id="f-ending" checked> 结尾留白<span class="en">反直觉规则③</span></label>
+        <input type="text" id="f-ending-img" placeholder="留白画面, 如 just a figure standing in the smoke, a meteor crossing the sky">
+        <div class="hint">不爆炸不闪白不说教 — 只留一个画面。收尾克制是「电影感」的最后一块。</div>
+      </div>
+    </div>
+
+    </div><!-- /expert-pane -->
+
+  </section>
+
+  <section class="outcol" aria-label="生成结果">
+    <div class="out-head">
+      <p class="group-title">生成提示词 <span class="chip">LIVE</span></p>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="model-note info" id="model-note">选模型后这里显示时长上限 / 负面词机制 / 坑位提示。</div>
+    <div class="out-card">
+      <pre id="out"></pre>
+      <div class="actions">
+        <button class="copy-btn" id="copy" type="button">复制提示词<span class="en">COPY</span></button>
+      </div>
+    </div>
+    <details class="master">
+      <summary>五段式骨架（方法论 · 未被改写）</summary>
+      <pre>1. Core theme            ← 3-6 个风格标签, | 分隔
+2. Character &amp; scene     ← 人物 / 瑕疵 / 环境
+3. Atmosphere &amp; quality  ← 视觉基底 / 色调 / 风格核心 (+真实机身镜头)
+4. Camera rules          ← 单/多镜头 / 运镜 / 呼吸感 / 现场声
+5. Storyboard            ← 逐秒或逐镜分解 + 留白结尾
+
+三条反直觉规则:
+① 写真实相机+镜头型号, 不写 "cinematic feel"
+② 描述瑕疵 (战损/掉漆/油污) — 完美看起来假
+③ 结尾留白 — 不爆炸不闪白, 只留一个画面</pre>
+    </details>
+    <footer>
+      方法论与资产蒸馏自 Mx-Shell《丧尸清道夫》公开资料 + <code>jnMetaCode/ai-shortfilm-prompts</code> (MIT)；本地源档 <code>config/shot_presets_src/</code>。多镜头剪辑时各镜保持同一 Color &amp; tone 块，否则剪辑会色彩漂移。氛围预制 #8（三视图）与我们<code>人物页</code>同构，可互通。
+    </footer>
+  </section>
+</main>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ── 资产 (蒸馏自 config/shot_presets_src/, Mx-Shell 方法论) ── */
+  var THEME_TAGS = ['atompunk','cyberpunk','hard sci-fi','dark tokusatsu','steampunk wuxia',
+    'post-apocalyptic','heavy mech','film noir','retro 1980s','found footage',
+    'documentary','wasteland industrial','live-action feel','no game-CG feel'];
+
+  var ATMOS = {
+    tokusatsu: {cn:'暗黑特摄 · 战损', text:
+'Visual base: Anamorphic widescreen cinematic. Simulated IMAX film camera, paired with Panavision C-series lens (35mm focal, f/4 aperture).\nColor & tone: Low-saturation grey-blue dominant. Shadow info compressed but detail preserved. Subtle edge bloom, moderate film grain.\nStyle core: Realistic dark battle-damaged aesthetic. Emphasize the fusion of biological texture and alien tech. Build an oppressive, heavy, live-action sensation of physical pain.'},
+    'teal-orange': {cn:'青橙好莱坞 · 赛博', text:
+'Visual style: Cyberpunk, hardcore sci-fi, cinematic, hyperreal, live-action shoot, wasteland industrial.\nColor & tone: Hollywood teal-and-orange. Cold orange-grey and dark cyan creating an oppressive, cold, unknown atmosphere. High-intensity neon orange and cyan blue. Extreme cool-warm contrast is the core visual signature.\nLighting: Dark low-key, high-contrast. Shadow info compressed but detail preserved. Subtle edge bloom, moderate film grain.\nAmbient light: Dense volumetric fog scatters faint cold light.\nLight sources: Glowing props as dynamic light sources — produce strong rim light and lens flares.'},
+    atompunk: {cn:'原子朋克 · 复古未来', text:
+'Style core: Atompunk, cinematic, hyperreal, photoreal, live-action shoot, no game-CG feel.\nVisual base: Anamorphic widescreen cinematic. IMAX film camera with Panavision C-series lens (motion blur added).\nColor & tone: 1960s retro-sci-fi atompunk aesthetic. Retro warm-orange + sea-salt blue high-contrast palette. Film grain texture, retro wide-angle lens, low-saturation retro film LUT. Natural daylight illumination — large floor-to-ceiling windows let in soft side-light. Highlights don\'t blow out, shadow detail preserved, tonal transitions natural — a quiet retro soft-glow texture.\nReference: Fallout (TV series) aesthetic + Pixar-style character motion control.'},
+    shawx: {cn:'邵氏 · 蒸汽武侠', text:
+'Shaw Brothers cinema style. Steampunk meets classical wuxia. 1980s Hong Kong color martial-arts film style. Retro HK noir. Mechanical wuxia. Epic composition. Deep shadows. Kodak 35mm vintage film grain.'},
+    mech: {cn:'重机甲 · 工业史诗', text:
+'Camera body: Simulated IMAX film camera with Panavision C-series lens. Frame rate 24, simulated motion blur.\nColor & tone: Hollywood teal-and-orange, low saturation. Shadow info compressed but detail preserved. Subtle edge bloom, moderate film grain.\nStyle core: Heavy mech cinema aesthetic. Photorealistic, sci-fi epic, heavy mecha, heavy-industry mechanical aesthetic fused with advanced tech — retain raw mechanical feel and weight.\nCore VFX: Hollywood-grade visual effects.'},
+    portrait: {cn:'商业人像 (图)', text:
+'Style: portrait photography. Hyperreal commercial portrait, close shot. Preserve minor facial blemishes. Light scattered loose strands of hair for a relaxed feel.\nLight: Soft side-light to bring out facial dimensionality.\nSkin: Warm healthy tone with natural fine luster. Detail enhancement at 100%, disable over-smoothing.\nColor: Refined warm tones. Edges sharp and clean — no blur, jaggies, or ghosting.\nCamera: Canon EF 85mm f/1.2. Aspect: 3:4.'},
+    product: {cn:'产品图 (武器装备)', text:
+'Grey background product photo, preserve metallic texture, engraved tech-feel details.\nComposition: diagonal / rule-of-thirds, low-angle POV.\nLight: Side cold light highlights metal texture; self-luminous parts create warm-tone highlights; weak ambient background. High-contrast dark-key atmosphere.\nStyle: Photoreal, strong metal materiality, fine light-and-shadow, light film grain.\nFeel: Cold, hardcore, futuristic weapon aesthetic.'},
+    threeview: {cn:'三视图 (角色/机甲)', text:
+'Produce front, side, and back three-views. Maintain subject consistency across angles. Each angle shows full body. Photoreal cinematic style.\nSurface has fine scratches. Lighting: enhanced ambient occlusion + contact shadows in crevices. Real highlight transitions, HDR cinematic. Filmic HDR / ACES-like color mapping. Light film grain, minimal bloom, no stylization.'}
+  };
+
+  var CAMERAS = [
+    {cn:'— 不指定 —', en:''},
+    {cn:'IMAX 胶片 + Panavision C系 35mm f/4', en:'Simulated IMAX film camera, paired with Panavision C-series lens (35mm focal, f/4 aperture)'},
+    {cn:'Sony Venice + Canon K-35 系', en:'Sony Venice cinema camera with Canon K-35 series lenses'},
+    {cn:'柯达 35mm 老胶片', en:'Kodak 35mm vintage film stock'},
+    {cn:'Canon EF 85mm f/1.2 (人像)', en:'Canon EF 85mm f/1.2'},
+    {cn:'ARRI Alexa + Master Prime (自定义可改)', en:'ARRI Alexa cinema camera with Master Prime lens'}
+  ];
+
+  var MOVES = [
+    {g:'运动与转场', list:[
+      ['空镜转场','Slow drift across an empty {place}, no subject in frame; hold, then the next shot opens on a matching color/tone'],
+      ['过肩对话','Long-lens over-the-shoulder, foreground shoulder soft, focus on the far face, shallow depth of field'],
+      ['特写情绪','Extreme close-up on {hands/eyes}, micro-movement only, a tremor / a tightening grip'],
+      ['推轨跟拍','Smooth dolly tracking behind the walking {subject}, steady, matching pace'],
+      ['仰拍起势','Low angle looking up at the standing {subject} against the sky, slow tilt up'],
+      ['俯拍众生','High overhead looking straight down, {subject} small within a larger pattern'],
+      ['摇镜扫景','Slow horizontal pan across a wide {landscape}, revealing its full scale'],
+      ['移轴虚化','Tilt-shift, a shallow band of focus across a wide scene, top and bottom blurred'],
+      ['逆光剪影','Hard backlight, {subject} rendered as a near-black silhouette, bright rim only'],
+      ['手持跟拍','Tight handheld POV behind the running {subject}, frame jolting, lagging half a step']
+    ]},
+    {g:'时间与构图', list:[
+      ['慢动作升格','Extreme slow motion on the instant of {impact/shatter}, debris suspended mid-air'],
+      ['快动作降格','Fast time-lapse, clouds and shadows racing, light shifting over a near-static frame'],
+      ['焦点转换','Rack focus from the foreground {object} to the figure behind it'],
+      ['画框构图','{Subject} framed through a doorway / window / arch, a natural border around them'],
+      ['对角线构图','Strong diagonal line through frame (stairs, roofline), {subject} moving along it'],
+      ['绝对对称','Dead-center symmetrical composition, {subject} on the central axis, sides mirrored'],
+      ['三分法构图','{Subject} on a thirds intersection, generous negative space toward their look direction'],
+      ['前景遮挡','A foreground element slides through frame, partially blocking {subject}'],
+      ['后景虚化','Shallow depth of field, {subject} sharp, background melted to soft bokeh'],
+      ['前景虚化','Out-of-focus foreground (leaves / lights) drifting across, {subject} sharp behind']
+    ]},
+    {g:'剪辑语法与视点', list:[
+      ['长镜头一镜到底','One continuous take, no cut, camera follows {subject} through the space'],
+      ['蒙太奇剪辑','Rapid 0.5s intercut of charged details — sparks, eyes, blade, a held breath'],
+      ['叠化转场','Slow cross-dissolve, two faces/scenes overlapping before one resolves'],
+      ['闪白转场','Hard flash to white, then resolve on a new time/place'],
+      ['黑场转场','Hard cut to black, hold one beat, resolve on the next scene'],
+      ['匹配转场','Match cut on a shape/color/motion — a tossed {object} becomes another object/place'],
+      ['声音转场','Carry the next scene\'s sound in before the picture cuts'],
+      ['主观视角','First-person POV, the camera is {subject}\'s eyes, frame sways with gait and breath'],
+      ['客观视角','Detached locked-off observer, no involvement, {subject} framed coldly'],
+      ['上帝视角','Top-down overhead on a pattern/maze, {subject} tiny within it']
+    ]},
+    {g:'氛围与环境光影', list:[
+      ['窥视视角','Camera hidden behind a screen / foliage, a partially obscured view of {subject}'],
+      ['反光倒影','Shoot {subject} via a reflection — water, glass, metal — the real subject off-frame or secondary'],
+      ['烟雾氛围','Volumetric haze, god-rays cutting through, {subject} moving within it'],
+      ['雨景氛围','Heavy rain, droplets on surfaces, {subject} soaked, reflective wet ground'],
+      ['雪景氛围','Snowfall blanketing a muted world, one accent color (red) against the white'],
+      ['夜景氛围','Cool moonlight against a warm practical light, deep shadow, {subject} lit by one source'],
+      ['日出氛围','Sun rising behind {subject/structure}, cool-to-gold gradient, rim light'],
+      ['日落氛围','Sun sinking to the horizon, orange-to-purple sky, long silhouettes, wind in the clothing'],
+      ['烛光氛围','A single unstable candle/flame as the only light, all else in shadow, slow push to the lit eyes'],
+      ['侧光塑形','45° side light, half the face/body in shadow, a hard light-dark boundary']
+    ]},
+    {g:'人像布光与起承转合', list:[
+      ['顺光平柔','Even soft frontal light, no hard shadow, skin natural and smooth'],
+      ['逆光轮廓','Backlight forming a bright outline that separates {subject} from background, face in shadow'],
+      ['顶光神圣','Vertical top light forming a column down onto {subject}, the rest in shadow'],
+      ['底光恐怖','Light from below the face, unnatural upward shadows distorting the features'],
+      ['伦勃朗光','45° key light, a small triangle of light on the shadow-side cheek'],
+      ['蝴蝶光','Frontal high key light casting a small butterfly shadow under the nose'],
+      ['环形光','Ring catch-light in the eyes, even frontal fill, slow push to the eyes'],
+      ['分割光','Hard side light splitting the face into exact light and dark halves, no gradient'],
+      ['渐显开场','Image fades up from full black, detail resolving slowly into a gentle push-in'],
+      ['渐隐收尾','Image fades slowly to black, sound lingering after the picture is gone']
+    ]}
+  ];
+
+  var COMBOS = {
+    horror: ['窥视视角','底光恐怖','黑场转场'],
+    action: ['手持跟拍','对角线构图','慢动作升格'],
+    romance: ['过肩对话','前景虚化','渐隐收尾'],
+    suspense: ['焦点转换','画框构图','客观视角'],
+    epic: ['摇镜扫景','仰拍起势','日落氛围']
+  };
+
+  var MODELS = {
+    seedance: {cn:'Seedance 2.0 (即梦/豆包)', max:'单条 ~10-15s · 豆包App锁 5/10s, 即梦网页/火山 4-15s', neg:'none',
+      note:'消费端无可靠负面词框 — 用正向描述规避（说你要什么，不说不要什么）。国内平台 IP/名人过滤严。主引擎同 LTX 生态。'},
+    veo: {cn:'Veo 3.1 (Google)', max:'8s (4/6/8) · Extend 可续至 ~148s, 超4-5次降质', neg:'field',
+      note:'负面词框只收名词短语列表，禁 no/don\'t 指令式。原生音画最强。'},
+    kling: {cn:'Kling 3.0 (快手)', max:'3.0 单条 ~15s', neg:'field',
+      note:'负面框适合稳定性伪影 (滑步/多指/形变)。违禁词过滤一票否决整条提示词 — 措辞先脱敏。'},
+    wan: {cn:'Wan 2.x (阿里开源)', max:'~3-15s 按模式', neg:'field',
+      note:'中文原生训练，纯英文易吃亏，难镜加中文。自托管无过滤。ComfyUI 可全控。'},
+    hailuo: {cn:'Hailuo / MiniMax', max:'6-10s (1080p≈6s, 768p≈10s)', neg:'field',
+      note:'负面词少用，只卡具体伪影，不当主杠杆。分辨率和时长二选一。'},
+    runway: {cn:'Runway Gen-4/4.5', max:'5s / 10s', neg:'none',
+      note:'无负面词！写 no X 反而召来 X — 只正向描述该出现的东西。这是移植提示词最大坑。', warn:true},
+    sora: {cn:'Sora 2 / 2 Pro', max:'Pro ~25s 连续单条', neg:'inline',
+      note:'无负面框 — 护栏短语内嵌进提示词 (自动加)。三层过滤连「像」都拦: 特征组合别撞知名 IP。'},
+    pika: {cn:'Pika 2.5', max:'5/10s · Pikaframes 关键帧 ~25s', neg:'field',
+      note:'只有 Pikaframes 关键帧路径能到 25s, 普通文生视频仍 5/10s。'}
+  };
+
+  var CANONICAL_NEG = 'blurry, low resolution, soft focus, watermark, text overlay, subtitles, logo, distorted face, asymmetric eyes, extra fingers, deformed hands, melting/morphing geometry, oversaturated colors, plastic skin, glossy CG render, video-game look, 3D cartoon, anime shading, flat even studio lighting, perfectly clean flawless surfaces, frame flicker, ghosting, jarring hard cuts, lifeless locked-off camera';
+
+  var LS_KEY = 'shot-draft-v1';
+  var state = { themeSel: [] };
+
+  function $(id){ return document.getElementById(id); }
+  function clean(v){ return (v || '').trim().replace(/[ \t]+/g,' '); }
+
+  /* ── 初始化选择器/标签 ── */
+  THEME_TAGS.forEach(function(t){
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = 'fchip'; b.textContent = t;
+    b.addEventListener('click', function(){
+      var i = state.themeSel.indexOf(t);
+      if (i >= 0) state.themeSel.splice(i, 1); else state.themeSel.push(t);
+      b.classList.toggle('on', i < 0);
+      render(); save();
+    });
+    $('theme-chips').appendChild(b);
+  });
+
+  Object.keys(ATMOS).forEach(function(k){
+    var o = document.createElement('option');
+    o.value = k; o.textContent = ATMOS[k].cn;
+    $('f-atmos-select').appendChild(o);
+  });
+  $('f-atmos-select').addEventListener('change', function(){
+    if (this.value) $('f-atmos').value = ATMOS[this.value].text;
+    render(); save();
+  });
+
+  CAMERAS.forEach(function(c, i){
+    var o = document.createElement('option');
+    o.value = i; o.textContent = c.cn;
+    $('f-camera').appendChild(o);
+  });
+  $('f-camera').addEventListener('change', function(){ $('f-camera-en').value = CAMERAS[this.value].en || ''; render(); save(); });
+  /* 相机英文措辞可改 — 动态补一个输入框 */
+  var camEn = document.createElement('input');
+  camEn.type = 'text'; camEn.id = 'f-camera-en'; camEn.placeholder = '相机措辞 (选型号自动填, 可改)';
+  camEn.style.cssText = 'width:100%;margin-top:8px;background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 12px;font-family:var(--mono);font-size:12.5px;color:var(--ink)';
+  $('f-camera').parentNode.appendChild(camEn);
+  camEn.addEventListener('input', function(){ render(); save(); });
+
+  MOVES.forEach(function(mod, mi){
+    var og = document.createElement('optgroup');
+    og.label = mod.g;
+    mod.list.forEach(function(mv, ii){
+      var o = document.createElement('option');
+      o.value = mi + ':' + ii; o.textContent = mv[0];
+      og.appendChild(o);
+    });
+    $('f-move').appendChild(og);
+  });
+  $('f-move').addEventListener('change', function(){
+    var p = this.value.split(':');
+    $('move-preview').textContent = MOVES[+p[0]].list[+p[1]][1];
+  });
+  function addMoveText(txt){
+    var ta = $('f-moves');
+    ta.value = ta.value ? ta.value.replace(/\s*$/,'') + '\n' + txt : txt;
+    render(); save();
+  }
+  $('add-move').addEventListener('click', function(){
+    var p = $('f-move').value.split(':');
+    if (p.length === 2) addMoveText(MOVES[+p[0]].list[+p[1]][1]);
+  });
+  Object.keys(COMBOS).forEach(function(k){
+    var btn = document.querySelector('.fchip[data-combo="' + k + '"]');
+    btn.addEventListener('click', function(){
+      COMBOS[k].forEach(function(name){
+        for (var mi = 0; mi < MOVES.length; mi++){
+          for (var ii = 0; ii < MOVES[mi].list.length; ii++){
+            if (MOVES[mi].list[ii][0] === name){ addMoveText(MOVES[mi].list[ii][1]); return; }
+          }
+        }
+      });
+    });
+  });
+
+  Object.keys(MODELS).forEach(function(k){
+    var o = document.createElement('option');
+    o.value = k; o.textContent = MODELS[k].cn;
+    $('f-model').appendChild(o);
+  });
+  $('f-model').addEventListener('change', function(){ render(); save(); });
+
+  /* ── 简易模式: 三步一键 ── */
+  var NEUTRAL_ATMOS = 'Visual base: Anamorphic widescreen cinematic. Simulated IMAX film camera, paired with Panavision C-series lens (35mm focal, f/4 aperture).\nColor & tone: naturalistic low-saturation grade, deep shadows with preserved detail, subtle edge bloom, moderate film grain.';
+  var GENRES = [
+    {cn:'暗黑战损 · 机器人/末日英雄', atmos:'tokusatsu', themes:['dark tokusatsu','post-apocalyptic'], combo:'action'},
+    {cn:'赛博科幻 · 霓虹夜城', atmos:'teal-orange', themes:['cyberpunk','hard sci-fi'], combo:'suspense'},
+    {cn:'复古原子朋克 · 60年代未来', atmos:'atompunk', themes:['atompunk','retro 1980s'], combo:'epic'},
+    {cn:'蒸汽武侠 · 港片武林', atmos:'shawx', themes:['steampunk wuxia'], combo:'action'},
+    {cn:'重机甲 · 钢铁巨人', atmos:'mech', themes:['heavy mech','hard sci-fi'], combo:'epic'},
+    {cn:'悬疑惊悚', atmos:null, themes:['film noir','found footage'], combo:'horror'},
+    {cn:'浪漫唯美', atmos:null, themes:['romance','live-action feel'], combo:'romance'},
+    {cn:'热血动作', atmos:null, themes:['action','live-action feel'], combo:'action'}
+  ];
+  var qGenre = 0;
+  function renderGenreChips(){
+    var box = $('q-genre'); box.innerHTML = '';
+    GENRES.forEach(function(g, i){
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'fchip' + (i === qGenre ? ' on' : '');
+      b.textContent = g.cn;
+      b.addEventListener('click', function(){ qGenre = i; renderGenreChips(); });
+      box.appendChild(b);
+    });
+  }
+  renderGenreChips();
+
+  document.querySelectorAll('input[name="umode"]').forEach(function(el){
+    el.addEventListener('change', function(){
+      var quick = el.value === 'quick';
+      $('quick-pane').hidden = !quick;
+      $('expert-pane').hidden = quick;
+    });
+  });
+
+  function qStatus(msg, cls){
+    var el = $('q-status');
+    el.textContent = msg;
+    el.className = 'q-status' + (cls ? ' ' + cls : '');
+  }
+
+  $('q-go').addEventListener('click', function(){
+    var subj = clean($('q-subject').value);
+    if (!subj){ qStatus('先写一句「拍什么」再点', 'err'); $('q-subject').focus(); return; }
+    var g = GENRES[qGenre];
+
+    /* ① 主题: 命中内置 chips, 其余进自定义 */
+    state.themeSel = [];
+    var chipEls = document.querySelectorAll('#theme-chips .fchip');
+    chipEls.forEach(function(c){ c.classList.remove('on'); });
+    var extra = [];
+    g.themes.forEach(function(t){
+      var hit = false;
+      chipEls.forEach(function(c){ if (c.textContent === t){ c.classList.add('on'); hit = true; } });
+      if (!hit) extra.push(t);
+      state.themeSel.push(t);
+    });
+    $('f-theme-custom').value = extra.join(', ');
+
+    /* ② 人物与瑕疵 */
+    $('f-char').value = subj;
+    if (!clean($('f-flaws').value)) $('f-flaws').value = 'minor surface wear, natural imperfections preserved';
+
+    /* ③ 氛围 + 相机 */
+    $('f-atmos').value = g.atmos ? ATMOS[g.atmos].text : NEUTRAL_ATMOS;
+    $('f-camera').value = '1';
+    $('f-camera-en').value = CAMERAS[1].en;
+
+    /* ④ 运镜 = 该类型的三个速配 */
+    var ta = $('f-moves'); ta.value = '';
+    COMBOS[g.combo].forEach(function(name){
+      for (var mi = 0; mi < MOVES.length; mi++)
+        for (var ii = 0; ii < MOVES[mi].list.length; ii++)
+          if (MOVES[mi].list[ii][0] === name)
+            ta.value = ta.value ? ta.value + '\n' + MOVES[mi].list[ii][1] : MOVES[mi].list[ii][1];
+    });
+
+    /* ⑤ 时长/家规/结尾/模型(推荐即梦) */
+    $('f-dur').value = $('q-dur').value;
+    $('f-breath').checked = true;
+    $('f-sound').checked = true;
+    $('f-ending').checked = true;
+    $('f-model').value = 'seedance';
+
+    render(); save();
+    qStatus('已生成！右侧点「复制提示词」→ 粘贴到 即梦 / 可灵。想改细节 → 切「专家模式」。', 'ok');
+    var out = document.querySelector('.outcol');
+    if (out) out.scrollIntoView({behavior:'smooth', block:'nearest'});
+  });
+
+  /* ── 读人物页暂存 → 人物段 ── */
+  $('pull-person').addEventListener('click', function(){
+    var raw = null;
+    try{ raw = JSON.parse(localStorage.getItem('threeview-prompt-v1') || 'null'); }catch(e){}
+    var v = raw && raw.values;
+    if (!v){ this.textContent = '人物页无暂存'; var b = this; setTimeout(function(){ b.textContent = '读人物页暂存'; }, 1500); return; }
+    var parts = [];
+    var head = [clean(v.subject), clean(v.expression)].filter(Boolean).join(', ');
+    if (head) parts.push(head);
+    if (clean(v.hairstyle)) parts.push(clean(v.hairstyle));
+    var outfit = [clean(v.outfit), clean(v.shoes)].filter(Boolean).join(', ');
+    if (outfit) parts.push('wearing ' + outfit);
+    if (clean(v.identifier)) parts.push('identifying mark: ' + clean(v.identifier));
+    $('f-char').value = parts.join('; ');
+    render(); save();
+    this.textContent = '已带入 ✓'; var btn = this;
+    setTimeout(function(){ btn.textContent = '读人物页暂存'; }, 1500);
+  });
+
+  /* ── 组装 ── */
+  function build(){
+    var model = MODELS[$('f-model').value] || MODELS.seedance;
+    var lines = [];
+
+    var tags = state.themeSel.slice();
+    clean($('f-theme-custom').value).split(',').forEach(function(t){
+      t = clean(t); if (t && tags.indexOf(t) < 0) tags.push(t);
+    });
+    if (tags.length) lines.push('Core theme: ' + tags.join(' | '));
+
+    var sec2 = [];
+    if (clean($('f-char').value)) sec2.push(clean($('f-char').value));
+    if (clean($('f-flaws').value)) sec2.push('Imperfections: ' + clean($('f-flaws').value));
+    if (clean($('f-scene').value)) sec2.push('Scene: ' + clean($('f-scene').value));
+    if (sec2.length) lines.push('Character & scene: ' + sec2.join('. '));
+
+    var sec3 = [];
+    if (clean($('f-atmos').value)) sec3.push(clean($('f-atmos').value));
+    if (clean($('f-camera-en').value)) sec3.push('Camera: ' + clean($('f-camera-en').value));
+    if (sec3.length) lines.push('Atmosphere & quality: ' + sec3.join('\n'));
+
+    var struct = document.querySelector('input[name="struct"]:checked').value;
+    var sec4 = [struct === 'multi' ? 'Multi-shot edited sequence.' : 'Single continuous shot.'];
+    if (clean($('f-moves').value)) sec4.push(clean($('f-moves').value));
+    if ($('f-breath').checked) sec4.push('Handheld shot. Throughout, maintain an extremely subtle, breath-like camera float to enhance presence.');
+    if ($('f-sound').checked){
+      sec4.push('Sound: No score. Production audio only.' +
+        (clean($('f-ambient').value) ? ' Ambient: ' + clean($('f-ambient').value) : ''));
+    }
+    lines.push('Camera rules: ' + sec4.join(' '));
+
+    var board = clean($('f-board').value);
+    lines.push('Storyboard (' + $('f-dur').value + '):' + (board ? '\n' + $('f-board').value.trim() : ''));
+    if ($('f-ending').checked){
+      lines.push('Ending: no dialogue, no explosion, no blinding light — ' +
+        (clean($('f-ending-img').value) || 'just the figure standing in the smoke.'));
+    }
+    if ($('f-model').value === 'sora'){
+      lines.push('Guardrails: original characters only, no logos or text.');
+    }
+    var prompt = lines.join('\n\n');
+
+    var neg = '';
+    if (model.neg === 'field'){
+      neg = CANONICAL_NEG;
+    } else if (model.neg === 'inline' || model.neg === 'none'){
+      neg = '';
+    }
+    return { prompt: prompt, neg: neg, model: model };
+  }
+
+  var SEC_RE = /^(Core theme|Character & scene|Atmosphere & quality|Camera rules|Storyboard|Ending|Guardrails):/;
+
+  function render(){
+    var r = build();
+    var html = r.prompt.split('\n').map(function(l){
+      return SEC_RE.test(l) ? '<span class="sec">' + l.replace(/</g,'&lt;') + '</span>' : l.replace(/</g,'&lt;');
+    }).join('\n');
+    if (r.neg){
+      html += '\n\n<span class="neg-h">--- Negative prompt (专用框, 名词短语, 禁 no/don\'t) ---</span>\n' + r.neg;
+    }
+    $('out').innerHTML = html;
+
+    var full = r.prompt + (r.neg ? '\n\n' + r.neg : '');
+    $('count').textContent = '≈ ' + full.split(/\s+/).filter(Boolean).length + ' words';
+
+    var note = $('model-note');
+    var m = r.model;
+    if (m.warn){
+      note.className = 'model-note warn';
+    } else {
+      note.className = 'model-note info';
+    }
+    note.textContent = m.cn + ' · 时长: ' + m.max + ' · ' + m.note;
+  }
+
+  function save(){
+    var data = { themeSel: state.themeSel };
+    ['f-theme-custom','f-char','f-flaws','f-scene','f-atmos','f-camera-en','f-moves','f-ambient',
+     'f-board','f-ending-img','f-dur','f-model'].forEach(function(id){
+      data[id] = $(id).value;
+    });
+    data['f-breath'] = $('f-breath').checked;
+    data['f-sound'] = $('f-sound').checked;
+    data['f-ending'] = $('f-ending').checked;
+    var st = document.querySelector('input[name="struct"]:checked');
+    if (st) data.struct = st.value;
+    try{ localStorage.setItem(LS_KEY, JSON.stringify(data)); }catch(e){ /* 忽略 */ }
+  }
+
+  function load(){
+    var raw = null;
+    try{ raw = JSON.parse(localStorage.getItem(LS_KEY) || 'null'); }catch(e){}
+    if (!raw) return;
+    state.themeSel = raw.themeSel || [];
+    ['f-theme-custom','f-char','f-flaws','f-scene','f-atmos','f-camera-en','f-moves','f-ambient',
+     'f-board','f-ending-img','f-dur','f-model'].forEach(function(id){
+      if (typeof raw[id] === 'string') $(id).value = raw[id];
+    });
+    if (typeof raw['f-breath'] === 'boolean') $('f-breath').checked = raw['f-breath'];
+    if (typeof raw['f-sound'] === 'boolean') $('f-sound').checked = raw['f-sound'];
+    if (typeof raw['f-ending'] === 'boolean') $('f-ending').checked = raw['f-ending'];
+    if (raw.struct){
+      var el = document.querySelector('input[name="struct"][value="' + raw.struct + '"]');
+      if (el) el.checked = true;
+    }
+    /* 恢复标签选中态 */
+    state.themeSel.forEach(function(t){
+      var chips = document.querySelectorAll('#theme-chips .fchip');
+      for (var i = 0; i < chips.length; i++){
+        if (chips[i].textContent === t){ chips[i].classList.add('on'); break; }
+      }
+    });
+  }
+
+  document.querySelectorAll('input[type=text],textarea').forEach(function(el){
+    if (el.closest('main')) el.addEventListener('input', function(){ render(); save(); });
+  });
+  document.querySelectorAll('select').forEach(function(el){
+    if (el.closest('main') && el.id !== 'f-atmos-select' && el.id !== 'f-camera' && el.id !== 'f-move' && el.id !== 'f-model'){
+      el.addEventListener('change', function(){ render(); save(); });
+    }
+  });
+  document.querySelectorAll('input[name="struct"],input[type="checkbox"]').forEach(function(el){
+    el.addEventListener('change', function(){ render(); save(); });
+  });
+
+  $('copy').addEventListener('click', function(){
+    var r = build();
+    var text = r.prompt + (r.neg ? '\n\n--- Negative prompt ---\n' + r.neg : '');
+    var btn = this;
+    function done(){
+      btn.classList.add('done');
+      btn.innerHTML = '已复制！粘贴到 即梦 / 可灵 / Sora 即可<span class="en">COPIED ✓</span>';
+      setTimeout(function(){ btn.classList.remove('done'); btn.innerHTML = '复制提示词<span class="en">COPY</span>'; }, 1800);
+    }
+    function fallback(){
+      var ta = document.createElement('textarea');
+      ta.value = text; ta.style.cssText = 'position:fixed;opacity:0';
+      document.body.appendChild(ta); ta.select();
+      try{ document.execCommand('copy'); done(); }catch(e){}
+      document.body.removeChild(ta);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else { fallback(); }
+  });
+
+  load();
+  render();
+})();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,20 @@
+app:
+  name: "digital-human-pipeline"
+  port: 54321
+  host: "127.0.0.1"
+  data_dir: "./data"
+  # database_url: "sqlite:///./data/pipeline.db"
+
+deepseek:
+  api_key: "${DEEPSEEK_API_KEY}"
+  base_url: "https://api.deepseek.com"
+  model_flash: "deepseek-v4-flash"
+  model_pro: "deepseek-v4-pro"
+  default_model: "flash"
+
+defaults:
+  host_id: "laochen"
+  voice_id: "laochen_default"
+  backend: "fish"
+  base_url_fish: "http://127.0.0.1:7860"
+  base_url_f5: "http://127.0.0.1:7861"

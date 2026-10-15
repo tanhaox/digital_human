@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<!-- bs1_passage_v1 — 老谭拆书·深空蓝金 段落页: 眉标+页题+一段解读正文(+可选右图)(+可选金句)
+  data-body 段落以 \n 分行 (≤4 行) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&family=Noto+Serif+SC:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root{--navy-1:#0C1626;--navy-2:#10233D;--gold:#C9A25E;--paper:#EDEAE0;--sub:#9AA6B5}
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{width:1920px;height:1080px;overflow:hidden}
+  body{font-family:"Noto Serif SC",serif;color:var(--paper)}
+  #root{position:relative;width:1920px;height:1080px;overflow:hidden;
+        background:linear-gradient(135deg,var(--navy-1) 0%,var(--navy-2) 100%)}
+  .imgcard{position:absolute;top:200px;right:150px;width:620px;height:620px;display:none;
+        border-radius:10px;overflow:hidden;border:1px solid rgba(201,162,94,.4);
+        box-shadow:0 24px 60px rgba(0,0,0,.45)}
+  .imgcard .ph{width:100%;height:100%;object-fit:cover;display:block}
+  .imgcard .veil{position:absolute;inset:0;pointer-events:none;
+        background:linear-gradient(160deg,rgba(12,22,38,.42) 0%,rgba(12,22,38,.18) 45%,rgba(16,35,61,.38) 100%)}
+  .imgcard .cap{position:absolute;left:0;right:0;bottom:0;padding:18px 26px;
+        background:linear-gradient(transparent,rgba(12,22,38,.85));font-size:22px;
+        color:#D8D2C4;font-weight:700;letter-spacing:.06em}
+  .caps{font-family:Manrope,sans-serif;font-weight:700;letter-spacing:.42em;text-transform:uppercase}
+  .kicker{position:absolute;top:104px;left:150px;font-size:24px;color:var(--gold);letter-spacing:.4em}
+  h1{position:absolute;top:158px;left:150px;font-weight:900;font-size:72px;color:#F5EFE2}
+  .body{position:absolute;top:310px;left:150px;width:900px;font-size:44px;font-weight:700;
+        line-height:2.0;color:#D8D2C4}
+  .body b{color:#F5EFE2}
+  .quote{position:absolute;left:150px;bottom:214px;border-left:6px solid var(--gold);
+         padding:10px 0 10px 38px;font-size:40px;font-weight:900;color:var(--gold);display:none}
+  .foot{position:absolute;top:112px;right:150px;left:auto;font-size:22px;color:#77808F;letter-spacing:.18em;text-align:right}
+  .has-img .body{width:880px}
+  
+</style>
+</head>
+<body>
+<div id="root"
+     data-composition-id="bs1_passage_v1" data-start="0" data-duration="{{duration_sec}}"
+     data-width="1920" data-height="1080"
+     data-kicker="{{kicker}}" data-title="{{title}}" data-body="{{body}}"
+     data-quote="{{quote}}" data-foot="{{foot}}" data-img="{{img}}" data-img-cap="{{img_cap}}">
+  <div class="imgcard" id="imgcard"><img class="ph" id="ph" alt=""><div class="veil"></div><div class="cap" id="cap"></div></div>
+  <div class="kicker caps" id="kicker"></div>
+  <h1 id="title"></h1>
+  <div class="body" id="body"></div>
+  <div class="quote" id="quote"></div>
+  <div class="foot" id="foot"></div>
+</div>
+<script>
+// 预览自适应 (0907): 小容器 (风格页 iframe) 自动缩放到视口; 生产 1920 渲染不触发
+(function () {
+  var w = window.innerWidth, h = window.innerHeight;
+  if (w >= 1900) return;
+  var s = Math.min(w / 1920, h / 1080);
+  var r = document.getElementById("root");
+  if (!r) return;
+  r.style.transform = "scale(" + s + ")";
+  r.style.transformOrigin = "top left";
+  try { document.body.style.background = getComputedStyle(r).background; } catch (e) {}
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+<script>
+(function () {
+  var root = document.getElementById("root");
+  var DUR = parseFloat(root.getAttribute("data-duration")) || 5;
+  var img = root.getAttribute("data-img") || "";
+  if (img) {
+    document.getElementById("ph").src = img;
+    document.getElementById("imgcard").style.display = "block";
+    document.getElementById("cap").textContent = root.getAttribute("data-img-cap") || "";
+    root.classList.add("has-img");
+  }
+  document.getElementById("kicker").textContent = root.getAttribute("data-kicker") || "";
+  document.getElementById("title").textContent = root.getAttribute("data-title") || "";
+  document.getElementById("foot").textContent = root.getAttribute("data-foot") || "";
+  var body = document.getElementById("body");
+  (root.getAttribute("data-body") || "").split(/\n|\\n/).filter(Boolean).slice(0, 3).forEach(function (line) {
+    var p = document.createElement("p");
+    p.style.marginBottom = "26px";
+    p.textContent = line.trim();
+    body.appendChild(p);
+  });
+  var q = root.getAttribute("data-quote") || "";
+  var qel = document.getElementById("quote");
+  if (q) { qel.textContent = q; qel.style.display = "block"; }
+  var n = (root.getAttribute("data-title") || "").replace(/\s/g, "").length;
+  if (n > 12) document.getElementById("title").style.fontSize = "58px";
+  var tl = gsap.timeline({paused: true});
+  tl.from("#kicker, #title", {y: 28, autoAlpha: 0, duration: .6, ease: "power3.out"}, .1)
+    .from("#body p", {y: 30, autoAlpha: 0, duration: .55, stagger: .18, ease: "power3.out"}, .32)
+    .from("#quote", {x: -30, autoAlpha: 0, duration: .5}, .82)
+    .from("#foot", {autoAlpha: 0, duration: .4}, .95)
+    .from("#imgcard", {autoAlpha: 0, duration: .9, ease: "power1.out"}, .15)
+    .to({}, {duration: Math.max(0.2, DUR - 1.8)});
+  window.__timelines = window.__timelines || {};
+  window.__timelines["bs1_passage_v1"] = tl;
+  window.addEventListener("message", function (ev) {
+    if (ev.data && ev.data.type === "preview-play") { tl.restart(); }
+  });
+})();
+</script>
+</body>
+</html>

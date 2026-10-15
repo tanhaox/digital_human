@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>M0-SOP-03 · FFmpeg 拼接 + 端到端 MP4</title>
+<style>
+:root{
+  --bg:#0f172a;--surface:#1e293b;--surface2:#334155;--border:#475569;
+  --text:#e2e8f0;--muted:#94a3b8;--accent:#06b6d4;--green:#10b981;
+  --yellow:#f59e0b;--red:#ef4444;--purple:#a855f7;--code-bg:#020617;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);line-height:1.7;padding:24px;max-width:960px;margin:0 auto}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+.top-home-bar{position:sticky;top:0;z-index:100;background:rgba(15,23,42,0.92);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-bottom:1px solid var(--border);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;margin:-24px -24px 16px;font-size:13px}
+.top-home-bar a.home-link{color:var(--accent);text-decoration:none;font-weight:600;display:inline-flex;align-items:center;gap:6px;padding:6px 12px;background:rgba(6,182,212,0.1);border:1px solid var(--accent);border-radius:6px}
+.top-home-bar .breadcrumbs{color:var(--muted);font-size:12px;font-family:Consolas,monospace}
+.top-home-bar .breadcrumbs a{color:var(--muted);text-decoration:none}
+.top-home-bar .breadcrumbs .sep{margin:0 6px;color:var(--border)}
+header{background:linear-gradient(135deg,#f59e0b 0%,#ef4444 100%);padding:24px 32px;border-radius:12px;margin-bottom:24px}
+.badge{display:inline-block;background:rgba(255,255,255,0.2);padding:4px 12px;border-radius:12px;font-size:12px;margin-right:8px;font-weight:600}
+h1{font-size:24px;margin:8px 0 4px}
+.subtitle{font-size:14px;opacity:0.9}
+.meta-line{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-size:13px;opacity:0.95}
+.meta-line .m{background:rgba(0,0,0,0.25);padding:4px 10px;border-radius:4px}
+section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-bottom:14px}
+h2{font-size:17px;margin-bottom:10px;color:var(--accent);border-bottom:1px solid var(--border);padding-bottom:6px}
+.tip{background:rgba(16,185,129,0.1);border-left:3px solid var(--green);padding:10px 14px;border-radius:6px;margin:10px 0;font-size:13px}
+.warning{background:rgba(239,68,68,0.1);border-left:3px solid var(--red);padding:10px 14px;border-radius:6px;margin:10px 0;font-size:13px}
+.note{background:rgba(168,85,247,0.1);border-left:3px solid var(--purple);padding:10px 14px;border-radius:6px;margin:10px 0;font-size:13px}
+.task{background:var(--surface2);border-left:3px solid var(--accent);padding:14px 18px;border-radius:8px;margin-bottom:14px;transition:opacity 0.2s}
+.task.done{opacity:0.55;border-left-color:var(--green)}
+.task.done .task-title::after{content:" ✅"}
+.task-head{display:flex;align-items:center;gap:10px;cursor:pointer;user-select:none}
+.task-head input[type=checkbox]{width:20px;height:20px;cursor:pointer;accent-color:var(--green)}
+.task-title{font-weight:600;font-size:15px;color:var(--accent);flex:1}
+.task-tag{font-size:11px;background:var(--bg);padding:2px 8px;border-radius:4px;color:var(--muted);font-family:Consolas,monospace}
+.task-body{margin-top:10px;padding-left:30px;font-size:13px;color:var(--text)}
+.task-body ol{padding-left:20px;margin:6px 0}
+.task-body li{margin:4px 0}
+.cmd{background:var(--code-bg);border:1px solid var(--border);padding:10px 14px;border-radius:6px;font-family:Consolas,monospace;font-size:13px;color:var(--yellow);white-space:pre-wrap;word-break:break-all;margin:6px 0;user-select:all;cursor:pointer}
+.cmd::before{content:"$ ";color:var(--green);font-weight:700}
+.cmd:hover{border-color:var(--accent)}
+.shot{margin-top:6px;padding:8px 12px;background:var(--bg);border:1px dashed var(--border);border-radius:4px;font-size:12px;color:var(--muted);font-style:italic}
+.accept{background:rgba(16,185,129,0.1);border-left:3px solid var(--green);padding:6px 12px;border-radius:4px;margin-top:6px;font-size:12px;color:var(--green)}
+.next{color:var(--accent);font-size:12px;margin-top:4px}
+.progress-bar{height:24px;background:var(--surface2);border-radius:12px;overflow:hidden;position:relative;margin:10px 0;border:1px solid var(--border)}
+.progress-fill{height:100%;background:linear-gradient(90deg,#f59e0b 0%,#ef4444 100%);transition:width 0.3s}
+.progress-label{position:absolute;top:0;left:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,0.6)}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin:10px 0}
+.kpi{background:var(--surface2);padding:10px 14px;border-radius:8px;border-left:3px solid var(--accent);text-align:center}
+.kpi .num{font-size:18px;font-weight:700;color:var(--accent)}
+.kpi .label{font-size:11px;color:var(--muted);margin-top:2px}
+.footer-actions{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.btn{padding:8px 16px;border-radius:6px;font-size:13px;cursor:pointer;border:none;transition:opacity 0.15s}
+.btn:hover{opacity:0.85}
+.btn-reset{background:var(--red);color:#fff}
+.btn-back{background:var(--surface2);color:var(--accent);border:1px solid var(--accent);text-decoration:none;display:inline-block}
+</style>
+</head>
+<body>
+
+<nav class="top-home-bar">
+  <a href="README.html" class="home-link">📋 回 M0 索引</a>
+  <div class="breadcrumbs">
+    <a href="README.html">M0 索引</a><span class="sep">›</span><span>M0-SOP-03 FFmpeg</span>
+  </div>
+</nav>
+
+<header>
+  <span class="badge">M0-SOP-03</span>
+  <span class="badge">W2-W3</span>
+  <span class="badge">¥0 成本</span>
+  <span class="badge">耗时 ≈45 min</span>
+  <h1>🎬 FFmpeg 拼接 + 端到端 MP4</h1>
+  <div class="subtitle">开源视频处理工具 · 拼接 TTS 音频 + SadTalker 视频 → 第 1 条完整 demo</div>
+  <div class="meta-line">
+    <div class="m">📦 工具:FFmpeg 6.x + CMD</div>
+    <div class="m">🎯 产出:端到端 demo MP4(中文 30 秒)</div>
+    <div class="m">⏱ 累计:≈45 分钟</div>
+    <div class="m">🧪 验收:MP4 播放 + 音画同步</div>
+  </div>
+</header>
+
+<section>
+  <h2>📊 当前进度</h2>
+  <div class="progress-bar">
+    <div class="progress-fill" id="progressFill" style="width:0%"></div>
+    <div class="progress-label" id="progressLabel">0/8 (0%)</div>
+  </div>
+  <div class="kpi-row">
+    <div class="kpi"><div class="num" id="kpiDone">0</div><div class="label">已完成</div></div>
+    <div class="kpi" style="border-left-color:var(--green)"><div class="num" id="kpiLeft">8</div><div class="label">剩余</div></div>
+    <div class="kpi" style="border-left-color:var(--yellow)"><div class="num" id="kpiTime">45</div><div class="label">预计分钟</div></div>
+  </div>
+  <div class="tip">
+    <strong>🎯 本 SOP 关键性</strong>:M0 阶段门控之一 = <strong>端到端跑出 5 条 demo 视频</strong>。本 SOP 跑通第 1 条(中文),W3 重复 4 次 = 5 条达标。
+  </div>
+</section>
+
+<section>
+  <h2>🎯 为什么需要 FFmpeg</h2>
+  <ul style="padding-left:24px;font-size:14px">
+    <li><strong>拼接</strong>:SadTalker 输出的是无声 MP4 + TTS 是 MP3 → 必须用 FFmpeg 合流</li>
+    <li><strong>转码</strong>:不同采样率 / 分辨率 / 帧率统一输出(避免 YT 上传报错)</li>
+    <li><strong>轻量</strong>:一个 ~80 MB 的 exe,无需安装,绿色版直接用</li>
+    <li><strong>免费</strong>:开源 LGPL/GPL,商用无版权问题</li>
+  </ul>
+</section>
+
+<section>
+  <h2>✅ 8 步执行清单</h2>
+
+  <div class="task" id="t1">
+    <label class="task-head">
+      <input type="checkbox" id="c1" onchange="save()">
+      <span class="task-title">1️⃣ 下载 FFmpeg Windows 版</span>
+      <span class="task-tag">≈5 min</span>
+    </label>
+    <div class="task-body">
+      <strong>访问</strong>: <a href="https://www.gyan.dev/ffmpeg/builds/" target="_blank">gyan.dev/ffmpeg/builds</a><br>
+      <strong>下载</strong>: <code>ffmpeg-release-essentials.zip</code>(≈80MB)<br>
+      <strong>解压到</strong>: <code>C:\Tools\ffmpeg\</code>(路径无空格)
+      <div class="note">
+        <strong>💡 国内镜像</strong>: <a href="https://www.bt.cn/" target="_blank">宝塔 FFmpeg</a> 或 <a href="https://github.com/BtbN/FFmpeg-Builds/releases" target="_blank">BtbN/FFmpeg-Builds</a>(GitHub)
+      </div>
+      <div class="shot">📷 截图位: <code>C:\Tools\ffmpeg\bin\ffmpeg.exe</code> 文件存在</div>
+      <div class="accept">✅ 验收:ffmpeg.exe 文件存在(约 80-150 MB)</div>
+    </div>
+  </div>
+
+  <div class="task" id="t2">
+    <label class="task-head">
+      <input type="checkbox" id="c2" onchange="save()">
+      <span class="task-title">2️⃣ 添加 FFmpeg 到 PATH</span>
+      <span class="task-tag">≈3 min</span>
+    </label>
+    <div class="task-body">
+      <strong>步骤</strong>(Windows 11):
+      <ol style="padding-left:20px;font-size:13px">
+        <li>Win 键搜 "环境变量" → "编辑系统环境变量"</li>
+        <li>点 "环境变量" 按钮</li>
+        <li>"系统变量" 找 <code>Path</code> → 双击</li>
+        <li>"新建" → 填 <code>C:\Tools\ffmpeg\bin</code></li>
+        <li>一路确定保存</li>
+        <li><strong>重要</strong>: 关掉所有 CMD 窗口,重开一个</li>
+      </ol>
+      <strong>验证</strong>(<strong>新开</strong> CMD):
+      <div class="cmd">ffmpeg -version</div>
+      <strong>期望输出</strong>: <code>ffmpeg version 6.x.x ...</code>
+      <div class="warning">
+        <strong>⚠ 仍是旧版</strong>: PATH 没生效 → 重启电脑 / 检查路径是否多空格 / 确认是系统变量不是用户变量
+      </div>
+      <div class="accept">✅ 验收:<code>ffmpeg -version</code> 输出 6.x 版本号</div>
+    </div>
+  </div>
+
+  <div class="task" id="t3">
+    <label class="task-head">
+      <input type="checkbox" id="c3" onchange="save()">
+      <span class="task-title">3️⃣ 测试简单拼接(2 段 MP4)</span>
+      <span class="task-tag">≈5 min</span>
+    </label>
+    <div class="task-body">
+      <strong>目的</strong>:验证 FFmpeg 能正常拼接视频<br>
+      <strong>准备</strong>: 复制 SadTalker 输出的 <code>full.mp4</code> 到 <code>test1.mp4</code> 和 <code>test2.mp4</code><br>
+      <strong>命令</strong>:
+      <div class="cmd">cd F:\AI-Agent-Local\数字人计划\m0-test
+copy SadTalker\results\<日期>\full.mp4 test1.mp4
+copy SadTalker\results\<日期>\full.mp4 test2.mp4
+ffmpeg -f concat -safe 0 -i filelist.txt -c copy test_concat.mp4</div>
+      <strong>filelist.txt 内容</strong>:
+      <div class="cmd">file 'test1.mp4'
+file 'test2.mp4'</div>
+      <strong>期望</strong>: <code>test_concat.mp4</code> 大小 ≈2 × test1.mp4
+      <div class="shot">📷 截图位: ffmpeg 输出 "video:xxxkB" + test_concat.mp4 播放</div>
+      <div class="accept">✅ 验收:test_concat.mp4 能播放且时长 = 2 × test1.mp4</div>
+    </div>
+  </div>
+
+  <div class="task" id="t4">
+    <label class="task-head">
+      <input type="checkbox" id="c4" onchange="save()">
+      <span class="task-title">4️⃣ 准备 TTS 音频(30 秒新闻稿)</span>
+      <span class="task-tag">≈3 min</span>
+    </label>
+    <div class="task-body">
+      <strong>目的</strong>:为端到端测试准备 30 秒中文音频<br>
+      <strong>新闻稿示例</strong>(保存为 <code>news.txt</code>):
+      <div class="cmd">近日,中国航天事业再传捷报。神舟二十一号载人飞船成功发射,与空间站完成自主交会对接。三名航天员将开展为期六个月的太空实验任务。此次发射采用了多项新技术,标志着中国载人航天工程迈入新阶段。</div>
+      <strong>生成音频</strong>:
+      <div class="cmd">edge-tts --voice zh-CN-XiaoxiaoNeural --file news.txt --write-media news_30s.mp3</div>
+      <strong>验证时长</strong>(用 ffprobe):
+      <div class="cmd">ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 news_30s.mp3</div>
+      <strong>期望</strong>: 输出 ≈25-35 秒
+      <div class="note">
+        <strong>💡 长文分段</strong>:超过 60 秒分多段生成,后期合并(避免单次 TTS 偶发失败)
+      </div>
+      <div class="accept">✅ 验收:news_30s.mp3 存在 + 时长 25-35 秒</div>
+    </div>
+  </div>
+
+  <div class="task" id="t5">
+    <label class="task-head">
+      <input type="checkbox" id="c5" onchange="save()">
+      <span class="task-title">5️⃣ SadTalker 生成 30 秒无声视频</span>
+      <span class="task-tag">≈60-120 秒</span>
+    </label>
+    <div class="task-body">
+      <strong>命令</strong>:
+      <div class="cmd">cd F:\AI-Agent-Local\数字人计划\SadTalker
+python inference.py --driven_audio F:\AI-Agent-Local\数字人计划\m0-test\news_30s.mp3 --source_image F:\AI-Agent-Local\数字人计划\m0-test\avatar.jpg --result_dir F:\AI-Agent-Local\数字人计划\m0-test\results --enhancer gfpgan</div>
+      <strong>期望</strong>:
+      <ul style="padding-left:20px;font-size:12px">
+        <li>耗时 60-120 秒(3060 / 4060)</li>
+        <li>输出:<code>m0-test/results/<时间戳>/full.mp4</code>(30 秒)</li>
+      </ul>
+      <div class="warning">
+        <strong>⚠ 超时</strong>:30 秒视频在低显存卡(RTX 3050 / 2060)可能 3-5 分钟 → 等即可
+      </div>
+      <div class="shot">📷 截图位: 终端 Done + results 目录 full.mp4</div>
+      <div class="accept">✅ 验收:full.mp4 存在 + 时长 = 音频时长</div>
+    </div>
+  </div>
+
+  <div class="task" id="t6">
+    <label class="task-head">
+      <input type="checkbox" id="c6" onchange="save()">
+      <span class="task-title">6️⃣ FFmpeg 合并视频 + 音频 → demo.mp4</span>
+      <span class="task-tag">≈10 秒</span>
+    </label>
+    <div class="task-body">
+      <strong>命令</strong>(关键步骤):
+      <div class="cmd">cd F:\AI-Agent-Local\数字人计划\m0-test
+ffmpeg -i results\<时间戳>\full.mp4 -i news_30s.mp3 -c:v copy -c:a aac -shortest demo_final.mp4</div>
+      <strong>参数说明</strong>:
+      <ul style="padding-left:20px;font-size:12px">
+        <li><code>-c:v copy</code> = 视频流直接拷贝(不重新编码,无损)</li>
+        <li><code>-c:a aac</code> = 音频转 AAC(YT / 浏览器兼容)</li>
+        <li><code>-shortest</code> = 以最短流为准结束(避免静音)</li>
+      </ul>
+      <strong>期望</strong>: <code>demo_final.mp4</code> 大小 ≈1-3 MB(30 秒视频)
+      <div class="shot">📷 截图位: ffmpeg 输出 "muxing overhead" 行</div>
+      <div class="accept">✅ 验收:demo_final.mp4 文件存在 + 大小 >500KB</div>
+    </div>
+  </div>
+
+  <div class="task" id="t7">
+    <label class="task-head">
+      <input type="checkbox" id="c7" onchange="save()">
+      <span class="task-title">7️⃣ 播放 + 验证音画同步</span>
+      <span class="task-tag">≈5 min</span>
+    </label>
+    <div class="task-body">
+      <strong>播放 demo_final.mp4</strong>(VLC / 系统播放器 / 浏览器)<br>
+      <strong>检查清单</strong>:
+      <ul style="padding-left:20px;font-size:12px">
+        <li>✅ 视频有声音(不是静音)</li>
+        <li>✅ 声音与唇形同步(嘴巴动时说话)</li>
+        <li>✅ 视频时长 = 音频时长(30 秒)</li>
+        <li>✅ 画面无黑边 / 无杂音 / 无明显卡顿</li>
+      </ul>
+      <strong>记录</strong>: 同步评分 <input type="text" placeholder="8" style="background:var(--bg);color:var(--yellow);border:1px solid var(--border);padding:2px 6px;border-radius:3px;width:40px"> /10
+      <div class="warning">
+        <strong>⚠ 不同步</strong>: 在 SadTalker 推理时,音频时长未自动匹配 → 检查 <code>--driven_audio</code> 是否传入 + ffprobe 看 full.mp4 时长
+      </div>
+      <div class="accept">✅ 验收:demo_final.mp4 播放正常 + 同步评分 ≥7</div>
+    </div>
+  </div>
+
+  <div class="task" id="t8">
+    <label class="task-head">
+      <input type="checkbox" id="c8" onchange="save()">
+      <span class="task-title">8️⃣ 重复 4 次(总 5 条 demo)</span>
+      <span class="task-tag">≈60 min</span>
+    </label>
+    <div class="task-body">
+      <strong>目的</strong>:M0 阶段门控要求 5 条 demo(任一语种),本 SOP 跑通链路后重复 4 次<br>
+      <strong>动作</strong>:
+      <ol style="padding-left:20px;font-size:13px">
+        <li>准备 4 段新新闻稿(中文 4 段,每段 30 秒)</li>
+        <li>每段跑一次 步骤 4 → 5 → 6</li>
+        <li>文件命名:<code>demo_zh_01.mp4</code> 到 <code>demo_zh_05.mp4</code></li>
+        <li>每条存到 <code>m0-test/demos/</code></li>
+      </ol>
+      <div class="tip">
+        <strong>🎉 M0 端到端达成!</strong><br>
+        链路稳定后:<br>
+        • M3 三语种:同流水线换 TTS voice + 文本翻译即可<br>
+        • M4 量产:批量脚本(读稿 + TTS + SadTalker + FFmpeg 全自动)
+      </div>
+      <div class="next">👉 M0 链路打通 → 进入 W4 质量评估 → <a href="../执行计划清单.html">回主计划 § 3.1 W4</a></div>
+      <div class="accept">✅ 验收:m0-test/demos/ 有 5 个 MP4,每个 ≥500KB</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>🚨 应急方案</h2>
+  <div class="warning">
+    <strong>方案 A · FFmpeg 合并报错 "moov atom not found"</strong><br>
+    视频流有问题:<br>
+    <div class="cmd">ffmpeg -i full.mp4 -c copy -fix_sub_duration fixed.mp4</div>
+    或重新转:<br>
+    <div class="cmd">ffmpeg -i full.mp4 -c:v libx264 -preset fast -crf 23 fixed.mp4</div>
+  </div>
+  <div class="warning">
+    <strong>方案 B · 音画不同步(常见)</strong><br>
+    1. SadTalker 输出的 full.mp4 时长 ≠ 音频时长 → 重新推理(可能偶发 bug)<br>
+    2. 用 <code>-ss</code> 和 <code>-t</code> 截断到等长:<br>
+    <div class="cmd">ffmpeg -i full.mp4 -i news.mp3 -c:v copy -c:a aac -shortest -fflags +shortest sync.mp4</div>
+  </div>
+  <div class="warning">
+    <strong>方案 C · FFmpeg 输出文件超 10 MB(1 分钟视频)</strong><br>
+    加压缩:<br>
+    <div class="cmd">ffmpeg -i demo.mp4 -c:v libx264 -preset slow -crf 28 -c:a aac -b:a 128k small.mp4</div>
+    crf 28 = 高压缩,画质仍可接受
+  </div>
+</section>
+
+<section>
+  <h2>🎯 完成定义(M0-SOP-03 验收)</h2>
+  <div class="tip">
+    <strong>本 SOP 完成标准</strong>(全部满足):
+    <ul style="padding-left:24px;margin-top:6px">
+      <li>✅ 8 个 checkbox 全部勾选</li>
+      <li>✅ <code>m0-test/demos/</code> 有 5 个 demo MP4</li>
+      <li>✅ 每个 MP4 ≥500KB + 时长 25-35 秒</li>
+      <li>✅ 音画同步评分 ≥7</li>
+    </ul>
+    <strong>✅ 全部完成 = M0 阶段门控达成,可进 M1</strong>
+  </div>
+</section>
+
+<div class="footer-actions">
+  <a href="README.html" class="btn btn-back">← 回 M0 索引</a>
+  <a href="m0-02-sadtalker.html" class="btn btn-back">← 上一 SOP: SadTalker</a>
+  <a href="m0-04-avatar-image.html" class="btn btn-back">下一 SOP: 形象照 →</a>
+  <button class="btn btn-reset" onclick="resetThis()">🗑 重置本 SOP 进度</button>
+</div>
+
+<script>
+const KEY='m0-03';
+const TOTAL=8;
+
+function load(){try{return JSON.parse(localStorage.getItem(KEY))||[];}catch(e){return [];}}
+function save(){
+  const arr=[];
+  for(let i=1;i<=TOTAL;i++){arr.push(document.getElementById('c'+i).checked);}
+  localStorage.setItem(KEY, JSON.stringify(arr));
+  try{window.parent.postMessage({key:KEY,arr:arr},'*');}catch(e){}
+  refresh();
+}
+function refresh(){
+  const arr=load();
+  let done=0;
+  for(let i=1;i<=TOTAL;i++){
+    const cb=document.getElementById('c'+i);
+    if(cb) cb.checked=arr[i-1]||false;
+    const t=document.getElementById('t'+i);
+    if(t&&arr[i-1]) t.classList.add('done');
+    else if(t) t.classList.remove('done');
+    if(arr[i-1]) done++;
+  }
+  const pct=Math.round(done/TOTAL*100);
+  document.getElementById('progressFill').style.width=pct+'%';
+  document.getElementById('progressLabel').textContent=`${done}/${TOTAL} (${pct}%)`;
+  document.getElementById('kpiDone').textContent=done;
+  document.getElementById('kpiLeft').textContent=TOTAL-done;
+  document.getElementById('kpiTime').textContent=Math.round((TOTAL-done)*5);
+}
+function resetThis(){
+  if(!confirm('确定清除本 SOP 全部进度?')) return;
+  localStorage.removeItem(KEY);
+  refresh();
+}
+refresh();
+</script>
+
+</body>
+</html>

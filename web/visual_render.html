@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>🎨 视觉渲染 (HF) — 数字人 Web</title>
+  <link rel="stylesheet" href="/web/visual_render.css">
+</head>
+<body>
+  <nav>
+    <div class="logo">Pipeline<span>Studio</span></div>
+    <a href="/web/books.html">拆书</a>
+    <a href="/web/index.html">新闻线索</a>
+    <a href="/web/writing.html">文字加工</a>
+    <a href="/web/audio.html">音频加工</a>
+    <a href="/web/director.html">导演控制台</a>
+    <a href="/web/library.html">视频库</a>
+    <a href="/web/templates.html">模板管理</a>
+    <a href="/web/visual_render.html" class="active">视觉渲染</a>
+    <a href="/web/voices.html">音色管理</a>
+    <a href="/web/roles.html">角色管理</a>
+    <a href="/web/personas.html">人物</a>
+    <div class="spacer"></div>
+    <a href="/docs" target="_blank">API Docs</a>
+  </nav>
+
+  <div class="container">
+    <div class="page-header">
+      <h1>🎨 视觉渲染 (HF)</h1>
+    </div>
+    <!-- ① 选模板 -->
+    <div class="step" id="step-1">
+      <h2>① 选择模板</h2>
+      <div class="row">
+        <select id="template-select"></select>
+      </div>
+      <div class="status" id="status-templates"></div>
+      <pre id="template-schema" class="hidden"></pre>
+    </div>
+
+    <!-- ② 填入参 -->
+    <div class="step disabled" id="step-2">
+      <h2>② 填写渲染入参</h2>
+      <label>标题 *<input type="text" id="in-title" maxlength="64" placeholder="如：经济新数据"></label>
+      <label style="margin-top:0.5rem">副标题 <input type="text" id="in-subtitle" maxlength="128" placeholder="如：国家统计局公布最新统计"></label>
+
+      <label style="margin-top:0.75rem">主指标（至少 1 条，最多 4 条）</label>
+      <div id="metrics-list"></div>
+      <button class="secondary" onclick="addMetric()" style="margin-top:0.5rem;font-size:0.8rem">+ 增加指标</button>
+
+      <label style="margin-top:0.75rem">图表（可选；2 条柱状数据用于演示）</label>
+      <div class="row">
+        <input type="text" id="in-chart-label-1" placeholder="柱 1 标签 (如 2024H1)">
+        <input type="number" id="in-chart-value-1" placeholder="柱 1 数值" step="0.01">
+      </div>
+      <div class="row">
+        <input type="text" id="in-chart-label-2" placeholder="柱 2 标签 (如 2025H1)">
+        <input type="number" id="in-chart-value-2" placeholder="柱 2 数值" step="0.01">
+      </div>
+
+      <label style="margin-top:0.75rem">字幕 <textarea id="in-caption" maxlength="256" placeholder="如：今年上半年，全民收入提升 2.32 个百分点..."></textarea></label>
+      <label style="margin-top:0.5rem">来源 <input type="text" id="in-source" maxlength="128" placeholder="如：国家统计局 · 2026-07-25"></label>
+      <label style="margin-top:0.5rem">时长 (秒, 5-30) <input type="number" id="in-duration" min="5" max="30" value="12"></label>
+
+      <div style="margin-top:1rem">
+        <button onclick="submitJob()">提交生成</button>
+        <button class="secondary" onclick="loadExample()">载入示例</button>
+      </div>
+      <div class="status" id="status-submit"></div>
+    </div>
+
+    <!-- ③ 当前任务 -->
+    <div class="step disabled" id="step-3">
+      <h2>③ 当前任务</h2>
+      <div id="current-job">尚未创建任务。</div>
+    </div>
+
+    <!-- ④ 历史 + 下载 -->
+    <div class="step" id="step-4">
+      <h2>④ 历史记录</h2>
+      <button class="secondary" onclick="refreshList()">刷新</button>
+      <select id="filter-status" onchange="refreshList()" style="width:auto;display:inline-block;margin-left:0.5rem">
+        <option value="">全部</option>
+        <option value="completed">completed</option>
+        <option value="failed">failed</option>
+        <option value="rendering">rendering</option>
+        <option value="queued">queued</option>
+      </select>
+      <div id="jobs-list" style="margin-top:1rem"></div>
+    </div>
+  </div>
+
+  <script src="/web/visual_render.js"></script>
+</body>
+</html>

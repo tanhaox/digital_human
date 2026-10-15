@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>文字加工中心 · 洗稿 / 爆品改造</title>
+  <link rel="stylesheet" href="/web/index.css">
+</head>
+<body>
+  <nav>
+    <div class="logo">Pipeline<span>Studio</span></div>
+    <a href="/web/books.html">拆书</a>
+    <a href="/web/index.html">新闻线索</a>
+    <a href="/web/writing.html" class="active">文字加工</a>
+    <a href="/web/audio.html">音频加工</a>
+    <a href="/web/director.html">导演控制台</a>
+    <a href="/web/library.html">视频库</a>
+    <a href="/web/templates.html">模板管理</a>
+    <a href="/web/visual_render.html">视觉渲染</a>
+    <a href="/web/voices.html">音色管理</a>
+    <a href="/web/roles.html">角色管理</a>
+    <a href="/web/personas.html">人物</a>
+    <div class="spacer"></div>
+    <a href="/docs" target="_blank">API Docs</a>
+  </nav>
+
+  <div class="container">
+    <div class="pipeline-header">
+      <h1>文字加工中心</h1>
+      <p>洗稿 → 修正观点 → 爆品改造 → 保存 → <a href="/web/audio.html">音频加工中心</a></p>
+    </div>
+
+    <!-- Article Banner (从新闻线索页跳入时显示) -->
+    <div class="card" id="article-banner" style="display:none;padding:0.75rem 1rem;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:1rem;">
+        <div style="font-size:0.85rem;">
+          📄 来源稿件: <b id="banner-article-title"></b>
+          <span id="material-context-info" style="margin-left:0.75rem;font-size:0.75rem;color:#a78bfa;"></span>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="window.location.href='/web/index.html'">← 回新闻线索</button>
+      </div>
+    </div>
+
+    <!-- AI Rewrite -->
+    <div class="card" id="step-2-card">
+      <h3><span class="icon">🤖</span> AI 洗稿</h3>
+      <div class="form-row" style="margin-bottom:1rem;align-items:center;">
+        <div style="flex:0 0 200px;">
+          <label>调取已有脚本</label>
+          <select id="script-select" onchange="selectExistingScript(this)" style="width:100%;padding:0.4rem 0.6rem;font-size:0.82rem;">
+            <option value="">— 选择已有脚本（可选）—</option>
+          </select>
+        </div>
+        <div style="flex:1;font-size:0.72rem;color:var(--text-muted);">洗稿后或已保存的脚本可从这里重新调取，继续编辑/改造/生成音频</div>
+      </div>
+      <div class="form-row" style="margin-bottom:1rem;">
+        <div style="flex:0 0 200px;">
+          <label>数字人（人物）</label>
+          <select id="rewrite-host" style="width:100%;padding:0.4rem 0.6rem;font-size:0.82rem;">
+            <option value="">加载中…</option>
+          </select>
+        </div>
+        <div style="flex:0 0 220px;">
+          <label>数字人 / 提示词模板</label>
+          <select id="rewrite-template" style="width:100%;padding:0.4rem 0.6rem;font-size:0.82rem;">
+            <option value="">加载中…</option>
+          </select>
+        </div>
+        <div style="flex:0 0 140px;">
+          <label>LLM 模型</label>
+          <select id="rewrite-model" style="width:100%;padding:0.4rem 0.6rem;font-size:0.82rem;">
+            <option value="flash">Flash（快）</option>
+            <option value="pro" selected>Pro（强）</option>
+          </select>
+        </div>
+        <div style="flex:0 0 140px;">
+          <label>视频画幅</label>
+          <select id="rewrite-format" style="width:100%;padding:0.4rem 0.6rem;font-size:0.82rem;">
+            <option value="portrait">竖屏 9:16</option>
+            <option value="landscape" selected>横屏 16:9</option>
+            <option value="square">方形 1:1</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:flex-end;">
+          <button class="btn btn-secondary btn-sm" id="btn-load" onclick="loadLatest()">加载最新稿件</button>
+        </div>
+      </div>
+      <div style="margin-bottom:1rem;">
+        <label style="font-size:0.85rem;">💡 补充观点（选填）</label>
+        <textarea id="perspective-1" placeholder="输入你想强调或补充的观点，将注入到洗稿提示词中…" style="min-height:50px;" maxlength="500"></textarea>
+        <div style="font-size:0.72rem;color:var(--text-muted);text-align:right;"><span id="perspective-1-count">0</span>/500</div>
+      </div>
+      <div class="btn-group" style="margin-bottom:1rem;">
+        <button class="btn btn-primary" id="btn-rewrite" onclick="rewriteArticle()" disabled>开始洗稿</button>
+      </div>
+      <div class="status" id="status-rewrite"></div>
+      <label style="margin-top:1rem;display:flex;align-items:center;gap:0.5rem;">洗稿结果（可直接编辑）
+        <span id="editor-mode-badge" style="font-size:0.7rem;padding:1px 8px;border-radius:10px;background:var(--border);color:var(--text-secondary);">洗稿稿</span>
+        <span id="script-char-count" style="font-size:0.72rem;color:var(--text-muted);margin-left:auto;">0 字 · 目标 2100~2400（七层·情感语速实测校准）</span>
+      </label>
+      <textarea id="script-text" placeholder="洗稿结果将显示在这里..." style="min-height:220px;"></textarea>
+      <div id="perspective-2-section" style="display:none;margin-top:1rem;padding:0.75rem;border:1px solid var(--border);border-radius:var(--radius-sm);">
+        <label>✏️ 修正观点（选填，对洗稿结果不满意时提交微调）</label>
+        <textarea id="perspective-2" placeholder="描述你希望调整的方向…" style="min-height:60px;" maxlength="500"></textarea>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.5rem;">
+          <span style="font-size:0.72rem;color:var(--text-muted);"><span id="perspective-2-count">0</span>/500</span>
+          <button class="btn btn-primary btn-sm" id="btn-correct" onclick="correctScript()">提交修正</button>
+        </div>
+        <div class="status" id="status-correct"></div>
+      </div>
+      <div id="boost-section" style="display:none;margin-top:1rem;padding:0.75rem;border:1px solid var(--border);border-radius:var(--radius-sm);">
+        <label>🚀 爆品改造（P2预埋→P3节奏→P4精修→P1电击开头→P5情绪标注）</label>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:0.5rem;">
+          <span style="font-size:0.72rem;color:var(--text-muted);">基于当前洗稿稿执行 5 步流水线（共约 2-3 分钟）</span>
+          <button class="btn btn-warning btn-sm" id="btn-boost" onclick="boostScript()" disabled>爆品改造</button>
+        </div>
+        <div class="status" id="status-boost"></div>
+      </div>
+      <div class="btn-group" style="margin-top:1rem;">
+        <button class="btn btn-success btn-sm" id="btn-save-script" onclick="saveScript()" disabled>保存编辑</button>
+        <button class="btn btn-secondary btn-sm" id="btn-tts-adapt" onclick="ttsAdaptScript()" disabled
+                title="全文数字/百分比/连字符/星号转中文读法 (50%→百分之五十, 2024→二零二四, GLM-5.3→GLM五点三, **加粗**→去星号)，其余一字不动。结果先回填编辑区，目检后点「保存编辑」落库。">🔢 口播适配</button>
+        <button class="btn btn-violet btn-sm" id="btn-goto-audio" onclick="gotoAudio()" disabled>🎙 去生成音频 →</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script src="/web/app.js?v=7"></script>
+  <script src="/web/writing.js?v=8"></script>
+</body>
+</html>

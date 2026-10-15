@@ -1,0 +1,108 @@
+# ============================================================
+# 媒体（大视频/音频不进 git；小图标 SVG/PNG 允许）
+# ============================================================
+*.mp4
+*.mov
+*.webm
+*.mp3
+*.wav
+*.m4a
+*.srt
+
+# 白名单：模板/视频/案例里的小素材
+!**/assets/*.png
+!**/assets/*.svg
+!**/assets/*.json
+!**/assets/**/*.png
+!**/assets/**/*.svg
+!**/assets/**/*.json
+
+# 白名单：项目真源字幕（用户口播逐字稿，每段视频的视觉锚）
+# 区别于 whisper 自动转写 / 渲染产出 srt，这些是入仓单源
+!**/字幕/*.srt
+
+# ============================================================
+# 上游 git 仓库（独立维护，不进本仓库）
+# ============================================================
+hyperframes-student-kit/
+hyperframes-launches/
+
+# ============================================================
+# active skill discovery / .agents 真物理位置
+# 规则：
+#   - 官方 16 skill 由 `npx skills add/update heygen-com/hyperframes` 管理：
+#     真身落 .agents/skills/<name>/，.claude/skills/<name> 软链过去，均不进 git
+#   - 版本真源是 skills-lock.json（进 git）；换机器跑 `npx skills experimental_install` 还原
+#   - cyxj-* 反向 include → 本仓库 wrapper skill 入口必须 commit
+# （2026-06-17 弃用 Codex official/ 镜像，改 GitHub 直连；详见 制作规范/docs/ops.md）
+# ============================================================
+/MOTION_PHILOSOPHY.md
+.claude/skills/*
+!.claude/skills/cyxj-*
+.claude/skills-disabled-*/
+.agents/skills/*
+!.agents/skills/cyxj-*
+.agents/skills-disabled-*/
+
+# ============================================================
+# 工具状态 / 缓存 / 构建产物
+# ============================================================
+**/node_modules/
+**/renders/
+**/.hyperframes/
+**/.waveform-cache/
+**/.thumbnails/
+**/.frames/
+**/.debug-studio.mjs
+**/.playwright-mcp/
+
+# Claude Code 工作状态
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
+.claude/agents/*
+!.claude/agents/composition-reviewer.md
+.claude/worktrees/
+
+# 子工程内部 .claude state
+视频项目/已发布/**/.claude/
+组件库/**/.claude/
+
+# ============================================================
+# 仓库根禁止 debug 截图（2026-05-21 新增，cold-open 翻车教训）
+# 截图必须放工程目录 `<工程>/debug-shots/` 或 /tmp/
+# 详见 制作规范/docs/HARD_CONSTRAINTS.md §13
+# ============================================================
+/*.png
+/*.jpg
+/*.jpeg
+# 例外：docs/ 下的说明图允许
+!docs/**/*.png
+!docs/**/*.jpg
+
+# 工程内 debug-shots 也排除（如需 commit 个别图：git add -f）
+**/debug-shots/
+# hyperframes snapshot 自动产物（接触表 / 单帧 png / 描述 md，工程级 debug）
+**/snapshots/
+
+# ============================================================
+# 系统 / IDE
+# ============================================================
+**/.DS_Store
+**/.idea/
+**/.vscode/
+*.swp
+
+# 大目录（GB 级，本地保留，不进 git）
+# /参考/ = 原 参考库/（我的作品快照）+ hyperframes-launches 上游仓
+/参考/
+/资源库/录屏/
+归档/
+
+# ============================================================
+# 在制项目（原根目录 2026-*/，含名人照片/新闻截图/口播稿/音频，
+# 版权/肖像权风险，本地保留，不进公开仓库）
+# 注意必须锚定 /视频项目/在制/，不得写成裸 `2026-*/`——
+# 无斜杠前缀的目录规则在任意深度匹配，会误杀 视频项目/已发布/ 下的内容
+# ============================================================
+/视频项目/在制/
+.firecrawl/

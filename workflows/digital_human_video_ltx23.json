@@ -1,0 +1,34 @@
+{
+  "_meta": {
+    "workflow": "digital_human_video_ltx23",
+    "version": "stub-2026-07-26",
+    "description": "数字人说话视频 — LTX 2.3 音频+分镜图→视频",
+    "warning": "本 JSON 为占位/参考. 实际执行的工作流由 app/services/lit_video_builder.py Python 字典动态构造, 54321 Web 提交时直接 POST dict-format workflow 到 ComfyUI /prompt. 此文件同步到 ComfyUI 运行时仅供用户在 ComfyUI UI 中查看/手动编辑参考.",
+    "builder_module": "digital_human/app/services/lit_video_builder.py",
+    "frame_count_formula": "round(duration * fps) + 1, 然后对齐到 8n+1 (例如 10s@24fps → 241)",
+    "input_format": "16kHz mono PCM wav (LTX23 LTXVAudioVAEEncode 推荐)",
+    "output_format": "video/h264-mp4 (VHS_VideoCombine)",
+    "min_duration_sec": 5,
+    "default_duration_sec": 10,
+    "default_resolution": [576, 1024],
+    "default_fps": 24
+  },
+  "_nodes_reference": {
+    "100": "CheckpointLoaderSimple — ltx-2.3-22b-distilled-q8_0.gguf",
+    "110": "DualCLIPLoader — t5xxl_fp8mixed × 2, type=ltxv",
+    "120": "VAELoader — ltx-2.3-audio-vae.safetensors",
+    "200": "LoadAudio — 聚合后的 16kHz mono wav",
+    "210": "TrimAudioDuration — 截到 target_duration_sec",
+    "300": "EmptyLTXVLatentVideo — width × height × frame_count",
+    "310": "LTXVAudioVAEEncode — wav → audio latent",
+    "400+i*2": "LoadImage × N (多分镜图链)",
+    "401+i*2": "LTXVAddGuide × N — frame_idx + strength",
+    "500": "LTXVConcatAVLatent — video latent + audio latent",
+    "600": "CLIPTextEncode — positive prompt (cinematic, talking head)",
+    "610": "CLIPTextEncode — negative prompt (blurry, distorted)",
+    "620": "SamplerCustom — euler, 20 steps, cfg=1.5",
+    "700": "LTXVSeparateAVLatent — 拆 video/audio latent",
+    "710": "LTXVAudioVAEDecode — audio latent → wav",
+    "800": "VHS_VideoCombine — 合成 mp4 (H.264 + AAC)"
+  }
+}

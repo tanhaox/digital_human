@@ -1,0 +1,90 @@
+/* books 三页共享样式 (2026-08-20) — 书库/内容库/讲书 */
+* { box-sizing: border-box; }
+body { font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
+nav { position: sticky; top: 0; z-index: 100; background: rgba(10,14,26,0.85); backdrop-filter: blur(20px) saturate(1.2); border-bottom: 1px solid rgba(99,115,146,0.18); padding: 0 2rem; display: flex; align-items: center; height: 56px; }
+nav .logo { font-size: 1.1rem; font-weight: 700; background: linear-gradient(135deg,#3b82f6,#8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-right: 2rem; }
+nav a { color: #8892a8; text-decoration: none; font-size: 0.85rem; padding: 0.4rem 0.8rem; border-radius: 6px; }
+nav a.active { color: #3b82f6; background: rgba(59,130,246,0.25); }
+nav .spacer { flex: 1; }
+.container { max-width: 1100px; margin: 0 auto; padding: 1.5rem; }
+h1 { font-size: 1.5rem; font-weight: 700; }
+button { padding: 0.55rem 1.1rem; border: none; border-radius: 0.4rem; background: #2563eb; color: white; cursor: pointer; font-size: 0.9rem; }
+button:disabled { background: #475569; cursor: not-allowed; opacity: 0.6; }
+button.secondary { background: #475569; }
+button.warn { background: #b45309; }
+button.sm { padding: 0.3rem 0.65rem; font-size: 0.8rem; }
+input, select, textarea { padding: 0.55rem; border-radius: 0.4rem; border: 1px solid #475569; background: #0f172a; color: #e2e8f0; font-size: 0.9rem; width: 100%; }
+.toolbar { display: flex; gap: 0.75rem; margin-bottom: 1.2rem; flex-wrap: wrap; align-items: center; }
+.book-card { background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1rem 1.25rem; margin-bottom: 1rem; cursor: pointer; }
+.book-card h3 { margin: 0 0 0.4rem; }
+.badge { display: inline-block; font-size: 0.72rem; padding: 0.15rem 0.55rem; border-radius: 999px; background: #334155; color: #93c5fd; margin-right: 0.4rem; }
+.badge.need { background: #7f1d1d; color: #fca5a5; }
+.badge.distilled { background: #14532d; color: #86efac; }  /* 已蒸馏绿标 (2026-08-22) */
+.badge.l0 { background: #1e3a8a; color: #bfdbfe; }  /* L0 蒸馏紫蓝标 (2026-08-22) */
+.eps { display: flex; gap: 0.35rem; margin-top: 0.5rem; flex-wrap: wrap; }
+.ep-dot { font-size: 0.72rem; padding: 0.15rem 0.5rem; border-radius: 4px; background: #334155; color: #94a3b8; }
+.ep-dot.draft { background: #1e40af; color: #bfdbfe; }
+.ep-dot.confirmed { background: #14532d; color: #86efac; }
+.panel { background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1.25rem; margin-bottom: 1rem; }
+.panel h2 { margin-top: 0; font-size: 1.05rem; }
+.kv { font-size: 0.85rem; margin: 0.3rem 0; }
+.kv .k { color: #64748b; display: inline-block; min-width: 90px; }
+.red { color: #fca5a5; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th, td { border: 1px solid #334155; padding: 0.45rem 0.6rem; text-align: left; vertical-align: top; }
+th { color: #94a3b8; background: #0f172a; }
+pre.script { white-space: pre-wrap; font-size: 0.82rem; background: #0f172a; border: 1px solid #334155; border-radius: 6px; padding: 0.8rem; max-height: 420px; overflow: auto; }
+.modal-bg { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 200; }
+.modal-bg.active { display: flex; }
+.modal { background: #1e293b; border: 1px solid #334155; border-radius: 0.75rem; padding: 1.5rem; width: min(680px, 95vw); max-height: 90vh; overflow: auto; }
+.modal label { display: block; margin: 0.7rem 0 0.25rem; font-size: 0.85rem; color: #cbd5e1; }
+.row { display: flex; gap: 0.6rem; } .row > * { flex: 1; }
+.hint { color: #64748b; font-size: 0.78rem; margin-top: 0.3rem; }
+/* P0 流程条 + 下一步入口 */
+.flow-bar { display: flex; align-items: center; gap: 0.35rem; flex-wrap: wrap; background: #0f172a; border: 1px solid #334155; border-radius: 0.6rem; padding: 0.7rem 0.9rem; margin-bottom: 0.5rem; }
+.flow-step { display: flex; align-items: center; gap: 0.4rem; font-size: 0.82rem; color: #64748b; padding: 0.25rem 0.6rem; border-radius: 0.4rem; }
+.flow-step .flow-num { width: 1.35rem; height: 1.35rem; border-radius: 50%; background: #334155; color: #94a3b8; display: inline-flex; align-items: center; justify-content: center; font-size: 0.72rem; font-weight: 700; }
+.flow-step.done { color: #86efac; } .flow-step.done .flow-num { background: #14532d; color: #86efac; }
+.flow-step.active { background: #1e40af; color: #bfdbfe; } .flow-step.active .flow-num { background: #2563eb; color: #fff; }
+.flow-arrow { color: #475569; font-size: 0.8rem; }
+.next-action { display: flex; align-items: center; gap: 0.7rem; background: #14532d; border: 1px solid #166534; border-radius: 0.6rem; padding: 0.7rem 1rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.next-label { font-weight: 700; color: #86efac; font-size: 0.9rem; }
+.mini-dots { display: inline-flex; gap: 3px; vertical-align: middle; }
+.mini-dots .dot { width: 8px; height: 8px; border-radius: 50%; background: #334155; display: inline-block; }
+.mini-dots .dot.on { background: #22c55e; }
+/* 跨页导航链接行 (内容库↔讲书) */
+.page-nav { display: flex; gap: 0.6rem; margin-bottom: 1rem; flex-wrap: wrap; }
+.page-nav a { color: #93c5fd; text-decoration: none; font-size: 0.85rem; padding: 0.35rem 0.8rem; border: 1px solid #334155; border-radius: 6px; background: #1e293b; }
+.page-nav a:hover { border-color: #3b82f6; }
+/* 总纲内联编辑 */
+.td-edit { cursor: text; min-width: 80px; }
+.td-edit:hover { border-bottom: 1px dashed #3b82f6; }
+.td-edit:focus { outline: 1px solid #2563eb; border-radius: 3px; }
+td[data-field="概念"] { min-width: 160px; }
+/* toast */
+#toast { position: fixed; top: 70px; right: 20px; z-index: 999; padding: 0.7rem 1.1rem; border-radius: 8px; background: #14532d; color: #fff; font-size: 0.88rem; box-shadow: 0 4px 16px rgba(0,0,0,0.4); display: none; }
+#toast.show { display: block; }
+/* 书库分组列表 (2026-08-20) */
+.lib-group { border-bottom: 1px solid #1e293b; }
+.lib-group-head { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.25rem; flex-wrap: wrap; }
+.lib-group-head b { font-size: 0.9rem; }
+.lib-group.stale .lib-group-body { display: none; padding: 0 0 0.5rem 1.2rem; }
+.lib-group.stale.open .lib-group-body { display: block; }
+.lib-group.stale .fold-arrow { transition: transform 0.2s; display: inline-block; font-size: 0.7rem; color: #64748b; }
+.lib-group.stale.open .fold-arrow { transform: rotate(90deg); }
+.lib-group.stale .lib-group-head { cursor: pointer; opacity: 0.65; }
+.lib-group.stale.open .lib-group-head { opacity: 1; }
+.lib-group .badge { margin-right: 0.15rem; }
+/* 复用 writing 的人设选择布局 (form-row + 锁定提示) */
+.form-row { display: flex; gap: 0.75rem; align-items: flex-end; flex-wrap: wrap; }
+.form-row label { display: block; margin: 0 0 0.3rem; font-size: 0.85rem; color: #cbd5e1; }
+.persona-lock { font-size: 0.75rem; color: #a78bfa; margin-left: 0.5rem; display: none; }
+
+/* ── 书级流程导航 (1012): 大纲→总纲/选型→圣经→人物→动画 六页互达, 当前步金框高亮 ── */
+.flownav { display: flex; align-items: center; flex-wrap: wrap; gap: 0.3rem 0.4rem; margin-bottom: 1rem; }
+.flownav a, .flownav .cur { font-size: 0.82rem; padding: 0.32rem 0.75rem; border-radius: 6px; text-decoration: none; white-space: nowrap; }
+.flownav a { color: #93c5fd; border: 1px solid #334155; background: #1e293b; }
+.flownav a:hover { border-color: #3b82f6; color: #bfdbfe; }
+.flownav .cur { color: #fbbf24; border: 1px solid #92600a; background: #2c2211; font-weight: 600; }
+.flownav .sep { color: #475569; font-size: 0.72rem; }
+.flownav .hub { margin-left: auto; color: #8892a8; }

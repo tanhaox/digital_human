@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>三视图提示词工坊</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,600;1,9..144,500&family=IBM+Plex+Mono:wght@400;500;600&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<style>
+  :root{
+    --ground:#F7F7F3;
+    --surface:#FFFFFF;
+    --ink:#20262D;
+    --ink-soft:#5B6470;
+    --line:#E4E3DB;
+    --accent:#1F6E8C;
+    --accent-ink:#17556E;
+    --accent-wash:rgba(31,110,140,.09);
+    --red:#C23B2E;
+    --red-wash:rgba(194,59,46,.09);
+    --sans:'Noto Sans SC','PingFang SC','Microsoft YaHei',sans-serif;
+    --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+    --disp:'Fraunces','Noto Sans SC',serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#14181C;
+      --surface:#1B2127;
+      --ink:#E8EBEE;
+      --ink-soft:#97A1AB;
+      --line:#2C343C;
+      --accent:#6FB7D4;
+      --accent-ink:#9CCFE4;
+      --accent-wash:rgba(111,183,212,.13);
+      --red:#E2685A;
+      --red-wash:rgba(226,104,90,.13);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#14181C;
+    --surface:#1B2127;
+    --ink:#E8EBEE;
+    --ink-soft:#97A1AB;
+    --line:#2C343C;
+    --accent:#6FB7D4;
+    --accent-ink:#9CCFE4;
+    --accent-wash:rgba(111,183,212,.13);
+    --red:#E2685A;
+    --red-wash:rgba(226,104,90,.13);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    background:var(--ground);
+    color:var(--ink);
+    font-family:var(--sans);
+    font-size:14px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:32px 28px 64px}
+
+  /* ── header ─────────────────────────────── */
+  header{display:flex;align-items:flex-end;justify-content:space-between;gap:24px;padding-bottom:20px;border-bottom:1px solid var(--line);margin-bottom:28px}
+  .eyebrow{font-family:var(--disp);font-style:italic;font-weight:500;font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent-ink);margin:0 0 4px}
+  h1{font-size:26px;font-weight:700;letter-spacing:.02em;margin:0}
+  h1 small{display:block;font-size:13px;font-weight:400;color:var(--ink-soft);margin-top:6px;letter-spacing:0}
+  .sheet-diagram{flex:none;color:var(--ink-soft)}
+  .sheet-diagram text{font-family:var(--mono);font-size:7px;fill:currentColor}
+
+  /* ── layout ─────────────────────────────── */
+  main{display:grid;grid-template-columns:minmax(0,7fr) minmax(0,6fr);gap:32px;align-items:start}
+  @media (max-width:960px){
+    main{grid-template-columns:1fr}
+    .outcol{position:static !important}
+    header{flex-direction:column;align-items:flex-start;gap:12px}
+  }
+
+  /* ── form ───────────────────────────────── */
+  .group{margin-bottom:26px}
+  .group-title{display:flex;align-items:center;gap:10px;font-family:var(--mono);font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin:0 0 14px}
+  .group-title::after{content:"";flex:1;height:1px;background:var(--line)}
+  .group.core{border-left:3px solid var(--accent);padding-left:16px}
+  .group.core .group-title{color:var(--accent-ink)}
+  .chip{font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.08em;color:var(--accent-ink);background:var(--accent-wash);border-radius:3px;padding:2px 6px}
+  .field{margin-bottom:14px}
+  .field:last-child{margin-bottom:0}
+  .field label{display:block;font-size:13px;font-weight:500;margin-bottom:5px}
+  .field label .en{font-family:var(--mono);font-size:11px;color:var(--ink-soft);font-weight:400;margin-left:6px}
+  .field input[type=text],.field textarea{
+    width:100%;background:var(--surface);border:1px solid var(--line);border-radius:8px;
+    padding:9px 12px;font-family:var(--mono);font-size:12.5px;color:var(--ink);
+    resize:vertical;transition:border-color .15s;
+  }
+  .field textarea{min-height:56px;line-height:1.6}
+  .field input::placeholder,.field textarea::placeholder{color:var(--ink-soft);opacity:.65}
+  .field input:focus,.field textarea:focus{outline:none;border-color:var(--accent)}
+  .field input:focus-visible,.field textarea:focus-visible{box-shadow:0 0 0 2px var(--accent-wash)}
+
+  .pills{display:flex;gap:8px}
+  .pill{position:relative;cursor:pointer}
+  .pill input{position:absolute;opacity:0;width:100%;height:100%;left:0;top:0;margin:0;cursor:pointer}
+  .pill span{
+    display:inline-block;font-family:var(--mono);font-size:12.5px;padding:7px 18px;
+    border:1px solid var(--line);border-radius:999px;background:var(--surface);color:var(--ink-soft);
+    transition:all .15s;
+  }
+  .pill input:checked + span{background:var(--accent);border-color:var(--accent);color:#fff}
+  :root[data-theme="dark"] .pill input:checked + span{color:#0F1418}
+  .pill input:focus-visible + span{outline:2px solid var(--accent);outline-offset:2px}
+  .bw-warn{display:none;margin-top:10px;font-size:12.5px;color:var(--red);background:var(--red-wash);border-radius:6px;padding:8px 12px}
+  .bw-warn.show{display:block}
+
+  .reset-btn{
+    font-family:var(--mono);font-size:12px;color:var(--ink-soft);background:none;
+    border:1px dashed var(--line);border-radius:8px;padding:8px 16px;cursor:pointer;transition:all .15s;
+  }
+  .reset-btn:hover{color:var(--ink);border-color:var(--ink-soft)}
+  .reset-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+  /* ── output ─────────────────────────────── */
+  .outcol{position:sticky;top:24px}
+  .out-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:12px}
+  .out-head .group-title{margin:0}
+  .count{font-family:var(--mono);font-size:11.5px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+  .warnrow{display:none;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+  .warnrow.show{display:flex}
+  .warn{
+    font-size:12px;color:var(--red);background:var(--red-wash);
+    border:1px dashed var(--red);border-radius:6px;padding:4px 10px;
+  }
+  .out-card{
+    background:var(--surface);border:1px solid var(--line);border-radius:12px;
+    padding:18px 20px;box-shadow:0 1px 3px rgba(0,0,0,.05);
+  }
+  .out-card pre{
+    margin:0;font-family:var(--mono);font-size:12px;line-height:1.8;
+    white-space:pre-wrap;word-break:break-word;max-height:58vh;overflow:auto;color:var(--ink);
+  }
+  .out-card pre .sec{font-weight:600;color:var(--accent-ink)}
+  mark{background:var(--accent-wash);color:inherit;border-bottom:2px solid var(--accent);border-radius:2px;padding:0 1px}
+  mark.missing{background:var(--red-wash);border-bottom:2px dashed var(--red);color:var(--red);font-weight:600}
+  mark.slot{background:var(--accent-wash);color:var(--accent-ink);border-bottom:1px dotted var(--accent)}
+  .actions{display:flex;gap:10px;margin-top:16px}
+  .copy-btn{
+    flex:1;font-family:var(--sans);font-size:14px;font-weight:500;color:#fff;background:var(--accent);
+    border:none;border-radius:8px;padding:11px 20px;cursor:pointer;transition:filter .15s;
+  }
+  .copy-btn:hover{filter:brightness(1.08)}
+  .copy-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  .copy-btn.done{background:var(--accent-ink)}
+  .copy-btn.ghost{background:none;border:1px solid var(--accent);color:var(--accent-ink)}
+  .copy-btn.ghost:hover{filter:none;background:var(--accent-wash)}
+  :root[data-theme="dark"] .copy-btn{color:#0F1418}
+  .copy-btn .en{font-family:var(--mono);font-size:11px;opacity:.75;margin-left:6px}
+
+  details.master{margin-top:16px}
+  details.master summary{
+    font-family:var(--mono);font-size:12px;color:var(--ink-soft);cursor:pointer;
+    padding:4px 0;user-select:none;list-style:none;
+  }
+  details.master summary::before{content:"▸ ";color:var(--accent)}
+  details.master[open] summary::before{content:"▾ "}
+  details.master summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  details.master pre{
+    margin:10px 0 0;font-family:var(--mono);font-size:11.5px;line-height:1.75;
+    white-space:pre-wrap;word-break:break-word;color:var(--ink-soft);
+    background:var(--ground);border:1px solid var(--line);border-radius:8px;padding:14px 16px;
+    max-height:40vh;overflow:auto;
+  }
+  footer{margin-top:28px;padding-top:16px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-soft)}
+  footer code{font-family:var(--mono);font-size:11px;background:var(--accent-wash);border-radius:3px;padding:1px 5px;color:var(--accent-ink)}
+  .side{display:flex;flex-direction:column;align-items:flex-end;gap:12px}
+  .hint{font-size:12.5px;color:var(--ink-soft);margin-top:5px;line-height:1.7}
+  .hint b{color:var(--accent-ink);font-weight:600}
+  .step-no{font-family:var(--disp);font-style:italic;font-weight:600;font-size:15px;color:var(--accent-ink)}
+  .pagenav{display:flex;gap:16px;font-family:var(--mono);font-size:11.5px}
+  .pagenav a{color:var(--ink-soft);text-decoration:none;padding-bottom:2px;border-bottom:1px solid transparent}
+  .pagenav a:hover{color:var(--ink)}
+  .pagenav a.on{color:var(--accent-ink);border-bottom-color:var(--accent)}
+  .pagenav a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+
+<header class="wrap" style="padding-bottom:20px">
+  <div>
+    <p class="eyebrow">Character Sheet Prompt Studio</p>
+    <h1>三视图提示词工坊<small>填空成稿 — 五官锚点锁定跨视角脸部一致性，主模板永不改写</small></h1>
+  </div>
+  <div class="side">
+    <nav class="pagenav" aria-label="页面切换">
+      <a href="index.html">首页</a>
+      <a class="on" href="threeview_prompt_builder.html" aria-current="page">人物</a>
+      <a href="prop_prompt_builder.html">道具</a>
+      <a href="scene_prompt_builder.html">场景</a>
+      <a href="shot_prompt_builder.html">镜头</a>
+      <a href="reverse_prompt_builder.html">反推</a>
+    </nav>
+    <svg class="sheet-diagram" width="148" height="60" viewBox="0 0 148 60" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round">
+      <rect x="1" y="1" width="146" height="52" rx="4"/>
+      <line x1="59" y1="1" x2="59" y2="53" stroke-dasharray="3 3"/>
+      <circle cx="28" cy="24" r="10"/>
+      <path d="M22 36 q6 4 12 0"/>
+      <g>
+        <circle cx="80" cy="16" r="4.5"/><path d="M80 21 v10 M80 24 l-5 4 M80 24 l5 4 M80 31 l-4 11 M80 31 l4 11"/>
+        <circle cx="103" cy="16" r="4.5"/><path d="M103 21 v10 M103 24 l-5 4 M103 24 l5 4 M103 31 l-4 11 M103 31 l4 11"/>
+        <circle cx="126" cy="16" r="4.5"/><path d="M126 21 v10 M126 24 l-5 4 M126 24 l5 4 M126 31 l-4 11 M126 31 l4 11"/>
+      </g>
+      <text x="8" y="49">40%</text>
+      <text x="118" y="49">60%</text>
+    </svg>
+  </div>
+</header>
+
+<div class="wrap" style="padding-top:0">
+<main>
+  <section aria-label="填写区">
+    <div class="group">
+      <p class="group-title"><span class="step-no">①</span> 基本信息</p>
+      <div class="hint" style="margin:-8px 0 12px">照着每格下面的灰字提示填英文就行；实在不会填，先用「填入示例」按钮看看成品长什么样。</div>
+      <div class="field">
+        <label for="f-subject">性别 / 年龄<span class="en">subject</span></label>
+        <input type="text" id="f-subject" placeholder="Female, mid-20s">
+        <div class="hint">例：Female, mid-20s（女，25 岁上下）</div>
+      </div>
+      <div class="field">
+        <label for="f-expression">表情<span class="en">expression · 选填</span></label>
+        <input type="text" id="f-expression" placeholder="elegant and alluring expression">
+        <div class="hint">这张脸默认什么神情？例：优雅有魅力 / 微笑。不填就是自然脸。</div>
+      </div>
+      <div class="field">
+        <label for="f-hairstyle">发型<span class="en">hairstyle</span></label>
+        <textarea id="f-hairstyle" placeholder="Long black wavy hair, side-parted, one side tucked behind the ear…"></textarea>
+        <div class="hint">长度 / 颜色 / 直卷 / 分缝 / 有没有别到耳后。</div>
+      </div>
+    </div>
+
+    <div class="group core">
+      <p class="group-title"><span class="step-no">②</span> 长相关键项 <span class="chip">保同一人</span></p>
+      <div class="hint" style="margin:-8px 0 12px">这两格是<b>四个视角长得一模一样</b>的关键——填得越具体，AI 越不敢乱画。没头绪？去「反推」页选张脸让 AI 帮你填。</div>
+      <div class="field">
+        <label for="f-anchors">五官长相<span class="en">anchors · 一处填，三处生效</span></label>
+        <textarea id="f-anchors" placeholder="Large almond eyes with deep gaze, defined double eyelids, straight nose bridge…"></textarea>
+        <div class="hint">眼型 / 双眼皮 / 眉形 / 鼻梁 / 嘴唇 / 脸型 / 肤色，逗号隔开。</div>
+      </div>
+      <div class="field">
+        <label for="f-identifier">专属小标记<span class="en">unique identifier</span></label>
+        <input type="text" id="f-identifier" placeholder="A small tear mole beneath the outer corner of the left eye">
+        <div class="hint">脸上一个固定小标记（痣 / 小疤 / 耳钉）。有了它，一眼就能验证四个视角是不是同一人。</div>
+      </div>
+    </div>
+
+    <div class="group">
+      <p class="group-title"><span class="step-no">③</span> 穿搭与色彩</p>
+      <div class="field">
+        <label for="f-outfit">服饰<span class="en">outfit</span></label>
+        <textarea id="f-outfit" placeholder="Fitted cream cashmere sweater, high-waisted wide-leg trousers…"></textarea>
+        <div class="hint">款式 / 颜色 / 材质。例：米色修身羊绒衫 + 炭灰阔腿裤。</div>
+      </div>
+      <div class="field">
+        <label for="f-shoes">鞋子<span class="en">shoes</span></label>
+        <input type="text" id="f-shoes" placeholder="Black minimal leather ankle boots">
+        <div class="hint">例：黑色简约皮靴。全身图会画到脚，别空着。</div>
+      </div>
+      <div class="field">
+        <label>成片色彩<span class="en">color mode</span></label>
+        <div class="pills" role="radiogroup" aria-label="成片色彩">
+          <label class="pill"><input type="radio" name="mode" value="color" checked><span>彩色</span></label>
+          <label class="pill"><input type="radio" name="mode" value="bw"><span>黑白</span></label>
+        </div>
+        <div class="bw-warn" id="bw-warn">黑白词在单图合成时会染整图：右侧全身视图也会变灰度。若只要特写黑白，建议先出彩色整图，后期裁切转灰。</div>
+      </div>
+    </div>
+
+    <button class="reset-btn" id="reset" type="button">不会填？点我填入示例</button>
+  </section>
+
+  <section class="outcol" aria-label="生成结果">
+    <div class="out-head">
+      <p class="group-title"><span class="step-no">④</span> 复制提示词 <span class="chip">实时生成</span></p>
+      <span class="count" id="count"></span>
+    </div>
+    <div class="hint" style="margin:0 0 10px">左边一改，这里立刻变。点下面的复制按钮，然后<b>粘贴到 即梦 / 豆包 / Midjourney</b> 的输入框，就能生成「正面+侧面+背面+特写」四合一设定图。</div>
+    <div class="warnrow" id="warnrow"></div>
+    <div class="out-card">
+      <pre id="out"></pre>
+      <div class="actions">
+        <button class="copy-btn" id="copy" type="button">复制提示词<span class="en">COPY</span></button>
+        <button class="copy-btn ghost" id="gen" type="button">AI 直接生成设定图<span class="en">试试</span></button>
+      </div>
+      <div id="gen-out" hidden style="margin-top:14px">
+        <img id="gen-img-el" alt="AI 生成的设定图" style="max-width:100%;border-radius:8px;border:1px solid var(--line);cursor:zoom-in">
+        <div class="hint" style="margin-top:6px">已生成 ✓ 存在反推页的「我的库」。点图放大；不满意就改左边内容再点一次。</div>
+      </div>
+      <div class="hint" id="gen-status" style="margin-top:8px"></div>
+    </div>
+    <details class="master">
+      <summary>主模板原文（{{槽位}} 占位，永不被改写）</summary>
+      <pre id="master"></pre>
+    </details>
+    <footer>
+      蓝色下划线 = 你的填入内容 · 红色虚线 = 待填项 · 填写实时同步，本机自动暂存。锚点与标识在「锁定段 / 左侧特写 / 右侧全身」三处同时生效，这是脸部一致性的核心。
+    </footer>
+  </section>
+</main>
+</div>
+
+<script>
+(function(){
+  'use strict';
+
+  /* ── 主模板：唯一事实源，永不被改写 ── */
+  var TEMPLATE = [
+    '[画面构成与比例]',
+    'A horizontal composite character reference sheet on a pure white background.',
+    'Split layout: The left 40% is for the face reference, and the right 60% is for full-body views.',
+    'High quality, photorealistic, 8k resolution, studio lighting, full-color image.',
+    '',
+    '[脸部一致性核心锁定 — 全图最高优先级]',
+    'IDENTITY LOCK — ALL faces in this single sheet belong to THE SAME ONE person.',
+    '1. GROUND TRUTH: The left close-up is the master identity reference. Every full-body figure on the right MUST reproduce this exact face — bone structure, features, skin tone, age. No reinterpretation.',
+    '2. FIXED FACIAL ANCHORS: {{anchors}}.',
+    '3. UNIQUE IDENTIFIER: {{identifier}} — MUST appear at the same position in every view where the face is visible.',
+    '4. PROFILE COHERENCE: The side profile must be the anatomically correct 90° rotation of the same face — same nose bridge height, same chin projection, same lip curve as the front view.',
+    '5. PROHIBITION: Do NOT beautify, slim, or restyle the face differently between views. No face morphing, no age shift, no skin tone drift, no expression drift beyond the stated expression.',
+    '',
+    '[左侧区域：面部特写]',
+    'Left section: An EXTREME CLOSE-UP front-facing headshot. This close-up serves as the IDENTITY MASTER REFERENCE for the entire sheet.',
+    'CRITICAL CROPPING RULES:',
+    '1. TOP BOUNDARY: Must include the COMPLETE head and hairstyle with slight headroom. Do NOT crop the top of the head.',
+    '2. BOTTOM BOUNDARY: The image must cut off strictly at the collarbone (clavicle) level.',
+    '3. EXCLUSION: Do NOT show shoulders. Do NOT show any clothing or straps. The bottom edge shows only neck skin.',
+    'Subject: {{subject_expr}}',
+    'Hairstyle: {{hairstyle}}.',
+    'Facial Features: {{anchors}}.',
+    'Style: {{style_line}}',
+    '',
+    '[右侧区域：全身视图]',
+    'Right section: Three consistent full-body views of the same character standing in a row (Front view, Side profile view, Back view).',
+    'Pose: Standing straight, arms relaxed by sides, neutral expression.',
+    'Face: Identical to the left close-up — {{anchors}} — plus the same unique identifier ({{identifier}}). Copy the master face, do not generate a new one.',
+    'Hair: {{hairstyle}} — identical styling in all three views. Back view shows the same hair from behind.',
+    'Outfit: {{outfit}}.',
+    'Shoes: {{shoes}}.',
+    'Consistency: The character’s face, height and head size must be identical across all three views, matching the left master reference exactly.',
+    '',
+    '[负面提示词]',
+    'multiple different people, face inconsistency, altered facial features, face morphing, differing skin tones, differing age, changing hairstyle, mismatched eyes, asymmetric drift between views, duplicate characters, extra faces{{neg_extra}}'
+  ].join('\n');
+
+  var STYLE = {
+    color: { line: 'Cinematic soft-key lighting, natural color rendering, vibrant skin tones.',
+             neg:  ', black and white, monochrome, grayscale, desaturated' },
+    bw:    { line: 'Cinematic lighting, high contrast black and white photography style.',
+             neg:  ', color' }
+  };
+
+  var FIELDS = [
+    { key:'subject',    label:'性别/年龄', required:true },
+    { key:'expression', label:'表情',       required:false },
+    { key:'hairstyle',  label:'发型',       required:true },
+    { key:'anchors',    label:'五官锚点',   required:true },
+    { key:'identifier', label:'唯一标识',   required:true },
+    { key:'outfit',     label:'服饰',       required:true },
+    { key:'shoes',      label:'鞋子',       required:true }
+  ];
+
+  var DEFAULTS = {
+    subject:    'Female, mid-20s',
+    expression: 'elegant and alluring expression',
+    hairstyle:  'Long black wavy hair, side-parted with voluminous roots, one side tucked behind the ear, loose waves framing the face',
+    anchors:    'Large almond eyes with deep gaze, defined double eyelids, elegant curved eyebrows, straight nose bridge, full glossy lips, delicate oval face shape, fair skin',
+    identifier: 'A small tear mole beneath the outer corner of the left eye',
+    outfit:     'Fitted cream cashmere sweater, high-waisted wide-leg trousers in charcoal grey',
+    shoes:      'Black minimal leather ankle boots'
+  };
+
+  var LS_KEY = 'threeview-prompt-v1';
+  var state = { values: {}, mode: 'color' };
+
+  function $(id){ return document.getElementById(id); }
+  function esc(s){
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+  function clean(v){ return (v || '').trim().replace(/\s+/g,' '); }
+
+  function loadState(){
+    try{
+      var raw = localStorage.getItem(LS_KEY);
+      if(raw){
+        var saved = JSON.parse(raw);
+        if(saved && typeof saved === 'object'){
+          FIELDS.forEach(function(f){ state.values[f.key] = saved.values ? (saved.values[f.key] || '') : ''; });
+          state.mode = (saved.mode === 'bw') ? 'bw' : 'color';
+          return;
+        }
+      }
+    }catch(e){ /* 私密模式 / 存储被禁 — 用默认值 */ }
+    FIELDS.forEach(function(f){ state.values[f.key] = DEFAULTS[f.key]; });
+  }
+  function saveState(){
+    try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){ /* 忽略 */ }
+  }
+
+  /* 组装：display=true 输出带高亮的 HTML；否则输出纯文本 */
+  function build(display){
+    var v = state.values, mode = state.mode;
+    var subject = clean(v.subject), expr = clean(v.expression);
+    var subjectExpr;
+    if(!subject && !expr){ subjectExpr = null; }
+    else if(!expr){ subjectExpr = subject + '.'; }
+    else if(!subject){ subjectExpr = expr + '.'; }
+    else { subjectExpr = subject + ', ' + expr + '.'; }
+
+    var parts = TEMPLATE.split(/(\{\{\w+\}\})/);
+    var plain = [], html = [];
+
+    parts.forEach(function(p){
+      var m = p.match(/^\{\{(\w+)\}\}$/);
+      if(!m){ plain.push(p); html.push(esc(p)); return; }
+      var slot = m[1], val = null, missingLabel = null;
+
+      if(slot === 'style_line'){ val = STYLE[mode].line; }
+      else if(slot === 'neg_extra'){ val = STYLE[mode].neg; }
+      else if(slot === 'subject_expr'){
+        if(subjectExpr === null){ val = null; missingLabel = '性别/年龄'; }
+        else { val = subjectExpr; }
+      }
+      else {
+        var f = null;
+        FIELDS.forEach(function(x){ if(x.key === slot) f = x; });
+        val = clean(v[slot]) || null;
+        if(val === null && f && f.required){ missingLabel = f.label; }
+        else if(val === null){ val = ''; }
+      }
+
+      if(missingLabel){
+        var miss = '[待填·' + missingLabel + ']';
+        plain.push(miss);
+        html.push('<mark class="missing">' + esc(miss) + '</mark>');
+      } else {
+        plain.push(val);
+        html.push('<mark>' + esc(val) + '</mark>');
+      }
+    });
+
+    var text = plain.join('');
+    if(display){
+      var out = html.join('').split('\n').map(function(l){
+        return /^\[[^\]]+\]\s*$/.test(l) ? '<span class="sec">' + l + '</span>' : l;
+      }).join('\n');
+      return { html: out, text: text };
+    }
+    return { text: text };
+  }
+
+  function render(){
+    var r = build(true);
+    $('out').innerHTML = r.html;
+
+    var words = r.text.split(/\s+/).filter(Boolean).length;
+    $('count').textContent = '≈ ' + words + ' words / ' + r.text.length + ' chars';
+
+    var missing = FIELDS.filter(function(f){
+      return f.required && !clean(state.values[f.key]);
+    });
+    var warnrow = $('warnrow');
+    if(missing.length){
+      warnrow.innerHTML = '<span class="warn">未填 ' + missing.length + ' 项：' +
+        missing.map(function(f){ return f.label; }).join(' · ') + ' — 输出将以 [待填] 占位</span>';
+      warnrow.classList.add('show');
+    } else {
+      warnrow.classList.remove('show');
+      warnrow.innerHTML = '';
+    }
+    $('bw-warn').classList.toggle('show', state.mode === 'bw');
+  }
+
+  function readForm(){
+    FIELDS.forEach(function(f){
+      var el = $('f-' + f.key);
+      if(el) state.values[f.key] = el.value;
+    });
+    var checked = document.querySelector('input[name="mode"]:checked');
+    if(checked) state.mode = checked.value;
+  }
+
+  function fillForm(){
+    FIELDS.forEach(function(f){
+      var el = $('f-' + f.key);
+      if(el) el.value = state.values[f.key];
+    });
+    var radio = document.querySelector('input[name="mode"][value="' + state.mode + '"]');
+    if(radio) radio.checked = true;
+  }
+
+  /* 主模板原文展示：槽位染色，证明零污染 */
+  $('master').innerHTML = esc(TEMPLATE).replace(/\{\{\w+\}\}/g, function(s){
+    return '<mark class="slot">' + s + '</mark>';
+  });
+
+  loadState();
+  fillForm();
+  render();
+
+  document.querySelectorAll('#f-subject,#f-expression,#f-hairstyle,#f-anchors,#f-identifier,#f-outfit,#f-shoes')
+    .forEach(function(el){
+      el.addEventListener('input', function(){ readForm(); saveState(); render(); });
+    });
+  document.querySelectorAll('input[name="mode"]').forEach(function(el){
+    el.addEventListener('change', function(){ readForm(); saveState(); render(); });
+  });
+
+  /* ── AI 直接生成设定图 (工坊闭环, 经后端 CogView) ── */
+  function personApiCall(path, payload){
+    var bases = [];
+    if (location.protocol === 'http:') bases.push(location.origin);
+    bases.push('http://127.0.0.1:54323');
+    function attempt(){
+      if (!bases.length) return Promise.reject(new Error('后端不可达 — 请经 http://127.0.0.1:54323/web/tools/ 打开本页'));
+      var base = bases.shift();
+      return fetch(base + path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).then(function(r){
+        if (!r.ok){
+          return r.json().catch(function(){ return {}; }).then(function(d){
+            throw new Error(d && d.detail ? String(d.detail) : ('HTTP ' + r.status));
+          });
+        }
+        return r.json();
+      }, function(){ return attempt(); });
+    }
+    return attempt();
+  }
+  $('gen').addEventListener('click', function(){
+    var text = build(false).text;
+    var st = $('gen-status');
+    st.textContent = '生成中… 通常 10-30 秒，别关页面';
+    personApiCall('/api/reverse/generate', { prompt: text, size: '1344x768', target: 'person', project: '' })
+      .then(function(rec){
+        var img = $('gen-img-el');
+        img.src = (location.protocol === 'http:' ? location.origin : 'http://127.0.0.1:54323') + rec.image_url;
+        img.onclick = function(){ window.open(img.src, '_blank'); };
+        $('gen-out').hidden = false;
+        st.textContent = '';
+      })
+      .catch(function(e){
+        st.textContent = '生成失败：' + e.message + ' — 若反复失败，双击桌面「提示工坊」重新进';
+      });
+  });
+
+  $('reset').addEventListener('click', function(){
+    FIELDS.forEach(function(f){ state.values[f.key] = DEFAULTS[f.key]; });
+    state.mode = 'color';
+    fillForm(); saveState(); render();
+    function feedbackReset(){
+      var b = $('reset');
+      b.textContent = '示例已填入 ✓ 左边随便改';
+      setTimeout(function(){ b.textContent = '不会填？点我填入示例'; }, 1800);
+    }
+    feedbackReset();
+  });
+
+  $('copy').addEventListener('click', function(){
+    var text = build(false).text;
+    var btn = this, done = function(){
+      btn.classList.add('done');
+      btn.innerHTML = '已复制！粘贴到 即梦 / 豆包 / MJ 即可<span class="en">COPIED ✓</span>';
+      setTimeout(function(){
+        btn.classList.remove('done');
+        btn.innerHTML = '复制提示词<span class="en">COPY</span>';
+      }, 1800);
+    };
+    function fallback(){
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      try{ document.execCommand('copy'); done(); }catch(e){}
+      document.body.removeChild(ta);
+    }
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      navigator.clipboard.writeText(text).then(done, fallback);
+    } else { fallback(); }
+  });
+})();
+</script>
+</body>
+</html>
+</script>

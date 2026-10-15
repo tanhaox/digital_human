@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>新闻线索 · 素材聚合</title>
+  <link rel="stylesheet" href="/web/index.css">
+</head>
+<body>
+  <nav>
+    <div class="logo">Pipeline<span>Studio</span></div>
+    <a href="/web/books.html">拆书</a>
+    <a href="/web/index.html" class="active">新闻线索</a>
+    <a href="/web/writing.html">文字加工</a>
+    <a href="/web/audio.html">音频加工</a>
+    <a href="/web/director.html">导演控制台</a>
+    <a href="/web/library.html">视频库</a>
+    <a href="/web/templates.html">模板管理</a>
+    <a href="/web/visual_render.html">视觉渲染</a>
+    <a href="/web/voices.html">音色管理</a>
+    <a href="/web/roles.html">角色管理</a>
+    <a href="/web/personas.html">人物</a>
+    <div class="spacer"></div>
+    <a href="/docs" target="_blank">API Docs</a>
+  </nav>
+
+  <div class="container">
+    <div class="pipeline-header">
+      <h1>新闻线索 · 素材聚合</h1>
+      <p>文章 + 多源素材 → 素材包（七层覆盖审计 + 定向补搜）→ <a href="/web/writing.html">文字加工中心</a> 洗稿</p>
+    </div>
+
+    <!-- Step 1: Input Article -->
+    <div class="card" id="step-1-card">
+      <h3><span class="icon">📝</span> 输入原始文章</h3>
+      <div class="form-row">
+        <div>
+          <label>标题（可选）</label>
+          <input type="text" id="article-title" placeholder="输入文章标题">
+        </div>
+        <div>
+          <label>来源 URL（可选）</label>
+          <input type="text" id="article-url" placeholder="https://...">
+        </div>
+      </div>
+      <div class="btn-group" style="margin-bottom:1rem;align-items:center;">
+        <button class="btn btn-secondary btn-sm" type="button" id="btn-fetch-url" onclick="fetchUrl()">🌐 抓取 URL</button>
+        <!-- 证据图管线总闸 (2026-09-04): 开=抓取时同步提取页面图片, 建素材包时自动扫图进证据图池 -->
+        <label style="display:flex;gap:0.35rem;align-items:center;cursor:pointer;font-size:0.82rem;margin-bottom:0;"
+               title="开启后抓取时同步提取页面候选图（榜单/跑分/价格截图），素材包自动扫图打标，供导演在测试/对比段插入真实证据图">
+          <input type="checkbox" id="fetch-images" checked> 📷 搜图
+        </label>
+      </div>
+      <label>正文内容</label>
+      <textarea id="article-text" placeholder="粘贴财经/科技/地缘新闻原文..." style="min-height:160px;"></textarea>
+      <div style="display:flex;gap:1.25rem;align-items:center;margin-top:0.6rem;font-size:0.82rem;">
+        <span style="color:var(--text-muted);">赛道（驱动评论层与七层分析分支）：</span>
+        <label style="display:flex;gap:0.3rem;align-items:center;cursor:pointer;">
+          <input type="radio" name="article-track" value="tech" checked> 科技/商业
+        </label>
+        <label style="display:flex;gap:0.3rem;align-items:center;cursor:pointer;">
+          <input type="radio" name="article-track" value="geo"> 地缘/国际
+        </label>
+      </div>
+      <div class="btn-group" style="margin-top:0.75rem;">
+        <button class="btn btn-primary" id="btn-create" onclick="createArticle()">创建稿件</button>
+      </div>
+      <div class="status" id="status-create"></div>
+    </div>
+
+    <!-- Comment Layer Panel (流程①: 原稿 → 观众解构(自动) → 七层素材分析) -->
+    <div class="card" id="comment-panel">
+      <h3><span class="icon">💬</span> 评论层 · 观众反应解构</h3>
+      <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:1rem;">
+        创建稿件后 AI 自动解构：普通观众看完这篇的真实心理（看懂/盲区/嫌累）+ 评论区五种典型人设。启示：观众在哪共鸣、在哪懵、在哪想划走——钩子就埋在哪。解构完成后自动进入七层素材分析。
+      </p>
+      <div class="btn-group" style="margin-bottom:0.75rem;">
+        <button class="btn btn-secondary" id="btn-deconstruct" onclick="deconstructArticle()" disabled>💬 重新解构观众反应</button>
+      </div>
+      <div class="status" id="status-comment"></div>
+      <div id="comment-view"></div>
+    </div>
+
+    <!-- Material Package Panel (流程②) -->
+    <div class="card" id="material-panel">
+      <h3><span class="icon">🧠</span> AI 素材分析（七层覆盖）</h3>
+      <p style="font-size:0.78rem;color:var(--text-muted);margin-bottom:1rem;">
+        观众解构完成后 AI 自动分析主稿的七层素材覆盖缺口，缺口自动生成补搜词 → 一键智谱补搜 → 重新审计。洗稿时整包素材按层注入。
+        <span class="quota-hint">📦 智谱搜索付费资源包引擎自动轮流（Pro→Quark/Sogou→Std，一个用完自动切下一个），全部用尽会明确提示</span>
+      </p>
+
+      <div class="form-row" style="margin-bottom:1rem;align-items:center;">
+        <div style="flex:0 0 260px;">
+          <label>当前稿件素材包</label>
+          <select id="package-select" onchange="selectPackage(this)" style="width:100%;padding:0.4rem 0.6rem;font-size:0.82rem;">
+            <option value="">— 新建素材包 —</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:0.5rem;align-items:flex-end;">
+          <button class="btn btn-secondary btn-sm" id="btn-new-package" onclick="newPackage()" disabled>➕ 新建</button>
+          <button class="btn btn-secondary btn-sm" id="btn-reaudit" onclick="reauditPackage()" disabled>🔄 重新分析</button>
+          <button class="btn btn-secondary btn-sm" id="btn-scan-images" onclick="scanImages()" disabled
+                  title="扫素材条目页面图片 → 下载 → 视觉模型打标 → 进证据图池（老包回填/补扫用）">🔍 扫图</button>
+        </div>
+      </div>
+
+      <div class="status" id="status-material"></div>
+
+      <div id="audit-report" style="display:none;margin-bottom:1rem;padding:0.75rem;border:1px solid var(--border);border-radius:var(--radius-sm);">
+        <label>📊 七层覆盖审计 <span id="audit-summary" style="font-weight:400;color:var(--text-muted);font-size:0.8rem;"></span></label>
+        <div id="audit-layers" style="margin-top:0.5rem;"></div>
+        <div id="audit-queries" style="margin-top:0.75rem;"></div>
+        <div class="btn-group" style="margin-top:0.75rem;">
+          <button class="btn btn-warning btn-sm" id="btn-material-search" onclick="supplementSearch()" disabled>🔍 一键补搜缺口</button>
+          <button class="btn btn-violet btn-sm" id="btn-goto-writing" onclick="gotoWriting()" disabled>✍️ 去洗稿 →</button>
+        </div>
+      </div>
+
+      <div id="material-items" class="material-items"></div>
+
+      <details style="margin-top:1rem;">
+        <summary style="cursor:pointer;font-size:0.82rem;color:var(--text-muted);">➕ 手动补充素材（URL / 粘贴，可选）</summary>
+        <div style="margin-top:0.75rem;">
+          <label>补充素材 URL（一行一个，自动并行抓取）</label>
+          <textarea id="material-urls" placeholder="https://www.sohu.com/a/...&#10;https://36kr.com/p/..." style="min-height:70px;"></textarea>
+          <div class="form-row" style="margin-top:0.75rem;align-items:flex-end;">
+            <div style="flex:1;">
+              <label>手动粘贴素材（参数表 / 实测记录 / 价格信息，选填标题）</label>
+              <input type="text" id="material-manual-title" placeholder="素材标题（选填）">
+            </div>
+            <div style="flex:0 0 200px;">
+              <label>单条素材 URL（快速添加）</label>
+              <input type="text" id="material-manual-url" placeholder="https://...">
+            </div>
+            <div style="display:flex;gap:0.5rem;">
+              <button class="btn btn-secondary btn-sm" id="btn-material-add" onclick="addManualItem()" disabled>添加素材</button>
+              <button class="btn btn-primary btn-sm" id="btn-material-create" onclick="createPackage()">🧺 抓取 URL + 重新审计</button>
+            </div>
+          </div>
+          <textarea id="material-manual-text" placeholder="或直接粘贴素材正文…" style="min-height:60px;margin-top:0.5rem;"></textarea>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <!-- Toast -->
+  <div class="toast" id="toast"></div>
+
+  <script src="/web/app.js?v=7"></script>
+  <script src="/web/news.js"></script>
+</body>
+</html>
