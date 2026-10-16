@@ -116,6 +116,9 @@ B03 观察期 2026-10-16 起算 ≥1 周后拍板。待执行: B13(环解) → �
 - **动作**:`_book_brand` 下沉 neutral 模块(book_service 与 ppt_pipeline 均可顶层引用);ppt_pipeline 反向引 persona/slide_render 保留(单向)。
 - **验证**:import 图复扫环#3 消失;ppt render 冒烟。
 - **风险/决策**:中 / 自行。
+> ⚠ B11 影响: ppt→book 引用从 7 增到 12 (品牌迁移导致),
+>    ppt_pipeline 对 book_service 的耦合加重。
+>    若 B20/B21 阶段拆分 ppt_pipeline, 需优先处理这 12 处依赖。
 
 ### B12 slot_executor↔slot_workflows 环处置(环#4,须拍板)
 - **依据**:环#4;host_comfy.py:3 docstring 自证「延迟导入」为刻意设计。
