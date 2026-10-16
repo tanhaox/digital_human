@@ -1737,3 +1737,98 @@ laotan-tech 加【科技版专属约束】（高于通用规则）：
 - **动机/背景**: ep4/ep3 终检均出现；纯噪音污染 plan_warnings 信噪比。
 - **涉及模块**: app/services/anim_pipeline/planner.py (_finalize_doc 前), director2.collect_warnings
 - **备注**: 零 LLM，纯回填；注意回填后警告自然消失即可，不需闸。
+
+
+### ID-086：【重构】B03 垃圾真删（观察期届满）
+
+- **状态**: pending
+- **优先级**: P2
+- **提出时间**: 2026-10-16
+- **开发周期**: M0
+- **描述**: B02 归档的 51 项垃圾（scripts/archive/_2026-10_audit/）观察期满后 send2trash 真删；同批含 .tmp/ 130+ 历史临时脚本与 CHANGELOG.md.bak_20261016。
+- **动机/背景**: 两步删除法（REFACTOR_PLAN B02/B03），观察期 2026-10-16 起算 ≥1 周。
+- **涉及模块**: scripts/archive/, .tmp/, 根目录 bak
+- **备注**: 执行日 = 2026-10-23 后；删除一律 send2trash。
+
+### ID-087：【重构】B14 第二步 — 孤岛真删
+
+- **状态**: pending
+- **优先级**: P2
+- **提出时间**: 2026-10-16
+- **开发周期**: M0
+- **描述**: cleanup.py 与 scripts/anim_director.py 已标 DEPRECATED（20cbb0c），2026-10-23 后 send2trash。
+- **动机/背景**: 全仓零引用 / 被 director2.py 取代；qc.py 保留（CLI 消费，误删警戒已挂文件头）。
+- **涉及模块**: app/services/video_tagging_service/cleanup.py, scripts/anim_director.py
+- **备注**: 与 ID-086 同批执行。
+
+### ID-088：【重构】B20 director2.py 拆分（未拍板）
+
+- **状态**: deferred
+- **优先级**: P3
+- **提出时间**: 2026-10-16
+- **开发周期**: M2
+- **描述**: 4294 行大文件按域拆分；前置条件含 B11 产生的 ppt→book 12 处依赖优先处置。
+- **动机/背景**: REFACTOR_PLAN B20；高风险（法层核心），长期挂起待拍板。
+- **涉及模块**: app/services/anim_pipeline/director2.py
+- **备注**: 拆分前先读 CLAUDE.md 教训节 + 参考 参考-20260807-Python大文件架构重构-规范。
+
+### ID-089：【重构】B21 大文件梯队（未拍板）
+
+- **状态**: deferred
+- **优先级**: P3
+- **提出时间**: 2026-10-16
+- **开发周期**: M2
+- **描述**: 其余大文件（audio.py 1451 行 / ppt_pipeline.py / director_routes 族）拆分梯队。
+- **涉及模块**: app/routers/audio.py 等
+- **备注**: 随 B20 拍板一并定。
+
+### ID-090：【Bug】library_service.py:103-114 ilike 同坑（中文搜索静默 0 命中）
+
+- **状态**: pending
+- **优先级**: P2
+- **提出时间**: 2026-10-16
+- **开发周期**: M0
+- **描述**: 搜索把 scenes/shot_types 中文 JSON 列纳入 cast(String).ilike，SQLite 把中文存成 \uXXXX 转义字面量导致中文词永远 0 命中。asset_matcher.py 已注释同坑指针（勿顺手改）。
+- **动机/背景**: B17 审计新发现；修复属行为变化须专项。
+- **涉及模块**: app/services/library_service.py:103-114
+- **备注**: 修法参考 asset_matcher 的维度分工（中文维度交 Python 层）。
+
+### ID-091：【重构】ruff 长尾 — scripts/web/crawler 等非 app 目录
+
+- **状态**: pending
+- **优先级**: P3
+- **提出时间**: 2026-10-16
+- **开发周期**: M1
+- **描述**: app/ 已归零（B16a），剩 scripts/（含 archive 归档区）/web/crawler/sandbox 共 ~133 处 I001/F401。
+- **涉及模块**: scripts/, web/, crawler/, sandbox/
+- **备注**: 先拍板 scripts/archive 是否整体 ruff exclude。
+
+### ID-092：【运维】.git 历史重写（filter-repo）
+
+- **状态**: pending
+- **优先级**: P2
+- **提出时间**: 2026-10-16
+- **开发周期**: M1
+- **描述**: 独立仓库 .git 仍 27.66GB（历史对象含大文件 blob），git filter-repo 重写回收。
+- **动机/背景**: 工作区已 52.3GB→3.2MB，历史未清。
+- **涉及模块**: .git
+- **备注**: 高危操作，执行前全量备份 + 单独会话。
+
+### ID-093：【重构】anim_service.py 拆分观察（阈值 2000 行）
+
+- **状态**: pending
+- **优先级**: P3
+- **提出时间**: 2026-10-16
+- **开发周期**: 待定
+- **描述**: B07/B08 外壳职责增加（锁 alias + feeds 注册，现约 950 行），累计超 2000 行时评估拆分，随 B20/B21 阶段。
+- **涉及模块**: app/services/anim_service.py
+
+### ID-094：【测试】6 个既有失败归因与修复
+
+- **状态**: pending
+- **优先级**: P2
+- **提出时间**: 2026-10-16
+- **开发周期**: M1
+- **描述**: test_module_map×3 / test_tts_chunk_semantic×2 / test_book_audience_map×1，已归因系 2026-10-16 重构前既有（B01 前基线 worktree 实证），属历史债。
+- **动机/背景**: 基线 6 failed / 217 passed 里的全部红项。
+- **涉及模块**: tests/test_module_map.py, tests/test_tts_chunk_semantic.py, tests/test_book_audience_map.py
