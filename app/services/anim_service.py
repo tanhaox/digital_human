@@ -631,6 +631,19 @@ def _phase_gpu(job: dict[str, Any]) -> None:
                             logger.info("[text-pass] %d 镜入字完成 ✓", n_txt)
                     except Exception as exc:  # noqa: BLE001 — 入字失败不阻断主链
                         logger.warning("[text-pass] 批量入字异常 (不阻断): %s", exc)
+                    # 1017 W3 beats_enrich pass: K2 图定稿后多拍化 (图真锚 VLM,
+                    # 不可用退画面句; ID-100 锁构图 + 冻结瞬间续写; 失败保单拍)
+                    try:
+                        from app.services.anim_pipeline.beats_enrich import (
+                            batch_enrich_beats,
+                        )
+                        doc = shots_mod.load_doc(job["book_title"], job["ep"])
+                        n_be = batch_enrich_beats(doc, only=job.get("only"))
+                        if n_be:
+                            shots_mod.save(doc)
+                            logger.info("[beats-enrich] %d 镜多拍化 ✓", n_be)
+                    except Exception as exc:  # noqa: BLE001 — beats 强化失败不阻断
+                        logger.warning("[beats-enrich] 异常 (不阻断): %s", exc)
                     if job.get("chain_h3") and not job["cancel"]:
                         # 一条龙 (0915 用户令: 重规划此镜→确认→直达视频):
                         # 图完成后自动过审本批镜, 同一 comfy session 续跑 H3
