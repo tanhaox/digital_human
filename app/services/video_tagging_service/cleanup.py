@@ -1,5 +1,7 @@
 """视频打标 — 残留临时帧目录清理 (进程被强杀后的孤儿回收).
 
+DEPRECATED (2026-10-16 B14): 全仓零引用，待 2026-10-23 后 send2trash。
+
 背景: 打标时 ffmpeg 将视频抽帧为 PNG, 落在系统临时目录
 (<tempdir>/tagging_frames_*)。正常任务在 `_run_tagging_job_thread` 的
 `TemporaryDirectory` with 块退出时删除, 帧文件由 worker 按前缀清理。

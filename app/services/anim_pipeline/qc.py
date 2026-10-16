@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
 """人检关口 — qc_sheet.html 接触表 (缩略图 + QC要点 + 状态 + 审批命令速查).
 
+使用范围：仅 CLI 消费（run.py:29,:111-112），web 工坊 /api/anim 不经此。
+勿因"看似无 web 引用"而误删。
+
 用法: k2 批跑完 → qc 生成 → 浏览器逐镜检查(文字/穿模/构图) → approve 命令回填.
 """
 from __future__ import annotations

@@ -1,6 +1,10 @@
 # -*- coding: utf-8 -*-
 """动画导演引擎 (0914 六原则架构) — 稿+TTS manifest → 叙事弧+运动设计+分镜规划.
 
+DEPRECATED (2026-10-16 B14): 已被 app/services/anim_pipeline/director2.py 完全取代
+（能力对比结论见 docs/REFACTOR_PLAN.md 开头）。
+待 2026-10-23 后 send2trash。
+
 垂直切片: 用 ep1 跑通全链, 产出 shots.json + QC 面板。
 体外运行, 不接主产线; 跑通后接入。
 
