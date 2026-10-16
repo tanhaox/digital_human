@@ -10,7 +10,6 @@ cfg 2.5 + 20步 + shift 3.1 + 1328×1328. 关键参数是 cfg 2.5 (不是 1.0).
 """
 from __future__ import annotations
 
-import base64
 import json
 import logging
 import time
@@ -41,19 +40,28 @@ def _api(path: str, data: dict | None = None) -> dict:
         return json.loads(r.read())
 
 
-def _upload(image_path: Path, comfy_name: str) -> None:
-    """上传底图到 ComfyUI input 目录 (覆盖同名)."""
-    payload = base64.b64encode(image_path.read_bytes()).decode()
+def _upload(image_path: Path, comfy_name: str) -> str:
+    """上传底图, 返回 ComfyUI 实存文件名 (1016 修: 撞名覆盖 + 吃响应)。
+
+    旧注释称"覆盖同名"但实发无 overwrite 字段 — ComfyUI 默认撞名落
+    'xxx (1).png', LoadImage 引原名会加载陈年旧图 (同 face_fix 坑,
+    1016 s03 实锤)。overwrite=true + 以响应 name 为准。"""
+    data = image_path.read_bytes()
     boundary = "----zwtext"
     body = (
+        f"--{boundary}\r\nContent-Disposition: form-data; name=\"overwrite\"\r\n\r\n"
+        "true\r\n"
         f"--{boundary}\r\nContent-Disposition: form-data; name=\"image\"; "
         f"filename=\"{comfy_name}\"\r\nContent-Type: image/png\r\n\r\n"
-    ).encode() + base64.b64decode(payload) + f"\r\n--{boundary}--\r\n".encode()
+    ).encode() + data + f"\r\n--{boundary}--\r\n".encode()
     req = urllib.request.Request(
         COMFY + "/upload/image", data=body,
         headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
-    with urllib.request.urlopen(req, timeout=60):  # 上传完即关, 响应体不用
-        logger.debug("[text-pass] uploaded %s", comfy_name)
+    with urllib.request.urlopen(req, timeout=60) as r:
+        name = json.loads(r.read()).get("name") or comfy_name
+    if name != comfy_name:
+        logger.warning("[text-pass] 撞名落盘 input/%s (原引 %s)", name, comfy_name)
+    return name
 
 
 
@@ -142,10 +150,10 @@ def run_text_pass(shot: dict[str, Any], doc: dict[str, Any],
     prompt = _make_prompt([str(l) for l in lines], surface)
     prefix = f"anim/textpass/{doc.get('book_title', 'unknown')}/ep{doc.get('ep', 0)}/{sid}"
     W, H = _latent_size(base_image)
-    wf = _build_wf(comfy_name, prompt, seed, prefix, W, H)
 
     try:
-        _upload(base_image, comfy_name)
+        actual_name = _upload(base_image, comfy_name)  # 1016 修: 吃响应真名 (防撞名旧图)
+        wf = _build_wf(actual_name, prompt, seed, prefix, W, H)
         pid = _api("/prompt", {"prompt": wf})["prompt_id"]
         logger.info("[text-pass] %s submitted (cfg=%.1f, %d行)", sid, CFG, len(lines[:4]))
         t0 = time.monotonic()

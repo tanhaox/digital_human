@@ -8,7 +8,6 @@ Impact-Pack FaceDetailer + face_yolov8m 检测, guide 768 逐脸 inpaint, 基模
 """
 from __future__ import annotations
 
-import base64
 import json
 import logging
 import time
@@ -39,18 +38,29 @@ def _api(path: str, data: dict | None = None) -> dict:
         return json.loads(r.read())
 
 
-def _upload(image_path: Path, comfy_name: str) -> None:
-    payload = base64.b64encode(image_path.read_bytes()).decode()
+def _upload(image_path: Path, comfy_name: str) -> str:
+    """上传底图, 返回 ComfyUI 实存文件名 (1016 修: 撞名覆盖 + 吃响应)。
+
+    ComfyUI /upload/image 默认不覆盖同名 input 文件 — 撞名落成 'xxx (1).png'
+    且只在响应 name 里告知真名。旧版丢响应且工作流引原名 = LoadImage 加载到
+    input 里的陈年旧图 (1016 实锤: 22 镜被 10-15 旧图覆盖当日新图, K2 图与
+    H3 提示词两界脱节)。overwrite=true + 以响应名为准 (同 comfy.upload_image)。"""
+    data = image_path.read_bytes()
     boundary = "----facefix"
     body = (
+        f"--{boundary}\r\nContent-Disposition: form-data; name=\"overwrite\"\r\n\r\n"
+        "true\r\n"
         f"--{boundary}\r\nContent-Disposition: form-data; name=\"image\"; "
         f"filename=\"{comfy_name}\"\r\nContent-Type: image/png\r\n\r\n"
-    ).encode() + base64.b64decode(payload) + f"\r\n--{boundary}--\r\n".encode()
+    ).encode() + data + f"\r\n--{boundary}--\r\n".encode()
     req = urllib.request.Request(
         COMFY + "/upload/image", data=body,
         headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
     with urllib.request.urlopen(req, timeout=60) as r:
-        r.read()
+        name = json.loads(r.read()).get("name") or comfy_name
+    if name != comfy_name:
+        logger.warning("[face-fix] 撞名落盘 input/%s (原引 %s)", name, comfy_name)
+    return name
 
 
 def _build_wf(image_name: str, positive: str, negative: str,
@@ -98,9 +108,9 @@ def run_face_fix(shot: dict[str, Any], doc: dict[str, Any], base_image: Path) ->
     comfy_name = f"facefix_{sid}.png"
     seed = int(shot.get("seed") or 20261600)
     prefix = f"anim/facefix/{doc.get('book_title', 'unknown')}/ep{doc.get('ep', 0)}/{sid}"
-    wf = _build_wf(comfy_name, positive, negative, seed, prefix)
     try:
-        _upload(base_image, comfy_name)
+        actual_name = _upload(base_image, comfy_name)  # 1016 修: 吃响应真名 (防撞名旧图)
+        wf = _build_wf(actual_name, positive, negative, seed, prefix)
         pid = _api("/prompt", {"prompt": wf})["prompt_id"]
         logger.info("[face-fix] %s submitted (guide=%d denoise=%.1f)", sid, GUIDE, DENOISE)
         t0 = time.monotonic()
