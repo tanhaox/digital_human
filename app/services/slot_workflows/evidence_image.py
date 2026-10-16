@@ -25,9 +25,9 @@ from app.infrastructure import render_scale_pad, run_ffmpeg
 from app.models import DirectorJob, DirectorSlot, Script
 from app.schemas import get_video_format_spec
 from app.services.evidence_service import (
+    _download_image,
     collect_evidence_pool,
     pick_image_for_slot,
-    _download_image,
 )
 from app.services.slot_workflows.common import ensure_slot_dir
 

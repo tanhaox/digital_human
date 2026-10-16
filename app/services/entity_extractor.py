@@ -16,9 +16,7 @@
 """
 from __future__ import annotations
 
-import json
 import logging
-import re
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -118,7 +116,6 @@ def promote_person_slots(db, job, entities: list[dict[str, Any]]) -> int:
     文字卡 — 她的镜头永远上不了片。此处确定性提升: person 类实体且靶心有货,
     hf_* slot → broll_pexels (实体随行, 靶心直接命中官片)。返回转换数。
     """
-    from ..models import DirectorSlot
     person_ents = [e for e in entities if e.get("type") == "person"]
     if not person_ents:
         return 0

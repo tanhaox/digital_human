@@ -13,11 +13,10 @@
 from __future__ import annotations
 
 import logging
-import subprocess
 from pathlib import Path
 from typing import Any
 
-from app.services.composition_service.common import _run_ffmpeg, _WF_TIER
+from app.services.composition_service.common import _WF_TIER, _run_ffmpeg
 from app.services.video_validator import ffprobe_metadata
 
 logger = logging.getLogger(__name__)

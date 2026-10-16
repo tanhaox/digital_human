@@ -10,8 +10,16 @@ from sqlalchemy.orm import Session
 from app.models import DownloadLog, MaterialAsset, VideoAsset
 from app.services.asset_tagging import generate_asset_no, infer_tags
 from app.services.pexels_utils import (
-    API_DURATION, API_FPS, API_HEIGHT, API_ID, API_LINK, API_USER,
-    API_USER_NAME, API_USER_URL, API_WIDTH, int_duration, int_fps,
+    API_DURATION,
+    API_FPS,
+    API_HEIGHT,
+    API_ID,
+    API_USER,
+    API_USER_NAME,
+    API_USER_URL,
+    API_WIDTH,
+    int_duration,
+    int_fps,
     resolution_label,
 )
 

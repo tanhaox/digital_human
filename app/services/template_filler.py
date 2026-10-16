@@ -18,7 +18,6 @@ from pathlib import Path
 
 from app.config import get_config
 
-
 # Whitelist of placeholders the orchestrator will substitute.  Anything outside
 # this set is left as-is to keep the template author in full control.
 _SAFE_KEYS = frozenset(

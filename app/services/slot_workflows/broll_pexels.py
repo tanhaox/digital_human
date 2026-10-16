@@ -19,7 +19,11 @@ from app.config import get_config
 from app.infrastructure import render_scale_pad
 from app.models import DirectorSlot
 from app.schemas import get_video_format_spec
-from app.services.asset_matcher import MIN_HIT_RATIO, match_local_assets, register_asset_usage
+from app.services.asset_matcher import (
+    MIN_HIT_RATIO,
+    match_local_assets,
+    register_asset_usage,
+)
 from app.services.pexels_service import pexels_service
 from app.services.slot_workflows.common import ensure_slot_dir
 

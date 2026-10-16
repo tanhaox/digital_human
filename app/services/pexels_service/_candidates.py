@@ -20,8 +20,16 @@ from app.services.pexels_service.types import (
     ResolveItem,
 )
 from app.services.pexels_utils import (
-    API_DURATION, API_HEIGHT, API_ID, API_LINK, API_VIDEO_FILES, API_WIDTH,
-    RESOLUTION_WIDTHS, int_duration, orientation_ok, pick_video_file,
+    API_DURATION,
+    API_HEIGHT,
+    API_ID,
+    API_LINK,
+    API_VIDEO_FILES,
+    API_WIDTH,
+    RESOLUTION_WIDTHS,
+    int_duration,
+    orientation_ok,
+    pick_video_file,
 )
 
 logger = logging.getLogger(__name__)

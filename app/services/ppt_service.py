@@ -10,12 +10,8 @@ from __future__ import annotations
 import base64
 import logging
 import re
-import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
-
-from app.config import get_config
 
 logger = logging.getLogger(__name__)
 
@@ -691,8 +687,8 @@ def render_slide_mp4(slide_html: str, work_dir: Path, output_mp4: Path,
 
     dur = max(1.5, duration_sec)
     try:
-        from app.services.ppt_frame_capture import capture_slide_frames
         from app.infrastructure.ffmpeg import frames_to_mp4
+        from app.services.ppt_frame_capture import capture_slide_frames
         frames_dir = work_dir / "frames"
         if frames_dir.exists():
             for f in frames_dir.iterdir():

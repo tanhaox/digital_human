@@ -5,9 +5,20 @@ from typing import Any
 
 from app.services.pexels_service.types import ResolveItem
 from app.services.pexels_utils import (
-    API_DURATION, API_FPS, API_HEIGHT, API_ID, API_LINK,
-    API_USER, API_USER_NAME, API_USER_URL, API_VIDEO_FILES, API_WIDTH,
-    RESOLUTION_WIDTHS, int_duration, int_fps, pick_video_file,
+    API_DURATION,
+    API_FPS,
+    API_HEIGHT,
+    API_ID,
+    API_LINK,
+    API_USER,
+    API_USER_NAME,
+    API_USER_URL,
+    API_VIDEO_FILES,
+    API_WIDTH,
+    RESOLUTION_WIDTHS,
+    int_duration,
+    int_fps,
+    pick_video_file,
 )
 
 __all__ = ["merge_with_degraded", "fill_with_degraded"]

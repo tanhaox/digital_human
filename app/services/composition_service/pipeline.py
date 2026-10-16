@@ -13,10 +13,10 @@ from app.services.composition_service.audio import (
     _mix_master_track,
 )
 from app.services.composition_service.common import (
+    _HOST_WF,
     _ensure_root,
     _job_root,
     _now,
-    _HOST_WF,
 )
 from app.services.composition_service.ffmpeg_steps import (
     _concat_demuxer_concat,

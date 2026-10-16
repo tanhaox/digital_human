@@ -9,7 +9,10 @@ import logging
 from typing import Any
 
 from app.services.boost_service.llm import _call, _extract_json
-from app.services.boost_service.prompts import _GEO_DECONSTRUCT_ADDON, DECONSTRUCT_PROMPT
+from app.services.boost_service.prompts import (
+    _GEO_DECONSTRUCT_ADDON,
+    DECONSTRUCT_PROMPT,
+)
 
 logger = logging.getLogger(__name__)
 

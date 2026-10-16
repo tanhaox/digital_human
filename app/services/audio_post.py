@@ -12,7 +12,7 @@ import json
 import logging
 import wave
 from pathlib import Path
-from typing import Any, Callable
+from typing import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -49,11 +49,12 @@ def slow_line_filter(result: dict, od: Path, voice, backend: str,
     (真拖行才重合成), 无锚保持 3.5 绝对线。返回重合成行数。
     """
     import subprocess as sp
+
     from app.config import get_config
     from app.services.pinyin_fix import tts_adapt
+    from app.services.speech_anchor import read_anchor, zone_of
     from scripts.tts_lib.orchestrator import _synthesize_single
     from scripts.tts_lib.text import _PAUSE_MARK_ANY_RE
-    from app.services.speech_anchor import read_anchor, zone_of
 
     # 1001 修: 重合成路径剥停顿标记 — manifest 行文本带 -Xs- (拍点层), 语速筛直接
     # 喂引擎会把标记念出来 ("-0.8s-" 被读成语音实锤); reroll 路径有 _split_by_pause_marks
@@ -124,6 +125,7 @@ def zone_tempo(result: dict, od: Path, mods: list[dict], pacing: dict,
     换 voice/换稿不用改数); 偏差<3% 不动, 钳 0.92~1.10。返回调档包数。
     """
     from statistics import median
+
     from app.services.speech_anchor import apply_atempo
 
     segs = ((result.get("manifest") or {}).get("segments") or [])
@@ -178,7 +180,7 @@ def anchor_harmonize(result: dict, od: Path, anchors: dict,
 
     必须最后跑 — 用户锚是行级最高意志, 后跑后赢。返回调整行数。
     """
-    from app.services.speech_anchor import zone_of, harmonize
+    from app.services.speech_anchor import harmonize, zone_of
 
     harm = 0
     off = 0

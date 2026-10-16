@@ -9,7 +9,6 @@ import logging
 from typing import Any
 
 from app.services.boost_service.llm import _call, _extract_json
-from app.services.boost_service.prompts import P5_SPAN_PROMPT, P5_SPAN_PROMPT_BOOK
 
 logger = logging.getLogger(__name__)
 

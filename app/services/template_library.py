@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-
 TEMPLATES: dict[str, dict] = {
     "news-magazine-v1": {
         "version": "1.0.0",

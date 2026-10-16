@@ -22,7 +22,6 @@ import threading
 import time
 import urllib.request
 from pathlib import Path
-from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -264,8 +263,8 @@ def _new_ocr():
     实测 (4090): det 960x960 原生 CUDA 10.3ms/帧; 修复前 rec 纯 CPU 逐行推理,
     缩帧尺寸不提速 (~300ms/帧固定开销) 即此病灶。
     """
-    from rapidocr_onnxruntime import RapidOCR
     import rapidocr_onnxruntime as _r
+    from rapidocr_onnxruntime import RapidOCR
     _models = Path(_r.__file__).parent / "models"
     _nv = ROOT / ".venv/Lib/site-packages/nvidia"
     for sub in ("cudnn/bin", "cublas/bin", "cuda_nvrtc/bin", "cufft/bin", "nvjitlink/bin"):
@@ -463,8 +462,9 @@ def _backfill_dims(db: Session, job: MaterialIngestJob) -> int:
     todo = [a for a in rows if not a.scenes or a.scenes in ("[]", "", "null")]
     if not todo:
         return 0
-    from ..services.boost_service import _call, _extract_json
     import yaml as _yaml
+
+    from ..services.boost_service import _call, _extract_json
     vocab = (_yaml.safe_load((ROOT / "data" / "vocabulary_pack.json")
             .read_text(encoding="utf-8")) or {}).get("dimensions") or {}
     batch, done = 10, 0

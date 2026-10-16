@@ -29,7 +29,6 @@ def _pick_fallback_material(db: Session, slot: DirectorSlot) -> Path:
     We intentionally avoid pure black frames. The chosen clip is treated as
     "small error covering big error": visually harmless generic footage.
     """
-    import random
 
     cfg = get_config().defaults
     materials_dir = Path(cfg.materials_dir)

@@ -7,7 +7,6 @@ import subprocess
 import threading
 import time
 import urllib.request
-from typing import Any
 
 from app.services.video_tagging_service.constants import (
     _LLAMA_HEALTH_URL,

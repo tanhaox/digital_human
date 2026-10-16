@@ -145,6 +145,7 @@ def _loudnorm_measure(video_path: Path, target_lufs: float) -> dict[str, Any]:
     # 2026-08-08: 600s 卡死窗口 → Popen + 进程注册 + 杀树 (同 run_ffmpeg 样板).
     # force-stop 依赖 proc_registry 按 job_id 杀整棵进程树, 否则 compose 卡死无法中断.
     import platform
+
     from app.services.proc_registry import register_subprocess, unregister_subprocess
 
     is_win = platform.system() == "Windows"
