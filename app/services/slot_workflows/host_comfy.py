@@ -2,6 +2,8 @@
 
 轮询时 ``_is_cancelled`` 从 slot_executor 延迟导入 (slot_executor 顶层 import
 WORKFLOW_HANDLERS, 模块级导入会成环), ``publish`` 从 director_events 延迟导入。
+本文件参与 slot 族运行时依赖注入（环#5），改动前请先读
+docs/design/ADR-001-slot-runtime-injection.md。
 """
 from __future__ import annotations
 

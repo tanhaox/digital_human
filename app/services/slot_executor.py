@@ -2,6 +2,10 @@
 
 Workflow implementations live in slot_workflows.py.
 This module handles: execute_slot, execute_all_slots, phase scheduling, fallbacks.
+
+本文件参与 slot 族运行时依赖注入（环#5），改动前请先读
+docs/design/ADR-001-slot-runtime-injection.md（WORKFLOW_HANDLERS 注册时机、
+_is_cancelled 签名、执行器调用约定是禁区）。
 """
 from __future__ import annotations
 
