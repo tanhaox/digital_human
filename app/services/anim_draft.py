@@ -25,8 +25,8 @@ import logging
 import os
 import re
 import shutil
-import subprocess
 import sqlite3
+import subprocess
 import wave
 from contextlib import closing
 from datetime import datetime
@@ -41,9 +41,9 @@ from app.database import get_session_maker
 from app.models import AudioFile, AudioJob
 from app.models.book import Episode
 from app.services.anim_pipeline import shots as shots_mod
-from app.services.anim_pipeline.shots import norm_for_match
 from app.services.anim_pipeline.config import load as anim_cfg_load
-from app.services.anim_service import AnimBusyError, AnimNotFound, ep_guard, resolve_ep
+from app.services.anim_pipeline.shots import norm_for_match
+from app.services.anim_service import AnimNotFound, ep_guard, resolve_ep
 
 logger = logging.getLogger(__name__)
 
@@ -54,10 +54,13 @@ _GOLD = (0xC9 / 255, 0xA2 / 255, 0x5E / 255)
 # ── caption 档 = 新闻线 (J线) 观感平移 (0916 用户令: 字幕太大/断句不是完全体) ──
 # 源: jy_draft_service/subtitle_style.py + ppt_element.py 2026-08-21 用户定稿
 # 孤月体 / 字号5 / 奶油色#F9F3C4 / 居中 / 黑色描边+阴影 / transform_y=-0.75
+from app.services.jy_draft_service.auto_choreo import _CAT_ANIM, _classify_chunk
 from app.services.jy_draft_service.subtitle_style import _StyledTextSegment
 from app.services.jy_draft_service.subtitle_text import (
-    find_highlight_ranges, split_subtitle, wash_subtitle_text)
-from app.services.jy_draft_service.auto_choreo import _CAT_ANIM, _classify_chunk
+    find_highlight_ranges,
+    split_subtitle,
+    wash_subtitle_text,
+)
 
 _CAP_FONT = draft_mod.FontType.孤月体
 _CAP_COLOR = (0.976, 0.953, 0.769)  # #F9F3C4 奶油色 (base_color 传给 _StyledTextSegment)
@@ -453,6 +456,7 @@ def _sentence_segs(files: list[dict[str, Any]]) -> list[dict[str, Any]]:
     吸附包内真实停顿 (J线 _caption_bounds_snapped 同款), 无 wav/检测失败回退
     字数比例 (标点降权 + 句尾停顿加权)."""
     import re as _re
+
     from scripts.tts_lib.silence_split import _detect_silences, _silence_candidates
 
     segs: list[dict[str, Any]] = []
@@ -1296,6 +1300,7 @@ def _sound_cues(doc: dict) -> list[dict[str, Any]]:
     无文件 — 0816 待收割, 过滤后清单与自动挂永不指空)。清单导出与自动挂轨共用此流。
     """
     import json as _json
+
     from app.config import PROJECT_ROOT as _root
     from app.services.jy_draft_service.sfx import sound_path
     try:
@@ -1364,7 +1369,6 @@ def _attach_sound_cues(script: Any, cues: list[dict[str, Any]]) -> dict[str, int
     密度闸门 = J线 R9 v3 口径: 前 30s 全类别, 之后全局间隔 ≥4s 防腻 (闸门管整个
     事件, 与 J线 _auto_choreograph 同律)。缺文件/重叠由 attach_sound 自行跳过。
     """
-    from app.services.jy_draft_service.sfx import attach_sound
     stats = {"sfx": 0, "sfx_skip_density": 0, "sfx_skip_missing": 0}
     last_at: float | None = None
     for ev in cues:
@@ -1857,7 +1861,6 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
             s00c, s00d, wall_notes = _prep_opening_assets(book_title, base)
             # ── 书墙滚动 + reveal v3 (0916 五升级令): 滚动+齿轮音对齐 → reveal
             # 素材二封面折叠开幕 + 末帧虚化垫底 + 滴声(书名@半程) + 人声两段 ──
-            from app.services.jy_draft_service.sfx import attach_sound as _asx
             cover2 = covers_mod.extract_book_cover(book_title)
             _endf = covers_mod.wall_scroll_end_frame(book_title, scroll) if scroll else None
             rev_us = max(tc_us - int(rev_start * _US), 500_000)
@@ -1877,8 +1880,8 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
             if _endf is not None:
                 _blur = _endf.with_suffix(".endblur.jpg")
                 if not _blur.exists():
-                    from PIL import ImageFilter
                     from PIL import Image as _PILImage
+                    from PIL import ImageFilter
                     _PILImage.open(_endf).convert("RGB").filter(
                         ImageFilter.GaussianBlur(14)).save(_blur, quality=92)
                 bg_v = _as_video_path(_blur, base, rev_us / _US)

@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 import logging
-import re
 import threading
 import time
 from pathlib import Path
@@ -50,12 +49,16 @@ def _run_ppt_pipeline(job_id: str) -> None:
     """PPT → 逐页台词 TTS → 对齐 → 渲染 → 拼片."""
     try:
         with db_session() as db:
-            from app.models import Article, Host, Persona
+            from app.models import Article, Persona
             from app.services.book_service.persona import ensure_book_account
-            from app.services.ppt_service import (parse_pptx, build_slide_html,
-                                                  render_slide_png, png_to_zoompan_mp4,
-                                                  render_slide_mp4)
             from app.services.director_service._alignment import _align_fast_or_whisper
+            from app.services.ppt_service import (
+                build_slide_html,
+                parse_pptx,
+                png_to_zoompan_mp4,
+                render_slide_mp4,
+                render_slide_png,
+            )
 
             cfg = get_config()
             workdir = _job_workdir(job_id)
@@ -184,8 +187,8 @@ def _run_ppt_pipeline(job_id: str) -> None:
                      type="tts_done")
             else:
                 _evt(job_id, f"开始 TTS ({len(segments)} 段, 音色={voice.name if voice else '默认'})", "info")
-                from app.services.tts_service import TTSService
                 from app.services.gpu_service_manager import get_gpu_service_manager
+                from app.services.tts_service import TTSService
                 tts = TTSService(cfg.defaults)
                 job = AudioJob(
                     script_id=script.id, voice_id=voice_id,
@@ -213,11 +216,11 @@ def _run_ppt_pipeline(job_id: str) -> None:
                 # 同源现场标注 (与 TTS 输入完全同文本, 零错配窗口)。拆书线走
                 # 读书版规则 (calm+confident 混合打底 + melancholic 共情,
                 # 2026-09-03 用户定稿); 失败落整篇 calm/2 兜底 (读书人设)。
-                from app.services.pinyin_fix import tts_adapt, scan_pinyin_hits
                 from app.services.boost_service import (
                     _parse_emotion_annotations,
                     annotate_emotions,
                 )
+                from app.services.pinyin_fix import scan_pinyin_hits, tts_adapt
                 clean_text = "\n".join(seg.text for seg in segments)
                 # 词表命中提示 (2026-09-03): 扫干净文本 (标注后原文子串已不存在),
                 # 让用户在 SSE 流里看到哪些词被系统纠音。
@@ -308,7 +311,11 @@ def _run_ppt_pipeline(job_id: str) -> None:
             bound = _JOBS.get(job_id, {})
             skin = None
             if bound.get("book_id") and bs1_pages is None:
-                from app.services.skin_pack_service import load_skin, apply_skin_to_slides, extract_master
+                from app.services.skin_pack_service import (
+                    apply_skin_to_slides,
+                    extract_master,
+                    load_skin,
+                )
                 skin = load_skin(bound["book_id"])
                 if skin and bound.get("ep_index") == skin.master_ep:
                     # 母本重渲染: 当前 pptx 即新母本 → 重新抽取皮肤包
@@ -393,7 +400,10 @@ def _run_ppt_pipeline(job_id: str) -> None:
                     png = workdir / pd["png"] if pd.get("png") else None
                     if png is None or not png.exists():
                         from app.services.book_service.slide_render import (
-                            build_context as _bc, render_bs1_pages as _rb,
+                            build_context as _bc,
+                        )
+                        from app.services.book_service.slide_render import (
+                            render_bs1_pages as _rb,
                         )
                         _bc_db = db
                         _ctx = _bc(_bc_db, bound["book_id"], int(bound["ep_index"]))
@@ -424,10 +434,13 @@ def _run_ppt_pipeline(job_id: str) -> None:
                                       "duration_sec": round(dur, 3), "notes": s.notes})
                 elif mode == "jy2":
                     # 元素级拆解: 每页 base+文字/图透明层 → 剪映多轨草稿
-                    from app.services.ppt_frame_capture import capture_element_png
-                    from app.services.ppt_service import (build_base_html, build_text_element_html,
-                                                          build_image_element_html)
                     from app.services.jy_draft_service import compute_page_timing
+                    from app.services.ppt_frame_capture import capture_element_png
+                    from app.services.ppt_service import (
+                        build_base_html,
+                        build_image_element_html,
+                        build_text_element_html,
+                    )
                     pd = workdir / "layers" / f"p{s.index:02d}"
                     pd.mkdir(parents=True, exist_ok=True)
 
@@ -522,7 +535,7 @@ def _run_ppt_pipeline(job_id: str) -> None:
                         book_title = ""
                 try:
                     from app.services.jy_draft_service.watermark import (
-                        WATERMARK_ASSET, prepare_watermark,
+                        prepare_watermark,
                     )
                     # 台标资产: 老谭读书用专属 logo (缺失跳过), 其余静读书
                     _lt_logo = _laotan_book_logo()
@@ -591,6 +604,7 @@ def _logo_data_uri(asset: Path | None = None) -> str:
     """
     import base64
     import io
+
     from app.services.jy_draft_service.watermark import WATERMARK_ASSET
     src = Path(asset) if asset else WATERMARK_ASSET
     try:
@@ -644,9 +658,9 @@ def _render_card_png(db, template_id: str, input_data: dict, workdir: Path,
                      out_name: str) -> Path | None:
     """通用卡渲染: VisualRenderJob → mp4 → 抽稳定末帧 PNG (尾卡静态帧)."""
     try:
+        from app.infrastructure.ffmpeg import run_ffmpeg
         from app.models import VisualRenderJob
         from app.services.visual_render_service import execute_visual_render_job
-        from app.infrastructure.ffmpeg import run_ffmpeg
 
         job = VisualRenderJob(template_id=template_id, input_json=input_data, status="queued")
         db.add(job); db.commit(); db.refresh(job)

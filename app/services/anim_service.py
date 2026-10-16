@@ -18,11 +18,11 @@ from __future__ import annotations
 import json
 import logging
 import re
-from pathlib import Path
 import threading
 import time
 import uuid
 from contextlib import contextmanager
+from pathlib import Path
 from typing import Any
 
 from app.services.anim_pipeline import h3 as h3_mod
@@ -497,7 +497,8 @@ def _phase_enhance(job: dict[str, Any]) -> None:
 
 def _phase_brand(job: dict[str, Any]) -> None:
     """品牌卡随书生成 (0915 用户令: 风格与书的动画一致). 一次性 ~2min GPU, 全系列复用."""
-    from app.services.anim_pipeline import director2, brand as brand_mod
+    from app.services.anim_pipeline import brand as brand_mod
+    from app.services.anim_pipeline import director2
 
     def svc_notify(message: str) -> None:
         _publish(job["id"], {"type": "anim_service", "message": message})
@@ -599,7 +600,9 @@ def _phase_gpu(job: dict[str, Any]) -> None:
                         logger.warning("[face-fix] 批量修脸异常 (不阻断): %s", exc)
                     # 1015 抹除 pass: 未申报镜的物件先验涂写 → 2511 编辑抹成空白素面
                     try:
-                        from app.services.anim_pipeline.erase_pass import batch_erase_pass
+                        from app.services.anim_pipeline.erase_pass import (
+                            batch_erase_pass,
+                        )
                         doc = shots_mod.load_doc(job["book_title"], job["ep"])
                         n_er = batch_erase_pass(doc, only=job.get("only"))
                         if n_er:
@@ -664,9 +667,9 @@ def _adopt_orphan_videos(doc: dict[str, Any]) -> int:
 
     扫 output/video/anim/{书}/ep{n}/, 凡镜无 video 且 output 有其前缀最新 mp4
     (比该镜现有 png/记录新) → 搬回挂账 anim_done。只认"帧对齐合理"(≥1s)产物。"""
-    import re as _re
     import shutil as _sh
     import subprocess as _sp
+
     from app.services.anim_pipeline import config as _acfg
     out_root = Path(_acfg.load().comfy.output_dir) / "video" / "anim" / \
         shots_mod._safe(str(doc.get("book_title"))) / f"ep{doc.get('ep')}"
@@ -869,6 +872,7 @@ def _sanitize_shot_text(doc: dict[str, Any], sid: str) -> int:
     格式病不赌 LLM 运气, 与 validate_doc 同一把归一尺 (director2.norm_text_layer)。
     返回剥除条数。"""
     import re as _re
+
     from app.services.anim_pipeline import director2 as _d2
     shots = sorted(doc.get("shots") or [], key=lambda s: float(s.get("t_start") or 0))
     idx = next((i for i, s in enumerate(shots) if s["shot_id"] == sid), None)
@@ -975,8 +979,8 @@ def replan_shot(book_ref: str, ep: int, sid: str) -> dict[str, Any]:
         import re as _re_gate
         _gate = _re_gate.compile(rf"\b{_re_gate.escape(sid)}\b")
         if _ss:
-            from app.services.anim_pipeline.creative_slots import fill_creative_slots
             from app.services.anim_pipeline.assembler import assemble_episode
+            from app.services.anim_pipeline.creative_slots import fill_creative_slots
             for attempt in (1, 2):
                 try:
                     cur = shots_mod.load_doc(book_title, ep)
@@ -1222,7 +1226,6 @@ def fix_shot_text(book_ref: str, ep: int, sid: str, word: str = "") -> dict[str,
         if not sinked:
             raise ValueError("没检测到入画文字事件 (可显式传 word)")
         tl = s.setdefault("text_layer", [])
-        import re as _re2
         for w in sinked:
             # 时机: 首拍窗口起, 2.5s 一闪
             b0 = float(beats[0].get("t_start") or 0)

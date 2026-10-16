@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 import logging
 import sys
-import time
 from pathlib import Path
 from typing import Any, Callable
 
@@ -17,6 +16,7 @@ if str(_project_root) not in sys.path:
     sys.path.insert(0, str(_project_root))
 
 from scripts import tts_client
+
 from ..config import DefaultsConfig
 from ..models import AudioFile, AudioJob, Segment, Voice
 
@@ -192,7 +192,8 @@ class TTSService:
                                [f"…{m}" for m in _p_missed[:4]])
             # 品牌仪式句墙 (1004): 身份/收官句独占一包 — 语义上就是独立呼吸单元
             # (稿内有没有空行都保住边界), 且动画线品牌原子=TTS 包级, 包界即仪式句界。
-            from .anim_pipeline.shots import is_brand_text, norm_for_match as _nfm
+            from .anim_pipeline.shots import is_brand_text
+            from .anim_pipeline.shots import norm_for_match as _nfm
             for _wi, _ln in enumerate(_flat_lines):
                 if _wi > 0 and is_brand_text(_nfm(_ln)):
                     _para_walls.add(_wi)
@@ -292,9 +293,10 @@ class TTSService:
 
                 def _resynth_line(idx: int, clean_line: str, marked_line: str,
                                   duration_factor: float | None = None) -> None:
+                    import re as _re
+
                     from scripts.tts_lib.orchestrator import _synthesize_single
                     from scripts.tts_lib.text import _tts_text
-                    import re as _re
 
                     wav = output_dir / f"{idx:03d}.wav"
                     # 情绪段按干净行文本匹配 (标注行与段文本对不上, 会落 calm)

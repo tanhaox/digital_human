@@ -25,10 +25,18 @@ from app.services.boost_service.deconstruct import (
     deconstruct_article,
     format_pseudo_comments,
 )
-from app.services.boost_service.emotions import _parse_emotion_annotations, annotate_emotions
+from app.services.boost_service.emotions import (
+    _parse_emotion_annotations,
+    annotate_emotions,
+)
 from app.services.boost_service.llm import _call, _extract_json, _resolve_llm_cfg
-from app.services.boost_service.pipeline import _FLOW_AUDIT_CACHE, audit_flow_metrics, run_boost
+from app.services.boost_service.pipeline import (
+    _FLOW_AUDIT_CACHE,
+    audit_flow_metrics,
+    run_boost,
+)
 from app.services.boost_service.prompts import (
+    DECONSTRUCT_PROMPT,
     P1_PROMPT,
     P2_PROMPT,
     P3_PROMPT,
@@ -38,7 +46,6 @@ from app.services.boost_service.prompts import (
     P5_SPAN_PROMPT_BOOK,
     P7_PROMPT,
     P_LOOP_PROMPT,
-    DECONSTRUCT_PROMPT,
     TTS_ADAPT_PROMPT,
 )
 from app.services.boost_service.splice import (

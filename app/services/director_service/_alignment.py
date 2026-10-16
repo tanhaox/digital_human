@@ -29,7 +29,7 @@ def _collect_tts_segment_durations(
     segment_id. Returns None when any segment is missing a duration (caller
     should fall back to Whisper).
     """
-    from app.models import AudioFile, AudioJob, Segment
+    from app.models import AudioJob
 
     job = (
         db.query(AudioJob)
@@ -79,7 +79,6 @@ def _align_fast_or_whisper(
     segment is missing a duration, fall back to Whisper re-transcription so the
     timeline stays complete.
     """
-    from app.models import AudioFile, Segment
     from app.services.alignment_service import (
         align_from_tts_durations,
         align_script_segments,

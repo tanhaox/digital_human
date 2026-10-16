@@ -505,8 +505,12 @@ def _persist_plan(
     # (person/military/event→油管/DVIDS 第2期接线, concept→Pexels 兜底)。
     # 实体入 plan_json + slot params.entities (本地碰撞实体维度, 第3期)。
     try:
-        from ..entity_extractor import (ENTITY_LAYER_ENABLED, extract_material_entities,
-                                        match_slot_entities, requirement_sheet)
+        from ..entity_extractor import (
+            ENTITY_LAYER_ENABLED,
+            extract_material_entities,
+            match_slot_entities,
+            requirement_sheet,
+        )
         if not ENTITY_LAYER_ENABLED:
             raise RuntimeError("实体层实验中(ENTITY_LAYER_ENABLED=False), 跳过")
         script = getattr(job, "script", None)

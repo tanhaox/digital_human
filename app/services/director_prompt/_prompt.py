@@ -11,6 +11,7 @@ from typing import Any
 
 from app.config import get_config
 from app.schemas import get_video_format_spec
+from app.services.director_prompt._catalog import mock_material_catalog
 from app.services.director_prompt._constants import (
     HARD_DIMENSIONS,
     LOCATION_VALUES,
@@ -20,7 +21,6 @@ from app.services.director_prompt._constants import (
     VISUAL_DIRECTOR_V2_PATH,
     VOCABULARY_PACK_PATH,
 )
-from app.services.director_prompt._catalog import mock_material_catalog
 from app.services.director_prompt._strip_host import strip_host_mode
 from app.services.director_prompt._vocabulary import load_vocabulary_pack
 

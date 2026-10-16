@@ -6,16 +6,15 @@ DB session 由调用方传入 (SQLAlchemy 延迟导入, 避免顶层依赖).
 from __future__ import annotations
 
 import logging
-import os
-import subprocess
-import uuid
 from pathlib import Path
 from typing import Any, Iterator
 
 from fastapi import HTTPException, Request
 from fastapi.responses import FileResponse, StreamingResponse
 
-from .file_utils import recycle_file  # noqa: F401 — re-export, routers/library.py 经本模块调用
+from .file_utils import (
+    recycle_file,  # noqa: F401 — re-export, routers/library.py 经本模块调用
+)
 
 logger = logging.getLogger(__name__)
 
@@ -90,7 +89,8 @@ def video_file_response(request: Request, file_path: Path, media_type: str) -> F
 
 def _build_asset_query(db: Any, **filters) -> Any:
     """按筛选条件构建 VideoAsset 查询 (关键词 OR 匹配 + 维度等值 + 逗号分隔标签 OR)."""
-    from sqlalchemy import or_, String
+    from sqlalchemy import String, or_
+
     from app.models import VideoAsset
 
     query = db.query(VideoAsset)
@@ -132,6 +132,7 @@ def search_assets(
 ) -> dict[str, Any]:
     """构建素材搜索查询. 返回 {total, items(ORM)}. 喜欢的素材排序置顶."""
     from sqlalchemy import case
+
     from app.models import VideoAsset
 
     query = _build_asset_query(

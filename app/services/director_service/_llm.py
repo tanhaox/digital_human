@@ -12,11 +12,12 @@ from sqlalchemy.orm import Session
 
 from app.config import get_config
 from app.models import DirectorJob, Persona
-from app.services.director_events import PlanCancelled, publish as _evt
+from app.services.director_events import PlanCancelled
+from app.services.director_events import publish as _evt
 from app.services.director_parser import parse_llm_plan
 from app.services.director_prompt import build_director_prompt
 from app.services.director_service._trace import append_trace
-from app.services.llm_service import LLMService, get_llm_service
+from app.services.llm_service import get_llm_service
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +46,10 @@ def _llm_plan_phase(
     visual_intent = None
     if hasattr(script, "boosted_text") and script.boosted_text:
         try:
-            from app.services.director_prompt._intent import extract_visual_intent, summarize_intent
+            from app.services.director_prompt._intent import (
+                extract_visual_intent,
+                summarize_intent,
+            )
 
             visual_intent = extract_visual_intent(
                 script.boosted_text,

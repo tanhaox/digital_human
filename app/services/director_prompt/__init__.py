@@ -13,7 +13,10 @@ from app.services.director_prompt._catalog import (
     build_real_material_catalog,
     mock_material_catalog,
 )
-from app.services.director_prompt._prompt import build_director_prompt, load_director_prompt
+from app.services.director_prompt._prompt import (
+    build_director_prompt,
+    load_director_prompt,
+)
 from app.services.director_prompt._vocabulary import (
     build_vocabulary_pack,
     load_vocabulary_pack,

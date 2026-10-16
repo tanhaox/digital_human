@@ -56,7 +56,7 @@ def extract_visual_intent(
     """
     # ── 优先 P5 情绪标注 (统一字典) ──
     if emotion_annotations:
-        from ..emotion_dict import EMOTIONS, EMOTION_CN
+        from ..emotion_dict import EMOTION_CN, EMOTIONS
 
         intents: list[dict[str, Any]] = []
         for ann in emotion_annotations:

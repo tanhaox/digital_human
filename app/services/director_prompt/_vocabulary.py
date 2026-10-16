@@ -14,11 +14,11 @@ from sqlalchemy.orm import Session
 
 from app.models import VideoAsset
 from app.services.director_prompt._constants import (
+    _CLEANUP_PREFIXES,
+    _CLEANUP_WORDS,
     BASE_SHOT_TYPES,
     MAX_WORDS_PER_DIM,
     VOCABULARY_PACK_PATH,
-    _CLEANUP_PREFIXES,
-    _CLEANUP_WORDS,
 )
 
 logger = logging.getLogger(__name__)
