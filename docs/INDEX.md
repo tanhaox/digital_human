@@ -90,6 +90,7 @@
 - [迁移准备清单.md](status/迁移准备清单.md) — 2026-08-22 数字人系统整机迁移清单（同盘符方案 A）
 
 ### design/
+- [ADR-001-slot-runtime-injection.md](design/ADR-001-slot-runtime-injection.md) — B12 拍板 A 案: slot 三元环(实测 6 边/双闭环)接受现状不重构, 附禁区清单(WORKFLOW_HANDLERS 注册时机/_is_cancelled 签名/执行器调用约定/分层不可互换)（2026-10-16; 已接受）
 - [kimi基座-token根治与写者收口-设计方案.md](design/kimi基座-token根治与写者收口-设计方案.md) — 外部审计五实锤全亲证 + 新发现⑥enhance覆写器层/⑦单镜旁路 → P0 usage日志~P5 fix链patch化六阶段(单一写者原则, 6.5工作日, 4个待拍板点)（2026-10-09; 未动码待评审）
 - [反哺实施计划v2-架构对齐.md](design/反哺实施计划v2-架构对齐.md) — 产线架构基线(状态机/闸门时序/失效传播) + P1-B~P3 施工图(挂点/不降级论证/升级判据) + 只升不降六纪律 + 拍板项（2026-09-27; §六执行后记: P1-B/P2-B/P2-A当日全部实证完毕）
 - [情绪节奏对照-离线报告.md](design/情绪节奏对照-离线报告.md) — P2-B 裁决: 相关性零+P5强度方差窄 → 接线搁置, 前置=扩P5带宽（2026-09-27; .tmp/emotion_rhythm_audit.py 可复跑）
@@ -105,6 +106,7 @@
 - [蒸馏产物schema设计.md](design/蒸馏产物schema设计.md) — 两级蒸馏 L0/L1 schema（book_service 权威依据）
 - [p5_情绪标注升级方案.md](design/p5_情绪标注升级方案.md) — P5 情绪字典 / 8 维向量设计（P1-P3 部分已被砍除，见文首注记）
 - [laotan_prompt_改造中-20260814.md](design/laotan_prompt_改造中-20260814.md) — laotan-tech 七层框架定稿过程（现行 `config/laotan-tech_7layer_v2.txt` 的由来）
+- 另有 16 篇未逐条列（工作流深挖参考 / 道法术器架构演进 v1-v3 / 账本·规层·四层架构等，[目录清单](design/)），目录现共 34 篇
 
 ### guides/
 - [系统结构总览.md](guides/系统结构总览.md) — 全系统模块/数据流总览（新人入口）

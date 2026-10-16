@@ -43,7 +43,7 @@
 - 本文件
 - docs/INDEX.md（文档唯一入口）
 - docs/REFACTOR_PLAN.md（当前重构进度 + 冻结基线）
-- docs/status/backlog.md（挂账观察项）
+- docs/status/项目状态总览.md + docs/status/backlog.md（状态与挂账观察项）
 - docs/AUDIT-系统地图.md / AUDIT-问题清单.md（如需）
 - docs/design/ADR-001-slot-runtime-injection.md（如动 slot 族）
 
