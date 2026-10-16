@@ -35,11 +35,16 @@ logger = logging.getLogger(__name__)
 # h3_style (风格锚) + motion_style (动画律) 承担
 # 1012 修2 (国旗实锤): 旧示例清单里的 "flags waving" 是教模型加旗的邀请函 —
 # 城市场景中国旗/美国国旗全是它招来的 (0915 起每条视频都带); 换中性示例 + 禁新增物件
+# 1016 修 (s02/s04/s06/s07 全员被框进家居环境实锤): 旧示例清单里 curtains
+# swaying 等具象名词 = 画物邀请函 (同 1012 修2 flags waving 家族) — 模型为了
+# "让窗帘摆" 会把外景隐喻场景重建成有窗帘的室内。改纯中性表述, 零示例枚举。
 AMBIENT_LIFE = (
-    "Objects already present in the frame may move naturally: cars driving, people walking, "
-    "smoke rising, curtains swaying, water rippling, lights shifting. Colors, shading and surface "
-    "textures remain exactly as in Picture 1; no texture shimmer. Objects NOT present in "
-    "Picture 1 exist and nothing else: the video may not add any new object, decoration or written mark of any kind — only what is already visible in the first frame may move."
+    "Objects already visible in Picture 1 may move naturally in place, consistent "
+    "with what they are. Colors, shading and surface textures remain exactly as in "
+    "Picture 1; no texture shimmer. The video adds NOTHING that is not visible in "
+    "Picture 1: no new object, scenery element, decoration or written mark of any "
+    "kind appears at any moment — only what is already visible in the first frame "
+    "may move."
 )
 # 文字层承接 (0915 定稿: 中文优先 + 字体纪律): 首帧全灭字不变; 动画中文字出场 —
 # 关键词用中文短词(2-4字), 数字/年份/标志保持数字与拉丁字母; 每镜一种艺术字体风格
@@ -200,10 +205,9 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
             f"Scene era lock (book-level, overrides any style wording): {_era} "
             "— costumes, props and environments obey this and Picture 1. The art "
             "style governs rendering texture ONLY; it never re-stages the scene. "
-            "Every part of Picture 1 stays itself for the whole video: same room, "
-            "same furniture, same window view (distant buildings with lights "
-            "only), same wall items; nothing new is added to the scene at any "
-            "moment, indoors or outdoors.")
+            "Every part of Picture 1 stays itself for the whole video: the same "
+            "setting, the same objects and the same background as the first "
+            "frame; nothing new is added at any moment.")
         lines.append("")
     # 1012 书级动画律 (治运动随机): 全程运动语言锚, 优先级高于单拍措辞 —
     # 规划器 beats 逐镜具体动作不变, 但运动"气质" (液态/雾气/弹性/节奏) 由它钉死
