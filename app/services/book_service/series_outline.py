@@ -8,7 +8,6 @@ Gate 0.5: 蒸馏材料组装时过 compliance_gate (敏感句换安全版/剔除
 """
 from __future__ import annotations
 
-import json
 import logging
 import re
 from pathlib import Path

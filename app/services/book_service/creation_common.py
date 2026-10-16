@@ -10,7 +10,6 @@ import logging
 import re
 from typing import Any
 
-from app.config import get_config
 from app.models import BookProject
 from app.services.book_service.reader import read_book
 from app.services.llm_service import LLMService, get_llm_service

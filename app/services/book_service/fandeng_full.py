@@ -166,8 +166,8 @@ def _run_fandeng_full_inner(db: Session, book: BookProject, *, force: bool = Fal
                     "error": "蒸馏稿缺节构 (料仓空, 废稿形态) — 书库对本书点「🔄 重蒸馏」重建后再试"}
         return {"status": "failed", "error": f"蒸馏材料过薄 ({len(mat)}字), 先跑蒸馏"}
     chunks = _chunk_material(mat)
-    from .creation_common import _llm
     from .compliance_gate import sanitize_material
+    from .creation_common import _llm
 
     t0 = time.time()
     segs: list[str] = []

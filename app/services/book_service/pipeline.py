@@ -70,6 +70,7 @@ def run_book_setup(db: Session, epub_path: str, *, create_book: bool = True,
                 pass
 
     from app.models import BookProject
+
     from .reader import clean_book_title
     book_title = clean_book_title(Path(epub_path).stem)
 
@@ -106,8 +107,14 @@ def run_book_setup(db: Session, epub_path: str, *, create_book: bool = True,
     if not already_distilled:
         try:
             log("① 蒸馏启动")
-            from .distiller import GemmaClient, ensure_gemma, stage_parse, stage_extract, \
-                stage_gate_a, stage_compose
+            from .distiller import (
+                GemmaClient,
+                ensure_gemma,
+                stage_compose,
+                stage_extract,
+                stage_gate_a,
+                stage_parse,
+            )
             client, started = ensure_gemma(GemmaClient())
             meta = stage_parse(epub_path)
             log(f"① 解析: {meta['n_chapters']} 章 → {meta['n_chunks']} 块, 覆盖率已验")
@@ -140,8 +147,9 @@ def run_book_setup(db: Session, epub_path: str, *, create_book: bool = True,
     else:
         try:
             log("② L0/facing 启动")
-            from .l0 import run_l0, _l0_dir as _l0d
             from .facing import run_facings
+            from .l0 import _l0_dir as _l0d
+            from .l0 import run_l0
             run_l0(str(Path(epub_path).resolve()))
             run_facings(_l0d(book_title),
                         facings=["kernel", "units", "quotes", "cases",

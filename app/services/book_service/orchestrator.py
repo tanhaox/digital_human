@@ -19,8 +19,6 @@ from app.services.book_service.creation_common import (
     validate_script,
 )
 from app.services.book_service.creation_steps import (
-    assess_book_risk,
-    auto_fill_from_l0,
     build_comment_layer,
     build_materials,
     build_roadmap,

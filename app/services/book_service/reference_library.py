@@ -223,6 +223,7 @@ def selection_pool() -> list[dict]:
 
 if __name__ == "__main__":
     import sys
+
     from app.config import load_config, set_config
     set_config(load_config())
     if "--pool" in sys.argv:

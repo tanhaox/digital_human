@@ -21,7 +21,6 @@ from pathlib import Path
 
 import requests
 
-from app.config import get_config
 from app.services.book_service.reader import clean_book_title, read_book
 from app.services.prompt_guard import wrap_source
 
@@ -698,8 +697,9 @@ def distill_book(path: str | Path, client: GemmaClient,
     # (文本备注是给人看的, JSON 是给 compliance_gate 吃的; rewrite 的 dir 是方向,
     #  safe 由过滤层从 dir 引号抽取/后续蒸馏升级直接产逐字安全版)
     try:
-        from .l0 import _l0_dir as _d
         import json as _json
+
+        from .l0 import _l0_dir as _d
         _map = {"rules": [{"orig": r.get("orig") or "", "safe": r.get("safe") or "",
                            "note": r.get("dir") or ""} for r in audit_res["rewrite"]],
                 "hard_notes": list(audit_res["book_rules"] or []),

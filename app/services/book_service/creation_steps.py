@@ -11,7 +11,6 @@ import re
 
 from sqlalchemy.orm import Session
 
-from app.config import get_config
 from app.models import BookProject, Episode
 from app.services.book_service.creation_common import (
     _CORE_FIELDS,
@@ -21,7 +20,7 @@ from app.services.book_service.creation_common import (
     source_context,
 )
 from app.services.book_service.distiller import GemmaClient, load_book_rules
-from app.services.llm_service import LLMService, get_llm_service
+from app.services.llm_service import get_llm_service
 
 logger = logging.getLogger(__name__)
 
@@ -206,8 +205,9 @@ def _persona_target_reader(db: Session, book: BookProject | None = None) -> str 
     0913c 定位收窄: 只做**兜底与语感层** — 目标读者本体由书的内容锁定
     (_derive_book_reader), 账号受众不再盖到书上。
     """
-    from .persona import ensure_book_account
     from app.models import Persona
+
+    from .persona import ensure_book_account
     try:
         p: Persona | None = None
         if book is not None:
@@ -548,8 +548,8 @@ def _ep_target_duration(book: BookProject) -> float:
     """
     try:
         pid = (book.input_json or {}).get("persona_id") if isinstance(book.input_json, dict) else None
-        from app.models import Host, Persona
         from app.database import get_session_maker
+        from app.models import Host, Persona
         smk = get_session_maker()
         if smk is None:
             return 600.0

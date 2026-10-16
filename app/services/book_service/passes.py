@@ -88,7 +88,7 @@ def snapshot(text: str, *, target: float, book_title: str, require_cta: bool = F
     include: validate=validate_script(含CTA)/flow=section_flow_issues/
              brand=中国品牌闸/fig=人物配额 — 按 pass 语义取, 例: 幽默不含 fig。
     """
-    from .creation_common import validate_script, section_flow_issues, _zh_brand_issues
+    from .creation_common import _zh_brand_issues, section_flow_issues, validate_script
     snap: dict[str, list[str]] = {}
     if "validate" in include:
         snap["validate"] = list(validate_script(text, target, book_title=book_title,

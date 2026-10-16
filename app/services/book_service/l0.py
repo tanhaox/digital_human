@@ -16,7 +16,8 @@ import re
 from pathlib import Path
 
 from app.config import get_config
-from .reader import read_book, clean_book_title
+
+from .reader import clean_book_title, read_book
 
 logger = logging.getLogger(__name__)
 
@@ -221,6 +222,7 @@ def run_l0(path: str | Path, client=None, skip_llm: bool = False) -> dict:
 
 if __name__ == "__main__":
     import sys
+
     from app.config import load_config, set_config
 
     set_config(load_config())

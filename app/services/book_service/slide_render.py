@@ -46,6 +46,7 @@ class Bs1Context:
 def build_context(db, book_id: str, ep_index: int) -> Bs1Context | None:
     """BookProject+Episode → 渲染上下文 (品牌/logo 复用 ppt_pipeline._book_brand)."""
     from app.models import BookProject, Episode
+
     from .slide_gen import _cn_num
     book = db.query(BookProject).filter(BookProject.id == book_id).first()
     if not book:
@@ -217,6 +218,7 @@ def render_bs1_pages(pages: list[dict], ctx: Bs1Context, workdir: Path,
     返回成功渲染的下标列表; png 落 workdir/pages/p{idx:02d}.png, html 留档同目录。
     """
     import asyncio
+
     from app.config import get_config
     from app.services.template_filler import fill_template
     from app.services.template_library import get_template, resolve_template_dir
@@ -263,8 +265,8 @@ def render_bs1_pages(pages: list[dict], ctx: Bs1Context, workdir: Path,
 # ── 规划主流程 (后台线程) ──────────────────────────────────────
 def run_bs1_plan(job_id: str, book_id: str, ep_index: int) -> None:
     """① PPT生产: A 规划 → Pexels 配图 → 逐页预览渲染 → job status=planned。"""
-    from app.services.ppt_pipeline import _evt, _job_workdir, _JOBS
     from app.database import db_session
+    from app.services.ppt_pipeline import _JOBS, _evt, _job_workdir
 
     from .slide_gen import plan_episode_pages
 

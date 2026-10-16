@@ -15,28 +15,28 @@ from sqlalchemy.orm import Session
 
 from app.models import BookProject, Episode
 from app.models.base import _now
-from app.services.prompt_guard import wrap_source, TRUST_DECL
+from app.services.book_service import passes as passes_mod
 from app.services.book_service.creation_common import (
-    _zh_brand_issues,
-    derive_breakdown_steps,
-    ep1_opening_order_issues,
-    persona_anchor_issues,
-    fandeng_opening_issues,
-    typing_card_issues,
-    fallback_base,
-    persona_identity_ending,
-    section_flow_issues,
     _llm,
     _parse_json,
     _scan_occult_quotes,
+    _zh_brand_issues,
+    derive_breakdown_steps,
     elastic_labels,
+    ep1_opening_order_issues,
+    fallback_base,
+    fandeng_opening_issues,
+    persona_anchor_issues,
+    persona_identity_ending,
+    section_flow_issues,
     source_context,
+    typing_card_issues,
     validate_script,
 )
-from app.services.book_service import passes as passes_mod
 from app.services.book_service.creation_steps import _l0_facing
 from app.services.book_service.distiller import load_book_rules
 from app.services.llm_service import _load_prompt_template
+from app.services.prompt_guard import TRUST_DECL, wrap_source
 
 logger = logging.getLogger(__name__)
 
@@ -184,7 +184,7 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
         _fd_open_paras: list[str] = []
         if ep.ep_index == 1:
             try:
-                from .fandeng_full import load_fandeng_full, _paragraphs
+                from .fandeng_full import _paragraphs, load_fandeng_full
                 _fd_open_paras = [p.strip() for p in
                                   _paragraphs(load_fandeng_full(book.book_title) or "")[:3]
                                   if p.strip()]
@@ -778,8 +778,8 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
                       ("元问题", "全书元问题(收口呼应)", 150)]
     if _feed_secs:
         try:
-            from app.services.book_service.distiller import load_section
             from app.services.book_service.compliance_gate import sanitize_material
+            from app.services.book_service.distiller import load_section
             _rm_concepts = [str(c) for c in ((ep.roadmap_json or {}).get("概念") or [])]
             _sp = book.source_path or ""
             for _sec_name, _label, _cap in _feed_secs:
@@ -940,7 +940,7 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
     if _fd_open_paras:
         _ref_tail = ""
         try:
-            from .fandeng_full import load_fandeng_full, _paragraphs
+            from .fandeng_full import _paragraphs, load_fandeng_full
             _ref_tail = "\n\n".join(_paragraphs(load_fandeng_full(book.book_title) or "")[3:13])
         except Exception:
             pass
@@ -1056,6 +1056,7 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
         # 0913 料包台账 (feed_registry): 每包实喂字数落盘, 反查零人肉
         try:
             import json as _json
+
             from .feed_registry import feed_ledger
             (_gen_dir / "03_feeds.json").write_text(
                 _json.dumps({"total": len(user_p), "feeds": feed_ledger(user_p)},

@@ -21,9 +21,7 @@ import json
 import logging
 from pathlib import Path
 
-from app.config import get_config
-from .l0 import _l0_dir, _safe
-from .reader import clean_book_title
+from .l0 import _l0_dir
 
 logger = logging.getLogger(__name__)
 
@@ -437,6 +435,7 @@ def facing_audience(l0_dir_or_book: str | Path) -> str | None:
 
 if __name__ == "__main__":
     import sys
+
     from app.config import load_config, set_config
 
     set_config(load_config())
