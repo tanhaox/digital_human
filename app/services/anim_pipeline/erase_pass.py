@@ -46,18 +46,28 @@ def _api(path: str, data: dict | None = None) -> dict:
         return json.loads(r.read())
 
 
-def _upload(image_path: Path, comfy_name: str) -> None:
-    payload = base64.b64encode(image_path.read_bytes()).decode()
+def _upload(image_path: Path, comfy_name: str) -> str:
+    """上传底图, 返回 ComfyUI 实存文件名 (1016 修: 撞名覆盖 + 吃响应)。
+
+    ComfyUI 默认不覆盖同名 input 文件 — 撞名落 'xxx (1).png', LoadImage 引原名
+    会加载陈年旧图 (同 face_fix/text_pass 坑; erase_s15 (1)/(2) 撞名实锤,
+    s07/s15/s16 方图事故链)。overwrite=true + 以响应 name 为准。"""
+    data = image_path.read_bytes()
     boundary = "----zwerase"
     body = (
+        f"--{boundary}\r\nContent-Disposition: form-data; name=\"overwrite\"\r\n\r\n"
+        "true\r\n"
         f"--{boundary}\r\nContent-Disposition: form-data; name=\"image\"; "
         f"filename=\"{comfy_name}\"\r\nContent-Type: image/png\r\n\r\n"
-    ).encode() + base64.b64decode(payload) + f"\r\n--{boundary}--\r\n".encode()
+    ).encode() + data + f"\r\n--{boundary}--\r\n".encode()
     req = urllib.request.Request(
         COMFY + "/upload/image", data=body,
         headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
     with urllib.request.urlopen(req, timeout=60) as r:
-        r.read()
+        name = json.loads(r.read()).get("name") or comfy_name
+    if name != comfy_name:
+        logger.warning("[erase] 撞名落盘 input/%s (原引 %s)", name, comfy_name)
+    return name
 
 
 
@@ -115,9 +125,9 @@ def run_erase_pass(shot: dict[str, Any], doc: dict[str, Any], base_image: Path) 
     seed = int(shot.get("seed") or 20261600) + 7
     prefix = f"anim/erase/{doc.get('book_title', 'unknown')}/ep{doc.get('ep', 0)}/{sid}"
     W, H = _latent_size(base_image)
-    wf = _build_wf(comfy_name, seed, prefix, W, H)
     try:
-        _upload(base_image, comfy_name)
+        actual_name = _upload(base_image, comfy_name)  # 1016 修: 吃响应真名 (防撞名旧图)
+        wf = _build_wf(actual_name, seed, prefix, W, H)
         pid = _api("/prompt", {"prompt": wf})["prompt_id"]
         logger.info("[erase] %s submitted (cfg=%.1f)", sid, CFG)
         t0 = time.monotonic()
