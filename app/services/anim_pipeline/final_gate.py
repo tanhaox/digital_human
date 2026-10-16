@@ -19,8 +19,9 @@ from . import constitution as CST
 logger = logging.getLogger(__name__)
 
 _STRIP_RE = re.compile(r"[\s，。！？；：、,.!?:;\"'“”‘’（）()\[\]【】]+")
-_PLACEHOLDER_BEATS = ("the scene evolves with subtle ambient motion",
-                      "Gentle ambient motion, very slight push-in")
+# 1017 W4: 归一 shots.SINGLE_BEAT_FALLBACK (旧二变体一并识别兼容历史 doc)
+from .shots import SINGLE_BEAT_FALLBACK as _SBF
+_PLACEHOLDER_BEATS = ("the scene evolves with subtle ambient motion", _SBF)
 
 
 def _norm(s: str) -> str:

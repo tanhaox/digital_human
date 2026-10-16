@@ -2137,7 +2137,7 @@ def plan_shot(book_id: str, book_title: str, ep: int, shot_id: str,
     raw = _llm().chat(DIRECTOR_SYS, user, model="pro", temperature=0.5, max_tokens=2000, tag="plan_shot")
     d = _parse_json(raw) or {}
     kf_zh = str(d.get("keyframe_zh") or "").strip()
-    motion_en = str(d.get("motion_en") or "").strip() or "Gentle ambient motion, very slight push-in."
+    motion_en = str(d.get("motion_en") or "").strip() or shots_mod.SINGLE_BEAT_FALLBACK
     if not kf_zh:
         raise ValueError("导演产出不可解析 (无 keyframe_zh)")
 
@@ -2828,7 +2828,7 @@ def _build_doc(book_id: str, book_title: str, ep: int, ep_title: str,
             # 兜底仍给 (doc 可组装) 但打标, 调用方见标抛错进 fix_hints 重试网
             _kf_missing = not str(raw.get("keyframe_zh") or "").strip()
             kf_zh = str(raw.get("keyframe_zh") or "").strip() or g_kf
-            motion_en = str(raw.get("motion_en") or "").strip() or "the scene evolves with subtle ambient motion"
+            motion_en = str(raw.get("motion_en") or "").strip() or shots_mod.SINGLE_BEAT_FALLBACK
             gen_span = min(round(span, 2), H3_MAX_SPAN)  # H3 配方上限, 超出草稿定格吸收
             shot = {
                 "shot_id": sid,
@@ -3303,7 +3303,7 @@ def redesign_split_clones(doc: dict[str, Any], bible: dict[str, Any] | None = No
             span = round(float(k["t_end"]) - float(k["t_start"]), 2)
             gen = min(span, H3_MAX_SPAN)
             motion_en = str((r or {}).get("motion_en") or "").strip() or \
-                "Gentle ambient motion, very slight push-in."
+                shots_mod.SINGLE_BEAT_FALLBACK
             k.update({  # 重置语义与 plan_shot 同款 (口播未变, 媒体必须显式清)
                 "keyframe_zh": kf_zh,
                 "keyframe_en": str(r.get("keyframe_en") or "").strip(),
@@ -3687,7 +3687,7 @@ def consistency_review(doc: dict[str, Any], bible: dict[str, Any] | None = None)
         span = round(float(s["t_end"]) - float(s["t_start"]), 2)
         gen = min(span, H3_MAX_SPAN)
         motion_en = str(p.get("motion_en") or "").strip() or \
-            "Gentle ambient motion, very slight push-in."
+            shots_mod.SINGLE_BEAT_FALLBACK
         s["anim"] = {
             "duration_s": gen,
             "opening_desc": kf_en or kf,
@@ -3947,11 +3947,11 @@ def _enhance_pass2(doc, only: set[str] | None, touched: set[str]) -> int:
                     and not re.search(r"(?i)\b(pan|panning|tracking|truck)\b", men)
                     and not _mzh_ban):
                 s["motion_zh"] = mzh[:400]
-                men_eff = men or beats_motion or "Gentle ambient motion, very slight push-in."
+                men_eff = men or beats_motion or shots_mod.SINGLE_BEAT_FALLBACK
             else:
                 logger.warning("[enhance2] %s 军规/长度闸未过, motion 留原句", s.get("shot_id"))
                 men_eff = beats_motion or str(s.get("motion_en") or "") \
-                    or "Gentle ambient motion, very slight push-in."
+                    or shots_mod.SINGLE_BEAT_FALLBACK
             # 1017 W2 锚定链归正: 画面句优先 (组装器不发明场景); LLM odesc 仅降级
             _kf_en = str(s.get("keyframe_en") or "").strip()
             if not _kf_en:

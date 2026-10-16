@@ -172,6 +172,13 @@ def transition(shot: dict[str, Any], new_status: str) -> None:
     shot["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
 
 
+# 1017 W4: 单拍兜底 motion 唯一常量 (旧三版漂移: 'Gentle ambient motion, very
+# slight push-in.' ×5 / 'the scene evolves with subtle ambient motion' /
+# 'The scene holds calm and still...' — canonical=director2 主路径版逐字;
+# 本拍本就违反反静止律, 存在意义=beats_enrich 失败时的最后兜底)
+SINGLE_BEAT_FALLBACK = "Gentle ambient motion, very slight push-in."
+
+
 def stretch_beats(shot: dict[str, Any], seg_len: float) -> None:
     """anim.duration_s 与 beats 伸缩对齐 seg_len (拍 motion 不动, 时间轴对齐).
 
@@ -182,7 +189,7 @@ def stretch_beats(shot: dict[str, Any], seg_len: float) -> None:
     beats = anim.get("beats") or []
     if not beats:
         anim["beats"] = [{"t_start": 0, "t_end": seg_len,
-                          "motion": "The scene holds calm and still with a gentle ambient glow."}]
+                          "motion": SINGLE_BEAT_FALLBACK}]
     else:
         total = sum(float(b["t_end"]) - float(b["t_start"]) for b in beats)
         if total > 0 and abs(total - seg_len) > 0.01:
