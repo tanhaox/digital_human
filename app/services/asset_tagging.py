@@ -305,7 +305,7 @@ def generate_asset_no(db_session, prefix: str = "V") -> str:
 
     from ..models import VideoAsset
 
-    today = date.today().strftime("%Y%m%d")
+    today = date.today().strftime("%Y%m%d")  # noqa: DTZ011  # 本地日历日 — 编号日期段须与既有 asset_no 同口径
     pattern = f"{prefix}{today}-%"
     max_row = (
         db_session.query(func.max(VideoAsset.asset_no))

@@ -97,7 +97,7 @@ def generate_audio(
     if script.project_dir:
         output_dir = Path(script.project_dir) / "audio"
     else:
-        today = datetime.date.today().isoformat()
+        today = datetime.date.today().isoformat()  # noqa: DTZ011  # 本地日历日 — 输出目录按用户本地日期分层
         voice_label = voice.name if voice else "default"
         voice_id_short = voice.id[:8] if voice else "default"
         output_dir = Path(r"E:\数字人计划\outputs\audio") / today / voice_label / f"{voice_id_short}_{int(time.time())}"

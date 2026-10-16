@@ -197,7 +197,7 @@ def zhipu_web_search(
         )
     # 到期拦截 (用户 2026-08-15 要求: 到期必须明确提示, 防遗忘)
     try:
-        if date.today() > date.fromisoformat(cfg.free_quota_expires):
+        if date.today() > date.fromisoformat(cfg.free_quota_expires):  # noqa: DTZ011  # 本地日历日 — 到期日是用户手填本地日, UTC 对比会边界日误判
             raise ZhipuUnavailableError(_quota_message(cfg.free_quota_expires))
     except ValueError:
         pass  # 配置日期格式异常(含留空)不拦截, 走正常调用由服务端裁决

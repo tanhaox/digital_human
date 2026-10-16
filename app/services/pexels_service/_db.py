@@ -75,7 +75,7 @@ def upsert_asset(
 
 def increment_quota(db: Session, pexels_id: int, size_bytes: int) -> None:
     """记录一次下载到当日 DownloadLog."""
-    db.add(DownloadLog(date=date.today(), pexels_id=pexels_id, bytes=size_bytes))
+    db.add(DownloadLog(date=date.today(), pexels_id=pexels_id, bytes=size_bytes))  # noqa: DTZ011  # 本地日历日 — 与 get_quota_used_today 同口径, 配额按本地日翻转
 
 
 def build_video_asset(
@@ -133,7 +133,7 @@ def register_video_asset(
 
 def get_quota_used_today(db: Session) -> int:
     """今日已用下载配额 (DownloadLog 计数)."""
-    return db.query(func.count(DownloadLog.id)).filter(DownloadLog.date == date.today()).scalar() or 0
+    return db.query(func.count(DownloadLog.id)).filter(DownloadLog.date == date.today()).scalar() or 0  # noqa: DTZ011  # 本地日历日 — 与 increment_quota 写入口径配对
 
 
 def get_dislike_pexels_ids(db: Session) -> set[int]:
