@@ -372,7 +372,8 @@ def build_workflow(image_name: str, anim: dict[str, Any], seed: int, prefix: str
         # 旧 7 条目手写表实为 6 步, 机械臂高速旋转镜中段漂移+高频抖动实锤。
         # 换 BasicScheduler simple 8 步 (官方推荐档), 时长 +~30%/镜。
         "361": {"class_type": "BasicScheduler", "inputs": {
-            "model": ["341", 0], "scheduler": "simple", "steps": 8}},
+            "model": ["341", 0], "scheduler": "simple", "steps": 8,
+            "denoise": 1.0}},  # 本机 ComfyUI 必填 (漏参 HTTP 400 实锤)
         "127": {"class_type": "SamplerCustomAdvanced", "inputs": {
             "noise": ["131", 0], "guider": ["128", 0], "sampler": ["221", 0],
             "sigmas": ["361", 0], "latent_image": ["133", 1]}},
