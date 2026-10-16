@@ -2,14 +2,14 @@
 annotate_emotions style 分流 + 拆书稿 prompt_template 识别逻辑。"""
 from __future__ import annotations
 
-from app.services.emotion_dict import (
-    EMOTIONS,
-    EMOTION_CN,
-    resolve_emotion,
-)
 from app.services.boost_service.prompts import (
     P5_SPAN_PROMPT,
     P5_SPAN_PROMPT_BOOK,
+)
+from app.services.emotion_dict import (
+    EMOTION_CN,
+    EMOTIONS,
+    resolve_emotion,
 )
 
 

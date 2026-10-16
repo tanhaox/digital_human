@@ -146,7 +146,10 @@ def test_fandeng_opening_verbatim():
 
 def test_typing_card_and_opening_order():
     """打字卡骨架校验 + ep1 开场秩序 (六拍先行, 逐字段后移)。"""
-    from app.services.book_service.creation_common import typing_card_issues, ep1_opening_order_issues
+    from app.services.book_service.creation_common import (
+        ep1_opening_order_issues,
+        typing_card_issues,
+    )
     good = "如果你能坚持每晚睡前看一集，一个月后，让用户一直愿意掏钱的本事，会超过90%的做内容的人。"
     assert typing_card_issues(good) == []
     # 冻结卡 → 逐字一致才过

@@ -11,15 +11,31 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
-# (BaseHTTPMiddleware removed — 纯 ASGI 中间件不需要它)
 
-from .config import Config, load_config, set_config
+# (BaseHTTPMiddleware removed — 纯 ASGI 中间件不需要它)
+from .config import load_config, set_config
 from .database import init_db
-from .models import AudioJob, Host, Voice, DirectorJob
+from .models import AudioJob, DirectorJob, Host, Voice
 from .routers import (
-    anim, articles, audio, books, comfyui, digital_human_video, hosts, jobs, library, materials, personas, ppt,
-    reverse, roles,
-    scripts, tagging, tts_services, visual_render, voices,
+    anim,
+    articles,
+    audio,
+    books,
+    comfyui,
+    digital_human_video,
+    hosts,
+    jobs,
+    library,
+    materials,
+    personas,
+    ppt,
+    reverse,
+    roles,
+    scripts,
+    tagging,
+    tts_services,
+    visual_render,
+    voices,
 )
 from .routers.director_routes import router as director_router
 
@@ -48,6 +64,7 @@ async def lifespan(app: FastAPI):
     init_db(_config.app.database_url)
     # 注册 event loop 给 director_events 跨线程安全调度
     import asyncio
+
     from .services.director_events import set_event_loop
     set_event_loop(asyncio.get_running_loop())
     _seed_defaults()
@@ -58,7 +75,9 @@ async def lifespan(app: FastAPI):
     # TemporaryDirectory 未删除 → 临时帧 PNG 孤儿残留累积磁盘。
     # 后端刚启动不可能有打标在跑, 此刻存在的 tagging_frames_* 必为孤儿, 送回收站。
     try:
-        from .services.video_tagging_service.cleanup import cleanup_orphan_tagging_frames
+        from .services.video_tagging_service.cleanup import (
+            cleanup_orphan_tagging_frames,
+        )
 
         _cleaned = cleanup_orphan_tagging_frames()
         if _cleaned:
@@ -68,7 +87,10 @@ async def lifespan(app: FastAPI):
     # 内存集合残留清理: 重启后僵尸 job 已复位, force/cancel 标记与进程注册表
     # 同步清空, 防止旧进程句柄 / 脏标记干扰新会话 (见 force-stop 实现)。
     try:
-        from .services.slot_executor import clear_force_stopped_all, clear_cancel_flags_all
+        from .services.slot_executor import (
+            clear_cancel_flags_all,
+            clear_force_stopped_all,
+        )
         clear_force_stopped_all()
         clear_cancel_flags_all()
         from .services.proc_registry import clear_all
@@ -234,9 +256,10 @@ def _auto_cleanup_stale_jobs():
     - created_at older than config.defaults.job_auto_cleanup_days
     - Status in (failed, planning, reviewing) — not executing (safety)
     """
-    from datetime import datetime, timezone, timedelta
-    from .database import db_session, get_session_maker
+    from datetime import datetime, timedelta, timezone
+
     from .config import get_config
+    from .database import db_session, get_session_maker
 
     cfg = get_config()
     days = cfg.defaults.job_auto_cleanup_days

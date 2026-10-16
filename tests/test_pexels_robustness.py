@@ -13,14 +13,12 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-import requests
 from sqlalchemy.orm import Session
 
 from app.config import load_config, set_config
 from app.database import db_session, init_db
 from app.models import Article, DirectorJob, Script
 from app.services.pexels_service.types import PexelsResolveError
-
 
 # ── 测试环境: 独立 SQLite (trace 落库断言用) ──
 

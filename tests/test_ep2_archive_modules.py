@@ -8,7 +8,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.services.book_service.module_map import (
-    MODULE_LABEL_RE, parse_modules, walls_for_cleaned)
+    MODULE_LABEL_RE,
+    parse_modules,
+    walls_for_cleaned,
+)
 from app.services.script_parser import clean_episode_script
 
 ARCHIVE = """【钩子】

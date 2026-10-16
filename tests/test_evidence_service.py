@@ -6,11 +6,9 @@ pick_image_for_slot 打分与去重 / 闸门降级 / handler 集成 (tmp SQLite 
 """
 from __future__ import annotations
 
-import json
 from pathlib import Path
 
 import pytest
-from sqlalchemy.orm import Session
 
 from app.config import load_config, set_config
 from app.database import db_session, init_db
@@ -23,7 +21,6 @@ from app.models import (
     Script,
 )
 from app.services.url_fetcher import extract_images
-
 
 # ── 测试环境: 独立 SQLite + materials_dir 指向 tmp ──
 
@@ -187,7 +184,10 @@ class TestPoolAndVlmParse:
         assert _parse_vlm_json("模型抽风没有json") is None
 
     def test_pool_filters(self, tmp_db):
-        from app.services.evidence_service import collect_evidence_pool, reset_vlm_client
+        from app.services.evidence_service import (
+            collect_evidence_pool,
+            reset_vlm_client,
+        )
         reset_vlm_client()
         with db_session() as db:
             art = Article(title="t", raw_text="x" * 10, track="tech")
@@ -219,7 +219,10 @@ class TestPoolAndVlmParse:
         assert [p["url"] for p in pool] == ["ok"]
 
     def test_pool_no_package(self, tmp_db):
-        from app.services.evidence_service import collect_evidence_pool, reset_vlm_client
+        from app.services.evidence_service import (
+            collect_evidence_pool,
+            reset_vlm_client,
+        )
         reset_vlm_client()
         with db_session() as db:
             art = Article(title="t", raw_text="x" * 10, track="tech")
@@ -314,8 +317,8 @@ class TestEvidenceGates:
         )
 
     def test_semantic_gate_demotes(self, tmp_db, monkeypatch):
-        from app.services.director_service._postprocess import _enforce_evidence_gates
         from app.services import evidence_service as es
+        from app.services.director_service._postprocess import _enforce_evidence_gates
         # 池非空 (可用性闸门放行), 语义闸门拦截
         monkeypatch.setattr(es, "collect_evidence_pool", lambda db, script: [{"url": "u"}])
         with db_session() as db:
@@ -339,8 +342,8 @@ class TestEvidenceGates:
             assert P.slots[2].workflow == "broll_pexels"
 
     def test_empty_pool_demotes_all(self, tmp_db, monkeypatch):
-        from app.services.director_service._postprocess import _enforce_evidence_gates
         from app.services import evidence_service as es
+        from app.services.director_service._postprocess import _enforce_evidence_gates
         monkeypatch.setattr(es, "collect_evidence_pool", lambda db, script: [])
         with db_session() as db:
             art = Article(title="t", raw_text="x" * 10, track="tech")
@@ -356,8 +359,11 @@ class TestEvidenceGates:
             assert all(s.workflow == "broll_pexels" for s in P.slots)
 
     def test_cap_gate(self, tmp_db, monkeypatch):
-        from app.services.director_service._postprocess import _EVIDENCE_CAP, _enforce_evidence_gates
         from app.services import evidence_service as es
+        from app.services.director_service._postprocess import (
+            _EVIDENCE_CAP,
+            _enforce_evidence_gates,
+        )
         monkeypatch.setattr(es, "collect_evidence_pool", lambda db, script: [{"url": "u"}])
         with db_session() as db:
             art = Article(title="t", raw_text="x" * 10, track="tech")
@@ -387,11 +393,13 @@ class TestEvidenceGates:
 
 class TestHandler:
     def test_execute_slot(self, tmp_db, tmp_path, monkeypatch):
-        from app.services.slot_workflows import evidence_image as hw
-        from app.services.slot_workflows.evidence_image import execute_evidence_image_slot
-
         # 造一张真实小图 (Pillow 校验要过)
         from PIL import Image
+
+        from app.services.slot_workflows import evidence_image as hw
+        from app.services.slot_workflows.evidence_image import (
+            execute_evidence_image_slot,
+        )
         img_file = tmp_path / "ev.jpg"
         Image.new("RGB", (640, 480), (30, 40, 60)).save(img_file)
 
@@ -437,7 +445,9 @@ class TestHandler:
 
     def test_empty_pool_raises(self, tmp_db, monkeypatch):
         from app.services.slot_workflows import evidence_image as hw
-        from app.services.slot_workflows.evidence_image import execute_evidence_image_slot
+        from app.services.slot_workflows.evidence_image import (
+            execute_evidence_image_slot,
+        )
         monkeypatch.setattr(hw, "collect_evidence_pool", lambda db, script: [])
         with db_session() as db:
             art = Article(title="t", raw_text="x" * 10, track="tech")

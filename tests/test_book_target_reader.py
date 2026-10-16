@@ -5,10 +5,7 @@
 """
 from __future__ import annotations
 
-import pytest
-
 from app.services.book_service import creation_steps as cs
-
 
 # ── _book_reader_value: 书级有效值判定 ──
 

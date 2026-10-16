@@ -14,8 +14,6 @@ Or with explicit python:
 from __future__ import annotations
 
 import inspect
-import json
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -24,7 +22,6 @@ import pytest
 
 # Import the module under test via the conftest path injection.
 import tts_client
-
 
 # ---------------------------------------------------------------------------
 # 1. Module surface — top-level functions exist with the right names

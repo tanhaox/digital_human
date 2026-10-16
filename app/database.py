@@ -94,7 +94,9 @@ def _apply_manual_migrations(engine) -> None:
                     from datetime import datetime as _dt
                     from datetime import timezone as _tz
                     from pathlib import Path as _Path
-                    from .models import BookProject as _BP, Episode as _Ep
+
+                    from .models import BookProject as _BP
+                    from .models import Episode as _Ep
 
                     db = _session_maker()
                     try:

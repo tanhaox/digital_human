@@ -10,7 +10,6 @@ from datetime import date
 from pathlib import Path
 
 import pytest
-from sqlalchemy.orm import Session
 
 from app.config import load_config, set_config
 from app.database import init_db

@@ -25,7 +25,6 @@ from __future__ import annotations
 import argparse
 import json
 import logging
-import os
 import sys
 import time
 import urllib.error
@@ -36,7 +35,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tools.i2v_prompt import AB_SET, NEG_BASE, NEG_BRIGHT, build_prompt, targeted_negs
+from tools.i2v_prompt import NEG_BASE, NEG_BRIGHT, build_prompt, targeted_negs
 
 logger = logging.getLogger(__name__)
 
@@ -208,8 +207,12 @@ def generate_from_contract(contract: dict, image: str | None, prefix: str = "i2v
     风格链 (同日, 用户定稿"示意了非要弄成真的=较劲"): style 缺省示意 →
     非写实前缀 + 写实负面 — AI 意象放弃写实较劲, 真实画面走素材API管线。
     """
-    from tools.i2v_prompt import (NEG_BASE, NEG_BRIGHT, brightness_anchor,
-                                  style_directives)
+    from tools.i2v_prompt import (
+        NEG_BASE,
+        NEG_BRIGHT,
+        brightness_anchor,
+        style_directives,
+    )
 
     style_prefix, style_negs = style_directives(contract)
     anchor = brightness_anchor(contract)

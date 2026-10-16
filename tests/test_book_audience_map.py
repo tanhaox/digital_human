@@ -11,7 +11,6 @@ from pathlib import Path
 from app.services.book_service import creation_steps as cs
 from app.services.book_service.series_outline import _norm_chatter
 
-
 # ── _norm_chatter: 闲话层归一 (导演输出容错) ──
 
 def test_norm_chatter_dicts():
@@ -179,8 +178,8 @@ def test_typing_card_doctrine():
 def test_series_card_frozen_formula():
     """书级固定打字卡 (用户令写活两槽): 骨架冻结两槽随书 — 收益主体大白话 +
     对比人群; 生成不合格骨架拒绝; 模板/生成层接入点在位。"""
-    from app.services.book_service import series_outline as so
     from app.services.book_service import creation_common as cc
+    from app.services.book_service import series_outline as so
 
     class _Stub:
         def __init__(self, payload): self.p = payload

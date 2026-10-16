@@ -71,7 +71,7 @@ def test_add_watermark_segments():
         def add_segment(self, seg, track):
             self.rows.append((track, seg.target_timerange))
 
-    import pyJianYingDraft as d
+    import pyJianYingDraft as d  # noqa: F401  # 依赖守卫: 缺库时此测试应 error 而非静默通过
     logo = Path(__file__).parent / "artifacts" / "_wm_test.png"
     logo.parent.mkdir(exist_ok=True)
     try:

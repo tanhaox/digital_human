@@ -2,15 +2,14 @@
 """素材库多维标签体系 / AI 打标 / Pexels resolve / Persona schemas."""
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Any, Literal
-
 import json
+from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from .voices import VoiceOut
 from .roles import RoleOut
+from .voices import VoiceOut
 
 __all__ = [
     # 素材库多维标签

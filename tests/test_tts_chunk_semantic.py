@@ -29,7 +29,6 @@ from scripts.tts_lib.text import (  # noqa: E402
     _merge_lines_for_batch,
 )
 
-
 # ── _ends_sentence ──
 
 
@@ -196,7 +195,12 @@ def test_question_pause_packing_and_padding():
     大段落边界1s/-Xs-标记叠加(歧义句手控); 问句/标记行强制包尾。"""
     import sys
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-    from tts_lib.text import _group_lines_semantic, _is_question, _pause_after, _tts_text
+    from tts_lib.text import (
+        _group_lines_semantic,
+        _is_question,
+        _pause_after,
+        _tts_text,
+    )
 
     assert _is_question("你现在铺着几个入口？")
     assert _is_question("他说\"行吗？\"-0.5s-")
@@ -210,8 +214,10 @@ def test_question_pause_packing_and_padding():
     assert _group_lines_semantic(["一。", "二。", "三。"], 140) == [[0, 1, 2]]
 
     # 三规则 e2e: 问句1.2 / 段末1.0 / 标记叠加
-    import tempfile, subprocess
-    from tts_lib.lines import _paragraph_final_indices, _apply_breath_pauses
+    import subprocess
+    import tempfile
+
+    from tts_lib.lines import _apply_breath_pauses, _paragraph_final_indices
     text = "段一句一。\n你现在铺着几个入口？\n\n段二句一。\n段二末句。\n\n末段。"
     assert sorted(_paragraph_final_indices(text)) == [1, 3]   # 末段末行除外(音频收尾无气口)
     d = Path(tempfile.mkdtemp())
@@ -233,8 +239,8 @@ def test_breath_tier_defaults_0918():
 
     约束: 1.2-1.5 区间只有段落级边界可进 (模块墙), 系统自动气口不得 >1.5;
     -Xs- 手动标记是显式叠加, 不在档位管辖。"""
-    import sys
     import inspect
+    import sys
     sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
     from tts_lib import lines as _lines
     sig = inspect.signature(_lines.synthesize_lines)

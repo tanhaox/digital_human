@@ -9,7 +9,6 @@ from __future__ import annotations
 from .assets import DownloadLog, ImageExtraction, MaterialAsset, VideoAsset, VideoOutput
 from .base import Base, _new_uuid, _now
 from .book import BookProject, Episode
-from .material import MaterialIngestJob
 from .content import (
     Article,
     AudioFile,
@@ -23,6 +22,7 @@ from .content import (
     Voice,
 )
 from .director import DirectorJob, DirectorSlot, VisualRenderJob
+from .material import MaterialIngestJob
 from .roles import DigitalHumanVideo, Persona, Role, WorkflowSync
 
 __all__ = [
