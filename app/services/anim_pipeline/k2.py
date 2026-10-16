@@ -477,7 +477,7 @@ def _bible_hue(book_title: str) -> str:
         return ""
 
 
-def _scene_eff(shot: dict[str, Any], book_title: str, prop_lock: str = "") -> str:
+def _scene_eff(shot: dict[str, Any], book_title: str) -> str:
     """K2 画面句最终组装: 角色 look 前置 + 圣经主色调味尾 (render-time, 不入 doc).
 
     1006 终修 (卓有ep1 纯黑虚空实锤): 渲染锚职责已上收 build_prompt
@@ -519,10 +519,7 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
     out_dir = shots_mod.ep_dir(doc["book_title"], doc["ep"]) / "img"
     dest = out_dir / f"{shot['shot_id']}.png"
     prefix = f"anim/{shots_mod._safe(doc['book_title'])}/ep{doc['ep']}/k2/{shot['shot_id']}"
-    _arc_lock = {str(a.get("arc_id") or ""): str(a.get("prop_lock") or "")
-                 for a in doc.get("arcs") or []}
-    scene_eff = _scene_eff(shot, doc["book_title"],
-                           _arc_lock.get(str(shot.get("arc_id") or "")))
+    scene_eff = _scene_eff(shot, doc["book_title"])
     # 1015 二段质量 (s37 实锤: 申报镜的一段仍渗漏自绘乱字): 申报镜加空白面硬指令
     if shot.get("in_image_text"):
         scene_eff += ("，所有文字载体（标签/便签/白板/牌匾）完全空白无字，文字将由后续工序"
@@ -548,37 +545,28 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
         if _dropped:
             logger.warning("[k2] %s 判决回流: 画面串剔除致死/孪生子句 ×%d (%s)",
                            shot['shot_id'], _dropped, "/".join(_hard_kw + _twin))
-    # 1014 P1 (s03/s07/s46 实锤) → 1015 升级 (用户令根治): 文字类软拒绝的镜不再
-    # 只剔载体子句 — **自动转二段式**: 提取申报文字 (画面句引号文本 ∪ text_layer) +
-    # 空白化载体子句 + 落 in_image_text (text_pass 批尾入字), 重queue即走完整二段。
-    # 1015 H 修复③ (ep4 A1 白标签孤儿实锤): 救场去依赖化 — 不再只等 K2 文字软拒绝,
-    # 画面句含载体名词且未申报 = 裸载体, 直接触发二段化 (名词表同源 scene_writer)。
+    # 1014 P1 → 1015 升级 → 1016 文字总路由 W1 钳制 (ID-099 釜底抽薪):
+    # 文字软拒/裸载体镜只做**提示词卫生** (剔文字载体子句 + 空白素面指令,
+    # 防 krea2 文字先验), 不再 auto 抽词灌 in_image_text — 二段化只认规划期
+    # 显式申报 (旧版 GPU 相位自治抽词绕过全部规划闸, s01 五路文字同镜实锤;
+    # 文字路由归规划层, 见 docs backlog ID-098/099/101 与运镜军规)。
     _txt_rej = [r for r in (shot.get("gate_rejects") or [])
                 if not r.get("hard") and "文字" in str(r.get("reason") or "")]
     _carrier_naked = bool(
         not shot.get("in_image_text")
         and TEXT_CARRIER_NOUN_RE.search(str(shot.get("keyframe_zh") or "")))
-    if len(_txt_rej) >= 1 or _carrier_naked:  # 1015 收+修复③: 1拒即动 / 裸载体主动救
+    if len(_txt_rej) >= 1 or _carrier_naked:
         _strip_kw = ["写着", "字样", "字迹", "写满", "刻着", "刻字",
                      "标签黑字", "标签金字", "黑字手写体", "金字手写体", "米白标签", "金色标签",
                      "written on", "engraved", "inscription", "lettering"]
         scene_eff, _dropped2 = strip_negative(scene_eff, _strip_kw)
         if not shot.get("in_image_text"):
-            import re as _re2
-            _zh = str(shot.get("keyframe_zh") or "")
-            _quotes = _re2.findall(r"[「『\"“']([^」』\"”']{1,10})[」』\"”']", _zh)[:4]
-            _tl = [str(t.get("text") or "") for t in (shot.get("text_layer") or []) if t.get("text")][:4]
-            _lines = [x for x in (_quotes + _tl) if x][:4]
-            if _lines:
-                shot["in_image_text"] = _lines
-                logger.info("[k2] %s 文字两连拒 → 二段式升级: 申报 %d 行 %s",
-                            shot['shot_id'], len(_lines), "/".join(_lines)[:40])
-        if _dropped2:
-            # 1015 收 (s01-s03 酒桶实锤): 剔词后物件先验仍画标签涂写 (酒桶=标签=字) —
-            # 补空白素面正向指令对冲物件先验
             scene_eff += ("；所有标签、牌匾、刻面均为无字的空白素面 (plain blank labels and "
                           "surfaces with no writing, no letters, no marks) — 文字将由后续工序添加")
-            logger.warning("[k2] %s 文字两连拒: 剔除文字载体子句 ×%d + 空白素面指令",
+            logger.info("[k2][text-policy] %s auto-2stage suppressed: no explicit "
+                        "in_image_text (1016 文字总路由, 抽词权归规划层)", shot['shot_id'])
+        elif _dropped2:
+            logger.warning("[k2] %s 申报镜文字载体子句剔除 ×%d",
                            shot['shot_id'], _dropped2)
     dirty = render_gated(
         lambda sd: build_workflow(scene_eff, sd, prefix,
