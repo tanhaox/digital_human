@@ -94,6 +94,9 @@ B03 观察期 2026-10-16 起算 ≥1 周后拍板。待执行: B11/B13(环解) �
 - **动作**:`creation_common._llm/_parse_json` 与 `distiller.load_section` 均为通用能力,下沉到双方共用的 neutral 模块(或改回调注入,由外壳 anim_service 传入);反向 episode_gen 引 anim_pipeline.shots 保持(单向许可)。
 - **验证**:import 图复扫无环;books setup-full 冒烟。
 - **风险/决策**:中(拆书+动画交界)/ 自行。
+> ⚠ 已知脆点(B11 前置补记): feeds 注册依赖 anim_service 装配链(routers/anim.py 顶层引)。
+>    若将来某路径绕过 anim_service 直调管线, feed 未注册会静默跳过加料。
+>    改动装配链时需复查 feeds.get_feed 的调用链完整性。
 
 ### B09 SSE 收编剩余 4 处
 - **依据**:重复实现#1(_sse.py 工厂仅 1/5 落地)。
