@@ -15,9 +15,8 @@ import logging
 from pathlib import Path
 from typing import Any
 
-from . import comfy, shots as shots_mod
-from .config import load
-from . import k2, h3
+from . import comfy, h3, k2
+from . import shots as shots_mod
 
 logger = logging.getLogger(__name__)
 

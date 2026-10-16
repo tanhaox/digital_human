@@ -302,7 +302,8 @@ def pack_zone_slots(sent_table: list[dict[str, Any]] | None,
     # 到句末。品牌句 = 开场身份句 + 收官句, TTS 已是独立包, 句级表独立条目,
     # 唯一被劈的机会就是这里 (硬窗边裁块)。
     try:
-        from .shots import is_brand_text as _ibt, norm_for_match as _nfm
+        from .shots import is_brand_text as _ibt
+        from .shots import norm_for_match as _nfm
         for s in sent_table or []:
             _t0, _t1 = float(s.get("t_start") or 0), float(s.get("t_end") or 0)
             if _t0 < w_end < _t1 and _ibt(_nfm(str(s.get("text") or ""))):

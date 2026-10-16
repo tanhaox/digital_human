@@ -197,6 +197,7 @@ def _flag_banner(frame_png: Path) -> str | None:
     buf = _io2.BytesIO()
     crop.save(buf, "JPEG", quality=85)
     import base64 as _b64
+
     from app.services.reverse_prompt_service import _chat as _vlm_chat
     out = _vlm_chat("data:image/jpeg;base64,"
                     + _b64.b64encode(buf.getvalue()).decode(),
@@ -280,8 +281,8 @@ def writer_audit(doc: dict, ss: dict | None = None, bible: dict | None = None) -
         if bible is None:
             bible = doc.get("bible") or {}
         from .assembler import assemble_k2_prompt, fa_index
-        from .registers import world_visual, author_of
         from .director2 import _anchor_lost
+        from .registers import author_of, world_visual
         by_sid = fa_index(doc, ss)
         arc_world = {str(a.get("arc_id") or ""): world_visual(doc, str(a.get("visual_world") or ""))
                      for a in doc.get("arcs") or []}

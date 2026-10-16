@@ -22,8 +22,8 @@ from . import (
     comfy,
     video_qc,  # 0927 P1-B 视频产物机检 (观察模式)
 )
-from . import shots as shots_mod
 from . import ledger as _ledger
+from . import shots as shots_mod
 from .config import load, resolve_style
 
 logger = logging.getLogger(__name__)

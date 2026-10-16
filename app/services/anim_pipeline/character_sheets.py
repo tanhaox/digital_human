@@ -350,7 +350,9 @@ def render_missing(book_title: str, emit) -> tuple[int, int]:
 
     emit(msg) 接收进度; 返回 (新渲数, 跳过数). 占 GPU 锁."""
     import hashlib
+
     from app.services.anim_service import _GPU_JOB_LOCK
+
     from .config import resolve_style
     recipe = resolve_style(book_title)
     d = _design_dir(book_title)
@@ -432,10 +434,12 @@ def start_design(book_id: str, book_title: str, names: list[str],
     _JOBS[book_id] = j
 
     def _run():
-        from app.services.anim_service import _GPU_JOB_LOCK
-        from .style_board import bound_style
-        from .config import resolve_style
         import hashlib
+
+        from app.services.anim_service import _GPU_JOB_LOCK
+
+        from .config import resolve_style
+        from .style_board import bound_style
         try:
             bound = bound_style(book_title)
             if not bound:

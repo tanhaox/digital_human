@@ -25,8 +25,8 @@ from typing import Any
 
 import requests
 
-from .config import load
 from . import shots as shots_mod
+from .config import load
 
 logger = logging.getLogger(__name__)
 

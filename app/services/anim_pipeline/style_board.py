@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from . import comfy
-from .config import DEFAULT_STYLE_NAME, _safe_name, load
+from .config import _safe_name, load
 from .k2 import bible_negative, build_workflow, render_gated
 
 logger = logging.getLogger(__name__)
@@ -82,6 +82,7 @@ try:
 except Exception:  # noqa: BLE001 — 宪法加载失败不炸模块, 空块=只靠下游守门
     _VISUAL_LAW = ""
 from .chain_law import VISUAL_CHAIN_LAW
+
 _SHOTS_SYS += _VISUAL_LAW + VISUAL_CHAIN_LAW
 _PROPOSE_SYS += _VISUAL_LAW + VISUAL_CHAIN_LAW
 
@@ -797,8 +798,8 @@ def render_bible_samples(book_id: str, book_title: str, force: bool = False) -> 
             import re as _re0
             _m0 = _re0.search(r"主色[:：]?\s*([^;；,，。(（]{2,20})", _pal)
             _hue0 = (_m0.group(1).strip() if _m0 else "")[:12]
-            from .k2 import SKIN_HAIR_LAW as _LAW
             from .config import resolve_style as _rs
+            from .k2 import SKIN_HAIR_LAW as _LAW
             _r = _rs(book_title)
             _ov = (_r.get("page_overrides") or {}).get("k2") or {}
             _fp0 = hashlib.sha1("|".join(str(x or "") for x in (
@@ -1013,7 +1014,9 @@ def render_motion_sample(book_id: str, book_title: str) -> dict:
                         _emit(j, f"旧片被占用 (页面正在播放?) 关闭后重试: {_exc}")
                         raise
                     image_name = comfy.upload_image(frame)
-                    from . import video_qc  # 1012: 出片机检 (红旗/衣色漂移) + 重掷到过关
+                    from . import (
+                        video_qc,  # 1012: 出片机检 (红旗/衣色漂移) + 重掷到过关
+                    )
                     _qc_hist: list = []
                     _shot_qc = {"shot_id": "motion-sample",
                                 "image_file": f"{_safe_name(book_title)}/{frame.name}"}

@@ -357,9 +357,9 @@ def _fallback_scene(book_id: str, book_title: str, ep: int, arc_id: str,
     落盘 = 未过闸产物上盘 (旧版实锤: A6 带病 4/16 落盘后, 续跑「有镜即 done」
     够不着, 全局闸无限同错); 落盘权在 planner 每场过闸后的 shots_mod.save。"""
     from . import director2
+    from .assembler import assemble_episode
     from .registers import assign_registers
     from .shooting_script import load as load_ss
-    from .assembler import assemble_episode
     doc = director2.plan_scene(book_id, book_title, ep, arc_id, manifest, bible,
                               fix_hints=fix_hints)
     try:

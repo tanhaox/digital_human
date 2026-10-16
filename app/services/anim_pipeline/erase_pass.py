@@ -133,6 +133,7 @@ def run_erase_pass(shot: dict[str, Any], doc: dict[str, Any], base_image: Path) 
                         if imgs[0].get("subfolder") else comfy_out / imgs[0]["filename"]
                     if src.exists():
                         import shutil
+
                         # RESIZE-BACK (1015 尺寸统一令): pass 产物回源图尺寸 — 全集恒 1920×1080
                         from PIL import Image
                         with Image.open(base_image) as _orig:

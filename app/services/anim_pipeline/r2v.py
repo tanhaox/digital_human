@@ -20,8 +20,8 @@ from . import (
     comfy,
     video_qc,  # 视频产物机检 (观察模式, 同 h3)
 )
-from . import shots as shots_mod
 from . import ledger as _ledger
+from . import shots as shots_mod
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +48,9 @@ def _char_sheet_map(book_title: str) -> dict[str, str]:
     if _CHAR_SHEETS is not None:
         return _CHAR_SHEETS
     try:
-        from .director2 import _bible_cache_path
         import json
+
+        from .director2 import _bible_cache_path
         bible = json.loads(_bible_cache_path(book_title).read_text(encoding="utf-8"))
         sheets_dir = shots_mod.anim_output_root() / "_资产" / "角色设计" / book_title
         m: dict[str, str] = {}

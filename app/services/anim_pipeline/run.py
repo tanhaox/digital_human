@@ -26,8 +26,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[3]))  # digital_human ца
 
 from app.services.anim_pipeline import h3 as h3_mod  # noqa: E402
 from app.services.anim_pipeline import k2 as k2_mod  # noqa: E402
-from app.services.anim_pipeline import planner, qc, tts as tts_mod  # noqa: E402
+from app.services.anim_pipeline import planner, qc  # noqa: E402
 from app.services.anim_pipeline import shots as shots_mod  # noqa: E402
+from app.services.anim_pipeline import tts as tts_mod
 
 
 def _id_list(s: str | None) -> set[str] | None:

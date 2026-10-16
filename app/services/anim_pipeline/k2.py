@@ -23,8 +23,8 @@ from . import (
     comfy,
     prompt_gate,  # 0927 终串机检 (观察模式)
 )
-from . import shots as shots_mod
 from . import ledger as _ledger
+from . import shots as shots_mod
 from .config import resolve_style
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,10 @@ logger = logging.getLogger(__name__)
 # 1013 P0: 灭字律迁宪法 text_law.k2_engine_tail (冲突12: 域=k2生成帧, 封面书墙豁免);
 # 常量版退为 fallback (宪法缺失时保命), 行为等价。
 from . import constitution as CST
-from .scene_writer import TEXT_CARRIER_NOUN_RE  # 1015 H 修复③: 载体名词表同源 (改词表只改 scene_writer)
+from .scene_writer import (
+    TEXT_CARRIER_NOUN_RE,  # 1015 H 修复③: 载体名词表同源 (改词表只改 scene_writer)
+)
+
 PROTECT_TAIL = CST.text_law("k2_engine_tail") or (
     "。画面完全无文字、无数字、无标识，屏幕只保留纯净的空白图形区域，"
     "招牌牌匾一律空白无字。建筑、器物与服饰均为日常民用样式，"
@@ -88,8 +91,9 @@ def _person_in(scene: str, book_title: str = "") -> bool:
     # 与 final_gate 同源补齐 (bible characters 并入)
     if book_title:
         try:
-            from .director2 import _bible_cache_path
             import json as _json
+
+            from .director2 import _bible_cache_path
             _bb = _json.loads(_bible_cache_path(book_title).read_text(encoding="utf-8"))
             for c in _bb.get("characters") or []:
                 nm = str(c.get("name") or "").strip()
@@ -104,6 +108,7 @@ def _person_in(scene: str, book_title: str = "") -> bool:
 
 
 import re as _re
+
 
 def _clean_scene(scene: str) -> str:
     """K2 提示词清洁工 (0923 用户实锤: 产线图与选型板完全不一致):
@@ -648,7 +653,9 @@ def _vlm_dirty(png: Path) -> str | None:
     try:
         import base64
         import io as _io
+
         from PIL import Image
+
         from app.services.reverse_prompt_service import _chat as _vlm_chat
         im = Image.open(png).convert("RGB")
         if im.width > 960:
@@ -730,7 +737,9 @@ def _vlm_face_bad(png: Path) -> str | None:
     try:  # 兜底: glm-4v-flash (弱眼力, 有总比没有强)
         import base64
         import io as _io
+
         from PIL import Image
+
         from app.services.reverse_prompt_service import _chat as _vlm_chat
         im = Image.open(png).convert("RGB")
         if im.width > 960:

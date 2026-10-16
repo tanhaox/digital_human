@@ -24,8 +24,8 @@ import time
 from pathlib import Path
 from typing import Any
 
-from . import shots as shots_mod
 from . import constitution as CST
+from . import shots as shots_mod
 from .chain_law import VISUAL_CHAIN_LAW
 from .config import load, resolve_style
 
@@ -602,6 +602,7 @@ def draft_motion_style(book_id: str, book_title: str, force: bool = False) -> di
     from app.config import load_config, set_config
     set_config(load_config())
     from app.services.book_service.creation_common import _llm, _parse_json
+
     from .config import resolve_style
     style = resolve_style(book_title)
     style_card = json.dumps({
@@ -4239,7 +4240,6 @@ def duration_audit(doc: dict[str, Any], segs: list[dict[str, Any]] | None = None
         arc_rows.append(row)
     shot_rows: list[dict[str, Any]] = []
     import subprocess as _sp
-    from pathlib import Path as _P
     _ep_dir = shots_mod.ep_dir(str(doc.get("book_title")), int(doc.get("ep") or 1))
     for s in shots:
         slot = round(float(s["t_end"]) - float(s["t_start"]), 2)

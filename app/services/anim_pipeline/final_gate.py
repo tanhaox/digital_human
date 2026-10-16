@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import logging
 import re
-from difflib import SequenceMatcher
 from typing import Any
 
 from . import constitution as CST
@@ -45,9 +44,10 @@ def zone_quota_issues(doc: dict[str, Any], skip_placeholders: bool = True) -> li
     终产闸 (validate_final)、器层注入帽 (_quota_person_inject) 三消费者同源。
     旧版三处两把尺 (生成按 ⌈n/4⌉、验收按分区 0.6): 确定性补人永远停在
     ⌈n/4⌉, 终闸按分区要人 → 重试无穷 (ep4 A6 16镜补到4即停 vs 需≥10 实锤)。"""
-    from .director2 import _has_person_words, _bible_cache_path
     import json as _json
     import math as _math
+
+    from .director2 import _bible_cache_path, _has_person_words
     words = list(CST.person_words())
     try:
         bt = str(doc.get("book_title") or "")

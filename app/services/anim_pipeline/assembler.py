@@ -269,9 +269,9 @@ def _quota_person_inject(doc: dict[str, Any], ss: dict[str, Any], bible: dict[st
     1014 一把尺: 注入帽=分区配额 (宪法 scene_min_present) — 旧版帽死在
     ⌈n/4⌉, 与终产分区闸 (hook/mid 0.6) 两把尺错位, 确定性补人永远到不了
     验收线 (ep4 A6 16镜补到4即停 vs 需≥10, ×2 重试同死实锤)。"""
-    from .director2 import _has_person_words, _PERSON_W  # 延迟导入防环
     from . import constitution as CST
     from .config import load as _load
+    from .director2 import _PERSON_W, _has_person_words  # 延迟导入防环
     words = list(_PERSON_W)
     words += [str(c.get("name") or "").strip() for c in (bible.get("characters") or [])
               if str(c.get("name") or "").strip()]
@@ -651,7 +651,8 @@ def assemble_episode(doc: dict[str, Any], ss: dict[str, Any], bible: dict[str, A
                                     if s.get("slots_source") == "default")[:120])
         # 1008 P7: 校验报告带 doc/bible 刷新 (术层覆盖/组装覆盖/道具生命周期)
         try:
-            from .shooting_script import validate_report, save as save_ss
+            from .shooting_script import save as save_ss
+            from .shooting_script import validate_report
             ss["validation"] = validate_report(ss, doc=doc, bible=bible)
             save_ss(doc["book_title"], int(doc.get("ep") or 0), ss)
         except Exception as exc:  # noqa: BLE001 — 报告刷新失败不回滚组装

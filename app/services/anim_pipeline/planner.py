@@ -335,7 +335,9 @@ def plan(book_ref: str, ep: int, teardown_file: str | None = None, force: bool =
     from app.services.anim_pipeline import director2
     bible = director2.load_or_derive_bible(book_id, book_title)
 
-    from app.services import anim_draft  # 延迟导入 (包外 app 侧); 音频门在 service 层已挡
+    from app.services import (
+        anim_draft,  # 延迟导入 (包外 app 侧); 音频门在 service 层已挡
+    )
     audio = anim_draft.fetch_episode_audio(book_id, ep)
     # 0917 refs 协议: 句级表 (包实测+句切+静音吸附) 随 manifest 下发 — 规划镜 refs
     # 引句号, 系统查表定镜界, LLM 零绝对时间输出 (结构上不可能时间漂移)
@@ -461,7 +463,8 @@ def _scorched_flow(book_id: str, book_title: str, ep: int, ep_row: dict[str, Any
     # 1007 P2: 法层拍摄脚本生成 (切场后、立意闸前) — 镜头序/光影/连续性
     # 1013 修 (卓有ep1 实锤): 法层是术/器链的根依赖, 瞬时 LLM 故障一把定死
     # = 整集分镜裸奔 — 同产线 LLM 调用惯例补重试 ×2 (零 GPU, 只费一次调用)
-    from app.services.anim_pipeline.shooting_script import generate as gen_shooting, validate
+    from app.services.anim_pipeline.shooting_script import generate as gen_shooting
+    from app.services.anim_pipeline.shooting_script import validate
     _ss_ok = False
     for _attempt in (1, 2):
         try:
@@ -577,9 +580,9 @@ def _scenes_flow(book_id: str, book_title: str, ep: int,
 
     # 1007 P5: 术层创意槽填充 (法层模板 → LLM 填 action/detail/atmosphere)
     try:
-        from app.services.anim_pipeline.shooting_script import load as load_ss
-        from app.services.anim_pipeline.registers import assign_registers
         from app.services.anim_pipeline.creative_slots import fill_creative_slots
+        from app.services.anim_pipeline.registers import assign_registers
+        from app.services.anim_pipeline.shooting_script import load as load_ss
         ss = load_ss(book_title, ep)
         if ss:
             # 1009 拆书导演模型: 规层先钉主体寄存器 (句型→寄存器, 零 LLM),
@@ -725,7 +728,7 @@ def _replan_flow(book_id: str, book_title: str, ep: int,
     每场成功即落盘 (断点续在下一场), 全败不动盘 (开场整体备份一次)。
     """
     import shutil
-    from app.services.anim_pipeline import director2
+
 
     doc = shots_mod.load_doc(book_title, ep)
     arcs = doc.get("arcs") or []
@@ -843,10 +846,10 @@ def replan_scene(book_ref: str, ep: int, arc_id: str) -> Path:
 
     # 1008 P5/P6: 术层创意槽 + 器层组装 (单场重规划同链 — 只导演全写会退回旧链)
     try:
-        from app.services.anim_pipeline.shooting_script import load as load_ss
-        from app.services.anim_pipeline.registers import assign_registers
-        from app.services.anim_pipeline.creative_slots import fill_creative_slots
         from app.services.anim_pipeline.assembler import assemble_episode
+        from app.services.anim_pipeline.creative_slots import fill_creative_slots
+        from app.services.anim_pipeline.registers import assign_registers
+        from app.services.anim_pipeline.shooting_script import load as load_ss
         ss = load_ss(book_title, ep)
         if ss:
             # 1009 寄存器: 全doc未钉镜一次补齐 (零LLM幂等) — 他场旧镜无钉标时
@@ -888,7 +891,9 @@ def _v1_plan(book_ref: str, ep: int, teardown_file: str | None = None, force: bo
     cfg = load()
     book_id, book_title = resolve_book(cfg.db_path, book_ref)
     ep_row = fetch_episode(cfg.db_path, book_id, ep)
-    from app.services.anim_pipeline import director2  # 留档路径补漏 (0919 pyflakes): L703 collect_warnings 用
+    from app.services.anim_pipeline import (
+        director2,  # 留档路径补漏 (0919 pyflakes): L703 collect_warnings 用
+    )
 
     existing = shots_mod.shots_path(book_title, ep)
     if existing.exists() and not force:

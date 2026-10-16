@@ -137,6 +137,7 @@ def generate(book_id: str, book_title: str, ep: int) -> dict[str, Any]:
 
     # ③ 读本集稿件段落 (用于镜头序设计参考)
     import sqlite3
+
     from .config import load
     con = sqlite3.connect(load().db_path)
     row = con.execute(
