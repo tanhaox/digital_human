@@ -3031,7 +3031,9 @@ def _gate_motion_text(shot: dict[str, Any]) -> bool:
     n_text_clauses = len({e["ci"] for e in events})
     keep: list[str] = []
     for ev in uniq:
-        sink = (ev["fancy"] or _ft_cjk_len(ev["tok"]) > 2
+        # 1017 W2: 口径对齐 ID-098 (花字≤4字) — 旧 ≤2 是 motion 内嵌时代约束;
+        # keep 语义已改为迁移 h3_text_event (声明通道, TEXT_POLICY 同口径)
+        sink = (ev["fancy"] or _ft_cjk_len(ev["tok"]) > 4
                 or n_text_clauses >= 2 or len(keep) >= 1)
         if not sink:
             keep.append(ev["tok"])
@@ -3049,7 +3051,10 @@ def _gate_motion_text(shot: dict[str, Any]) -> bool:
     # ① sink → 删 motion_zh 子句 (含无 token 尾巴子句) + 删 beats 英文段 + 写 overlay
     if sunk:
         # 沉字所有出现子句全删 (同 token 可跨多句, 只删首现会留尾巴 — s55 实锤)
-        sunk_toks = {e["tok"] for e in sunk}
+        # 1017 W2 收敛: keep token 一并出清 (合规字迁移 h3_text_event, 见②) —
+        # motion_zh/beats 不再内嵌字卡 (与 H3 NO_TEXT_POLICY / r2v 'No text'
+        # 同 prompt 冲突, s01 家族实锤)
+        sunk_toks = {e["tok"] for e in uniq}
         drop_ci = {e["ci"] for e in events if e["tok"] in sunk_toks}
         out: list[str] = []
         prev_dropped = False
@@ -3105,29 +3110,24 @@ def _gate_motion_text(shot: dict[str, Any]) -> bool:
                 if new_mot != mot:
                     b["motion"] = new_mot
                     changed = True
-        # 军规保字但所在子句同句共沉 → 字丢了, 转 overlay 兜底 (存活判定重提 token)
-        alive = set(_FT_TOKEN_RE.findall(str(shot.get("motion_zh") or "")))
-        for tok in keep:
-            if tok not in alive:
-                ev = next(e for e in uniq if e["tok"] == tok)
-                if not any(_has(k, tok) for k in ("hero_number", "impact", "overlay")):
-                    tl.append({"kind": "overlay", "text": tok,
-                               "t_start": ev["t0"], "t_end": ev["t1"],
-                               "color": "red" if ev["red"] else "gold"})
-                    changed = True
-
-    # ② keep → text_layer 补登记 (hero_number/impact; 字幕行内高亮锚)
-    alive = set(_FT_TOKEN_RE.findall(str(shot.get("motion_zh") or "")))
+    # ② keep → 1017 W2 迁移: 合规字出清内嵌后落结构化 h3_text_event (单通道)
     for tok in keep:
-        if tok in alive:
-            ev = next(e for e in uniq if e["tok"] == tok)
-            kind = "impact" if ev["red"] else "hero_number"
-            # 0920: 三 kind 全查重 — ep5 实锤 token 已登记为 impact 时又追加
-            # hero_number = 同字双条, 剪辑层双重渲染 (补字回填放大暴露)
-            if not any(_has(k, tok) for k in ("hero_number", "impact", "overlay")):
-                tl.append({"kind": kind, "text": tok,
-                           "t_start": ev["t0"], "t_end": ev["t1"]})
-                changed = True
+        ev = next(e for e in uniq if e["tok"] == tok)
+        kind = "impact" if ev["red"] else "hero_number"
+        # text_layer 登记 (字幕行内高亮锚; 三 kind 全查重 — 0920 同字双条实锤)
+        if not any(_has(k, tok) for k in ("hero_number", "impact", "overlay")):
+            tl.append({"kind": kind, "text": tok,
+                       "t_start": ev["t0"], "t_end": ev["t1"]})
+            changed = True
+        # 结构化事件 (幂等不覆写; brand 镜无 H3 不迁)
+        if not shot.get("brand_card") and not (
+                isinstance(shot.get("h3_text_event"), dict)
+                and str(shot["h3_text_event"].get("text") or "").strip()):
+            shot["h3_text_event"] = {"text": tok, "at_s": ev["t0"],
+                                     "zone": "避开主体脸与关键物的留白"}
+            logger.info("[text-route] %s 浮字迁移→h3_text_event「%s」@%.1fs",
+                        shot.get("shot_id"), tok, ev["t0"])
+            changed = True
 
     if tl != list(shot.get("text_layer") or []):
         shot["text_layer"] = tl
@@ -3153,12 +3153,15 @@ def _ensure_motion_text(shot: dict[str, Any]) -> bool:
         return False
     span = round(float(shot.get("t_end") or 0) - float(shot.get("t_start") or 0), 2)
     mz = str(shot.get("motion_zh") or "")
-    beats = (shot.get("anim") or {}).get("beats") or []
-    if span <= 0 or not mz or not beats:
+    if span <= 0 or not mz:
         return False
+    # 1017 W2 收敛: 守卫改结构化事件 (旧内嵌浮字由 _gate_motion_text 迁移)
+    _ev0 = shot.get("h3_text_event") or {}
+    if isinstance(_ev0, dict) and str(_ev0.get("text") or "").strip():
+        return False  # 已有事件 (arc-pass/迁移/前次回填)
     if any(_FT_CTX_RE.search(cl) and _FT_TOKEN_RE.findall(cl)
            for cl in re.split(r"[，。；,;]", mz)):
-        return False  # 已有浮字事件 (LLM 写了或前次回填)
+        return False  # 旧内嵌浮字待迁移 (本函数不双写)
     order = {"hero_number": 0, "impact": 1, "overlay": 2}
     cand: dict[tuple[int, float], dict[str, Any]] = {}
     for t in shot.get("text_layer") or []:
@@ -3168,8 +3171,8 @@ def _ensure_motion_text(shot: dict[str, Any]) -> bool:
             continue
         if not re.search(r"[0-9A-Za-z一-鿿？?！!·≠＋+]", tok):
             continue
-        if _ft_cjk_len(tok) > 2 or (len(tok) > 8 and not _ft_cjk_len(tok)):
-            continue
+        if _ft_cjk_len(tok) > 4 or (len(tok) > 8 and not _ft_cjk_len(tok)):
+            continue  # 1017 W2: 候选口径对齐 ID-098 ≤4字
         key = (order[kind], round(float(t.get("t_start") or 0), 2))
         cand.setdefault(key, {"tok": tok, "t0": float(t.get("t_start") or 0),
                               "t1": float(t.get("t_end") or 0)})
@@ -3180,13 +3183,12 @@ def _ensure_motion_text(shot: dict[str, Any]) -> bool:
     t0 = min(best["t0"], max(span - 1.0, 0.0))
     t1 = min(max(best["t1"], t0 + 1.2), span)
     dur = round(t1 - t0, 1)
-    shot["motion_zh"] = mz.rstrip("，。；,; ") + (
-        f"；文字事件：第{t0:.1f}秒“{tok}”以粗楷大字浮出（避开主体脸与关键物），"
-        f"持续{dur:.1f}秒后淡出")
-    b = beats[-1]
-    b["motion"] = (str(b.get("motion") or "").rstrip(" ;,.") +
-                   f'; at {t0:.1f}s the bold word "{tok}" floats up large in a '
-                   f'clear area away from the subject, holds {dur:.1f}s, fades out')
+    # 1017 W2 收敛: 写结构化 h3_text_event (旧版写 motion_zh/beats 内嵌字卡 —
+    # 与 H3 NO_TEXT_POLICY 及 r2v 'No text' 同 prompt 冲突)
+    shot["h3_text_event"] = {"text": tok, "at_s": round(t0, 1),
+                             "zone": "避开主体脸与关键物的留白"}
+    logger.info("[text-route] %s 补字回填→h3_text_event「%s」@%.1fs",
+                shot.get("shot_id"), tok, t0)
     # 0920 双源互斥 (同军规不变量: token 要么 H3 入画要么 overlay, 不双渲):
     # 0916 降维令后 overlay 是剪辑层唯一大字轨 — 入画接管即撤 overlay,
     # hero_number/impact 锚保留 (字幕行内高亮, R9 三件套 ①+③ 共存)
