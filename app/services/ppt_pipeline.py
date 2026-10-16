@@ -20,28 +20,20 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["_JOBS", "_Cancelled", "_evt", "_job_workdir", "_run_ppt_pipeline"]
 
-# 在跑任务: job_id → 状态 (与蒸馏 _BATCH 同模式, 供轮询 + SSE)
-_JOBS: dict[str, dict] = {}
+# B11 (2026-10-16): _JOBS/_evt/_job_workdir 三件 job 底座下沉 app/services/ppt_registry.py
+# (book 侧 slide_render 直引中立模块, 环#3 消除); 此处 re-export — 模块缓存保证
+# 单一 _JOBS 实例, routers/ppt 等既有消费者零改动。
+from app.services.ppt_registry import (  # noqa: F401  # re-export
+    _JOBS,
+    _evt,
+    _job_workdir,
+)
+
 _LOCK = threading.Lock()
 
 
 class _Cancelled(Exception):
     """产线取消信号 (cancel 标志检查抛出)."""
-
-
-def _evt(job_id: str, msg: str, level: str = "info", **extra) -> None:
-    from app.services.director_events import publish
-    e = {"ts": time.strftime("%H:%M:%S"), "level": level, "msg": msg, **extra}
-    j = _JOBS.setdefault(job_id, {})
-    j.setdefault("events", []).append(e)
-    if len(j["events"]) > 500:
-        j["events"] = j["events"][-500:]
-    publish(job_id, e)
-
-
-def _job_workdir(job_id: str) -> Path:
-    root = Path(get_config().defaults.ppt_work_root)
-    return root / job_id
 
 
 # ── 后台产线 ─────────────────────────────────────────────────
@@ -363,6 +355,9 @@ def _run_ppt_pipeline(job_id: str) -> None:
                     ).first()
                 total_end = max((float(t.get("end", 0)) for t in (timings or [])), default=0.0)
                 # 尾卡模板分流 (0908): 老谭读书=bs1 族, 静读书=hf 纸墨系 (两线不互通)
+                from app.services.book_service.slide_render import (
+                    _book_brand,  # B11: 品牌解析归 book 域
+                )
                 _is_lt = _book_brand(db, book)[0] == "老谭读书" if book else False
                 _tpl_q = "bs1-bookquote-v1" if _is_lt else "hf-bookquote-v1"
                 _tpl_i = "bs1-bookinfo-v1" if _is_lt else "hf-bookinfo-v1"
@@ -527,6 +522,9 @@ def _run_ppt_pipeline(job_id: str) -> None:
                 if bound.get("book_id"):
                     try:
                         from app.models import BookProject
+                        from app.services.book_service.slide_render import (
+                            _book_brand,  # B11: 品牌解析归 book 域
+                        )
                         bk = db.query(BookProject).filter(BookProject.id == bound["book_id"]).first()
                         if bk:
                             book_title = bk.book_title or ""
@@ -534,10 +532,13 @@ def _run_ppt_pipeline(job_id: str) -> None:
                     except Exception:
                         book_title = ""
                 try:
+                    # 台标资产: 老谭读书用专属 logo (缺失跳过), 其余静读书
+                    from app.services.book_service.slide_render import (
+                        _laotan_book_logo,  # B11: 同上
+                    )
                     from app.services.jy_draft_service.watermark import (
                         prepare_watermark,
                     )
-                    # 台标资产: 老谭读书用专属 logo (缺失跳过), 其余静读书
                     _lt_logo = _laotan_book_logo()
                     if book_brand == "老谭读书" and _lt_logo.exists():
                         logo_png = str(_lt_logo)
@@ -592,66 +593,6 @@ def _run_ppt_pipeline(job_id: str) -> None:
         j = _JOBS[job_id]
         j["status"] = "cancelled" if j.get("error") == "用户取消" else (
             "done" if not j.get("error") else "failed")
-
-
-def _logo_data_uri(asset: Path | None = None) -> str:
-    """拆书线尾卡 logo (透明 PNG) → data URI.
-
-    原图 1004px/1.8MB → base64 2.5M 字符超 json_schema maxLength;
-    显示位仅 120px 高 → 降采样 240px (2x) 足清, ~几十 KB。
-    asset (2026-09-07 双人物): 缺省静读书 (jingbook_logo.png);
-    老谭读书 = assets/watermark/laotanbook_logo.png (logo 后续提供, 缺失返回空串=卡上无 logo)。
-    """
-    import base64
-    import io
-
-    from app.services.jy_draft_service.watermark import WATERMARK_ASSET
-    src = Path(asset) if asset else WATERMARK_ASSET
-    try:
-        if not src.exists():
-            return ""
-        from PIL import Image
-        im = Image.open(src)
-        im.thumbnail((240, 240), Image.LANCZOS)
-        buf = io.BytesIO()
-        im.save(buf, format="PNG", optimize=True)
-        return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
-    except Exception as exc:
-        logger.warning("[ppt] logo 读取失败 (%s): %s", src.name, exc)
-        return ""
-
-
-def _laotan_book_logo() -> Path:
-    # 老谭读书 logo 约定路径 (0907 用户: logo 重新生成后落此文件名即自动生效)
-    from app.services.jy_draft_service.watermark import WATERMARK_ASSET
-    return WATERMARK_ASSET.parent / "laotanbook_logo.png"
-
-
-def _book_brand(db, book) -> tuple[str, str]:
-    """书的账号品牌 (2026-09-07 双人物): book.persona_id → (brand_name, logo_data_uri).
-
-    无 persona / 查不到 → 回退静读书 (旧行为)。老谭读书 logo 缺失时 logo 为空串
-    (尾卡无 logo, 文字 brand 照常), logo 文件落位后自动生效。
-    """
-    default = ("静读书", _logo_data_uri())
-    try:
-        ij = book.input_json if isinstance(book.input_json, dict) else {}
-        pid = ij.get("persona_id")
-        if not pid:
-            return default
-        from app.models import Persona
-        persona = db.query(Persona).filter(Persona.id == pid).first()
-        if not persona or not persona.host_id:
-            return default
-        from app.models import Host
-        host = db.query(Host).filter(Host.id == persona.host_id).first()
-        key = (host.persona_key if host else "") or ""
-        if key == "laotan-book":
-            return (persona.brand_name or persona.name, _logo_data_uri(_laotan_book_logo()))
-        return (persona.brand_name or persona.name, _logo_data_uri())
-    except Exception as exc:
-        logger.warning("[ppt] 品牌解析失败, 回退静读书: %s", exc)
-        return default
 
 
 def _render_card_png(db, template_id: str, input_data: dict, workdir: Path,
@@ -709,6 +650,9 @@ def _build_bookinfo_input(db, book, page_dur: float) -> dict | None:
             bio_lines.append(cur)
     if not (book.author or guide or bio_lines):
         return None
+    from app.services.book_service.slide_render import (
+        _book_brand,  # B11: 品牌解析归 book 域
+    )
     _brand, _logo = _book_brand(db, book)
     return {
         "title": f"《{book.book_title}》"[:64],
@@ -731,6 +675,9 @@ def _build_bookquote_input(db, book, ep, page_dur: float) -> dict | None:
         return None
     if len(quotes) < 3:
         return None
+    from app.services.book_service.slide_render import (
+        _book_brand,  # B11: 品牌解析归 book 域
+    )
     _brand, _logo = _book_brand(db, book)
     data = {"book_title": f"《{book.book_title}》"[:96],
             "brand_name": _brand,

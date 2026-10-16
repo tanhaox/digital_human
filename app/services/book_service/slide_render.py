@@ -28,6 +28,67 @@ __all__ = ["Bs1Context", "build_context", "page_to_dict", "run_bs1_plan",
            "render_bs1_pages", "fetch_page_image", "page_input_data"]
 
 
+# ── 书线品牌三件 (B11, 2026-10-16 自 ppt_pipeline 迁入 — 域归属: 品牌=book/persona 数据) ──
+# ppt_pipeline 经延迟 import 反向引用 (单向许可); 本模块自用零 import。
+def _logo_data_uri(asset: Path | None = None) -> str:
+    """拆书线尾卡 logo (透明 PNG) → data URI.
+
+    原图 1004px/1.8MB → base64 2.5M 字符超 json_schema maxLength;
+    显示位仅 120px 高 → 降采样 240px (2x) 足清, ~几十 KB。
+    asset (2026-09-07 双人物): 缺省静读书 (jingbook_logo.png);
+    老谭读书 = assets/watermark/laotanbook_logo.png (logo 后续提供, 缺失返回空串=卡上无 logo)。
+    """
+    import io
+
+    from app.services.jy_draft_service.watermark import WATERMARK_ASSET
+    src = Path(asset) if asset else WATERMARK_ASSET
+    try:
+        if not src.exists():
+            return ""
+        from PIL import Image
+        im = Image.open(src)
+        im.thumbnail((240, 240), Image.LANCZOS)
+        buf = io.BytesIO()
+        im.save(buf, format="PNG", optimize=True)
+        return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+    except Exception as exc:
+        logger.warning("[ppt] logo 读取失败 (%s): %s", src.name, exc)
+        return ""
+
+
+def _laotan_book_logo() -> Path:
+    # 老谭读书 logo 约定路径 (0907 用户: logo 重新生成后落此文件名即自动生效)
+    from app.services.jy_draft_service.watermark import WATERMARK_ASSET
+    return WATERMARK_ASSET.parent / "laotanbook_logo.png"
+
+
+def _book_brand(db, book) -> tuple[str, str]:
+    """书的账号品牌 (2026-09-07 双人物): book.persona_id → (brand_name, logo_data_uri).
+
+    无 persona / 查不到 → 回退静读书 (旧行为)。老谭读书 logo 缺失时 logo 为空串
+    (尾卡无 logo, 文字 brand 照常), logo 文件落位后自动生效。
+    """
+    default = ("静读书", _logo_data_uri())
+    try:
+        ij = book.input_json if isinstance(book.input_json, dict) else {}
+        pid = ij.get("persona_id")
+        if not pid:
+            return default
+        from app.models import Persona
+        persona = db.query(Persona).filter(Persona.id == pid).first()
+        if not persona or not persona.host_id:
+            return default
+        from app.models import Host
+        host = db.query(Host).filter(Host.id == persona.host_id).first()
+        key = (host.persona_key if host else "") or ""
+        if key == "laotan-book":
+            return (persona.brand_name or persona.name, _logo_data_uri(_laotan_book_logo()))
+        return (persona.brand_name or persona.name, _logo_data_uri())
+    except Exception as exc:
+        logger.warning("[ppt] 品牌解析失败, 回退静读书: %s", exc)
+        return default
+
+
 @dataclass
 class Bs1Context:
     """页单渲染上下文 (品牌/书信息, 全页共享)."""
@@ -58,8 +119,7 @@ def build_context(db, book_id: str, ep_index: int) -> Bs1Context | None:
     brand, logo = "", ""
     brand_tag = "读一本书，升一级"  # 老谭读书账号级品牌句 (0907)
     try:
-        from app.services.ppt_pipeline import _book_brand
-        brand, logo = _book_brand(db, book)  # 无 persona 回退静读书 (闸门在 plan 端点拦)
+        brand, logo = _book_brand(db, book)  # 无 persona 回退静读书 (闸门在 plan 端点拦); B11 起本模块自有
     except Exception as exc:
         logger.warning("[bs1] 品牌解析失败, 回退老谭读书: %s", exc)
         brand, logo = "老谭读书", ""
@@ -266,7 +326,11 @@ def render_bs1_pages(pages: list[dict], ctx: Bs1Context, workdir: Path,
 def run_bs1_plan(job_id: str, book_id: str, ep_index: int) -> None:
     """① PPT生产: A 规划 → Pexels 配图 → 逐页预览渲染 → job status=planned。"""
     from app.database import db_session
-    from app.services.ppt_pipeline import _JOBS, _evt, _job_workdir
+    from app.services.ppt_registry import (  # B11: job 底座中立模块(单一 _JOBS 实例)
+        _JOBS,
+        _evt,
+        _job_workdir,
+    )
 
     from .slide_gen import plan_episode_pages
 
@@ -309,7 +373,7 @@ def run_bs1_plan(job_id: str, book_id: str, ep_index: int) -> None:
             "job_id": job_id, "book_id": book_id, "ep_index": ep_index,
             "status": "planned", "ep_title": ctx.ep_title,
         })
-        from app.services.ppt_pipeline import _JOBS
+        from app.services.ppt_registry import _JOBS  # B11: 同上
         _JOBS.setdefault(job_id, {}).update(
             mode="bs1", book_id=book_id, ep_index=ep_index,
             pages=pages, status="planned",
