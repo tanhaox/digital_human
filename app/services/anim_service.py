@@ -36,6 +36,17 @@ from app.services.job_events import _publish
 
 logger = logging.getLogger(__name__)
 
+# B08 (2026-10-16): 可选加料供给注册 — 管线 (anim_pipeline) 经 feeds.get_feed 取料,
+# 此处 (app 外壳, 两侧都可引) 把 book 侧读料函数注入。进程级注册: main 装配
+# (routers/anim 顶层引本模块) 即生效, 路由直调管线 (books.py derive_characters)
+# 也不缺料; 参数注入方案会连锁 6+ 签名且路由侧没人喂料, 故弃之。
+from app.services.anim_pipeline.feeds import register_feed as _register_feed
+from app.services.book_service.distiller import load_section as _load_section
+from app.services.book_service.fandeng_full import load_fandeng_full as _load_ff
+
+_register_feed("story_section", _load_section)
+_register_feed("fandeng_full", _load_ff)
+
 PHASES = ("plan", "replan", "redo", "k2", "h3", "brand", "enhance")
 # redo (列队重做) 含 LLM 段但入 GPU_PHASES: 全程持锁, 与 k2/h3/brand 互斥
 GPU_PHASES = ("redo", "k2", "h3", "brand")

@@ -122,7 +122,7 @@ def ensure_author_card(book_id: str, book_title: str) -> dict:
     if hit:
         return {"author": name, "card": hit, "added": False}
     from app.services import compliance as _cmp
-    from app.services.book_service.creation_common import _llm, _parse_json
+    from app.services.llm_service import get_llm_service as _llm, _parse_json
     out = _llm().chat(
         "你是动画短片的角色设计师。为拆书动画补一张**本书作者**角色锁定卡 — "
         "讲述口播里高频出现'作者说/作者举了个例子', 需要一个可复用的作者形象锚。\n"
@@ -187,13 +187,17 @@ def derive_characters(book_id: str, book_title: str) -> dict:
     author_line = (f"\n【本书作者 (必含卡): {author or '字段为空, 按书内常识判断'} — "
                    "讲述口播高频'作者说', 需常驻形象锚; 卡名用稿内称呼】\n") if author else ""
     story = ""
-    try:
-        from app.services.book_service.distiller import load_section
-        story = (load_section(book_title, "故事库") or "")[:2600]
-    except Exception as exc:  # noqa: BLE001 — 故事库为可选加料, 缺了不阻断提炼
-        logger.warning("[chars] 故事库取料跳过: %s", exc)
+    from .feeds import get_feed
+    _feed = get_feed("story_section")  # B08: 读料经注册点 (外壳 anim_service 注入), 管线零 book_service import
+    if _feed:
+        try:
+            story = (_feed(book_title, "故事库") or "")[:2600]
+        except Exception as exc:  # noqa: BLE001 — 故事库为可选加料, 缺了不阻断提炼
+            logger.warning("[chars] 故事库取料跳过: %s", exc)
+    else:
+        logger.debug("[chars] story_section 供给未注册, 跳过故事库加料")
     from app.services import compliance as _cmp
-    from app.services.book_service.creation_common import _llm, _parse_json
+    from app.services.llm_service import get_llm_service as _llm, _parse_json
     sys_p = (
         "你是动画短片的角色设计师。为一系列拆书动画提炼角色锁定卡 — 全书人物锚, "
         "观众靠服饰跨场景认人。\n\n"

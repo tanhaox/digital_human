@@ -121,7 +121,7 @@ def generate(book_id: str, book_title: str, ep: int) -> dict[str, Any]:
     """
     from app.config import load_config, set_config
     set_config(load_config())
-    from app.services.book_service.creation_common import _llm, _parse_json
+    from app.services.llm_service import get_llm_service as _llm, _parse_json
 
     # ① 读道文档
     bible_path = shots_mod.anim_output_root() / "_资产" / f"圣经_{book_title}.json"

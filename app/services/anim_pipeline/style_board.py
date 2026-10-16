@@ -194,12 +194,12 @@ def bound_style(book_title: str) -> str | None:
 # ── LLM 步 ───────────────────────────────────────────────────
 
 def _llm():
-    from app.services.book_service.creation_common import _llm as _get
+    from app.services.llm_service import get_llm_service as _get
     return _get()
 
 
 def _parse(raw: str) -> dict:
-    from app.services.book_service.creation_common import _parse_json
+    from app.services.llm_service import _parse_json
     return _parse_json(raw)
 
 

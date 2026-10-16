@@ -601,7 +601,7 @@ def draft_motion_style(book_id: str, book_title: str, force: bool = False) -> di
                 "note": "已有动画律 (手调保护不覆盖); 重起草=清空该框后再点"}
     from app.config import load_config, set_config
     set_config(load_config())
-    from app.services.book_service.creation_common import _llm, _parse_json
+    from app.services.llm_service import get_llm_service as _llm, _parse_json
 
     from .config import resolve_style
     style = resolve_style(book_title)
@@ -712,16 +712,20 @@ def load_or_derive_bible(book_id: str, book_title: str, force: bool = False) -> 
     # 0923 樊登全书稿 (用户令): 讲述稿含书内真实人物/故事原味 — 视觉气质背景
     # (0928 用户裁定: 角色生成移角色设计台, 圣经只管视觉身份, 不再产出 characters)
     ff_text = ""
-    try:
-        from app.services.book_service.fandeng_full import load_fandeng_full
-        ff_text = str(load_fandeng_full(book_title) or "")[:20000]
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("[plan] 圣经喂樊登稿跳过: %s", exc)
+    from .feeds import get_feed
+    _feed = get_feed("fandeng_full")  # B08: 读料经注册点 (外壳 anim_service 注入), 管线零 book_service import
+    if _feed:
+        try:
+            ff_text = str(_feed(book_title) or "")[:20000]
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[plan] 圣经喂樊登稿跳过: %s", exc)
+    else:
+        logger.debug("[plan] fandeng_full 供给未注册, 跳过樊登稿加料")
     ff_block = ("\n【樊登全书讲述稿 (书的叙事气质与真实人物形象参考)】\n" + ff_text) if ff_text else ""
 
     from app.config import load_config, set_config
     set_config(load_config())
-    from app.services.book_service.creation_common import _llm, _parse_json
+    from app.services.llm_service import get_llm_service as _llm, _parse_json
     sys_p = (
         "你是动画短片的美术指导 (Art Director)。为一系列拆书动画短片制定美术圣经 — "
         "全系列从头到尾一个视觉身份, 像迪士尼动画一样统一。\n\n"
@@ -1679,7 +1683,7 @@ def reroll_concept(book_id: str, book_title: str, ep: int, arc_id: str,
     ("不喜欢"的理由当指令); 产出回写骨架 arcs + 立意.md 同步重写。"""
     from app.config import load_config, set_config
     set_config(load_config())
-    from app.services.book_service.creation_common import _llm, _parse_json
+    from app.services.llm_service import get_llm_service as _llm, _parse_json
     doc = shots_mod.load_doc(book_title, ep)
     arcs = doc.get("arcs") or []
     idx = next((i for i, a in enumerate(arcs) if str(a.get("arc_id")).lower()
@@ -1772,7 +1776,7 @@ def plan_arcs(book_id: str, book_title: str, ep: int, ep_title: str,
     """
     from app.config import load_config, set_config
     set_config(load_config())
-    from app.services.book_service.creation_common import _llm, _parse_json
+    from app.services.llm_service import get_llm_service as _llm, _parse_json
 
     segs = []
     t_cursor = 0.0
@@ -2005,7 +2009,7 @@ def plan(book_id: str, book_title: str, ep: int, ep_title: str,
     """导演规划 (弧+运动+分镜, LLM) → 完整 doc (含产线生产字段)."""
     from app.config import load_config, set_config
     set_config(load_config())
-    from app.services.book_service.creation_common import _llm, _parse_json
+    from app.services.llm_service import get_llm_service as _llm, _parse_json
 
     segs = []
     t_cursor = 0.0
@@ -2075,7 +2079,7 @@ def plan_shot(book_id: str, book_title: str, ep: int, shot_id: str,
     """
     from app.config import load_config, set_config
     set_config(load_config())
-    from app.services.book_service.creation_common import _llm, _parse_json
+    from app.services.llm_service import get_llm_service as _llm, _parse_json
 
     doc = shots_mod.load_doc(book_title, ep)
     try:
@@ -2215,7 +2219,7 @@ def plan_scene(book_id: str, book_title: str, ep: int, arc_id: str,
     """
     from app.config import load_config, set_config
     set_config(load_config())
-    from app.services.book_service.creation_common import _llm, _parse_json
+    from app.services.llm_service import get_llm_service as _llm, _parse_json
 
     doc = shots_mod.load_doc(book_title, ep)
     arcs = doc.get("arcs") or []
@@ -3239,7 +3243,7 @@ def redesign_split_clones(doc: dict[str, Any], bible: dict[str, Any] | None = No
         return {"redesigned": 0, "failed": 0}
     from app.config import load_config, set_config
     set_config(load_config())
-    from app.services.book_service.creation_common import _llm, _parse_json
+    from app.services.llm_service import get_llm_service as _llm, _parse_json
 
     groups = {str(g.get("group_id")): g for g in doc.get("groups") or []}
     arcs = {str(a.get("arc_id")): a for a in doc.get("arcs") or []}
@@ -3547,7 +3551,7 @@ def consistency_review(doc: dict[str, Any], bible: dict[str, Any] | None = None)
         return {"patched": 0, "issues": []}
     from app.config import load_config, set_config
     set_config(load_config())
-    from app.services.book_service.creation_common import _llm, _parse_json
+    from app.services.llm_service import get_llm_service as _llm, _parse_json
 
     # 1009 P4: 法层在场判定 — 槽级协议仅在器层链路可用时启用
     from .shooting_script import load as _load_ss
@@ -3809,7 +3813,7 @@ def _enhance_pass1(doc, book_title: str, only: set[str] | None,
     裸名词具象化; 细节取材本场 visual_metaphor + 场景定调 (group 句);
     存活率≥0.70 且不缩句才收; 幂等 _enhanced1 (旧 _enhanced=0923 套话版, 不算数)。
     """
-    from app.services.book_service.creation_common import _llm
+    from app.services.llm_service import get_llm_service as _llm
     bible = load_or_derive_bible("", book_title)
     style_ctx = ""
     if bible:
@@ -3882,7 +3886,7 @@ def _enhance_pass2(doc, only: set[str] | None, touched: set[str]) -> int:
     确定性闸: 禁横移/跟拍/摇镜/平移 + 不缩句, 违者 motion 留原句 (anim 仍重建 —
     opening_desc 必须跟新画面句, 0917 图视失配教训)。幂等 _enhanced2。
     """
-    from app.services.book_service.creation_common import _llm, _parse_json
+    from app.services.llm_service import get_llm_service as _llm, _parse_json
     n = 0
     for s in doc.get("shots") or []:
         if s.get("brand_card") or s.get("_enhanced2"):

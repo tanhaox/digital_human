@@ -174,15 +174,11 @@ def _llm() -> LLMService:
     return get_llm_service()
 
 
-def _parse_json(text: str) -> Any:
-    """LLM 输出取 JSON: 去 markdown 围栏后解析."""
-    t = (text or "").strip()
-    t = re.sub(r"^```(?:json)?", "", t)
-    t = re.sub(r"```$", "", t).strip()
-    m = re.search(r"[\[{]", t)
-    if m and not t.startswith(("{", "[")):
-        t = t[m.start():]
-    return json.loads(t)
+# B08 (2026-10-16): 函数体迁入 app/services/llm_service._parse_json (anim_pipeline
+# 与 book_service 共用的中立底层), 此处 re-export 保持 book 侧旧入口零连锁。
+from app.services.llm_service import (
+    _parse_json as _parse_json,  # noqa: F401  # re-export
+)
 
 
 def _first_list(data: Any) -> list:

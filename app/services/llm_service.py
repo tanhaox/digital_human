@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import time
 from typing import Any, Callable
 
@@ -599,3 +600,18 @@ def get_llm_service() -> LLMService:
     if fallbacks:
         return LLMService(fallbacks[0], fallback=fallbacks[1:])
     return LLMService(cfg.deepseek)
+
+
+def _parse_json(text: str) -> Any:
+    """LLM 输出取 JSON: 去 markdown 围栏后解析.
+
+    B08 (2026-10-16) 自 book_service/creation_common 迁入 — anim_pipeline 与
+    book_service 双方共用的中立底层 (creation_common 侧 re-export 保持旧入口)。
+    """
+    t = (text or "").strip()
+    t = re.sub(r"^```(?:json)?", "", t)
+    t = re.sub(r"```$", "", t).strip()
+    m = re.search(r"[\[{]", t)
+    if m and not t.startswith(("{", "[")):
+        t = t[m.start():]
+    return json.loads(t)

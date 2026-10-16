@@ -230,7 +230,7 @@ def fill_creative_slots(doc: dict[str, Any], shooting_script: dict[str, Any],
     规划过闸之后 (同 assembler.assemble_episode 纪律, ep4 A6 带病落盘实锤)。
     """
     from app.config import load_config, set_config
-    from app.services.book_service.creation_common import _llm, _parse_json
+    from app.services.llm_service import get_llm_service as _llm, _parse_json
 
     from .assembler import fa_index
 
@@ -340,7 +340,7 @@ def _fill_serial(doc: dict[str, Any], pairs: dict, sids: set[str],
                  bible: dict[str, Any] | None = None) -> int:
     """逐镜串行填槽 (1009 P2 起为批量失败镜的降级路径, 原逐镜实现原样保留)."""
     from app.config import load_config, set_config
-    from app.services.book_service.creation_common import _llm, _parse_json
+    from app.services.llm_service import get_llm_service as _llm, _parse_json
 
     set_config(load_config())
     filled = 0
