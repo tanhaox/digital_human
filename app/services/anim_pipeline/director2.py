@@ -3484,7 +3484,24 @@ def validate_doc(doc: dict[str, Any]) -> list[str]:
     for a in doc.get("arcs") or []:
         if not str(a.get("motion") or "").strip():
             issues.append(f"场 {a.get('arc_id')} 缺运动线 — 违反运动驱动原则")
-    return issues  # 硬校验到此; 文字类问题走 collect_warnings (物理防护在 K2灭字尾/H3壳, 人检兜底)
+    # 1017 W3 文字总路由三硬规 (打破旧"文字类全走 warnings"分工 — 只拦丢失类,
+    # 措辞类仍归 collect_warnings; final_gate.validate_final 直调本函数自动双闸同步):
+    #   R1 text_layer 条目缺桶/缺字 (路由表非法);
+    #   R2 品牌卡镜带 h3_text_event (brand 直通无视频渲染通道 = 事件字必丢);
+    #   R3 画面句引号文本未申报图内字 (1016 W1 已废渲染期 auto 救场 — 规划期
+    #      必须申报或删引号, 契约 10b/10c 的执法位)。
+    _qre = re.compile(r"[「『\"“']([^」』\"”']{1,10})[」』\"”']")
+    for s in shots:
+        for t in s.get("text_layer") or []:
+            if not str(t.get("kind") or "").strip() or not str(t.get("text") or "").strip():
+                issues.append(f"{s['shot_id']} text_layer 条目缺 kind/text (文字路由表非法)")
+                break
+        if s.get("brand_card") and (s.get("h3_text_event") or {}).get("text"):
+            issues.append(f"{s['shot_id']} 品牌卡镜带 h3_text_event (brand 直通无渲染通道)")
+        if not s.get("in_image_text") and _qre.search(str(s.get("keyframe_zh") or "")):
+            issues.append(f"{s['shot_id']} 画面句含引号文本未申报 in_image_text "
+                          "(二段化只认显式申报, 见 10b/10c)")
+    return issues  # 硬校验到此; 文字措辞类走 collect_warnings (R1-R3 丢失类除外)
 
 
 def collect_warnings(doc: dict[str, Any]) -> list[str]:
@@ -3499,6 +3516,11 @@ def collect_warnings(doc: dict[str, Any]) -> list[str]:
     # 场级硬执法在 validate_doc 的 arcs.motion)
     warns += [f"组 {g.get('group_id')} 缺场内运动描述 (人检)" for g in doc.get("groups") or []
               if not str(g.get("motion_zh") or "").strip()]
+    # 1017 W3 S3 快照纪律软警告: 画面句应描述 t=0 冻结瞬间 (writer 契约已有
+    # '画面句=动画起点帧'条款, 此处兜底 fallback 镜的动作弧措辞)
+    warns += [f"{s['shot_id']} 画面句疑含动作弧措辞 (应描述 t=0 冻结瞬间快照, S3 纪律)"
+              for s in shots
+              if re.search(r"先是|然后|接着|随后|最后再", str(s.get("keyframe_zh") or ""))]
     # 白名单: 圣经 style_prefix / 配方风格词 (LLM 常把全局风格词带进画面描述, 非真违规)
     wl = set(re.findall(r"[A-Za-z]{3,}", (doc.get("bible") or {}).get("style_prefix") or ""))
     wl |= {"cel", "celanimation", "traditional"}
