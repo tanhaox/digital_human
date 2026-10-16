@@ -1,0 +1,117 @@
+---
+name: update-docs
+description: digital_human 项目收工时的标准文档更新流程
+when_to_use: 用户说"更新文档"、"收工"、"按模板更新文档"时
+disable-model-invocation: true
+---
+
+# 更新文档 — 收工标准流程（digital_human）
+
+> 代码修改已结束时执行。把当天变更同步到相关文档，全程只追加/最小改动。
+> 备份模板：docs/更新文档-命令模板.md（内容同本 skill）。
+
+## 第 0 步：前置检查
+
+1. 读 CLAUDE.md（项目级规则，九节）
+2. 检查有无 job 在跑（/api/jobs 或 /api/anim/job 的 running 状态）
+   有则停，报告"有任务在跑，等完成后再执行更新文档"
+3. `git status --short` —— 报告未提交改动
+4. `git log --oneline -10` —— 报告当天已 commit 的内容
+5. 报告当前 HEAD hash
+
+## 第 1 步：盘点当天的变更
+
+1. 从 git log 找出当天（最近一个工作日）的全部 commit
+2. 分类：代码（app/）/ 配置（config/、pyproject）/ 文档（docs/）/ 脚本（scripts/）
+3. 报告：当天 N 个 commit，涉及 M 个文件
+
+## 第 2 步：更新 CHANGELOG.md
+
+规矩（2026-10-16 定）：主 CHANGELOG.md 只保留最新月；历史月归档 docs/changelog/ 不得改动。
+
+1. 读 CHANGELOG.md 最新条目日期
+2. 当天变更追加一条到**顶部**：
+   `## YYYY-MM-DD(周X)｜<一句话主题>` + `### 做了什么`（一句话）
+   + `### 关键决策`（若有）+ `### 遗留`（若有）
+   + `案卷: <docs/improvements/ 完整记录>` + `commit: <当天范围>`
+3. 不修改历史条目（只追加最新）
+4. 长度 ≤15 行——CHANGELOG 是时间线索引，不是案卷
+
+## 第 3 步：决定是否写案卷
+
+- 单点修复 / 小改动 → 只记 CHANGELOG，不写案卷
+- 一天内多主题 / 有完整病理分析 / 需留给后人复盘 → 写案卷
+
+案卷：`docs/improvements/进行中-YYYYMMDD-<主题>.md`（完成后改名"已完成-"），
+结构：触发 / 病理背景 / 修法 / 验证 / 教训 / 案卷引用。内容全部取自当天实测，不凭记忆。
+
+## 第 4 步：更新 backlog（docs/status/backlog.md）
+
+- 解决了已有条目 → 只加状态标记 done，不改原内容
+- 产生新待办 → 追加，ID 编号延续现有最大值
+- 改了优先级/范围 → 更新描述
+- 不动无关条目；报告：解决 N 条、新增 M 条
+
+## 第 5 步：更新 INDEX.md（docs/INDEX.md）
+
+- 当天新增文档（案卷/ADR/新目录）→ 补登记
+- 文档数量变化（improvements 篇数等）→ 修正数字
+- 最小改动：不重写结构、不改其他条目措辞
+
+## 第 6 步：更新 REFACTOR_PLAN.md（仅当属于 BXX 批次）
+
+1. "执行进度"行追加对应批次（含 commit hash）
+2. 新的重构观察项 → 追加 backlog 段
+3. 不修改已完成批次描述
+
+## 第 7 步：更新 CLAUDE.md（仅当规则有变）
+
+仅当天确立了新纪律/红线/基线时更新；普通功能变更不动。
+
+## 第 8 步：验证
+
+1. 被改文档内引用的路径逐一 os.path.exists（注意：校验脚本勿用 `lstrip("docs/")`——字符集语义会误剥路径首字符，用精确替换）
+2. grep 确认无指向已重命名/已删文件的死链
+3. 若涉及代码测试 → pytest 对比基线（当前基线见 CLAUDE.md 第七节）
+4. 确认：未改历史条目、未动 docs/changelog/ 切片、未动 ADR
+
+## 第 9 步：commit + push
+
+分开 commit（同主题可合）：
+- `docs: CHANGELOG 追加 YYYY-MM-DD`
+- `docs: 案卷 YYYYMMDD-<主题>`（若有）
+- `docs: backlog/INDEX 同步`（若有）
+
+`git push origin main`；post-push：`git rev-list --left-right --count origin/main...HEAD` 应 `0 0`。
+**push 前先把回执给用户过目。**
+
+## 回执（非技术语言）
+
+| 项 | 结果 |
+|---|---|
+| 当天 commit 数 | N |
+| CHANGELOG 追加 | 一条，YYYY-MM-DD |
+| 案卷 | 写了 / 未写（理由） |
+| backlog 变更 | 解决 N / 新增 M |
+| INDEX 变更 | 新增 N / 修正 M |
+| REFACTOR_PLAN 回写 | 有 / 无 |
+| 路径引用校验 | N/N 有效 |
+| push 结果 | 成功/失败 |
+| 远程 HEAD | |
+| 事故 | 有/无 |
+
+## 红线（贯穿全程）
+
+1. 只追加、不修改历史条目（CHANGELOG / ADR / 已冻结文档）
+2. 不在当天 git log 里的内容不写入（不编造、不凭记忆）
+3. 不修改 CHANGELOG 历史切片（docs/changelog/）
+4. 不动 docs/refs/、docs/archive/、外部子模块
+5. 不为"排版好看"重写既有文档
+6. 指令与本流程冲突 → 停下报告，不擅自判断
+7. 任何一步失败 → 停止并报告
+
+## 不确定时
+
+- 当天变更是否值得写案卷判断不了 → 停下问用户
+- backlog 某条是否已解决判断不了 → 停下问用户
+- 某文档更新方式与本流程不符 → 停下问用户
