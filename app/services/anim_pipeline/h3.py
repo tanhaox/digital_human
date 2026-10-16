@@ -131,6 +131,21 @@ _BIBLE_MOTION: dict[str, tuple[float, str]] = {}  # book_title → (圣经mtime,
 _BIBLE_ERA: dict[str, tuple[float, str]] = {}    # book_title → (圣经mtime, 时代锚)
 
 
+def parse_era_anchor(raw: str, segment_after_colon: bool = False) -> str:
+    """era_anchor 单一解析口 (1017 W2 归一)。
+
+    默认整串截 300 (H3 场景时代锁语义); segment_after_colon=True 返回冒号后
+    服饰段 (assembler 替身 look 派生语义 — 旧版 assembler 本地切, 两处解析
+    语义并存实锤, 收口于此)。"""
+    raw = str(raw or "").strip()
+    if not segment_after_colon:
+        return raw[:300]
+    for sep in ("：", ":"):
+        if sep in raw:
+            return raw.split(sep, 1)[1].strip()
+    return raw
+
+
 def era_anchor(book_title: str = "") -> str:
     """圣经时代锚 (1012 场景时代锁): 圣经 era_anchor 字段直读, mtime 守卫。
 
@@ -274,6 +289,14 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
             "Write 谁 with the simplified speech radical 讠 (never 誰), 买 not 買, "
             "钱 not 錢, 书 not 書, 门 not 門. A single traditional glyph ruins the frame.")
         lines.append("")
+    # 1017 W2 S1 (K2/H3 视觉统一加强): 冻结瞬间军规 — 全镜通用锚, 不依赖
+    # beats_enrich 覆盖。治 beats 与图冻结瞬间错位 (s09 实锤: 图里卡已举在
+    # 手上, beats 写"伸手捏起" → 模型重排画面换构图)。
+    lines.append(
+        "Continuity law: all motion continues from the exact frozen pose of "
+        "Picture 1 — never rewind the action, never pre-stage a pose or object "
+        "that is not already visible in the first frame.")
+    lines.append("")
     for i, b in enumerate(beats):
         motion = _de_traditional(b["motion"].strip())
         ending = _de_traditional((anim.get("ending") or "").strip())
@@ -322,7 +345,7 @@ def build_workflow(image_name: str, anim: dict[str, Any], seed: int, prefix: str
             _prompt += (
                 "\n\nCorruption ban (this shot previously produced corrupted frames — hard rule): "
                 "keep every frame fully coherent; no black screens, no noise mosaics, no torn or "
-                "smeared regions, no melted limbs; hold the clay diorama look of Picture 1.")
+                "smeared regions, no melted limbs; hold the exact art style of Picture 1.")
         if any("红旗" in k for k in _kinds):
             _prompt += (
                 "\n\nObject ban (this video previously added objects that do not exist in the first frame — hard rule): "

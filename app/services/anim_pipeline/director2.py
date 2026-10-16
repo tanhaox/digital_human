@@ -3926,9 +3926,14 @@ def _enhance_pass2(doc, only: set[str] | None, touched: set[str]) -> int:
                 logger.warning("[enhance2] %s 军规/长度闸未过, motion 留原句", s.get("shot_id"))
                 men_eff = beats_motion or str(s.get("motion_en") or "") \
                     or "Gentle ambient motion, very slight push-in."
+            # 1017 W2 锚定链归正: 画面句优先 (组装器不发明场景); LLM odesc 仅降级
+            _kf_en = str(s.get("keyframe_en") or "").strip()
+            if not _kf_en:
+                logger.warning("[enhance2][anchor] %s keyframe_en 空, odesc 降级",
+                               s.get("shot_id"))
             s["anim"] = {
                 "duration_s": min(round(float(s["t_end"]) - float(s["t_start"]), 2), H3_MAX_SPAN),
-                "opening_desc": odesc or str(s.get("keyframe_en") or "") or scene,
+                "opening_desc": _kf_en or odesc or scene,
                 "physical_lock": "the camera viewpoint, the main structural elements and layout",
                 "screen_exception": "nothing",
                 "beats": [{"t_start": 0,

@@ -247,11 +247,10 @@ def _standin(bible: dict[str, Any]) -> tuple[str, str]:
             return nm, str(c.get("look") or "")
     era = str(bible.get("era_anchor") or "").strip()
     if era:
-        for sep in ("：", ":"):
-            if sep in era:
-                era = era.split(sep, 1)[1]
-                break
-        return "职场人物", _clean_cut(era, 40)
+        # 1017 W2: era_anchor 解析归一 (h3.parse_era_anchor 单口; 惰性导入避环)
+        from .h3 import parse_era_anchor
+        seg = parse_era_anchor(era, segment_after_colon=True)
+        return "职场人物", _clean_cut(seg, 40)
     return "", ""
 
 

@@ -89,7 +89,9 @@ def _build_prompt(shot: dict[str, Any], char_names: list[str],
     )
     opening = str(a.get("opening_desc") or "").strip()
 
-    prompt = f"{opening} {beats} "
+    # 1017 W2 文字总路由: 标签剥离同 h3 (fallback 镜中文场景标签被当片头字实锤)
+    from .h3 import _strip_scene_label  # 惰性: h3 顶部引 brand, 避免环
+    prompt = f"{_strip_scene_label(opening)} {beats} "
 
     if char_names:
         prompt += (
@@ -100,8 +102,25 @@ def _build_prompt(shot: dict[str, Any], char_names: list[str],
     prompt += (
         "The scene stays consistent with the scene reference image. "
         "Camera stays stable, only a very slight push-in. "
-        "No text, no human voice."
     )
+    # 1017 W2 文字总路由: r2v 消费 h3_text_event — 旧版静默丢弃, 人物镜路由
+    # r2v 时花字消失 (s01 家族实锤)。有事件字 → 拼文字规格行 (逐字取表);
+    # 无 → 维持 No text (逐镜分支, 防无字镜幻字)。
+    ev = shot.get("h3_text_event") or {}
+    ev_text = str(ev.get("text") or "").strip()
+    if ev_text:
+        _at = ev.get("at_s")
+        at_txt = f"at {float(_at):.1f}s" if isinstance(_at, (int, float)) else "mid-video"
+        _zone = str(ev.get("zone") or "").strip() or "above the character"
+        prompt += (
+            f"Text event: {at_txt}, in the {_zone} zone, the exact Chinese words "
+            f"「{ev_text}」 appear large and bold in ONE consistent artistic "
+            "typography (calligraphy or brush style, never plain sans-serif), "
+            "then hold steady — this is the only text element of the video. "
+            "No other text, no human voice."
+        )
+    else:
+        prompt += "No text, no human voice."
     from .h3 import motion_style  # 惰性: h3 顶部引 brand, 避免环
     _motion = motion_style(book_title)
     if _motion:
