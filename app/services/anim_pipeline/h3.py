@@ -177,6 +177,16 @@ def motion_style(book_title: str = "") -> str:
         return ""
 
 
+# 1016 修 (s16/17/18/21【王冠宝石】+ s32 无意义中文实锤, 58/62 镜中招): fallback
+# 模板把中文场景名写进英文首帧锚 ("scene: 王冠宝石 机械臂") — 视频模型当片头
+# 大字/字幕画出来。组装时剥离中文标签段, 场景完全由 Picture 1 承担 (ID-095 军规)。
+_SCENE_LABEL_RE = re.compile(r"scene:\s*[一-鿿][^,，]*")
+
+
+def _strip_scene_label(s: str) -> str:
+    return _SCENE_LABEL_RE.sub("scene: exactly as shown in Picture 1", s)
+
+
 def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
                  text_event: dict | None = None, in_image_text: list | None = None) -> str:
     # 1016 修2: text_event/in_image_text 从镜级直传 — 旧版读 anim.get(...) 永远为空
@@ -185,7 +195,7 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
     lines = [
         "integrated_multimodal_description:",
         f"[Shot 1] {style_h3(book_title, page=page)}. At 0.00 seconds the frame fully matches Picture 1: "
-        f"{_de_traditional(anim['opening_desc'].strip())}. Identity lock: keep all characters' faces, hairstyles and "
+        f"{_strip_scene_label(_de_traditional(anim['opening_desc'].strip()))}. Identity lock: keep all characters' faces, hairstyles and "
         "outfits consistent with Picture 1 — outfit COLORS stay pixel-faithful to Picture 1 for "
         "every frame: no recoloring, no hue shift, no costume redesign.",
         "",
