@@ -253,7 +253,7 @@ def _run_job(job: dict[str, Any]) -> None:
         _fail_job(job, str(exc))
     except AnimNotFound as exc:
         _fail_job(job, str(exc.args[0]) if exc.args else str(exc))
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         logger.exception("[anim] job %s 崩溃", job["id"])
         _fail_job(job, f"{type(exc).__name__}: {exc}")
     finally:
@@ -585,7 +585,7 @@ def _phase_gpu(job: dict[str, Any]) -> None:
                 shots_mod.transition(s, "approved")  # 回可跑态 (旧 video_file 跑完覆盖)
                 shots_mod.retry_anim(s)
             shots_mod.save(doc)
-        stop = lambda: job["cancel"]  # noqa: E731
+        stop = lambda: job["cancel"]
         with get_gpu_service_manager().session("comfyui", status_callback=svc_notify):
             from app.services.anim_pipeline import comfy as comfy_mod
             comfy_mod.free_memory()  # 相位边界卫生: 卸掉上一相位的模型栈 (花屏根治)
