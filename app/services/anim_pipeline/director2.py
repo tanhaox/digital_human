@@ -3049,7 +3049,9 @@ def _gate_motion_text(shot: dict[str, Any]) -> bool:
                    for t in tl)
 
     # ① sink → 删 motion_zh 子句 (含无 token 尾巴子句) + 删 beats 英文段 + 写 overlay
-    if sunk:
+    # 1017 W2: keep 镜同走删除块 (keep 也出清内嵌) — 纯合规镜 sunk 为空时旧版
+    # 整块跳过 = 迁移只写事件不清内嵌, smoke 实锤
+    if sunk or keep:
         # 沉字所有出现子句全删 (同 token 可跨多句, 只删首现会留尾巴 — s55 实锤)
         # 1017 W2 收敛: keep token 一并出清 (合规字迁移 h3_text_event, 见②) —
         # motion_zh/beats 不再内嵌字卡 (与 H3 NO_TEXT_POLICY / r2v 'No text'
@@ -3086,7 +3088,7 @@ def _gate_motion_text(shot: dict[str, Any]) -> bool:
                 changed = True
         # beats 英文段删除: 只删含沉字引号的段 (括号保护后按逗号/分号切, 段自足)
         pat = re.compile("[" + re.escape("''\"‘“") + "](" +
-                         "|".join(re.escape(e["tok"]) for e in sunk) +
+                         "|".join(re.escape(e["tok"]) for e in uniq) +  # 1017 W2: keep 也删
                          ")[" + re.escape("''\"’”") + "]")
         anim = shot.get("anim") or {}
         for b in anim.get("beats") or []:
