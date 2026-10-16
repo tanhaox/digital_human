@@ -4,6 +4,24 @@
 > 2026-07 ~ 2026-09 历史条目已归档至 `docs/changelog/`（见下方切片索引），
 > 历史条目零改动，docs/... 路径以项目根为基准。
 
+## 2026-10-16(四)｜系统重构与 Git 止血 — 审计→21批计划→B系列收官 (49 commits)
+
+### 做了什么
+外层仓库 52GB 膨胀止损, digital_human 独立仓库(git@github.com:tanhaox/digital_human.git);
+只读审计(系统地图+问题清单) → REFACTOR_PLAN 21 批 → 执行: 低风险族+环解族全清
+(B07 GPU锁/B08 通用下沉+feeds/B11 job底座中立化/B15 audio 24处/B16a I001+F401归零/
+B16b DTZ011/B16c F841/B17 注释固化), CHANGELOG 按月拆片(拼回 md5 逐字校验), 项目级 CLAUDE.md。
+pytest 基线全程 6F/217P 零偏离(6 失败系 B01 前既有, worktree 实证归因)。
+
+### 关键决策
+B12 环#5 选 A(ADR-001 接受现状); B18 rmtree 选 A(build/cache 例外); B20/B21 搁置。
+
+### 遗留
+2026-10-23 后 B03+B14第二步 真删(backlog ID-086/087); .git 27.66GB 待 filter-repo(ID-092)。
+
+案卷: docs/improvements/已完成-20261016-系统重构与Git止血.md
+commit: 45a4812..2797a1b (49 个)
+
 ## 2026-10-15(三)Ⅲ｜ep4 重规划战役 — 老病零复发 + 新病四修一记 (未commit)
 
 ### 老病复发检查 (3 job 三段收口, 闭环验证×3)
