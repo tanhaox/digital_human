@@ -13,14 +13,17 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import DirectorJob, DirectorSlot
-from app.schemas import RetrySlotResponse
-from app.services.director_parser import _best_fallback_workflow
-from app.services.slot_executor import execute_slot
-from app.services.director_events import publish as _evt
 from app.routers.director_routes.common import (
-    _WORKFLOW_PIPELINE, _decode_pipelines, _job_or_404, _slot_or_404,
+    _WORKFLOW_PIPELINE,
+    _decode_pipelines,
+    _job_or_404,
+    _slot_or_404,
 )
 from app.routers.director_routes.execution import _executing_jobs
+from app.schemas import RetrySlotResponse
+from app.services.director_events import publish as _evt
+from app.services.director_parser import _best_fallback_workflow
+from app.services.slot_executor import execute_slot
 
 logger = logging.getLogger(__name__)
 
@@ -220,6 +223,7 @@ def purge_replaced_slots(job_id: str, db: Session = Depends(get_db)):
     # replaced slot 有独立目录 (composition_output_root/<job_id>/slots/<slot_id>),
     # 与活跃 slot 互不冲突; 保留策略下仅此路径负责回收被替换 slot 的旧素材。
     import shutil
+
     from app.config import get_config
     cfg = get_config()
     for slot in replaced:

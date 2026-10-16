@@ -10,7 +10,11 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.routers.director_routes.common import _find_composition_mp4, _job_or_404, _slot_or_404
+from app.routers.director_routes.common import (
+    _find_composition_mp4,
+    _job_or_404,
+    _slot_or_404,
+)
 
 logger = logging.getLogger(__name__)
 

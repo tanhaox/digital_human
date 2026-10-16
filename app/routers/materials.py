@@ -373,7 +373,10 @@ def ingest_vpn_status():
 @router.get("/ingest/entities")
 def ingest_entities(db: Session = Depends(get_db)):
     """实体字典 + 库存水位 (低于 min_stock 的标 need_refill)."""
-    from ..services.material_ingest_service import entity_entry, load_entities, stock_count
+    from ..services.material_ingest_service import (
+        load_entities,
+        stock_count,
+    )
     out = []
     for e in load_entities():
         out.append({**e, "stock": stock_count(db, e["name"]),

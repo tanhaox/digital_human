@@ -99,7 +99,6 @@ def hook_variants(book_id: str, n: int, db: Session = Depends(get_db)):
     一次产 3 版各标 KPI 轴 (收藏型/评论型/共鸣型), 人工选版 = 用户网页版选择器角色产线化。
     """
     import re as _re
-    from pathlib import Path as _Path
     b = _book_or_404(db, book_id)
     ep = _ep_or_404(db, book_id, n)
     root = Path(__file__).resolve().parents[1] / "outputs" / "拆书"
@@ -108,7 +107,11 @@ def hook_variants(book_id: str, n: int, db: Session = Depends(get_db)):
     if not gens or not (gens[-1] / "03_user.txt").exists():
         raise HTTPException(400, "该集无生成留档, 先跑一次「生成 (pro)」")
     user_p = (gens[-1] / "03_user.txt").read_text(encoding="utf-8")
-    from app.services.book_service.creation_common import elastic_labels, _llm, _parse_json
+    from app.services.book_service.creation_common import (
+        _llm,
+        _parse_json,
+        elastic_labels,
+    )
     from app.services.book_service.feed_registry import load_ban_list
     h = elastic_labels(ep.target_duration_sec)[0]
     cap = int((h[1] - h[0]) * 4.8)
@@ -426,6 +429,7 @@ def _prepare_l0_facing(book_title: str) -> dict:
 
 # ── 建书后台准备 (2026-08-23): L0+facing 未就绪时后台补跑, 前端轮询 /prep ──
 import threading as _threading
+
 _PREP: dict[str, dict] = {}  # book_id -> {status, step, note, ran}
 
 
@@ -645,6 +649,7 @@ def style_board_select(book_id: str, body: StyleSelectBody, db: Session = Depend
 @router.get("/books/{book_id}/style-board/img/{name}")
 def style_board_img(book_id: str, name: str, db: Session = Depends(get_db)):
     from fastapi.responses import FileResponse
+
     from app.services.anim_pipeline import style_board
     b = _book_or_404(db, book_id)
     try:
@@ -849,7 +854,8 @@ def style_characters_save(book_id: str, body: CharSaveBody, db: Session = Depend
 @router.get("/books/{book_id}/style-characters/img/{name}")
 def style_characters_img(book_id: str, name: str, db: Session = Depends(get_db)):
     from fastapi.responses import FileResponse
-    from app.services.anim_pipeline import character_sheets, style_board
+
+    from app.services.anim_pipeline import character_sheets
     b = _book_or_404(db, book_id)
     if "/" in name or "\\" in name or ".." in name:
         raise HTTPException(404, name)
@@ -894,8 +900,8 @@ def rerun_outline(book_id: str, db: Session = Depends(get_db)):
     # 受众 (0913c): 书定读者优先 (目标读者以书定), 未锁定时继承旧指纹链
     recut = None
     try:
-        from app.services.book_service.facing import recut_units_for_roadmap
         from app.services.book_service.creation_steps import _book_reader_value
+        from app.services.book_service.facing import recut_units_for_roadmap
         recut = recut_units_for_roadmap(
             b, db, audience=_book_reader_value(b.input_json or {}))
         logger.info("[rerun-outline] 单元联动重切: %s", recut)
@@ -1450,9 +1456,10 @@ def publish_card_gen(book_id: str, n: int, body: PublishCardBody,
         # 模板封面 (0918): 复古书风主模板 (横+竖) + 大字海报风 (给了核心字才出).
         # 红字优先级: 页面编辑框 > 主题破折号后段子句收口 (与三件套同源, 不再
         # 裸用全题 — 主题含"——"时整串上封面=三行, ep6 实锤)
+        import re as _re2
+
         from app.services.anim_pipeline import shots as _shots
         from app.services.book_service.cover_render import render_covers
-        import re as _re2
 
         def _clause2(text: str, limit: int) -> str:
             t = str(text or "").strip()

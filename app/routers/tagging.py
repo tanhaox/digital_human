@@ -5,21 +5,21 @@ import json
 import logging
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
-from ._sse import sse_stream
 from ..database import get_db
 from ..models import VideoAsset
 from ..schemas import TaggingProgressOut, TaggingRunRequest
-from ..services.director_events import publish, subscribe, unsubscribe
+from ..services.director_events import subscribe, unsubscribe
 from ..services.video_tagging_service import (
     cancel_job,
     get_job_status,
     start_tagging_job,
     tag_single_asset,
 )
+from ._sse import sse_stream
 
 logger = logging.getLogger(__name__)
 

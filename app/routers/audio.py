@@ -204,8 +204,11 @@ def _do_tts(job_id: str):
             # surprised/3 (2026-08-27 惊讶打底定稿), 读书线 calm/2 (2026-09-03)。
             # 耗时 ~10-30s, 藏在 TTS 引擎冷启动 (~2min) 里零感知。
             emotion_segments: list | None = None
-            from ..services.pinyin_fix import tts_adapt, scan_pinyin_hits
-            from ..services.boost_service import annotate_emotions, _parse_emotion_annotations
+            from ..services.boost_service import (
+                _parse_emotion_annotations,
+                annotate_emotions,
+            )
+            from ..services.pinyin_fix import scan_pinyin_hits, tts_adapt
             clean_text = "\n".join(t for _, t in seg_pairs)
             # 词表命中提示 (2026-09-03): 扫干净文本, 命中即推 SSE。
             hits = scan_pinyin_hits(clean_text)
@@ -319,8 +322,8 @@ def _do_tts(job_id: str):
                 # 老谭懒种 LAOTAN_PACING)。拍点/气口/变速/分区映射全从 pacing 解析;
                 # 无 pacing 人格 (静读书/新闻线) = None → 全部保持无节拍现状。
                 # 在 tts.generate 之前解析 (ORM expiry: 生成后对象过期不可再读)
-                from app.services.book_service.persona import get_pacing as _get_pacing
                 from app.services import audio_post
+                from app.services.book_service.persona import get_pacing as _get_pacing
                 _job_script = db.query(Script).filter(Script.id == job.script_id).first()
                 _pacing = _get_pacing(db, getattr(_job_script, "host", None)) if _job_script else None
                 _beat_profile = (_pacing or {}).get("beats") if _pacing else None
@@ -578,7 +581,11 @@ def list_job_files(job_id: str, db: Session = Depends(get_db)):
             # 音色一旦有锚: 5.3 老线整体作废 (同音色未标锚 zone 沿用 5.3 无意义),
             # 有同 zone 锚的行带内不亮 / 带外标 anchor_off; 无锚音色保持旧行为.
             try:
-                from app.services.speech_anchor import measure_rate, read_anchor, zone_of
+                from app.services.speech_anchor import (
+                    measure_rate,
+                    read_anchor,
+                    zone_of,
+                )
                 _v = db.query(Voice).filter(Voice.id == job.voice_id).first()
                 _anc = read_anchor(_v) if _v else {}
                 if _anc:
@@ -867,8 +874,9 @@ def reroll_line(file_id: str, payload: dict | None = None, db: Session = Depends
             logger.debug("[reroll] sidecar df 缺失/读取失败, 用巡航速锚: %s", exc)
             _df_prev = float(params["duration_factor"])
         params["duration_factor"] = max(round(_df_prev * 0.9, 3), 0.5)
-    from scripts.tts_lib.orchestrator import _synthesize_single
     from app.services.pinyin_fix import tts_adapt
+    from scripts.tts_lib.orchestrator import _synthesize_single
+
     # 0914→0917 根治: -Xs- 停顿标记在 reroll 被念成"负一S"。0914 只修了行尾
     # (剥标记+尾垫); 句中标记 (编辑按钮光标处插入, 033 包实锤) 三层失守 —
     # _pause_after 判非行尾 → 剥离不执行 → 标记直达引擎直念。语义升级:
@@ -1002,8 +1010,10 @@ def reroll_line(file_id: str, payload: dict | None = None, db: Session = Depends
         verdict["anchor"] = _anchor_verdict
     try:
         from app.services.tts_verify import (
-            _whisper_transcribe, _diff_readings, _FILLER_CHARS, _INSERT_WORDS,
-            SPEED_FLOOR,
+            _FILLER_CHARS,
+            _INSERT_WORDS,
+            _diff_readings,
+            _whisper_transcribe,
         )
         heard = _whisper_transcribe(wav)
         # 0917: 停顿标记是控制符不是念白 — 音频里(正确地)没有它, 基准文本不剥
@@ -1019,8 +1029,10 @@ def reroll_line(file_id: str, payload: dict | None = None, db: Session = Depends
     # 0913 语速地板 (首分钟窗口): 重roll 结果即时体检 — 窗口内低于地板 toast 亮警;
     # 正文自然方差 (气口/拖腔) 不报警
     try:
-        from app.services.tts_verify import SPEED_FLOOR as _SF, SPEED_FLOOR_WINDOW_CHARS as _SW
         import re as _re_mod
+
+        from app.services.tts_verify import SPEED_FLOOR as _SF
+        from app.services.tts_verify import SPEED_FLOOR_WINDOW_CHARS as _SW
         from scripts.tts_lib.text import _PAUSE_MARK_ANY_RE as _PMARK
         _n = len(_re_mod.sub(r"\s", "", _PMARK.sub("", _plain_chunk)))
         if _n >= 4 and dur > 0.3 and _line_off < _SW and _n / dur < _SF:
@@ -1215,6 +1227,7 @@ def tempo_line(file_id: str, payload: dict | None = None, db: Session = Depends(
                 s["duration"] = dur
                 try:
                     import re as _re_mod
+
                     from scripts.tts_lib.text import _PAUSE_MARK_ANY_RE as _PMARK
                     _n = len(_re_mod.sub(r"\s", "", _PMARK.sub("", s.get("text") or "")))
                 except Exception as exc:  # noqa: BLE001
@@ -1287,7 +1300,6 @@ def mute_line(file_id: str, db: Session = Depends(get_db)):
     并反勾选对应文稿段 (selected_for_host=False) — 未来重生成也不再出镜;
     恢复 = 文稿区重新勾选该段 (复用既有段落选择机制)。wav 改名 .muted 留底。
     """
-    import shutil as _sh
 
     af = db.query(AudioFile).filter(AudioFile.id == file_id).first()
     if not af or not af.segment_id:
@@ -1344,7 +1356,7 @@ def replace_char(
     payload: {"from_char": "昇", "to_char": "升"}
     """
     from scripts import tts_client  # noqa: F401
-    from ..services.tts_service import TTSService
+
 
     from_char = (payload.get("from_char") or "").strip()
     to_char = (payload.get("to_char") or "").strip()

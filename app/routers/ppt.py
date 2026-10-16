@@ -20,8 +20,8 @@ import time
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, Body, HTTPException, Request, UploadFile, File, Form
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import APIRouter, Body, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse
 
 from app.config import get_config
 from app.services.ppt_pipeline import (
@@ -143,8 +143,9 @@ def render(job_id: str, render_mode: str = Form("jy2"), voice_id: str | None = F
         from app.services.ppt_pipeline import _job_workdir as _wd2
         _db2 = _dbs2().__enter__()
         try:
-            from app.models import Episode
             import re as _re
+
+            from app.models import Episode
             _ep = _db2.query(Episode).filter(
                 Episode.book_id == j["book_id"], Episode.ep_index == int(j["ep_index"])).first()
             _script = (getattr(_ep, "script_text", "") or "").strip()
@@ -268,8 +269,8 @@ def bs1_plan(book_id: str = Form(...), ep_index: int = Form(...),
 def bs1_state(book_id: str, ep_index: int):
     """查/恢复书的 bs1 页单任务: 内存 job 优先, 丢了从 episodes.bs1_pages_json 重建."""
     from app.database import db_session
-    from app.services.ppt_pipeline import _JOBS, _job_workdir
     from app.services.book_service.slide_render import load_pages
+    from app.services.ppt_pipeline import _JOBS, _job_workdir
     db = db_session().__enter__()
     try:
         _bs1_ctx(db, book_id, ep_index)  # persona 闸门同 plan
@@ -293,7 +294,6 @@ def bs1_state(book_id: str, ep_index: int):
                     "draft": j.get("draft"),
                     "pages": _pages_public(jid, j.get("pages") or [])}
         if old_job:  # 内存丢: 快照/落盘 job 统一比 workdir mtime 取最新 (重新规划后旧快照不得掩盖新页单)
-            from app.services.book_service.slide_render import load_meta
             candidates: list[tuple[float, str, dict, str]] = []  # (mtime, jid, pages, status)
             snap_wd = _job_workdir(old_job)
             if (snap_wd / "pages.json").exists():
@@ -361,7 +361,10 @@ def _bs1_rerender(job_id: str, idx: int, refetch_image: bool,
                   new_query: str = "") -> dict:
     """单页重渲染公共尾巴: (可选)重拉图 → render_bs1_pages(单页) → 落盘+回 job。"""
     from app.services.book_service.slide_render import (
-        fetch_page_image, load_pages, render_bs1_pages, _write_pages,
+        _write_pages,
+        fetch_page_image,
+        load_pages,
+        render_bs1_pages,
     )
     from app.services.ppt_pipeline import _job_workdir
     j = _bs1_job(job_id)
@@ -378,7 +381,6 @@ def _bs1_rerender(job_id: str, idx: int, refetch_image: bool,
         if not new_query:
             pd["img_query"] = q
     from app.database import db_session
-
     from app.services.book_service.slide_render import build_context
     # 换页型/重排会增删 chapter → 章号重编 + 目录重对齐 (目录变了连带重渲染 P2)
     rerender_idx = [idx]
@@ -423,8 +425,8 @@ def _renumber_chapters(pages: list[dict]) -> bool:
 @router.put("/bs1/{job_id}/pages/{idx}")
 def bs1_page_edit(job_id: str, idx: int, body: dict = Body(...)):
     """字段直改 (页题/金句/条目/img_query/img_cap) → 单页重渲染。narration 不可改。"""
-    from app.services.book_service.slide_render import _write_pages
     from app.services.book_service.slide_gen import _FIELDS
+    from app.services.book_service.slide_render import _write_pages
     from app.services.ppt_pipeline import _job_workdir
     j = _bs1_job(job_id)
     pages = j.get("pages") or []
@@ -452,10 +454,11 @@ def bs1_page_edit(job_id: str, idx: int, body: dict = Body(...)):
 @router.post("/bs1/{job_id}/pages/{idx}/replan")
 def bs1_page_replan(job_id: str, idx: int, body: dict = Body(...)):
     """换页型 (new_type) / 同页型重产字段 (hint) — LLM 单页重排, narration 铁律不动."""
-    from app.services.book_service.slide_render import (
-        page_to_dict, _write_pages,
-    )
     from app.services.book_service.slide_gen import replan_page
+    from app.services.book_service.slide_render import (
+        _write_pages,
+        page_to_dict,
+    )
     from app.services.ppt_pipeline import _job_workdir
     j = _bs1_job(job_id)
     pages = j.get("pages") or []
@@ -492,7 +495,11 @@ def bs1_page_replan(job_id: str, idx: int, body: dict = Body(...)):
 @router.post("/bs1/{job_id}/rerender")
 def bs1_rerender_all(job_id: str):
     """全量重渲染 (不动字段): 刷 foot/品牌/logo/书名等上下文变更到每一页 PNG."""
-    from app.services.book_service.slide_render import _write_pages, build_context, render_bs1_pages
+    from app.services.book_service.slide_render import (
+        _write_pages,
+        build_context,
+        render_bs1_pages,
+    )
     from app.services.ppt_pipeline import _job_workdir
     j = _bs1_job(job_id)
     pages = j.get("pages") or []
@@ -612,9 +619,9 @@ def bs1_bridge_audio(job_id: str):
 @router.post("/bs1/{job_id}/confirm")
 def bs1_confirm(job_id: str):
     """② 确认页单 → 落库 episodes.bs1_pages_json (render ③④⑤ 消费确认版)."""
+    from app.database import db_session
     from app.services.book_service.slide_render import _write_pages
     from app.services.ppt_pipeline import _job_workdir
-    from app.database import db_session
     j = _bs1_job(job_id)
     pages = j.get("pages") or []
     if not pages:

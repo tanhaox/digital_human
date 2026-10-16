@@ -7,7 +7,15 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, File, Form
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    UploadFile,
+)
 from sqlalchemy.orm import Session
 
 from ..database import db_session, get_db, get_session_maker
@@ -356,12 +364,15 @@ def rewrite_article(
                 decon_result = None
                 raw_for_rewrite = article.raw_text
                 try:
-                    from ..services.boost_service import deconstruct_article, format_pseudo_comments
-
                     # 缓存复用 (2026-08-25): /deconstruct 端点已落过库且原文未变
                     # (_raw_sha 匹配) → 直接复用, 免每次洗稿白烧一次解构 LLM;
                     # sha 不匹配或旧数据无键 → 照旧重跑并落新 sha (自愈)。
                     import hashlib as _hl
+
+                    from ..services.boost_service import (
+                        deconstruct_article,
+                        format_pseudo_comments,
+                    )
                     _cur_sha = _hl.sha1((article.raw_text or "").encode("utf-8"), usedforsecurity=False).hexdigest()[:16]  # noqa: S324 — 缓存指纹非密码学, 与 boost_service._raw_sha 同算法
                     _cached = article.deconstruct_json or None
                     if (

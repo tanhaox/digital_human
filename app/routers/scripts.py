@@ -2,20 +2,26 @@
 from __future__ import annotations
 
 import logging
-import os
-import subprocess
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session, selectinload
 
+from app.services.job_events import _publish
+
 from ..database import db_session, get_db, get_session_maker
-from ..models import Script, Segment, AudioJob, DirectorJob, Host, Persona
-from ..schemas import ScriptOut, ScriptUpdate, SegmentOut, SegmentUpdate, CorrectRequest, TtsAdaptRequest
+from ..models import AudioJob, DirectorJob, Host, Persona, Script, Segment
+from ..schemas import (
+    CorrectRequest,
+    ScriptOut,
+    ScriptUpdate,
+    SegmentOut,
+    SegmentUpdate,
+    TtsAdaptRequest,
+)
 from ..services.file_utils import recycle_file
 from ..services.llm_service import LLMService, get_llm_service
 from ..services.script_parser import parse_script
-from app.services.job_events import _publish
 
 logger = logging.getLogger(__name__)
 

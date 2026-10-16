@@ -6,8 +6,9 @@ import asyncio
 from fastapi import APIRouter, Request
 from fastapi.responses import StreamingResponse
 
-from ._sse import sse_stream
 from app.services.job_events import TERMINAL_EVENT_TYPES, _job_channels
+
+from ._sse import sse_stream
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
 

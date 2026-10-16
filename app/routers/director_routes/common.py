@@ -88,9 +88,10 @@ def _find_composition_mp4(job_id: str) -> str | None:
 
 def _cleanup_job_files(job_id: str) -> None:
     """Remove director output + composition directories for a job."""
-    import shutil
-    from app.config import get_config
     import logging
+    import shutil
+
+    from app.config import get_config
 
     logger = logging.getLogger(__name__)
     cfg = get_config()

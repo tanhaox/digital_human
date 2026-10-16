@@ -14,10 +14,10 @@ from sqlalchemy.orm import Session
 
 from app.database import db_session, get_db
 from app.models import AudioFile, DirectorJob, Script
+from app.routers.director_routes.common import _decode_pipelines, _encode_pipelines
 from app.schemas import DirectorDirectResponse, DirectorJobCreate
 from app.services.director_service import create_director_plan
 from app.services.slot_executor import clear_cancel, is_cancelled
-from app.routers.director_routes.common import _encode_pipelines, _decode_pipelines
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +108,8 @@ def _mark_plan_failed(db, job_id: str, msg: str, statuses=("planning",)) -> None
 def _plan_in_background(job_id: str, script_id: str, audio_id: str,
                         enabled_pipelines: set[str] | None = None) -> None:
     """Run alignment + LLM planning in a dedicated thread."""
-    from app.services.director_events import PlanCancelled, publish as _evt
+    from app.services.director_events import PlanCancelled
+    from app.services.director_events import publish as _evt
 
     with db_session() as db:
         try:

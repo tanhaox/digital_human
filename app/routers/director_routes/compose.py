@@ -52,7 +52,8 @@ def _compose_success(db, job_id: str, result: dict) -> None:
         )
     # 自动登记成品库
     try:
-        from app.models import VideoOutput, DirectorJob as DJ2
+        from app.models import DirectorJob as DJ2
+        from app.models import VideoOutput
 
         job = db.get(DJ2, job_id)
         output_path = result.get("output_path", "")
@@ -98,10 +99,10 @@ def _compose_failure(db, job_id: str) -> None:
 
 def _compose_in_background(job_id: str, crossfade_sec: float, target_lufs: float) -> None:
     """Run compose_director_job in a background thread with SSE progress."""
-    from app.services.director_events import publish as _evt
     from app.services.composition_service import compose_director_job
-    from app.services.slot_executor import is_force_stopped
+    from app.services.director_events import publish as _evt
     from app.services.proc_registry import set_current_job_id
+    from app.services.slot_executor import is_force_stopped
 
     # 线程子进程上下文: 绑定 job_id, 使合成 ffmpeg 子进程可被 force-stop 定位
     set_current_job_id(job_id)

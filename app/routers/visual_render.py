@@ -19,15 +19,12 @@
 from __future__ import annotations
 
 import logging
-import shutil
 from pathlib import Path
-from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from ..config import get_config
 from ..database import get_db
 from ..models import VisualRenderJob
 from ..schemas import (
@@ -36,13 +33,13 @@ from ..schemas import (
     VisualRenderJobCreate,
     VisualRenderJobOut,
 )
+from ..services.file_utils import safe_trash
 from ..services.template_library import (
     get_template,
     list_templates,
     validate_input,
 )
 from ..services.visual_render_service import execute_visual_render_job
-from ..services.file_utils import safe_trash
 
 logger = logging.getLogger(__name__)
 

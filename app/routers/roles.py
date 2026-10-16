@@ -11,10 +11,7 @@
 """
 from __future__ import annotations
 
-import asyncio
 import logging
-import shutil
-import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -23,6 +20,8 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+from app.services import comfyui_service
+
 from ..config import get_config
 from ..database import get_db
 from ..models import Role
@@ -30,11 +29,9 @@ from ..schemas import (
     ApplyRoleResponse,
     GenerateViewsRequest,
     GenerateViewsResponse,
-    RoleCreate,
     RoleOut,
     RoleUpdate,
 )
-from app.services import comfyui_service
 
 logger = logging.getLogger(__name__)
 

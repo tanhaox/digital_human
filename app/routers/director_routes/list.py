@@ -6,8 +6,8 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import DirectorJob, DirectorSlot
-from app.schemas import DirectorJobOut, DirectorSlotOut
 from app.routers.director_routes.common import _job_or_404
+from app.schemas import DirectorJobOut, DirectorSlotOut
 
 list_router = APIRouter(tags=["director"])
 

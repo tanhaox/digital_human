@@ -27,7 +27,6 @@ from app.models import ImageExtraction
 from app.services.file_utils import recycle_file
 from app.services.reverse_prompt_service import (
     FOCUS_FIELDS,
-    MODES,
     TARGET_FIELDS,
     ReverseExtractError,
     adapt_prompt,

@@ -147,9 +147,9 @@ def ep_concept_save(book_id: str, ep: int, body: ConceptSaveBody):
 @router.get("/ep/{book_id}/{ep}/concept")
 def ep_concept_get(book_id: str, ep: int):
     """立意模块读取 (编辑器数据源): arcs 结构化维度 + ep_summary."""
+    from app.services.anim_pipeline import shots as _shots
     from app.services.anim_pipeline.config import load as _aload
     from app.services.anim_pipeline.planner import resolve_book
-    from app.services.anim_pipeline import shots as _shots
     try:
         _, book_title = resolve_book(_aload().db_path, book_id)
         doc = _shots.load_doc(book_title, ep)

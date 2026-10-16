@@ -13,13 +13,6 @@ from app.config import get_config
 from app.database import get_db
 from app.models import VideoAsset, VideoOutput
 from app.schemas import (
-    ImportFolderRequest,
-    PexelsImageSearchRequest,
-    PexelsImportRequest,
-    PexelsOnlineSearchRequest,
-    VideoAssetOut,
-    VideoAssetPreferenceRequest,
-    VideoAssetUpdate,
     VIDEO_LOCATION_CHOICES,
     VIDEO_ORIENTATION_CHOICES,
     VIDEO_PEOPLE_CHOICES,
@@ -27,6 +20,13 @@ from app.schemas import (
     VIDEO_SCENE_CHOICES,
     VIDEO_SHOT_TYPE_CHOICES,
     VIDEO_SOURCE_TYPE_CHOICES,
+    ImportFolderRequest,
+    PexelsImageSearchRequest,
+    PexelsImportRequest,
+    PexelsOnlineSearchRequest,
+    VideoAssetOut,
+    VideoAssetPreferenceRequest,
+    VideoAssetUpdate,
 )
 from app.services import library_scan_service, library_service
 

@@ -13,10 +13,10 @@ from sqlalchemy.orm import Session
 
 from app.database import db_session, get_db
 from app.models import DirectorJob
+from app.routers.director_routes.common import _decode_pipelines, _job_or_404
 from app.schemas import DirectorJobOut
 from app.services.director_service import mark_job_reviewed
 from app.services.slot_executor import execute_all_slots, request_cancel
-from app.routers.director_routes.common import _decode_pipelines, _job_or_404
 
 logger = logging.getLogger(__name__)
 
@@ -176,7 +176,9 @@ def _send_comfyui_interrupt(job_id: str) -> None:
     """
     try:
         from app.config import get_config
-        from app.services.slot_workflows.host_comfy import _send_comfyui_interrupt as _interrupt
+        from app.services.slot_workflows.host_comfy import (
+            _send_comfyui_interrupt as _interrupt,
+        )
         _interrupt(get_config(), job_id)
     except Exception as exc:
         logger.warning("[director %s] comfyui interrupt skip: %s", job_id, exc)
@@ -214,8 +216,8 @@ def force_stop_job(job_id: str, db: Session = Depends(get_db)):
             detail=f"job 状态为 {job.status}, 无需强制停止",
         )
 
-    from app.services.slot_executor import mark_force_stopped, request_cancel
     from app.services.proc_registry import kill_job_procs
+    from app.services.slot_executor import mark_force_stopped, request_cancel
 
     # 1. 竞争保护必须先于杀进程: 后台线程任何状态写前查 is_force_stopped → 跳过
     mark_force_stopped(job_id)
