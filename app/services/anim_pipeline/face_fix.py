@@ -100,10 +100,16 @@ def run_face_fix(shot: dict[str, Any], doc: dict[str, Any], base_image: Path) ->
     from . import k2
     # 修脸正向: 画面句(EN 优先) + 脸部强化 + 风格一致性锚; 负向: 产线负词(faceless 族在内)
     scene = str(shot.get("keyframe_en") or "").strip() or str(shot.get("image_prompt_zh") or "")
+    # 1016 W1 单源化: 删硬编码 "3D chibi cartoon style" — 风格锚从风格卡派生
+    # (非 chibi 书被反向拉风格实锤); 风格卡无值降级中性句, 宁中性勿发明。
+    from .config import resolve_style
+    _style = str(resolve_style(str(doc.get("book_title") or "")).get("h3_style")
+                 or "").strip() or "preserve the original image's art style exactly"
+    logger.info("[face-fix][style] %s anchor=%s", shot.get("shot_id"), _style[:40])
     positive = (f"{scene}\n"
                 "Close-up emphasis on the faces: expressive detailed cartoon faces with clear "
                 "eyes, eyebrows, nose and a smiling mouth, complete facial features, "
-                "consistent 3D chibi cartoon style with the rest of the image")
+                f"consistent with the rest of the image ({_style})")
     negative = k2._negative_prompt(str(doc.get("book_title") or ""), "k2", scene)
     comfy_name = f"facefix_{sid}.png"
     seed = int(shot.get("seed") or 20261600)

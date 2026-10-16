@@ -849,15 +849,9 @@ def render_bible_samples(book_id: str, book_title: str, force: bool = False) -> 
             scenes = []
             for i, s in enumerate(shots):
                 base = str(s.get("image_prompt_zh") or "")
-                if hue:
-                    # 0925 修 (用户实锤试渲1 塑料衣): 主色尾+家族"液态金属质感"叠加会把
-                    # 布料渲成光面塑料 — 哑光织物锚正向压 (cfg=1 无负面通道)
-                    # 1012 修 (朱砂红实锤, ComfyUI history 亲证): 旧句把主色硬套"主角服装"
-                    # — 画面句写死浅蓝衬衫时同句自相矛盾, K2 听画面句/H3 听颜色词 =
-                    # 视频层衬衫变红是执行不是漂移。主色只管环境道具, 服装归画面句。
-                    base += (f"，环境与核心道具以{hue}为主色调点缀，"
-                             "人物服装颜色严格按本画面句已写的执行(禁改色禁换色)，"
-                             "服装为哑光织物质感(布料褶皱真实, 禁塑料光面)")
+                # 1016 W1: 主色尾单源 (config.main_color_tint; 0925 塑料衣/1012
+                # 朱砂红实锤历史注释见 config 定义处)
+                base += main_color_tint(hue)
                 scenes.append(base)
             d = _board_dir(book_title)
             d.mkdir(parents=True, exist_ok=True)

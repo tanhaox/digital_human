@@ -25,7 +25,7 @@ from . import (
 )
 from . import ledger as _ledger
 from . import shots as shots_mod
-from .config import resolve_style
+from .config import main_color_tint, resolve_style
 
 logger = logging.getLogger(__name__)
 
@@ -492,18 +492,11 @@ def _scene_eff(shot: dict[str, Any], book_title: str) -> str:
     if en:
         # EN 路不注入 look — writer 的 keyframe_en 是同构图英文版, look 已内联
         # (林肯 (Caucasian male, ...)); 只挂主色调味尾 (域界随宪法, 英文版)
-        hue = _bible_hue(book_title)
-        if hue:
-            en += (f", environment and props accented in {hue} tones, "
-                   "clothing colors strictly as already written in this description "
-                   "(no recolor), fabric is matte textile (real folds, no plastic sheen)")
+        # 1016 W1: 主色尾单源 (config.main_color_tint, 三拷贝收口)
+        en += main_color_tint(_bible_hue(book_title), "en")
         return en
     scene = _inject_char_looks(str(shot.get("image_prompt_zh") or ""), book_title)
-    hue = _bible_hue(book_title)
-    if hue:
-        scene += (f"，环境与核心道具以{hue}为主色调点缀，"
-                  "人物服装颜色严格按本画面句已写的执行(禁改色禁换色)，"
-                  "服装为哑光织物质感(布料褶皱真实, 禁塑料光面)")
+    scene += main_color_tint(_bible_hue(book_title))  # 1016 W1: 主色尾单源
     return scene
 
 

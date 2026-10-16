@@ -199,3 +199,20 @@ def resolve_style(book_title: str) -> dict:
         recipe.update({k: v for k, v in snap.items() if v})
     recipe["name"] = style_name
     return recipe
+
+
+def main_color_tint(hue: str, lang: str = "zh") -> str:
+    """圣经主色调味尾 (1016 W1 单源化): 旧版三处拷贝 (k2 中文/英文 + style_board
+    试渲), 漂移即 bug — 以 k2 主路径为 canonical 收口于此。
+
+    域界随宪法 (1012 朱砂红烧衬衫实锤): 主色只管环境与道具, 服装颜色归画面句;
+    哑光织物锚压塑料光面 (0925 实锤)。空 hue 返回空串 (调用方免 if)。"""
+    if not hue:
+        return ""
+    if lang == "en":
+        return (f", environment and props accented in {hue} tones, "
+                "clothing colors strictly as already written in this description "
+                "(no recolor), fabric is matte textile (real folds, no plastic sheen)")
+    return (f"，环境与核心道具以{hue}为主色调点缀，"
+            "人物服装颜色严格按本画面句已写的执行(禁改色禁换色)，"
+            "服装为哑光织物质感(布料褶皱真实, 禁塑料光面)")
