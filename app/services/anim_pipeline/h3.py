@@ -69,6 +69,30 @@ TEXT_POLICY = (
     "Picture 1; never invent, add, or fill in any text, characters, numbers, or glyphs "
     "anywhere. No captions, watermarks, or UI."
 )
+def _de_traditional(s: str) -> str:
+    """traditional → hand-drawn (0919 隐形bug: 风格词被视频模型读成繁体中文)。
+
+    1016 修3: 净化点从"拼装完的整段出口"上收到各动态注入行 — 出口全文扫曾误伤
+    TEXT_POLICY 反繁体禁令本体 ("Traditional Chinese glyphs ... FORBIDDEN")。"""
+    return re.sub(r"(?i)\btraditional\b", "hand-drawn", s)
+
+
+# 1016 修 (ep4 全镜大量乱码中文实锤): 无上屏字的镜 (h3_text_event/in_image_text
+# 皆无) 走整段硬禁字 — 旧版对这类镜也枚举 20~29 个动作散文汉字当
+# "permitted glyphs, copied stroke-for-stroke", 等于请模型画字。
+NO_TEXT_POLICY = (
+    "Hard no-text rule: this video contains NO text of any kind — no Chinese "
+    "characters, no letters, no digits, no logos, no captions, no subtitles, no "
+    "UI, no writing-like marks on any surface. Surfaces that would normally "
+    "carry text — signboards, door plates, billboards, screens, cards, "
+    "newspapers, phone or computer displays — stay completely blank or purely "
+    "pictorial, exactly as in Picture 1; never invent, add or fill in any "
+    "glyph. If a text-like mark happens to exist in Picture 1 it stays "
+    "pixel-frozen and unchanged for the whole video. The Chinese words in this "
+    "description are scene directions only, never on-screen text."
+)
+
+
 SOUNDSCAPE = (
     "Silent video, ambient room tone only at a barely audible level. "
     "No human voice of any kind."
@@ -148,16 +172,19 @@ def motion_style(book_title: str = "") -> str:
         return ""
 
 
-def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "") -> str:
+def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
+                 text_event: dict | None = None, in_image_text: list | None = None) -> str:
+    # 1016 修2: text_event/in_image_text 从镜级直传 — 旧版读 anim.get(...) 永远为空
+    # (两字段在镜级, 调用方却只传 shot["anim"]), 事件字/合成字从未真正进过提示词.
     beats = anim["beats"]
     lines = [
         "integrated_multimodal_description:",
         f"[Shot 1] {style_h3(book_title, page=page)}. At 0.00 seconds the frame fully matches Picture 1: "
-        f"{anim['opening_desc'].strip()}. Identity lock: keep all characters' faces, hairstyles and "
+        f"{_de_traditional(anim['opening_desc'].strip())}. Identity lock: keep all characters' faces, hairstyles and "
         "outfits consistent with Picture 1 — outfit COLORS stay pixel-faithful to Picture 1 for "
         "every frame: no recoloring, no hue shift, no costume redesign.",
         "",
-        f"Physical lock for the whole video: {anim['physical_lock'].strip()} — "
+        f"Physical lock for the whole video: {_de_traditional(anim['physical_lock'].strip())} — "
         "the camera viewpoint stays locked to Picture 1; only a very slight push-in or "
         "pull-back is allowed; strictly no lateral panning or tracking; no large-area "
         "repaint of the scene (no costumes or objects morphing into different shapes).",
@@ -167,7 +194,7 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "") -> 
     # 与 Picture 1。**纯正向锚定** — 禁句里点名禁物 (红旗/灯笼/宫殿), 视频模型会把
     # 否定句里的具象词当正向提示用 (negation-induced hallucination, 串旗实锤:
     # 越禁越长)。只描述"该是什么", 永不枚举"不许出现什么"。
-    _era = era_anchor(book_title)
+    _era = _de_traditional(era_anchor(book_title))
     if _era:
         lines.append(
             f"Scene era lock (book-level, overrides any style wording): {_era} "
@@ -180,44 +207,62 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "") -> 
         lines.append("")
     # 1012 书级动画律 (治运动随机): 全程运动语言锚, 优先级高于单拍措辞 —
     # 规划器 beats 逐镜具体动作不变, 但运动"气质" (液态/雾气/弹性/节奏) 由它钉死
-    _motion = motion_style(book_title)
+    _motion = _de_traditional(motion_style(book_title))
     if _motion:
         lines.append(
             f"Motion style law for the whole video (book-level animation style): {_motion} "
             "— every beat obeys this motion language; when a beat's wording conflicts "
             "with this law, the law wins.")
         lines.append("")
-    lines += [
-        AMBIENT_LIFE,
-        "",
-        TEXT_POLICY,
-        "",
-    ]
-    # 0919 字级钉死 (s66 实锤: 风格净化+简体令后仍漂「誰」— 提示词层泛指令劝不住):
-    # beats 将上屏的中文字符逐个圈出点名照抄 — 模型对"面前摆着的字形"服从性最高
+    lines += [AMBIENT_LIFE, ""]
+    # 1016 修 (ep4 全镜大量乱码中文实锤): 文字政策三分支, 白名单只收真正上屏的字。
+    # 旧版无分支扫 beats 动作散文, 每镜枚举 20+ 汉字当 "permitted glyphs, copied
+    # stroke-for-stroke" — 对模型是画字邀请函 → 每条视频长满乱码中文。
+    # ①h3_text_event 有字 → TEXT_POLICY + 事件字规格行 (整条视频唯一文字事件)
+    # ②in_image_text 有字 → 只许首帧合成字全程冻结, 不邀请新文字
+    # ③两者皆无 (ep4 62/62 镜如此) → 整段硬禁字 NO_TEXT_POLICY
+    _ev = text_event if isinstance(text_event, dict) else {}
+    _ev_text = str(_ev.get("text") or "").strip()
+    _iit = [str(x).strip() for x in (in_image_text or []) if str(x).strip()]
+    if _ev_text:
+        lines += [TEXT_POLICY, ""]
+        _at = _ev.get("at_s")
+        _at_txt = f"at {float(_at):.1f}s" if isinstance(_at, (int, float)) else "mid-video"
+        _zone = str(_ev.get("zone") or "").strip() or "blank reserved"
+        lines.append(
+            f"Text event spec: {_at_txt}, in the {_zone} zone of the frame, the exact "
+            f"words 「{_ev_text}」 appear large and bold in the artistic typography "
+            "described above, then hold steady — this is the one and only text "
+            "element of the video.")
+        lines.append("")
+    elif _iit:
+        lines.append(
+            "The ONLY text in this video is the text already composed into Picture 1 ("
+            + "".join(f"「{x}」" for x in _iit)
+            + ") — it stays pixel-frozen and completely unchanged for the whole video: "
+            "never redrawn, morphed, wobbled or degraded; locked artwork, not an "
+            "animation target. No other text or writing-like mark appears anywhere.")
+        lines.append("")
+    else:
+        lines.append(NO_TEXT_POLICY)
+        lines.append("")
+    # 0919 字级钉死 (s66 实锤: 简体令后仍漂「誰」): 真正上屏的字逐个圈出点名照抄 —
+    # 1016: 来源 = 事件字 + 合成字 (镜级直传); beats 动作散文汉字一律不进白名单
     _cjk: list[str] = []
-    for _b in beats:
-        for _ch in str(_b.get("motion") or ""):
-            if "一" <= _ch <= "鿿" and _ch not in _cjk:
-                _cjk.append(_ch)
-    # 1015 H3 战役: 事件字路由到 glyph lock (h3_text_event.text) + 底图合成字
-    # (in_image_text 行) 一并圈入点名 — s07 合成字不在 beats 里被自由劣化实锤
-    _ev = anim.get("h3_text_event")
-    for _src in ((_ev.get("text") if isinstance(_ev, dict) else "") or "",
-                 *(anim.get("in_image_text") or [])):
-        for _ch in str(_src):
+    for _src in [_ev_text, *_iit]:
+        for _ch in _src:
             if "一" <= _ch <= "鿿" and _ch not in _cjk:
                 _cjk.append(_ch)
     if _cjk:
         lines.append(
             "Glyph lock: the ONLY Chinese glyphs permitted in this video are these exact "
-            f"simplified characters, copied stroke-for-stroke: {'、'.join(_cjk[:32])}. "
+            f"simplified characters, copied stroke-for-stroke: {'、'.join(_cjk[:64])}. "
             "Write 谁 with the simplified speech radical 讠 (never 誰), 买 not 買, "
             "钱 not 錢, 书 not 書, 门 not 門. A single traditional glyph ruins the frame.")
         lines.append("")
     for i, b in enumerate(beats):
-        motion = b["motion"].strip()
-        ending = (anim.get("ending") or "").strip()
+        motion = _de_traditional(b["motion"].strip())
+        ending = _de_traditional((anim.get("ending") or "").strip())
         if i == len(beats) - 1 and ending:
             # 规划器常把结尾复述进末拍, 已含则不重复追加
             if ending[:60].lower() not in motion.lower():
@@ -235,24 +280,27 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "") -> 
         "non_diegetic_music:",
         "N/A",
     ]
-    # 0919 出口整段净化: 旧镜 anim 字段 (opening_desc/beats) 规划时已烙
-    # "traditional" 风格词 — 连根拔 (只动英文单词, 不碰中文正文)
-    return re.sub(r"(?i)\btraditional\b", "hand-drawn", "\n".join(lines))
+    # 1016 修3: traditional 净化已上收到各动态注入行 (_de_traditional) — 旧版出口
+    # 全文扫误伤 TEXT_POLICY 本体 ("Traditional Chinese glyphs ... FORBIDDEN" 被改成
+    # "hand-drawn ... FORBIDDEN", 反繁体禁令自废)
+    return "\n".join(lines)
 
 
 def build_workflow(image_name: str, anim: dict[str, Any], seed: int, prefix: str,
-                   book_title: str = "", qc_history: list | None = None) -> dict[str, Any]:
+                   book_title: str = "", qc_history: list | None = None,
+                   text_event: dict | None = None, in_image_text: list | None = None) -> dict[str, Any]:
     """H3 I2V 工作流 (API 格式), 节点 ID 对齐最爱视频真相图 (102.4s/10s).
 
     qc_history (1004 修): 该镜既往机检判决 (乱码/崩坏史) → 重 roll 时注入
     对症禁令锚 (glyph lock 之上的第二道伪字防线 — 判决回流防复发)。"""
-    _prompt = build_prompt(anim, book_title, page="k2")  # 1007: H3 与 K2 同风格 (page 隔离)
+    _prompt = build_prompt(anim, book_title, page="k2",  # 1007: H3 与 K2 同风格 (page 隔离)
+                           text_event=text_event, in_image_text=in_image_text)  # 1016 修2: 镜级直传
     if qc_history:
         _kinds = {str(r.get("kind") or r.get("what") or "") for r in qc_history}
         if any("乱码" in k for k in _kinds):
             _prompt += (
                 "\n\nPseudo-text ban (this shot previously generated garbled pseudo-glyphs — "
-                "hard rule): outside the whitelisted glyphs above, the frame must contain NO "
+                "hard rule): the frame must contain NO "
                 "writing-like marks: no invented characters, no smeared or broken glyph shapes, "
                 "no unreadable script on any sign, board, screen, or surface. Render every "
                 "sign/board/book/screen as a blank or purely pictorial surface.")
@@ -364,7 +412,9 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
         logger.info("[h3] %s 跳首帧锚定 (中性底图, H3 从 prompt 自生成)", shot["shot_id"])
         wf = build_workflow(image_name, shot["anim"], shot["h3_seed"], prefix,
                             book_title=doc["book_title"],
-                            qc_history=(shot.get("qc_rejects") or None))
+                            qc_history=(shot.get("qc_rejects") or None),
+                            text_event=shot.get("h3_text_event"),
+                            in_image_text=shot.get("in_image_text"))
     else:
         src_img = base_dir / shot["image_file"]
         if not src_img.exists():
@@ -372,7 +422,9 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
         image_name = comfy.upload_image(src_img)
         wf = build_workflow(image_name, shot["anim"], shot["h3_seed"], prefix,
                             book_title=doc["book_title"],
-                            qc_history=(shot.get("qc_rejects") or None))
+                            qc_history=(shot.get("qc_rejects") or None),
+                            text_event=shot.get("h3_text_event"),
+                            in_image_text=shot.get("in_image_text"))
     # 10s 热机 ~102s, 冷机翻倍, 留余量; 0919 实锤: 长镜 (6.9-8.8s) 在低显存节点
     # 帧数放大超线性, 600s 定额连杀 s11/s12/s21 两轮 (ComfyUI 实际都跑完了,
     # 产物躺 output 成孤儿) — 超时按时长伸缩
