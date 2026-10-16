@@ -17,7 +17,7 @@
 | 合规规则库原文 | [compliance/](compliance/)（豆包规则库各发） |
 | 老文档 / 已完结项目 | [archive/](archive/) |
 | Claude Code 交接记录 | [claude-code-handoffs/](claude-code-handoffs/) |
-| 变更时间线 | [../CHANGELOG.md](../CHANGELOG.md)（根目录） |
+| 变更时间线 | [../CHANGELOG.md](../CHANGELOG.md)（根目录，已拆：2026-07~09 归档至 [changelog/](changelog/)，主文件保留 2026-10+） |
 | 开发者导览 | [../README.md](../README.md)（根目录） |
 
 ## 二、存放规则（docs/ 各文件夹）
@@ -185,3 +185,6 @@
 - [AUDIT-系统地图.md](AUDIT-系统地图.md) — 代码审计第一段·全程只读静态分析: 技术栈/目录/依赖图/入口/业务路径, 结论附 文件:行号（2026-10-16; 冻结）
 - [AUDIT-问题清单.md](AUDIT-问题清单.md) — 代码审计第二段: 垃圾~51项/孤岛3/重复5/补丁痕迹6类 问题分级清单, 是重构计划的输入（2026-10-16; 冻结）
 - [REFACTOR_PLAN.md](REFACTOR_PLAN.md) — 审计产出的处置计划: 21 批次四节, 逐批小步提交可独立回滚; 含旧导演引擎两步走处置依据（2026-10-16; 活文档随批次推进）
+
+### docs/changelog/ · CHANGELOG 历史切片（2026-10-16 拆分）
+- [changelog/README.md](changelog/README.md) — 切片规则与拆分校验说明; 5 片: 2026-07 / 2026-08 / 2026-09×3（切点 09-26、09-18 零条目日），主文件保留 2026-10+。
