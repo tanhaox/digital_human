@@ -952,7 +952,10 @@ def replan_shot(book_ref: str, ep: int, sid: str) -> dict[str, Any]:
         # plan_shot 全字段路线 (单镜版单写者) — 槽路线对 writer 镜是空转
         # (器层免覆写保护会把 assemble 跳过, "重设计完成"但画面句一字未变,
         # flash 填槽 2.6s/69token 假重做); fallback 镜保持槽路线。
-        if _ss and target is not None and str(target.get("writer_source") or "") == "writer":
+        # 1016 修 (s01 实锤): fallback 镜同入 plan_shot 全字段路线 — 槽路线对
+        # 槽词表稳定的镜是假重做 (flash 填槽+assemble 后画面句逐字不变, 用户
+        # 连点两次重规划零变化)。writer 身份由路线自然获得。
+        if _ss and target is not None:
             for attempt in (1, 2):
                 try:
                     doc = director2.plan_shot(book_id, book_title, ep, sid, manifest, bible)
@@ -1033,8 +1036,18 @@ def replan_shot(book_ref: str, ep: int, sid: str) -> dict[str, Any]:
         _st = shots_mod.strip_media_on_narr_change(shots_mod.load_doc(book_title, ep), doc)
         if _st:
             logger.warning("[narr-change] 文案变→媒体失效: %s", _st)
+        # 1016 修 (s01 实锤): 重设计成功必须回 planned 清媒体 — 1014 修只落在
+        # writer 分支; 槽/兜底路线 "✓" 后状态原样 anim_done → K2 待跑 0 镜。
+        _tgt = next((x for x in doc.get("shots") or [] if x["shot_id"] == sid), None)
+        if _tgt is not None:
+            _tgt["status"] = "planned"
+            _tgt["image_file"] = None
+            _tgt["video_file"] = None
+            _tgt.pop("text_passed", None)
+            _tgt.pop("face_fixed", None)
+            _tgt.pop("text_erased", None)
         shots_mod.save(doc)
-        logger.info("[replan-shot] %s ✓ (旧版备份 %s)", sid, bak.name)
+        logger.info("[replan-shot] %s ✓ → planned (旧版备份 %s)", sid, bak.name)
         return {"shot_id": sid, "summary": f"{sid} 已重设计 (图待生成)",
                 "backup": bak.name}
 
