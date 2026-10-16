@@ -145,8 +145,6 @@ def render_wall_scroll(book_title: str, duration_s: float = 1.2,
             covers.append(im)
         except Exception:  # noqa: BLE001 — 坏图跳槽
             covers.append(Image.new("RGB", (_W_COVER_W, ch), _W_BG))
-    n = len(covers)
-    wall_w = n * _W_SLOT
     y0 = (H - ch) // 2
     # 终态: 本书槽中心 → 画面中心
     end_left = _W_OURS_AT * _W_SLOT + _W_SLOT // 2 - W // 2

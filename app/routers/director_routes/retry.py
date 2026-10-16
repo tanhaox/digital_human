@@ -403,7 +403,7 @@ def disable_slot_material(job_id: str, slot_id: str, db: Session = Depends(get_d
     """
     from app.models import VideoAsset
 
-    job = _job_or_404(db, job_id)
+    _ = _job_or_404(db, job_id)  # 仅作存在性守卫 (404)
     slot = _slot_or_404(db, job_id, slot_id)
     params = slot.params_json or {}
 

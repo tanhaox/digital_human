@@ -52,7 +52,7 @@ def _upload(image_path: Path, comfy_name: str) -> None:
     req = urllib.request.Request(
         COMFY + "/upload/image", data=body,
         headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
-    with urllib.request.urlopen(req, timeout=60) as r:
+    with urllib.request.urlopen(req, timeout=60):  # 上传完即关, 响应体不用
         logger.debug("[text-pass] uploaded %s", comfy_name)
 
 
@@ -202,7 +202,6 @@ def batch_text_pass(doc: dict[str, Any], only: set[str] | None = None) -> int:
         if shot.get("text_passed"):
             continue  # 幂等
         img_path = None
-        ep_dir = Path(__file__).parent.parent.parent / "outputs" / "动画"
         # 用 shots_mod 的路径逻辑更稳
         from .shots import ep_dir as _ep_dir
         img_path = _ep_dir(doc["book_title"], int(doc.get("ep") or 0)) / str(shot.get("image_file") or "")

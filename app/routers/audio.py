@@ -93,7 +93,6 @@ def generate_audio(
     if not segments:
         raise HTTPException(status_code=400, detail="No segments to synthesize")
 
-    project_root = Path(__file__).resolve().parents[2]
     if script.project_dir:
         output_dir = Path(script.project_dir) / "audio"
     else:

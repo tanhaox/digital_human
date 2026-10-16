@@ -497,7 +497,7 @@ def resume_scenes(book_ref: str, ep: int) -> Path:
     """▶️ 分镜续跑 (0917 立意人闸第二段): 从盘上骨架/已完成场续跑至全集."""
     cfg = load()
     book_id, book_title = resolve_book(cfg.db_path, book_ref)
-    ep_row = fetch_episode(cfg.db_path, book_id, ep)
+    _ = fetch_episode(cfg.db_path, book_id, ep)  # 存在性/取行副作用保留
     from app.services import anim_draft
     audio = anim_draft.fetch_episode_audio(book_id, ep)
     manifest = _audio_manifest(audio)

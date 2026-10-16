@@ -30,7 +30,7 @@ def preview_slot(job_id: str, slot_id: str, db: Session = Depends(get_db)):
     slot.output_path 是本地绝对路径, 前端无法直接访问 → 经此端点以
     FileResponse 服务。文件缺失 → 404。
     """
-    job = _job_or_404(db, job_id)
+    _ = _job_or_404(db, job_id)  # 仅作存在性守卫 (404)
     slot = _slot_or_404(db, job_id, slot_id)
     if not slot.output_path:
         raise HTTPException(status_code=404, detail=f"slot {slot_id} 尚无产物 (status={slot.status})")
@@ -62,7 +62,7 @@ def download_job(job_id: str, db: Session = Depends(get_db)):
 @download_router.post("/jobs/{job_id}/open-folder")
 def open_output_folder(job_id: str, db: Session = Depends(get_db)):
     """打开合成产物所在的文件夹（仅 Windows 本地环境）."""
-    job = _job_or_404(db, job_id)
+    _ = _job_or_404(db, job_id)  # 仅作存在性守卫 (404)
     out = _find_composition_mp4(job_id)
     if not out:
         raise HTTPException(status_code=404, detail="未找到合成产物路径")

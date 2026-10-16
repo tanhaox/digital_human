@@ -10,7 +10,6 @@ from typing import Any, Callable
 
 from sqlalchemy.orm import Session
 
-from app.config import get_config
 from app.models import DirectorJob, Persona
 from app.services.director_events import PlanCancelled
 from app.services.director_events import publish as _evt
@@ -37,7 +36,6 @@ def _llm_plan_phase(
     is_cancelled: Callable[[], bool] | None,
 ) -> Any:
     """Run LLM plan phase, return parsed plan or None (failed path handled)."""
-    cfg = get_config()
     llm = get_llm_service()
     # 优先用爆品改造稿 (boosted_text), 让导演按观众实际听到的新稿配画面.
     # 若未改造或改造为空, 回退到原始洗稿稿.

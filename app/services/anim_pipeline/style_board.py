@@ -345,7 +345,6 @@ def _run_board(job: dict) -> None:
         else:
             _pub(job, "新配方提案跳过 (板内仅库成员)")
         out = _board_dir(job["book_title"])
-        rows = []
         # 1009 小坑4 修 (增量选型): 列号 = **稳定 idx** — 同名风格跨轮继承旧 board
         # 的 idx, 新风格取 max+1 递增。旧版每轮 enumerate 重排, 排除几个后新列号
         # 会撞旧文件名 (排除 2 个重启 → 新提案占用 style4_*.png = 张冠李戴串图)。

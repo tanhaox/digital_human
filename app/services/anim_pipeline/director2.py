@@ -2082,7 +2082,6 @@ def plan_shot(book_id: str, book_title: str, ep: int, shot_id: str,
         s = shots_mod.find_shot(doc, shot_id)
     except KeyError as exc:
         raise SystemExit(f"镜不存在: {shot_id}") from exc
-    idx = doc["shots"].index(s)
     t0, t1 = float(s["t_start"]), float(s["t_end"])
     span = round(t1 - t0, 2)
     tc = float(load().brand_card.opening_sec)

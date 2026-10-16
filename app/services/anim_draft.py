@@ -1033,7 +1033,6 @@ def align_episode(book_ref: str, ep: int, dry_run: bool = False, stretch: bool =
         stream, spans, total_audio = _char_time_map(audio["files"])
         if not stream:
             raise AnimNotFound("音频包文本全空, 无法对齐")
-        rate = total_audio / max(len(stream), 1)  # 全局 字符/秒 兜底估值用
 
         shots = sorted(doc["shots"], key=lambda s: float(s.get("t_start", 0)))
         cursor = 0

@@ -236,7 +236,6 @@ def _absorb_short_units(units: list[dict[str, Any]],
                 i += 1
                 continue
             if i > 0:
-                prev_d = float(out[i - 1]["t_end"]) - float(out[i - 1]["t_start"])
                 merged_d = float(out[i]["t_end"]) - float(out[i - 1]["t_start"])
                 if merged_d <= CAP:  # 0923: 并后不超 CAP 才并
                     out[i - 1]["t_end"] = out[i]["t_end"]

@@ -1578,7 +1578,6 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
         include=("validate", "flow", "fig") + (("brand",) if _is_tool_ep else ()))
     issues = passes_mod.snap_issues(_fin)
     ok = not issues
-    blob_roadmap = json.dumps(ep.roadmap_json or {}, ensure_ascii=False)
     theme = (ep.roadmap_json or {}).get("主题", "")
     checks["theme_in_script"] = bool(theme) and theme[:8] in out
     if prev:

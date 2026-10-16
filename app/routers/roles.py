@@ -309,7 +309,6 @@ async def upload_view_group(
     if not role:
         raise HTTPException(status_code=404, detail="Role not found")
 
-    cfg = get_config().defaults
     group_dir = Path(role.reference_image).parent / "groups" / f"group_{len(role.view_groups or [])}"
     group_dir.mkdir(parents=True, exist_ok=True)
 
