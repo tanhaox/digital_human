@@ -178,7 +178,7 @@ def strip_negative(scene: str, negatives: list[str],
 
 
 def build_prompt(scene_zh: str, book_title: str = "", style: dict | None = None,
-                 page: str = "") -> str:
+                 page: str = "", thesis: str = "") -> str:
     """K2 提示词 — Krea2 官方指南范式 (0914 全网学习定稿):
 
     [风格定调句(仅头一次)] + [画面自然语言长句] + [构图升级] + [防字句] + [轻量收尾锚]
@@ -197,6 +197,9 @@ def build_prompt(scene_zh: str, book_title: str = "", style: dict | None = None,
             if v is not None:
                 st[k] = v
     scene = _clean_scene((scene_zh or "").strip().rstrip("。"))
+    # 1017 W3: 弧主旨锚 (立意单一源; 组装器只拼不推导)
+    if thesis:
+        scene = f"{scene}。(主题锚: {thesis} — 画面元素与构图服务此主旨)"
     # 1009 大坑修 (backlog ID-080): 皮肤/头发军规全局化 — 只在 k2 产线配方注入,
     # 单一事实源 (此前散在风格卡 k2 tail, 六卡各抄一份且漏头发)。药限定皮肤,
     # 头发反向锚"分组雕塑感"治塑料感 (1006 皮肤药无差别罩住头发 = 光滑壳实锤)。
@@ -311,7 +314,8 @@ def _negative_prompt(book_title: str = "", page: str = "", scene: str = "") -> s
 
 def build_workflow(scene_zh: str, seed: int, prefix: str, extra_loras: list[dict[str, Any]] | None = None,
                    book_title: str = "", style: dict | None = None,
-                   portrait: bool = False, page: str = "") -> dict[str, Any]:
+                   portrait: bool = False, page: str = "",
+                   thesis: str = "") -> dict[str, Any]:
     """2ST 工作流 (API 格式), 节点 ID 对齐 history 真相图. 默认链 = 书级风格配方的 LoRA.
 
     style (0922): 显式配方覆写 (风格选择板试镜 — 库成员/Kimi 提案逐个出样张).
@@ -345,7 +349,7 @@ def build_workflow(scene_zh: str, seed: int, prefix: str, extra_loras: list[dict
         "261": {"class_type": "EmptyLatentImage", "inputs": {
             "width": 720 if portrait else 1280, "height": 1280 if portrait else 720,
             "batch_size": 1}},
-        "264": {"class_type": "CLIPTextEncode", "inputs": {"text": build_prompt(scene_zh, book_title, style=st, page=page), "clip": ["258", 0]}},
+        "264": {"class_type": "CLIPTextEncode", "inputs": {"text": build_prompt(scene_zh, book_title, style=st, page=page, thesis=thesis), "clip": ["258", 0]}},
         # 1006 用户令(蓝色皮肤根治): cfg 1.0→2.0 + 真负面提示词替代 ConditioningZeroOut
         # (cfg=1.0 数学上负面通道=零影响力; 2.0 实证蓝→白且伪影少于2.5)
         # 1008 规层 R6: 拼接 platform_bans_negative (compliance_visual.json 单一事实源,
@@ -561,10 +565,12 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
         elif _dropped2:
             logger.warning("[k2] %s 申报镜文字载体子句剔除 ×%d",
                            shot['shot_id'], _dropped2)
+    from .h3 import arc_thesis  # 惰性: h3 顶部引 brand, 避免环
+    _thesis = arc_thesis(doc, str(shot.get("arc_id") or ""))
     dirty = render_gated(
         lambda sd: build_workflow(scene_eff, sd, prefix,
                                   shot.get("extra_loras"), book_title=doc["book_title"],
-                                  page="k2"),
+                                  page="k2", thesis=_thesis),
         dest, int(shot.get("seed") or 0), f"k2 {shot['shot_id']}", shot=shot,
         face_check=_person_in(scene_eff, doc["book_title"]))
     if dirty:

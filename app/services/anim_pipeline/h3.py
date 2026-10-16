@@ -202,8 +202,20 @@ def _strip_scene_label(s: str) -> str:
     return _SCENE_LABEL_RE.sub("scene: exactly as shown in Picture 1", s)
 
 
+def arc_thesis(doc: dict[str, Any], arc_id: str = "") -> str:
+    """弧主旨单读口 (1017 W3, 立意单一源): doc.arcs 的 metaphor_core 优先,
+    visual_metaphor 降级 — K2/H3/r2v 各拼一行主旨锚, 组装器不推导。"""
+    if not arc_id:
+        return ""
+    for a in doc.get("arcs") or []:
+        if str(a.get("arc_id") or "") == str(arc_id):
+            return str(a.get("metaphor_core") or a.get("visual_metaphor") or "").strip()[:120]
+    return ""
+
+
 def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
-                 text_event: dict | None = None, in_image_text: list | None = None) -> str:
+                 text_event: dict | None = None, in_image_text: list | None = None,
+                 thesis: str = "") -> str:
     # 1016 修2: text_event/in_image_text 从镜级直传 — 旧版读 anim.get(...) 永远为空
     # (两字段在镜级, 调用方却只传 shot["anim"]), 事件字/合成字从未真正进过提示词.
     beats = anim["beats"]
@@ -220,6 +232,10 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
         "repaint of the scene (no costumes or objects morphing into different shapes).",
         "",
     ]
+    # 1017 W3: 弧主旨锚 (立意=圣经+弧主旨 单一源, 组装器只拼不推导)
+    if thesis:
+        lines.append(f"Narrative anchor: {thesis} — the scene, props and motion all serve this thesis.")
+        lines.append("")
     # 1012 场景时代锁 (治风格卡场景越权): 风格锚只管画法, 场景/服饰/环境归时代锚
     # 与 Picture 1。**纯正向锚定** — 禁句里点名禁物 (红旗/灯笼/宫殿), 视频模型会把
     # 否定句里的具象词当正向提示用 (negation-induced hallucination, 串旗实锤:
@@ -325,13 +341,15 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
 
 def build_workflow(image_name: str, anim: dict[str, Any], seed: int, prefix: str,
                    book_title: str = "", qc_history: list | None = None,
-                   text_event: dict | None = None, in_image_text: list | None = None) -> dict[str, Any]:
+                   text_event: dict | None = None, in_image_text: list | None = None,
+                   thesis: str = "") -> dict[str, Any]:
     """H3 I2V 工作流 (API 格式), 节点 ID 对齐最爱视频真相图 (102.4s/10s).
 
     qc_history (1004 修): 该镜既往机检判决 (乱码/崩坏史) → 重 roll 时注入
     对症禁令锚 (glyph lock 之上的第二道伪字防线 — 判决回流防复发)。"""
     _prompt = build_prompt(anim, book_title, page="k2",  # 1007: H3 与 K2 同风格 (page 隔离)
-                           text_event=text_event, in_image_text=in_image_text)  # 1016 修2: 镜级直传
+                           text_event=text_event, in_image_text=in_image_text,  # 1016 修2: 镜级直传
+                           thesis=thesis)  # 1017 W3: 弧主旨锚
     if qc_history:
         _kinds = {str(r.get("kind") or r.get("what") or "") for r in qc_history}
         if any("乱码" in k for k in _kinds):
@@ -452,21 +470,23 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
             _PILImage.new("RGB", (1280, 720), (64, 64, 72)).save(_placeholder)
         image_name = comfy.upload_image(_placeholder)
         logger.info("[h3] %s 跳首帧锚定 (中性底图, H3 从 prompt 自生成)", shot["shot_id"])
+        _thesis = arc_thesis(doc, str(shot.get("arc_id") or ""))
         wf = build_workflow(image_name, shot["anim"], shot["h3_seed"], prefix,
                             book_title=doc["book_title"],
                             qc_history=(shot.get("qc_rejects") or None),
                             text_event=shot.get("h3_text_event"),
-                            in_image_text=shot.get("in_image_text"))
+                            in_image_text=shot.get("in_image_text"), thesis=_thesis)
     else:
         src_img = base_dir / shot["image_file"]
         if not src_img.exists():
             raise comfy.ComfyRunError(f"首帧图不存在: {src_img}")
         image_name = comfy.upload_image(src_img)
+        _thesis = arc_thesis(doc, str(shot.get("arc_id") or ""))
         wf = build_workflow(image_name, shot["anim"], shot["h3_seed"], prefix,
                             book_title=doc["book_title"],
                             qc_history=(shot.get("qc_rejects") or None),
                             text_event=shot.get("h3_text_event"),
-                            in_image_text=shot.get("in_image_text"))
+                            in_image_text=shot.get("in_image_text"), thesis=_thesis)
     # 10s 热机 ~102s, 冷机翻倍, 留余量; 0919 实锤: 长镜 (6.9-8.8s) 在低显存节点
     # 帧数放大超线性, 600s 定额连杀 s11/s12/s21 两轮 (ComfyUI 实际都跑完了,
     # 产物躺 output 成孤儿) — 超时按时长伸缩

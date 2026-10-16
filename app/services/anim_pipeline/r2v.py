@@ -79,7 +79,7 @@ def _match_chars(keyframe_zh: str, book_title: str, max_refs: int = 3) -> list[s
 
 
 def _build_prompt(shot: dict[str, Any], char_names: list[str],
-                  book_title: str = "") -> str:
+                  book_title: str = "", thesis: str = "") -> str:
     """r2v prompt — 谁 + 在哪 + 做什么; 风格/运动全跟参考帧走 (权限定律).
     1012: 书级动画律 (圣经 motion_style) 同源注入 — 参考帧锁长相, 动画律锁运动气质
     (H3 侧同款, 双工位一口径)。"""
@@ -121,6 +121,9 @@ def _build_prompt(shot: dict[str, Any], char_names: list[str],
         )
     else:
         prompt += "No text, no human voice."
+    # 1017 W3: 弧主旨锚 (同 h3 口径, 一行不推导)
+    if thesis:
+        prompt += f" Narrative anchor: {thesis} — the scene, props and motion all serve this thesis."
     from .h3 import motion_style  # 惰性: h3 顶部引 brand, 避免环
     _motion = motion_style(book_title)
     if _motion:
@@ -216,7 +219,9 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
 
     # prompt + 配方
     char_names = [Path(cp).stem for cp in char_paths]
-    prompt = _build_prompt(shot, char_names, book_title=doc["book_title"])
+    from .h3 import arc_thesis  # 惰性避环 (同 motion_style)
+    prompt = _build_prompt(shot, char_names, book_title=doc["book_title"],
+                           thesis=arc_thesis(doc, str(shot.get("arc_id") or "")))
     prof = PROFILE[_profile_for(shot)]
 
     # 帧数 (同 h3 公式)

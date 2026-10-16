@@ -396,6 +396,16 @@ def _finalize_doc(doc: dict[str, Any], segs: list[dict[str, Any]], tag: str) -> 
     _pl = director2.prop_lock_audit(doc)
     if _pl:
         logger.warning("[%s] prop_lock 审计改写 %d 处: %s", tag, len(_pl), "; ".join(_pl[:6]))
+    # 1017 W3 文字总路由: 弧级花字 pass — 四条规划流唯一汇聚点, 先写表后 lint
+    # (LLM 失败 fail-open 跳过, 不炸 finalize; h3_text_event 唯一写者)
+    try:
+        from app.services.anim_pipeline.huazi_pass import enrich_text_route
+        _hz = enrich_text_route(doc)
+        if _hz:
+            logger.info("[%s] 弧级花字 %d 镜: %s", tag, len(_hz),
+                        " ".join(f"{k}「{v}」" for k, v in list(_hz.items())[:8]))
+    except Exception as exc:  # noqa: BLE001 — 花字 pass 失败不挡规划
+        logger.warning("[%s] 弧级花字 pass 失败 (跳过): %s", tag, exc)
     _tl = director2.text_layer_lint(doc)
     if _tl:
         logger.warning("[%s] text_layer 去污 %d 处: %s", tag, len(_tl), "; ".join(_tl[:6]))
