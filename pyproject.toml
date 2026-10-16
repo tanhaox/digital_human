@@ -2,6 +2,10 @@
 # 只放 ruff + pytest 配置; 故意不声明 [project] (非安装包, .venv 直跑).
 # 加/改规则前先读 REFACTOR_PLAN.md 顶部「冻结基线」, 改完同步更新基线数字.
 
+[tool.ruff]
+# docs/refs = 外部 skill 参考件 (非本项目代码), 只读不检 (B16a 2026-10-16).
+exclude = ["docs/refs"]
+
 [tool.ruff.lint]
 # 显式 select 当前实际在用的 8 条 (T3 从 ruff 0.16.5 默认集收缩而来;
 # 默认集会随 ruff 版本漂移, 这里冻结). 想加规则 = 显式加代码 + 重跑基线盘点.
