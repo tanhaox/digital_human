@@ -304,7 +304,7 @@ def _pub(job: dict, msg: str) -> None:
 
 
 def _run_board(job: dict) -> None:
-    from app.services.anim_service import _GPU_JOB_LOCK
+    from app.services.anim_pipeline.gpu_lock import GPU_JOB_LOCK
     try:
         shots = _plan_shots(job["material"])
         job["shots"] = shots
@@ -375,7 +375,7 @@ def _run_board(job: dict) -> None:
         # 外部已起的实例 (如手动 bat) 直接复用不杀
         from app.services.gpu_service_manager import get_gpu_service_manager
         with get_gpu_service_manager().session(
-                "comfyui", status_callback=lambda m: _pub(job, m)), _GPU_JOB_LOCK:
+                "comfyui", status_callback=lambda m: _pub(job, m)), GPU_JOB_LOCK:
             for k, st in enumerate(styles):
                 si = stable[k]
                 for ci, sh in enumerate(shots):
@@ -690,10 +690,10 @@ def retune(book_title: str, style_name: str, note: str = "") -> dict:
     # 1012 修: _dir 此前未定义 (e4da0ffb 引入) — 重调渲完第 1 张即 NameError,
     # 板刷新/指纹落盘全断; 方向入指纹与 _run_board 同口径
     _dir = get_direction(book_title)
-    from app.services.anim_service import _GPU_JOB_LOCK
+    from app.services.anim_pipeline.gpu_lock import GPU_JOB_LOCK
     from app.services.gpu_service_manager import get_gpu_service_manager
     _board_dir(book_title).mkdir(parents=True, exist_ok=True)
-    with get_gpu_service_manager().session("comfyui"), _GPU_JOB_LOCK:
+    with get_gpu_service_manager().session("comfyui"), GPU_JOB_LOCK:
         fps = _load_fps(book_title)
         for ci, sh in enumerate(board.get("shots") or []):
             dest = _board_dir(book_title) / f"style{si}_{ci + 1}.png"
@@ -817,7 +817,7 @@ def render_bible_samples(book_id: str, book_title: str, force: bool = False) -> 
     _BIBLE_JOBS[book_id] = j
 
     def _run():
-        from app.services.anim_service import _GPU_JOB_LOCK
+        from app.services.anim_pipeline.gpu_lock import GPU_JOB_LOCK
         _emit(j, "试渲启动: 原镜+角色卡+主色, 3 张 + 文字守门")
         try:
             view = bible_view(book_id, book_title)
@@ -888,7 +888,7 @@ def render_bible_samples(book_id: str, book_title: str, force: bool = False) -> 
             # 1012: 接 GPU 托管 (同选型台) — 不在线自动拉起, 外部实例复用
             from app.services.gpu_service_manager import get_gpu_service_manager
             with get_gpu_service_manager().session(
-                    "comfyui", status_callback=lambda m: _emit(j, m)), _GPU_JOB_LOCK:
+                    "comfyui", status_callback=lambda m: _emit(j, m)), GPU_JOB_LOCK:
                 for ci, scene in enumerate(scenes, 1):
                     f = f"圣经试渲_{ci}.png"
                     if (d / f).exists() and not _stale:
@@ -941,7 +941,7 @@ def render_motion_sample(book_id: str, book_title: str) -> dict:
     _BIBLE_JOBS[book_id] = j
 
     def _run():
-        from app.services.anim_service import _GPU_JOB_LOCK
+        from app.services.anim_pipeline.gpu_lock import GPU_JOB_LOCK
         _emit(j, "动画试渲启动: 圣经试渲首帧 + 中性节拍 + 书级动画律, 5s H3 图生视频")
         try:
             from . import h3
@@ -1001,7 +1001,7 @@ def render_motion_sample(book_id: str, book_title: str) -> dict:
             # 1012: GPU 托管 (同上) — 拉起进度走 SSE
             from app.services.gpu_service_manager import get_gpu_service_manager
             with get_gpu_service_manager().session(
-                    "comfyui", status_callback=lambda m: _emit(j, m)), _GPU_JOB_LOCK:
+                    "comfyui", status_callback=lambda m: _emit(j, m)), GPU_JOB_LOCK:
                 if dest.exists() and fps.get(dest.name) == _fp:
                     _emit(j, "动画试渲沿用 (动画律/配方未变); 强制重渲=删 动画试渲_1.mp4")
                 else:

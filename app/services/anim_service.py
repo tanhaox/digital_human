@@ -30,6 +30,7 @@ from app.services.anim_pipeline import k2 as k2_mod
 from app.services.anim_pipeline import planner
 from app.services.anim_pipeline import shots as shots_mod
 from app.services.anim_pipeline.config import load as anim_cfg_load
+from app.services.anim_pipeline.gpu_lock import GPU_JOB_LOCK as _GPU_JOB_LOCK
 from app.services.gpu_service_manager import get_gpu_service_manager
 from app.services.job_events import _publish
 
@@ -42,7 +43,7 @@ _LOG_TAIL = 400
 
 _JOBS: dict[str, dict[str, Any]] = {}
 _JOBS_LOCK = threading.Lock()
-_GPU_JOB_LOCK = threading.Lock()  # 占位锁: GPU 批进行中 → 新 GPU 请求 409
+# _GPU_JOB_LOCK 定义已抽到 anim_pipeline/gpu_lock.py (B07), 顶部 alias 引同一实例
 _EP_LOCKS: dict[str, threading.RLock] = {}  # RLock: plan job 内部会再调 align (同线程重入)
 _EP_LOCKS_GUARD = threading.Lock()
 

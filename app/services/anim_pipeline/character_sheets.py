@@ -351,7 +351,7 @@ def render_missing(book_title: str, emit) -> tuple[int, int]:
     emit(msg) 接收进度; 返回 (新渲数, 跳过数). 占 GPU 锁."""
     import hashlib
 
-    from app.services.anim_service import _GPU_JOB_LOCK
+    from app.services.anim_pipeline.gpu_lock import GPU_JOB_LOCK
 
     from .config import resolve_style
     recipe = resolve_style(book_title)
@@ -388,7 +388,7 @@ def render_missing(book_title: str, emit) -> tuple[int, int]:
         else:
             work.append(c)
     if work:
-        with _GPU_JOB_LOCK:
+        with GPU_JOB_LOCK:
             for i, c in enumerate(work, 1):
                 emit(f"定妆照 {i}/{len(work)}: {c['name']} 渲染中 (含违禁守门)…")
                 dirty = render_gated(
@@ -436,7 +436,7 @@ def start_design(book_id: str, book_title: str, names: list[str],
     def _run():
         import hashlib
 
-        from app.services.anim_service import _GPU_JOB_LOCK
+        from app.services.anim_pipeline.gpu_lock import GPU_JOB_LOCK
 
         from .config import resolve_style
         from .style_board import bound_style
@@ -472,7 +472,7 @@ def start_design(book_id: str, book_title: str, names: list[str],
                     j["log"] = [f"新渲 {n_new} 张, 跳过 {n_skip} 张"]
                     _emit(j, f"角色设计完成 ✓ 新渲{n_new} 跳过{n_skip} → _资产/角色设计/", "chars_done")
                 return
-            with _GPU_JOB_LOCK:
+            with GPU_JOB_LOCK:
                 for i, c in enumerate(todo, 1):
                     _emit(j, f"定妆照 {i}/{len(todo)}: {c['name']} 渲染中 (含违禁守门)…")
                     dirty = render_gated(
