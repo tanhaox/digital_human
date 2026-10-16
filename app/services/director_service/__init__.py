@@ -7,8 +7,10 @@ Internal logic is split into:
 from __future__ import annotations
 
 from app.services.director_service._alignment import (
-    _align_fast_or_whisper,
-    _collect_tts_segment_durations,
+    _align_fast_or_whisper as _align_fast_or_whisper,
+)
+from app.services.director_service._alignment import (
+    _collect_tts_segment_durations as _collect_tts_segment_durations,
 )
 from app.services.director_service._fallback import replace_failed_slot
 from app.services.director_service._lifecycle import (

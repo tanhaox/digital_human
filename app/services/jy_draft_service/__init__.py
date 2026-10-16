@@ -27,14 +27,26 @@ shim 不可达故不留, 本 __init__ 即转发层):
 """
 from __future__ import annotations
 
-from app.services.jy_draft_service.auto_choreo import _auto_choreograph
+from app.services.jy_draft_service.auto_choreo import (
+    _auto_choreograph as _auto_choreograph,
+)
 from app.services.jy_draft_service.common import (
-    _ANIM_PAIRS,
-    _HF_TEXT_FAMILIES,
-    _TITLE_IN_SOUNDS,
-    _US,
-    _load_manifest,
-    _trange_sec,
+    _ANIM_PAIRS as _ANIM_PAIRS,
+)
+from app.services.jy_draft_service.common import (
+    _HF_TEXT_FAMILIES as _HF_TEXT_FAMILIES,
+)
+from app.services.jy_draft_service.common import (
+    _TITLE_IN_SOUNDS as _TITLE_IN_SOUNDS,
+)
+from app.services.jy_draft_service.common import (
+    _US as _US,
+)
+from app.services.jy_draft_service.common import (
+    _load_manifest as _load_manifest,
+)
+from app.services.jy_draft_service.common import (
+    _trange_sec as _trange_sec,
 )
 from app.services.jy_draft_service.job_draft import export_job_draft
 from app.services.jy_draft_service.ppt_draft import export_ppt_draft
@@ -46,8 +58,12 @@ from app.services.jy_draft_service.ppt_timing import (
     compute_page_timing,
     split_narration,
 )
-from app.services.jy_draft_service.sfx import _probe_duration, attach_sound, sound_path
-from app.services.jy_draft_service.subtitle_style import _CREDIT_BG, _StyledTextSegment
+from app.services.jy_draft_service.sfx import _probe_duration as _probe_duration
+from app.services.jy_draft_service.sfx import attach_sound, sound_path
+from app.services.jy_draft_service.subtitle_style import _CREDIT_BG as _CREDIT_BG
+from app.services.jy_draft_service.subtitle_style import (
+    _StyledTextSegment as _StyledTextSegment,
+)
 from app.services.jy_draft_service.subtitle_text import (
     find_highlight_ranges,
     split_subtitle,
