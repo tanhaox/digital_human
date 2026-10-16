@@ -1895,3 +1895,35 @@ laotan-tech 加【科技版专属约束】（高于通用规则）：
 - **提出时间**: 2026-10-17
 - **描述**: 逐镜独立抽花字时，跨镜句被切断产生残片/错义词——s10/s11 实锤："招完人先挑三"+"个月毛病"本是一句，s10 抽出「挑三」（"挑三个"的残片）。修法：花字提取提示词必须携带前镜尾文+本镜+后镜头文，关键词须是完整语义词且落在音频所说的镜上。
 - **涉及模块**: beats 重写器（rewrite_beats 模板）、scene_writer 花字申报
+
+### ID-102：【军规】弧级花字密度律（已实现）
+
+- **状态**: accepted → 已实现（anim_pipeline/huazi_pass.py，规划收尾自动执行）
+- **优先级**: P1
+- **提出时间**: 2026-10-16
+- **描述**: 花字按弧级提炼（metaphor_core 喂料首选）+ 确定性分配：spoken 锚落镜、同弧去重、相邻让位、全集密度帽 ~1/4.5 镜、text_layer 同词去重。
+- **实现**: app/services/anim_pipeline/huazi_pass.py（enrich_text_route）+ scripts/huazi_arc_pass.py CLI 薄壳
+
+### ID-103：【重构】characters.look 共享 accessor
+
+- **状态**: pending
+- **优先级**: P3
+- **提出时间**: 2026-10-17
+- **描述**: 圣经 characters[].look 被 k2._char_looks / assembler._char_look / r2v 定妆照映射 / h3 工位路由四处各自直读 JSON（语义一致但缓存/守卫不一）。建单一 accessor（带 mtime 守卫），四处改调用。
+- **涉及模块**: k2.py / assembler.py / r2v.py / h3.py
+
+### ID-104：【缺陷】text_layer overlay 桶弃渲的降级链
+
+- **状态**: pending
+- **优先级**: P3
+- **提出时间**: 2026-10-17
+- **描述**: anim_draft._collect_text_events 中 overlay 桶弃渲（0921 用户令，ep6 碎字实锤）——r2v 花字镜的剪映侧降级依赖 hero/impact 桶兜底（W2 已同步保条目）。overlay 桶长期要么恢复受控渲染、要么彻底删桶清数据。
+- **涉及模块**: app/services/anim_draft.py
+
+### ID-105：【缺陷】K2 图-文一致性回流闸
+
+- **状态**: pending
+- **优先级**: P3
+- **提出时间**: 2026-10-17
+- **描述**: VLM 比对 K2 渲染图 vs keyframe 宣称物件，漂移超阈值 → suspect 标记人检（beats_enrich 的"图真锚"已覆盖动作层主收益；本闸覆盖画面内容层：多画了电脑/漏画了道具类漂移）。
+- **涉及模块**: k2.py（render_gated 后）
