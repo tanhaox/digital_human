@@ -9,7 +9,6 @@ erase 与 text_pass 互斥 (erase 会抹掉申报位, 申报镜跳过)。
 """
 from __future__ import annotations
 
-import base64
 import json
 import logging
 import time
