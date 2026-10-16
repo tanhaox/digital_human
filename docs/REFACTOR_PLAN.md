@@ -39,9 +39,9 @@
 
 顺序原则:先零风险文档/清理(B01-B06),再低风险重构(B09-B10,B15-B19),环解类居中(B07-B08,B11-B13),大文件拆分压轴(B20-B21)。
 
-**执行进度** (2026-10-16): B01✅ 681b47c | B02+B04✅ b0ef110 (51项归档+B04随批) | B05✅ ff86a3f | B06✅ 8842abc | B10✅ 51d3ea3 | B19✅ f811130 | B09✅（4 SSE 收编：5d1972e/4fda8a3/48c56c6/f718d40） | B15✅（a21ce02，audio.py 24 处清理） | B16a✅（Wave1-5：5bc2b9b/cb8275e/da4ee6d+cb67c62+b50e4ee+5784ea3/4e73546/c52b580+e66973a，122 文件 283 处+33 alias，app/ I001/F401 归零） | B16b✅（31942e7，DTZ011 5 处全 noqa 本地日语义，0 改 UTC，app/ DTZ011 归零） | B16c✅（0c26284，F841 15+2 连锁处清理：11 删/3 改 _/1 删 as，app/ F841 归零） | B17✅（8aa7578，两处注释固化：ilike Unicode 转义陷阱 + 引号段优先级机理；新发现 library_service:103 同坑留专项） | B07✅（5883a9f，_GPU_JOB_LOCK 抽 gpu_lock.py 单实例，6 处反向引用清零含清单外 style_board:944，互斥冒烟双路径通过）。
+**执行进度** (2026-10-16): B01✅ 681b47c | B02+B04✅ b0ef110 (51项归档+B04随批) | B05✅ ff86a3f | B06✅ 8842abc | B10✅ 51d3ea3 | B19✅ f811130 | B09✅（4 SSE 收编：5d1972e/4fda8a3/48c56c6/f718d40） | B15✅（a21ce02，audio.py 24 处清理） | B16a✅（Wave1-5：5bc2b9b/cb8275e/da4ee6d+cb67c62+b50e4ee+5784ea3/4e73546/c52b580+e66973a，122 文件 283 处+33 alias，app/ I001/F401 归零） | B16b✅（31942e7，DTZ011 5 处全 noqa 本地日语义，0 改 UTC，app/ DTZ011 归零） | B16c✅（0c26284，F841 15+2 连锁处清理：11 删/3 改 _/1 删 as，app/ F841 归零） | B17✅（8aa7578，两处注释固化：ilike Unicode 转义陷阱 + 引号段优先级机理；新发现 library_service:103 同坑留专项） | B07✅（5883a9f，_GPU_JOB_LOCK 抽 gpu_lock.py 单实例，6 处反向引用清零含清单外 style_board:944，互斥冒烟双路径通过） | B08✅（7b9a96c，环#2 解：18 处 _llm/_parse_json 下沉 llm_service + 2 处可选加料改 feeds.py 供给注册（参数注入因连锁弃用），anim→book 归零/book→anim 单向 1）。
 pytest 门槛口径: `tests/ -m "not real_api"` 基线 6 failed/217 passed (6 项均为既有失败: test_module_map×3, test_tts_chunk_semantic×2, test_book_audience_map×1), 全仓裸跑含 _ref_* 第三方 94 收集错不属本计划范围。
-B03 观察期 2026-10-16 起算 ≥1 周后拍板。待执行: B08/B11/B13(环解) → 拍板批 B03/B12/B14/B18/B20/B21。
+B03 观察期 2026-10-16 起算 ≥1 周后拍板。待执行: B11/B13(环解) → 拍板批 B03/B12/B14/B18/B20/B21。
 
 ## 二、批次明细(B01-B21)
 
@@ -220,3 +220,10 @@ B03 观察期 2026-10-16 起算 ≥1 周后拍板。待执行: B08/B11/B13(环�
 | **合计** | **51** | 48 py + 3 数据(体积 ~1.55MB 大头在两条 jsonl) | — |
 
 另 1 项误落文档:docs/improvements/test_input/boosted_backup_dbce2f8e.txt(3882B,0811 boost 战役)随 B04 归位,不计入上表。
+
+
+## Backlog (B 系列执行中产生的观察项)
+
+- anim_service.py 因 B07/B08 外壳职责增加 (锁 alias + 供给注册, 实测 +14 行, 现约 950 行):
+  若累计超 2000 行, 需在 B20/B21 阶段评估拆分 (原预估 B08 参数注入 +30~50 行,
+  实际采用供给注册仅 +11, 拆分阈值短期无虞)。
