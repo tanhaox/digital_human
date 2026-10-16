@@ -21,9 +21,15 @@ logger = logging.getLogger(__name__)
 __all__ = ["load_compliance_map", "sanitize_material", "sanitize_quote_pool"]
 
 _RE_MARK_LINE = re.compile(r"^- 改写[:：]\s*(.+?)\s*→\s*(.+)$", re.M)
-# dir 文本里的成品安全句: 优先「改为"XXX"」后的引号段 (首个引号常是被删原词, 0908 实锤)
+# dir 文本里的成品安全句 — 两个正则为何并存 (优先级是设计, 不是随手排的):
+# 备注行实际形态 `- 改写: 敏感词 → 原词太露, 改为"安全表述"`, 行内首个引号段
+# 常是被删的原词、尾段才是安全句 (0908 某书蒸馏备注实锤)。若直接用任意引号段
+# (_RE_SAFE_IN_DIR) 会把原词误当 safe 向下游传导 — 因此带「改为」锚点的
+# _RE_SAFE_REPL 必须先试, 整段无「改为」时才退回任意引号段兜底。长度窗 8-120
+# 挡住孤词误配。解析对象是蒸馏产出的固定备注格式 (结构约定, 不随合规口径变),
+# 合规口径变更走 合规映射.json 数据通道 (load_compliance_map), 不改这里。
 _RE_SAFE_REPL = re.compile(r"改为[：:]?[“\"]([^”\"]{8,120})[”\"]")
-# dir 文本里的成品安全句: 「改为"XXX"」/「"XXX"」中文引号 ≥8 字
+# 兜底: 无「改为」锚点时的任意引号段 (≥8 字), 语义弱于 _RE_SAFE_REPL
 _RE_SAFE_IN_DIR = re.compile(r"[“\"]([^”\"]{8,120})[”\"]")
 _RE_RULE_LINE = re.compile(r"^- 注意[:：]\s*(.+)$", re.M)
 

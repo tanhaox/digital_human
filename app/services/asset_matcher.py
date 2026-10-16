@@ -231,6 +231,9 @@ def match_local_assets(
         # 永远匹配不到明文 (2026-08-09 根因, 曾致本地碰撞 0 命中)。这两维交给
         # 下方 Python 层精确匹配 (asset_scenes/asset_shots), SQL 只按 keywords
         # (明文 desc_zh/en, tags 英文不转义) 与四维英文值 (extra JSON 不转义) 收窄。
+        # ⚠ 同坑未修: library_service.py:103-114 搜索仍把 scenes/shot_types 纳入
+        # cast(String).ilike — 中文搜索词在这两列静默 0 命中 (2026-10-16 B17 审计
+        # 发现, 修复属行为变化留专项, 勿顺手改)。
         four_val = [(dim, val) for dim, val in (
             ("tone", tone), ("motion_level", motion_level),
             ("content_density", content_density), ("time_of_day", time_of_day),
