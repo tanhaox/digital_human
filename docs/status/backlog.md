@@ -1832,3 +1832,32 @@ laotan-tech 加【科技版专属约束】（高于通用规则）：
 - **描述**: test_module_map×3 / test_tts_chunk_semantic×2 / test_book_audience_map×1，已归因系 2026-10-16 重构前既有（B01 前基线 worktree 实证），属历史债。
 - **动机/背景**: 基线 6 failed / 217 passed 里的全部红项。
 - **涉及模块**: tests/test_module_map.py, tests/test_tts_chunk_semantic.py, tests/test_book_audience_map.py
+
+### ID-095：【军规】全局注入字段禁写具象场景/物件词
+
+- **状态**: accepted（军规，新代码与字段编辑时立即适用；存量清洗待排期）
+- **优先级**: P1（提示词质量族根因级）
+- **提出时间**: 2026-10-16
+- **开发周期**: 立即生效
+- **描述**: 任何书级/全局注入字段（圣经 era_anchor/motion_style、h3 提示词壳常量、风格卡），禁写具体场景名词与物件词（卧室/窗帘/办公室/旗帜/家具/窗景等），只允许性质词（质感/节奏/恒定/干净）；场景内容永远由首帧图 + 画面句（keyframe）单独承担。
+- **动机/背景**: 2026-10-16 ep4 三个同族实锤——① h3 场景锁尾句硬编码 "same room/furniture/window view" 把隐喻外景镜全部框进家居；② AMBIENT_LIFE 例词 "curtains swaying" 教模型画窗帘（同 1012 flags waving 家族）；③ 圣经 motion_style 的 "1940s卧室"（德鲁克特定镜场景词泄漏成全书军规）逐镜注入拉向室内。具象名词在视频模型侧是画物邀请函，与上下文语境解耦后必错。
+- **涉及模块**: app/services/anim_pipeline/h3.py（常量区）、圣经字段编辑、风格卡
+- **存量清单**: h3.py AMBIENT_LIFE/era 锁已修（commit 1b28b49）；圣经 motion_style 已修（_资产/圣经_卓有成效的管理者.json）；其余书圣经与风格卡未排查。
+
+### ID-096：【缺陷】render_gated 硬违禁"恢复上一版"可回写旧设计图
+
+- **状态**: pending（未复发，同族预防性挂账）
+- **优先级**: P3
+- **提出时间**: 2026-10-16
+- **开发周期**: 待定
+- **描述**: k2.render_gated 硬违禁额度用尽时 dest.write_bytes(prev) 恢复旧图——若旧图来自旧设计（keyframe 已重写但 K2 未重跑），静默产出图文脱节镜（与 1016 撞名覆盖同症状）。建议恢复旧图时校验 prev 与现行画面句的对应关系，或恢复后强制打回 planned。
+- **涉及模块**: app/services/anim_pipeline/k2.py
+
+### ID-097：【缺陷】keyframe 重写未连带清 in_image_text/h3_text_event
+
+- **状态**: pending
+- **优先级**: P3
+- **提出时间**: 2026-10-16
+- **开发周期**: 待定
+- **描述**: 场景重写（♻️重规划/fallback）后旧设计提取的 in_image_text 存活并照常入字（ep4 s03 三行林肯时代引文落在天平图上）。建议：keyframe 变更时若画面句无对应引号文本则清空申报字段。
+- **涉及模块**: app/services/anim_pipeline/director2.py、k2.py（二段化提取处）
