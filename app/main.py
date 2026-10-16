@@ -284,10 +284,14 @@ def _auto_cleanup_stale_jobs():
                 db.delete(job)
                 deleted += 1
                 # 同步清理磁盘产物
+                # 例外：本目录是运行期自动重建的临时工作区，非用户数据。
+                # 依据：CLAUDE.md「build/cache 产物可直接删除」例外条款。
+                # 见 docs/REFACTOR_PLAN.md B18 裁量记录。
                 try:
                     comp_dir = Path(cfg.defaults.composition_output_root) / job.id
                     if comp_dir.exists():
                         shutil.rmtree(comp_dir, ignore_errors=True)
+                    # 例外：同上（legacy 旧版导演产物目录，系统自管工作区）。
                     legacy_dir = Path(cfg.defaults.director_output_root) / job.id
                     if legacy_dir.exists():
                         shutil.rmtree(legacy_dir, ignore_errors=True)
@@ -318,6 +322,9 @@ def _auto_cleanup_stale_jobs():
                 # 正在 composing 的 job 状态为 composing/reviewing, 不在此范围, 安全。
                 comp_root = Path(cfg.defaults.composition_output_root) / job.id
                 slots_dir = comp_root / "slots"
+                # 例外：本目录是运行期自动重建的临时工作区（slot 素材中间件），
+                # 非用户数据。依据：CLAUDE.md「build/cache 产物可直接删除」例外条款。
+                # 见 docs/REFACTOR_PLAN.md B18 裁量记录。
                 if slots_dir.exists() and slots_dir.is_dir():
                     try:
                         shutil.rmtree(slots_dir, ignore_errors=True)
@@ -326,6 +333,9 @@ def _auto_cleanup_stale_jobs():
                     except Exception:
                         pass
                 # hf_visual 独立 workspace: <hf_visual_root>/<job_id>/, 与 job 同步回收
+                # 例外：本目录是运行期自动重建的临时工作区，非用户数据。
+                # 依据：CLAUDE.md「build/cache 产物可直接删除」例外条款。
+                # 见 docs/REFACTOR_PLAN.md B18 裁量记录。
                 hf_dir = Path(cfg.defaults.hf_visual_root) / job.id
                 if hf_dir.exists() and hf_dir.is_dir():
                     try:
