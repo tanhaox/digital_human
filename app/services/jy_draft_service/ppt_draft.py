@@ -22,7 +22,10 @@ from app.services.jy_draft_service.common import (
     _trange_sec,
 )
 from app.services.jy_draft_service.sfx import _probe_duration
-from app.services.jy_draft_service.subtitle_text import split_subtitle, wash_subtitle_text
+from app.services.jy_draft_service.subtitle_text import (
+    split_subtitle,
+    wash_subtitle_text,
+)
 
 logger = logging.getLogger(__name__)
 

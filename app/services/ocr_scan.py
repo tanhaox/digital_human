@@ -156,7 +156,6 @@ def ocr_scan_frames(frame_paths: list[Path]) -> dict:
             result["location_hint"] = "domestic"
         return result
 
-    import easyocr
 
     try:
         # 进程级 Reader 单例 (复用, 避免每次调用重复 init)

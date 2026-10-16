@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-
 ORIENTATION_PORTRAIT = "portrait"
 ORIENTATION_LANDSCAPE = "landscape"
 

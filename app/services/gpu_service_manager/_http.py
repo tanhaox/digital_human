@@ -4,7 +4,6 @@ from __future__ import annotations
 import os
 import subprocess
 import urllib.request
-from typing import Any
 
 __all__ = ["http_ok", "port_of", "pids_listening_on", "proc_cmdline"]
 

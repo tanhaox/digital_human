@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Callable
 
 from app.services.alignment_service._models import _ensure_model
 from app.services.director_events import PlanCancelled

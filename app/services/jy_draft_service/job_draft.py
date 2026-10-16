@@ -10,10 +10,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy.orm import Session
-
 import pyJianYingDraft as draft_mod
 from pyJianYingDraft import ClipSettings, TextIntro, Timerange, trange
+from sqlalchemy.orm import Session
 
 from app.models.director import DirectorJob
 from app.services.jy_draft_service.auto_choreo import _auto_choreograph
@@ -27,8 +26,8 @@ from app.services.jy_draft_service.common import (
 )
 from app.services.jy_draft_service.sfx import _probe_duration, attach_sound, sound_path
 from app.services.jy_draft_service.subtitle_style import (
-    _StyledTextSegment,
     _SUBTITLE_COLOR_HF,
+    _StyledTextSegment,
 )
 from app.services.jy_draft_service.subtitle_text import (
     find_highlight_ranges,

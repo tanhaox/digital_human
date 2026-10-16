@@ -76,7 +76,8 @@ def match_entity_bullseye(
         q = q.filter(VideoAsset.orientation == orientation)
     # 冷却调度 (2026-08-28): 靶心通道同守 — 官片也不能短时间内反复
     q = _cooldown_filter(q, 10)
-    from sqlalchemy import String as _S, or_
+    from sqlalchemy import String as _S
+    from sqlalchemy import or_
     like = lambda col, term: col.cast(_S).ilike(f"%{term}%")  # noqa: E731
     conds = []
     match_terms: list[str] = []

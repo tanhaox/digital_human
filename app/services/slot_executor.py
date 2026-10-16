@@ -13,8 +13,8 @@ from sqlalchemy.orm import Session
 
 from app.models import DirectorJob, DirectorSlot
 from app.services.director_events import publish as _evt
-from app.services.director_service import replace_failed_slot, append_trace
 from app.services.director_parser import _best_fallback_workflow
+from app.services.director_service import append_trace, replace_failed_slot
 from app.services.gpu_service_manager import get_gpu_service_manager
 from app.services.slot_workflows import WORKFLOW_HANDLERS
 

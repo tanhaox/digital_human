@@ -19,14 +19,15 @@ os.environ["HF_HUB_OFFLINE"] = "1"
 # Auto-patch tokenizer.json before faster_whisper loads it
 # (adds 1609 Whisper special tokens to fix token_to_id() returning None).
 # 该补丁在 import 时自动执行(幂等), 必须先于 faster_whisper 加载生效.
-from app.services.tokenizer_fix import apply_tokenizer_fix  # noqa: E402,F401  (触发副作用)
-
 from app.services.alignment_service._align import align_script_segments
 from app.services.alignment_service._timings import (
     SegmentTiming,
     align_from_tts_durations,
 )
 from app.services.alignment_service._transcribe import WordSegment
+from app.services.tokenizer_fix import (
+    apply_tokenizer_fix,  # noqa: E402,F401  (触发副作用)
+)
 
 __all__ = [
     "align_script_segments",

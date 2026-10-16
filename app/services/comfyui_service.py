@@ -15,7 +15,9 @@ from typing import Any
 
 import yaml
 
-from app.services.comfyui_client import submit_and_wait  # noqa: F401 — router 经 comfyui_service.submit_and_wait 访问
+from app.services.comfyui_client import (
+    submit_and_wait,  # noqa: F401 — router 经 comfyui_service.submit_and_wait 访问
+)
 
 logger = logging.getLogger(__name__)
 

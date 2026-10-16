@@ -29,9 +29,9 @@ def get_gpu_service_manager() -> GPUServiceManager:
     global _manager
     with _manager_lock:
         if _manager is None:
-            from ...config import get_config
-
             from app.services.gpu_service_manager._specs import build_specs
+
+            from ...config import get_config
 
             raw = get_config().raw
             specs, svc_cfg = build_specs(raw)

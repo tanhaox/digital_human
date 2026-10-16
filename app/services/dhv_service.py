@@ -6,7 +6,6 @@ DB session 由调用方传入; ORM 对象以 Any 标注 (避免顶层依赖 app.
 """
 from __future__ import annotations
 
-import asyncio
 import logging
 import os
 import shutil

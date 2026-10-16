@@ -165,8 +165,9 @@ def extract_master(job_workdir: Path, book_id: str, ep_index: int) -> SeriesSkin
     # 背景平均色 (对比度校验基准)
     bg_avg_hex = "#1a1a1a"
     try:
-        from PIL import Image
         import io as _io
+
+        from PIL import Image
         im = Image.open(_io.BytesIO(base64.b64decode(b64data))).convert("RGB")
         px = im.resize((64, 36)).getdata()
         n = len(px)
