@@ -559,6 +559,7 @@ def rename_book(book_id: str, body: BookRename, db: Session = Depends(get_db)):
     """
     import re as _re
 
+    from app.services.anim_pipeline.covers import _safe_title as _cover_safe
     from app.services.anim_pipeline.covers import book_cover_path
     from app.services.anim_pipeline.shots import _safe as _anim_safe
     from app.services.anim_pipeline.shots import anim_output_root as _anim_root
@@ -631,14 +632,36 @@ def rename_book(book_id: str, body: BookRename, db: Session = Depends(get_db)):
                 it.rename(tgt)
                 anim_moves.append((it, tgt))
 
+    # 三种书名键 (raw / shots._safe / covers._safe_title): 同名文件名空间不同, 全覆盖
+    repl: dict[str, str] = {}
+    for _o, _n in ((old, title), (_anim_safe(old), _anim_safe(title)),
+                   (_cover_safe(old), _cover_safe(title))):
+        if _o and _o != _n:
+            repl[_o] = _n
+
+    def _rename_keyed(tree: Path) -> int:
+        """树内文件名含旧键 → 新键 (still_mp4/wall_scroll 衍生件等, 1018d 实锤)."""
+        keyed = 0
+        if not tree.is_dir():
+            return keyed
+        for it in tree.rglob("*"):
+            if not it.is_file():
+                continue
+            for o in sorted(repl, key=len, reverse=True):
+                if o in it.name:
+                    tgt = it.parent / it.name.replace(o, repl[o])
+                    if not tgt.exists():
+                        it.rename(tgt)
+                        anim_moves.append((it, tgt))
+                        keyed += 1
+                    break
+        return keyed
+
     def _rename_assets(root: Path) -> int:
-        """/_资产 及 风格选型/角色设计 子目录: 名字含旧书名键 → 新名 (raw 与 _safe 两种键)."""
-        repl: dict[str, str] = {}
-        for o, n in ((old, title), (_anim_safe(old), _anim_safe(title))):
-            if o and o != n:
-                repl[o] = n
+        """/_资产(+book_covers/风格选型/角色设计) 子目录: 名字含旧书名键 → 新名."""
         hits = 0
-        for base in (root / "_资产", root / "_资产" / "风格选型", root / "_资产" / "角色设计"):
+        for base in (root / "_资产", root / "_资产" / "风格选型",
+                     root / "_资产" / "角色设计", root / "_资产" / "book_covers"):
             if not base.is_dir():
                 continue
             for it in list(base.iterdir()):
@@ -692,6 +715,8 @@ def rename_book(book_id: str, body: BookRename, db: Session = Depends(get_db)):
                 from send2trash import send2trash
 
                 send2trash(str(old_book_dir))
+        if new_book_dir.is_dir() and _rename_keyed(new_book_dir):
+            moved.append("旧键文件")
         if _rename_assets(anim_root):
             moved.append("动画资产")
         if _rewrite_doc_titles(new_book_dir, anim_root):
@@ -711,10 +736,44 @@ def rename_book(book_id: str, body: BookRename, db: Session = Depends(get_db)):
         logger.warning("[book] 改名动画侧迁移失败 %s → %s: %s", old, title, exc)
         raise HTTPException(500, f"动画产物迁移失败, 已尽力回滚: {exc}") from exc
 
+    # ── ③ 剪映草稿 (1018d): 明文稿双键修路径+目录改名; 加密稿跳过报备 (需重装配) ──
+    import os
+
+    drafts: dict[str, list[str]] = {"patched": [], "encrypted": []}
+    drafts_dir = (Path(os.environ.get("LOCALAPPDATA", "")) / "JianyingPro"
+                  / "User Data" / "Projects" / "com.lveditor.draft")
+    if drafts_dir.is_dir():
+        try:
+            for fold in list(drafts_dir.iterdir()):
+                if not fold.is_dir() or old not in fold.name:
+                    continue
+                content = fold / "draft_content.json"
+                if not (content.exists() and content.read_text(
+                        encoding="utf-8", errors="ignore").lstrip().startswith("{")):
+                    drafts["encrypted"].append(fold.name)  # 剪映加密稿改不了 → 重装配
+                    continue
+                for fname in ("draft_content.json", "draft_meta_info.json"):
+                    fp = fold / fname
+                    if not fp.exists():
+                        continue
+                    raw = fp.read_text(encoding="utf-8")
+                    if any(o in raw for o in repl):
+                        for o in sorted(repl, key=len, reverse=True):
+                            raw = raw.replace(o, repl[o])
+                        fp.write_text(raw, encoding="utf-8")
+                tgt = drafts_dir / fold.name.replace(old, title)
+                if not tgt.exists():
+                    fold.rename(tgt)  # 剪映占用时炸 → 下面兜住, 内容已修
+                drafts["patched"].append(tgt.name)
+        except OSError as exc:  # 剪映开着握句柄等 — 草稿层尽力而为, 不阻断改名
+            logger.warning("[book] 改名剪映草稿迁移未完 %s → %s: %s", old, title, exc)
+
     b.book_title = title
     db.commit()
-    logger.info("[book] 改名 %r → %r, 迁移: %s", old, title, ", ".join(moved) or "无")
-    return {"book_title": title, "moved": moved}
+    logger.info("[book] 改名 %r → %r, 迁移: %s, 草稿: 修%d/密%d",
+                old, title, ", ".join(moved) or "无",
+                len(drafts["patched"]), len(drafts["encrypted"]))
+    return {"book_title": title, "moved": moved, "drafts": drafts}
 
 
 
