@@ -1927,3 +1927,11 @@ laotan-tech 加【科技版专属约束】（高于通用规则）：
 - **提出时间**: 2026-10-17
 - **描述**: VLM 比对 K2 渲染图 vs keyframe 宣称物件，漂移超阈值 → suspect 标记人检（beats_enrich 的"图真锚"已覆盖动作层主收益；本闸覆盖画面内容层：多画了电脑/漏画了道具类漂移）。
 - **涉及模块**: k2.py（render_gated 后）
+
+### ID-106：【能力】判决→书级负词沉淀回路（已实现）
+
+- **状态**: accepted → 已实现（anim_pipeline/neg_learn.py，1017 W5 用户令"多音字同构"）
+- **优先级**: P1
+- **描述**: 图像闸（k2 gate_rejects）与视频闸（video_suspect）判决 → 台账计数（_资产/负词台账_书.json）→ 同族复发 ≥2 → 整族 token 沉淀圣经 `negative_keywords_auto`（系统累积区，与手填 negative_keywords 分离，注入合并、cap 12 族、banked 防重写、mtime 守卫免重启）。
+- **分层纪律**: 系统级=代码常量（_BASE/_FACE/_CROWD/_SHEET/_PORTRAIT_NEG + 平台合规 json，人类图形普适律走 git 发版）；书级=圣经两区（手填主权 + auto 累积）。背身/朝向族已全局（_FACE_NEG 1017）不重复入书。
+- **涉及模块**: neg_learn.py / k2.py（render_gated+bible_negative）/ h3.py（video_suspect）

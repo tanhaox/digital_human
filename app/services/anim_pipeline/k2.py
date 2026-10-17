@@ -287,10 +287,13 @@ def bible_negative(book_title: str) -> str:
         hit = _BIBLE_NEG.get(book_title)
         if hit and hit[0] == mt:
             return hit[1]
-        raw = str(json.loads(p.read_text(encoding="utf-8"))
-                  .get("negative_keywords") or "").strip()
-        parts = [w.strip() for w in raw.replace("，", ",").split(",") if w.strip()]
-        neg = ", ".join(dict.fromkeys(parts))[:300]
+        _b = json.loads(p.read_text(encoding="utf-8"))
+        # 1017 W5: 手填区 (用户主权) + auto 区 (判决沉淀) 合并注入
+        raw = str(_b.get("negative_keywords") or "").strip()
+        raw_auto = str(_b.get("negative_keywords_auto") or "").strip()
+        parts = [w.strip() for w in
+                 (raw + "," + raw_auto).replace("，", ",").split(",") if w.strip()]
+        neg = ", ".join(dict.fromkeys(parts))[:420]
         _BIBLE_NEG[book_title] = (mt, neg)
         return neg
     except Exception:  # noqa: BLE001 — 无圣经/无字段 = 不注入
@@ -585,7 +588,8 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
                                   shot.get("extra_loras"), book_title=doc["book_title"],
                                   page="k2", thesis=_thesis),
         dest, int(shot.get("seed") or 0), f"k2 {shot['shot_id']}", shot=shot,
-        face_check=_person_in(scene_eff, doc["book_title"]))
+        face_check=_person_in(scene_eff, doc["book_title"]),
+        book_title=str(doc.get("book_title") or ""))
     if dirty:
         shot["text_suspect"] = True
     shot["attempts"]["k2"] += 1
@@ -758,7 +762,8 @@ def _vlm_face_bad(png: Path) -> str | None:
 
 def render_gated(seed_to_wf, dest: Path, seed: int, label: str, *, retries: int = 1,
                   shot: dict[str, Any] | None = None,
-                  face_check: bool = False) -> bool:
+                  face_check: bool = False,
+                  book_title: str = "") -> bool:
     """出图 + 违禁守门双道: seed_to_wf(seed) 产工作流; 命中换 seed+1 重掷。
 
     第一道 OCR (真文字, 毫秒级); 第二道 VLM (伪文字/国旗/国徽/地图/政治人物, 秒级)。
@@ -789,6 +794,9 @@ def render_gated(seed_to_wf, dest: Path, seed: int, label: str, *, retries: int 
             gr.append({"reason": str(vbad or fbad or "OCR文字"), "hard": hard,
                        "ts": time.strftime("%Y-%m-%dT%H:%M:%S")})
             del gr[:-8]  # 截尾留 8
+            # 1017 W5: 图像闸判决 → 书级负词沉淀回路 (fail-open)
+            from . import neg_learn
+            neg_learn.record_verdict(book_title, str(vbad or fbad or "OCR文字"))
         if not (vbad or fbad or _ocr_dirty(dest)):
             return False
         logger.warning("[k2] 违禁守门重掷 (%s 第%d次, %s%s)", label, attempt + 1,

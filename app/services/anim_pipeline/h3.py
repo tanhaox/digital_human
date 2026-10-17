@@ -546,6 +546,10 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
     _sus = video_qc.check(dest, shot, doc)
     if _sus:
         shot["video_suspect"] = _sus
+        # 1017 W5: 视频闸判决 → 书级负词沉淀回路 (fail-open)
+        from . import neg_learn
+        neg_learn.record_verdict(str(doc.get("book_title") or ""),
+                                  ",".join(_sus.get("kinds") or []))
         _h = shot.setdefault("qc_rejects", [])
         _h.append({"kind": ",".join(_sus.get("kinds") or []),
                    "what": str(_sus.get("what") or "")[:60],
