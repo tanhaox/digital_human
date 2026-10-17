@@ -22,7 +22,8 @@ the Chinese scene description into ONE fluent English prompt segment. Rules:
 2. OMIT any text/writing/glyph/lettering instructions entirely (this pipeline draws no
    text; if the source mentions text on signs/labels, translate it as a blank surface).
 3. No style words, no quality words, no camera jargon beyond what the source says.
-4. Output ONLY the English translation, no quotes, no explanation."""
+4. Respond in json: {"en": "<English translation>"} — the en value is plain text,
+   no quotes inside, no explanation. (json key fixed as "en")"""
 
 _BOOK_HEAD: dict[str, tuple[str, str]] = {}   # book → (style_head_sha, en)
 _BOOK_TAIL: dict[str, tuple[str, str]] = {}   # book → (style_tail_sha, en)
