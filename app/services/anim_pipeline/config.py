@@ -39,7 +39,9 @@ class LLMConfig:
     # 兜底 (kimi 连接失败/4xx 限流时切)
     fallback_base_url: str = "https://api.deepseek.com"
     fallback_api_key_env: str = "DEEPSEEK_API_KEY"
-    fallback_model: str = "deepseek-chat"
+    # 1017 修: 模型名读 app.yaml deepseek 单一源 (0912 用户令统一 flash 档;
+    # 旧硬编码 deepseek-chat 与平台侧脱节 → 400 实锤), 读不到退 deepseek-flash
+    fallback_model: str = ""
     fallback_max_tokens: int = 8000
 
 
@@ -132,6 +134,16 @@ def load() -> AnimConfig:
         for k in ("db_path", "output_root", "director_prompt_file", "translator_prompt_file"):
             if raw.get(k):
                 setattr(cfg, k, raw[k])
+    # 1017 修: deepseek 兜底模型名注水 — 读 app.yaml deepseek 段单一源
+    # (0912 用户令统一 flash 档); config.json 显式覆盖优先
+    if not cfg.llm.fallback_model:
+        try:
+            from app.config import get_config as _gc
+            _ds = getattr(_gc(), "deepseek", None)
+            cfg.llm.fallback_model = str(
+                getattr(_ds, "model_flash", "") or "deepseek-flash")
+        except Exception:  # noqa: BLE001 — app 配置不可达退 0912 令的 flash
+            cfg.llm.fallback_model = "deepseek-flash"
     return cfg
 
 
