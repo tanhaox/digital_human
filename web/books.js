@@ -80,7 +80,8 @@ function renderBookShell() {
   const b = BOOKS.cur;
   if (!$('book-shell')) return;
   $('book-shell').innerHTML = `
-    <h1><a href="/web/books.html" style="color:#64748b;text-decoration:none">←</a> 《${esc(b.book_title)}》 <span class="badge">${JOB_STATUS[b.status] || b.status}</span></h1>
+    <h1><a href="/web/books.html" style="color:#64748b;text-decoration:none">←</a> 《${esc(b.book_title)}》 <span class="badge">${JOB_STATUS[b.status] || b.status}</span>
+      <button class="sm secondary" style="vertical-align:middle;margin-left:.4rem" onclick="renameBook(this)" title="只改书名 (L0/留档/封面目录同步迁移)">✏️ 改名</button></h1>
     ${flowBarHTML(b.progress)}
     ${nextActionHTML(b.progress && b.progress.next_action)}`;
 }
@@ -519,6 +520,29 @@ async function createBook() {
     toast('创建失败: ' + e.message, 'error');
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = '创建'; }
+  }
+}
+
+// 1018: 改名 — 只改书名; 后端同步迁移 L0蒸馏/拆书留档/封面缓存目录 (防孤岛化), 书库源文件不动
+async function renameBook(btn) {
+  const cur = BOOKS.cur;
+  const t = prompt('更改书名 (磁盘目录同步迁移, 书库源文件不动):', cur.book_title);
+  if (t === null) return;
+  const title = t.trim().replace(/^《+|》+$/g, '').trim();
+  if (!title) return toast('书名不能为空', 'error');
+  if (title === cur.book_title) return toast('书名未变', 'info');
+  if (!confirm(`书名改为《${title}》？`)) return;
+  if (btn) btn.disabled = true;
+  try {
+    const r = await api('/books/' + cur.id + '/rename', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title }),
+    });
+    toast(`已改为《${r.book_title}》` + (r.moved && r.moved.length ? ` · 已迁移: ${r.moved.join('、')}` : ' (无目录需迁移)'), 'success');
+    await loadBook(cur.id);  // 重渲染 shell 标题
+  } catch (e) {
+    toast('改名失败: ' + e.message, 'error');
+    if (btn) btn.disabled = false;
   }
 }
 

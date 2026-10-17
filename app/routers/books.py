@@ -46,6 +46,10 @@ class BookCreate(BaseModel):
     persona_id: str | None = None
 
 
+class BookRename(BaseModel):
+    title: str
+
+
 class EpisodeEdit(BaseModel):
     script_text: str | None = None
     title: str | None = None
@@ -542,6 +546,64 @@ def create_book(body: BookCreate, db: Session = Depends(get_db)):
     _threading.Thread(target=_run_prepare, args=(book.id, book.book_title), daemon=True).start()
     return {"id": book.id, "status": book.status,
             "prep": {"status": "preparing", "step": "l0", "note": "L0/facing 蒸馏中…", "ran": []}}
+
+
+@router.post("/books/{book_id}/rename")
+def rename_book(book_id: str, body: BookRename, db: Session = Depends(get_db)):
+    """改名 (1018 用户令): 只改 book_title, 同步迁移按书名 key 的三处磁盘目录防孤岛化
+    (L0 蒸馏 / 拆书生成留档 / 封面缓存)。书库源文件不动 — 匹配是子串容错。
+    迁移任一步失败 → 回滚已动目录, DB 不动。
+    """
+    import re as _re
+
+    from app.services.anim_pipeline.covers import book_cover_path
+    from app.services.book_service.l0 import _l0_dir
+
+    b = _book_or_404(db, book_id)
+    title = body.title.strip().strip("《》").strip()
+    old = b.book_title
+    if not title:
+        raise HTTPException(400, "书名不能为空")
+    if title == old:
+        return {"book_title": old, "moved": [], "note": "书名未变"}
+    if _re.search(r'[\\/:*?"<>|]', title):
+        raise HTTPException(400, "书名不能含 \\ / : * ? \" < > | 字符")
+    dup = (db.query(BookProject)
+             .filter(BookProject.book_title == title, BookProject.id != book_id).first())
+    if dup:
+        raise HTTPException(409, f"已有同名书《{title}》")
+
+    def _bdir(t: str) -> str:  # 同留档写盘规则 episode_gen.py:1048 _book_dir
+        return _re.sub(r'[\\/:*?"<>|\s]+', "_", t).strip("_") or "unnamed"
+
+    chai_root = Path(__file__).resolve().parents[2] / "outputs" / "拆书"  # 项目根; 留档写盘在 episode_gen.py:1049 (parents[3] 同义)
+    pairs = [(_l0_dir(old), _l0_dir(title), "L0蒸馏"),
+             (chai_root / _bdir(old), chai_root / _bdir(title), "拆书留档"),
+             (book_cover_path(old), book_cover_path(title), "封面缓存")]
+    moved: list[str] = []
+    undo: list[tuple[Path, Path]] = []
+    try:
+        for old_p, new_p, note in pairs:
+            if not old_p.exists():
+                continue
+            if new_p.exists():
+                raise FileExistsError(f"目标已存在: {new_p}")
+            old_p.rename(new_p)
+            undo.append((new_p, old_p))
+            moved.append(note)
+    except OSError as exc:
+        for new_p, old_p in undo:  # 回滚已动目录, DB 不动
+            try:
+                new_p.rename(old_p)
+            except OSError:
+                logger.error("[book] 改名回滚失败, 需手工处理: %s → %s", new_p, old_p)
+        logger.warning("[book] 改名目录迁移失败 %s → %s: %s", old, title, exc)
+        raise HTTPException(500, f"目录迁移失败, 已回滚: {exc}") from exc
+
+    b.book_title = title
+    db.commit()
+    logger.info("[book] 改名 %r → %r, 迁移: %s", old, title, ", ".join(moved) or "无")
+    return {"book_title": title, "moved": moved}
 
 
 @router.get("/books/{book_id}/prep")
