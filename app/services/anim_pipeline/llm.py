@@ -74,7 +74,7 @@ def chat_json(llm: LLMConfig, system: str, user: str) -> dict:
     fb_key = os.environ.get(llm.fallback_api_key_env, "")
     primary_max = getattr(llm, "max_tokens", 16000)
     fallback_max = getattr(llm, "fallback_max_tokens", 8000)
-    qw = _qwen_cfg()
+    # 1017 用户令: qwen 云端到期退役 — 链收为 kimi → deepseek → 本地 qwen36
     last_err: Exception | None = None
     skip_primary = False  # 0916: primary 自己截断 (200 但 JSON 断尾) → 下轮换人
     for attempt in range(2):
@@ -88,22 +88,22 @@ def chat_json(llm: LLMConfig, system: str, user: str) -> dict:
             provider = llm.base_url
         except (httpx.HTTPError, RuntimeError) as exc:
             logger.warning("[llm] kimi 失败切兜底: %s", exc)
-            if qw is not None:
-                try:
-                    raw = _chat_once(qw[0], qw[1], qw[2], system, user, 24000)
-                    provider = qw[0]
-                except (httpx.HTTPError, RuntimeError) as excq:
-                    logger.warning("[llm] qwen 兜底失败切 deepseek: %s", excq)
-                    raw = None
-            if raw is None:
-                if not fb_key:
-                    raise
+            if fb_key:
                 try:
                     raw = _chat_once(llm.fallback_base_url, fb_key, llm.fallback_model,
                                      system, user, fallback_max)
                     provider = llm.fallback_base_url
                 except (httpx.HTTPError, RuntimeError) as exc2:
-                    last_err = exc2
+                    logger.warning("[llm] deepseek 兜底失败: %s", exc2)
+                    raw = None
+            if raw is None:
+                # 1017 用户令: 本地 Qwen3.6-35B 保底 (12348; 拉起过 gpu_mutex,
+                # ComfyUI 占卡拒上卡 → fail-open 由调用方退路)
+                try:
+                    raw = _local_qwen_chat(system, user, primary_max)
+                    provider = "local-qwen36"
+                except (httpx.HTTPError, RuntimeError) as exc3:
+                    last_err = exc3 or exc2
                     continue
         logger.info("[llm] %s 返回 %d 字符 (attempt %d)", provider, len(raw), attempt + 1)
         try:
@@ -114,6 +114,73 @@ def chat_json(llm: LLMConfig, system: str, user: str) -> dict:
                 skip_primary = True  # primary 截断非偶发 (限额档输出上限), 换人
             logger.warning("[llm] JSON 截断/畸形 (char %s), 重试...", getattr(exc, "pos", "?"))
     raise RuntimeError(f"LLM JSON 解析失败两连: {last_err}")
+
+
+# ── 本地 Qwen3.6-35B 保底 (1017 用户令: 云端 qwen 到期退役) ──────────────────
+_LOCAL_QWEN_URL = "http://127.0.0.1:12348"
+_LOCAL_QWEN_MODEL = "qwen36-aggressive"
+
+
+def _local_qwen_alive() -> bool:
+    try:
+        with httpx.Client(timeout=3) as cli:
+            return cli.get(f"{_LOCAL_QWEN_URL}/health").status_code == 200
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def _ensure_local_qwen() -> bool:
+    """本地 35B 在线检查; 离线且显卡空闲则拉起 (ComfyUI 占卡拒上卡)。"""
+    if _local_qwen_alive():
+        return True
+    from app.services.gpu_service_manager._gpu_mutex import comfyui_holds_gpu
+    if comfyui_holds_gpu():
+        logger.warning("[llm] 本地 qwen 保底跳过: ComfyUI 占卡 (独享死命令)")
+        return False
+    import subprocess
+    import time as _t
+    cmd = [
+        r"E:\Llama-cpp-13\llama-server.exe",
+        "-m", r"E:\Llama-cpp\models\Qwen3.6-35B-A3B-Uncensored-HauhauCS-Aggressive-Q5_K_P.gguf",
+        "--alias", "qwen36-aggressive",
+        "--temp", "0.2", "--top-p", "0.95", "--top-k", "20", "--min-p", "0.00",
+        "--port", "12348", "--host", "127.0.0.1",
+        "-ngl", "999", "-c", "32768", "-b", "4096", "-ub", "4096",
+        "-fa", "on", "-ctk", "f16", "-ctv", "f16", "--device", "CUDA0",
+        "--parallel", "1", "--fit", "on", "--fit-target", "4096",
+        "--cache-ram", "6144", "-lv", "1",
+    ]
+    flags = subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
+    subprocess.Popen(cmd, creationflags=flags,
+                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    logger.info("[llm] 本地 qwen36 拉起中 (35B Q5 加载 ~2-5 分钟)…")
+    for _ in range(96):  # 最多等 8 分钟
+        _t.sleep(5)
+        if _local_qwen_alive():
+            logger.info("[llm] 本地 qwen36 就绪 ✓")
+            return True
+    return False
+
+
+def _local_qwen_chat(system: str, user: str, max_tokens: int) -> str:
+    """本地 35B 兜底 (OpenAI 兼容 /v1; 无 response_format — 靠围栏解析)。"""
+    if not _ensure_local_qwen():
+        raise RuntimeError("本地 qwen 不可用 (离线且显卡被占)")
+    with httpx.Client(timeout=600) as cli:
+        r = cli.post(
+            f"{_LOCAL_QWEN_URL}/v1/chat/completions",
+            headers={"Authorization": "Bearer local"},
+            json={"model": _LOCAL_QWEN_MODEL, "temperature": 0.2,
+                  "max_tokens": max_tokens,
+                  "messages": [
+                      {"role": "system", "content": system + "\n输出严格 JSON, 不要多余文字。"},
+                      {"role": "user", "content": user}]})
+    if r.status_code >= 400:
+        raise RuntimeError(f"本地 qwen HTTP {r.status_code}: {r.text[:200]}")
+    content = (r.json().get("choices") or [{}])[0].get("message", {}).get("content")
+    if not content:
+        raise RuntimeError("本地 qwen 空 content")
+    return content
 
 
 def _parse_json(raw: str) -> dict:
