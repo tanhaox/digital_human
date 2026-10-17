@@ -181,7 +181,7 @@ def strip_negative(scene: str, negatives: list[str],
 
 
 def build_prompt(scene_zh: str, book_title: str = "", style: dict | None = None,
-                 page: str = "", thesis: str = "") -> str:
+                 page: str = "", thesis: str = "", lang: str = "zh") -> str:
     """K2 提示词 — Krea2 官方指南范式 (0914 全网学习定稿):
 
     [风格定调句(仅头一次)] + [画面自然语言长句] + [构图升级] + [防字句] + [轻量收尾锚]
@@ -199,6 +199,23 @@ def build_prompt(scene_zh: str, book_title: str = "", style: dict | None = None,
         for k, v in ov.items():
             if v is not None:
                 st[k] = v
+    # 1017 W7 语言架构 (用户令): K2 产线纯英 — lang='en' 时军规/头尾全走 EN 投影
+    # (k2_lang: 翻译层+镜级缓存; 中文单一源字段不动, EN 是渲染投影)
+    if lang == "en":
+        from . import k2_lang as _kl
+        _head = _kl.style_head_en(book_title) or st["style_prompt_head"]
+        _scene = _clean_scene((scene_zh or "").strip().rstrip("。"))
+        if thesis:
+            _scene = _scene + f". Theme anchor: {_kl.thesis_en(book_title, thesis)}"
+        _law = _kl.SKIN_HAIR_LAW_EN if page == "k2" else ""
+        if page == "k2" and _person_in(_scene, book_title):
+            _law += _kl.FACE_LAW_EN
+            _cp = _kl.character_policy_en(book_title)
+            if _cp:
+                _law = _kl.CHAR_POLICY_PREFIX_EN + _cp + _law
+        _boost = "" if page == "character" else _kl.COMPOSITION_BOOST_EN
+        return (_head + _scene + _boost + _kl.PROTECT_TAIL_EN + _law
+                + _kl.style_tail_en(book_title))
     scene = _clean_scene((scene_zh or "").strip().rstrip("。"))
     # 1017 W3: 弧主旨锚 (立意单一源; 组装器只拼不推导)
     if thesis:
@@ -325,7 +342,7 @@ def _negative_prompt(book_title: str = "", page: str = "", scene: str = "") -> s
 def build_workflow(scene_zh: str, seed: int, prefix: str, extra_loras: list[dict[str, Any]] | None = None,
                    book_title: str = "", style: dict | None = None,
                    portrait: bool = False, page: str = "",
-                   thesis: str = "") -> dict[str, Any]:
+                   thesis: str = "", lang: str = "zh") -> dict[str, Any]:
     """2ST 工作流 (API 格式), 节点 ID 对齐 history 真相图. 默认链 = 书级风格配方的 LoRA.
 
     style (0922): 显式配方覆写 (风格选择板试镜 — 库成员/Kimi 提案逐个出样张).
@@ -359,7 +376,7 @@ def build_workflow(scene_zh: str, seed: int, prefix: str, extra_loras: list[dict
         "261": {"class_type": "EmptyLatentImage", "inputs": {
             "width": 720 if portrait else 1280, "height": 1280 if portrait else 720,
             "batch_size": 1}},
-        "264": {"class_type": "CLIPTextEncode", "inputs": {"text": build_prompt(scene_zh, book_title, style=st, page=page, thesis=thesis), "clip": ["258", 0]}},
+        "264": {"class_type": "CLIPTextEncode", "inputs": {"text": build_prompt(scene_zh, book_title, style=st, page=page, thesis=thesis, lang=lang), "clip": ["258", 0]}},
         # 1006 用户令(蓝色皮肤根治): cfg 1.0→2.0 + 真负面提示词替代 ConditioningZeroOut
         # (cfg=1.0 数学上负面通道=零影响力; 2.0 实证蓝→白且伪影少于2.5)
         # 1008 规层 R6: 拼接 platform_bans_negative (compliance_visual.json 单一事实源,
@@ -583,10 +600,13 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
                            shot['shot_id'], _dropped2)
     from .h3 import arc_thesis  # 惰性: h3 顶部引 brand, 避免环
     _thesis = arc_thesis(doc, str(shot.get("arc_id") or ""))
+    # 1017 W7: K2 产线纯英 (用户令) — 组装串过翻译层 (镜级缓存), fail-open 退中文
+    from . import k2_lang
+    _scene_eff_en = k2_lang.ensure_en_prompt(shot, scene_eff)
     dirty = render_gated(
-        lambda sd: build_workflow(scene_eff, sd, prefix,
+        lambda sd: build_workflow(_scene_eff_en, sd, prefix,
                                   shot.get("extra_loras"), book_title=doc["book_title"],
-                                  page="k2", thesis=_thesis),
+                                  page="k2", thesis=_thesis, lang="en"),
         dest, int(shot.get("seed") or 0), f"k2 {shot['shot_id']}", shot=shot,
         face_check=_person_in(scene_eff, doc["book_title"]),
         book_title=str(doc.get("book_title") or ""))
