@@ -153,11 +153,15 @@ def run_face_fix(shot: dict[str, Any], doc: dict[str, Any], base_image: Path) ->
         return None
 
 
-def batch_face_fix(doc: dict[str, Any], only: set[str] | None = None) -> int:
-    """对 img_done 且未修过脸的人物镜批量修脸 (幂等: face_fixed 跳过)。"""
+def batch_face_fix(doc: dict[str, Any], only: set[str] | None = None,
+                   on_shot=None, stop_check=None) -> int:
+    """对 img_done 且未修过脸的人物镜批量修脸 (幂等: face_fixed 跳过)。
+
+    1018 用户令: 修脸改独立相位 (购物篮触发) — on_shot/stop_check 供 job 进度/⛔。
+    """
     from . import k2
     from .shots import ep_dir as _ep_dir
-    n = 0
+    targets = []
     for shot in doc.get("shots") or []:
         if shot.get("face_fixed") or not shot.get("image_file"):
             continue
@@ -167,8 +171,17 @@ def batch_face_fix(doc: dict[str, Any], only: set[str] | None = None) -> int:
         if not k2._person_in(scene, doc.get("book_title") or ""):
             continue
         img = _ep_dir(doc["book_title"], int(doc.get("ep") or 0)) / str(shot.get("image_file"))
-        if img.exists() and run_face_fix(shot, doc, img):
+        if img.exists():
+            targets.append((shot, img))
+    n = 0
+    for shot, img in targets:
+        if stop_check and stop_check():
+            logger.info("[face-fix] ⛔ 停止请求 — 完成 %d/%d 镜", n, len(targets))
+            break
+        if run_face_fix(shot, doc, img):
             n += 1
+        if on_shot:
+            on_shot(str(shot.get("shot_id")), n, len(targets))
     if n:
         logger.info("[face-fix] %d 镜修脸完成", n)
     return n

@@ -13,6 +13,7 @@ const SSE_CLOSED = 2;      // EventSource.CLOSED (用数字常量, node 测试�
 const PHASE_LABEL = {
   plan: '🧭 规划', replan: '🔁 重规划', redo: '♻️ 列队重做',
   k2: '🎨 K2 批生图', h3: '🎬 H3 批生视频', brand: '🏔 品牌卡',
+  facefix: '👤 修脸', textpass: '🔤 压字',
 };
 
 /** 真实 DOM 引用 (测试时由 deps.dom 注入桩对象替代) */

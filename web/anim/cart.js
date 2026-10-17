@@ -51,6 +51,19 @@ function renderBar(st) {
       ? '任务进行中 — 完成或 ⛔停止后再列队'
       : '逐镜 LLM重设计→生图 后停在人检 (✅过审/🔁打回), 不跑视频 — 看过图再决定';
   }
+  // 1018 用户令: 修脸/压字独立按钮 — 四流程各管一层, 不联动 (顺序: 修脸→压字→生视频 自排)
+  const face = bar.querySelector('[data-act="cartFace"]');
+  if (face) {
+    face.disabled = busy;
+    face.title = busy ? '任务进行中 — 完成或 ⛔停止后再修脸'
+      : '勾选镜逐脸局部重绘 (~10-60s/镜, 保构图身份); 已修过/无脸镜自动跳过';
+  }
+  const text = bar.querySelector('[data-act="cartText"]');
+  if (text) {
+    text.disabled = busy;
+    text.title = busy ? '任务进行中 — 完成或 ⛔停止后再压字'
+      : '勾选中申报了图内字的镜写入文字 (~15s/镜); 未申报镜自动跳过 — 建议在生视频前压';
+  }
 }
 
 /**
@@ -102,6 +115,25 @@ export function wireCartActions({ startJob }) {
         + `不跑视频 — 图过目 ✅过审 后再决定生不生; 时间槽/口播/兄弟镜不动。继续?`)) return;
       const sids = cartDump();
       await startJob('/redo-queue', { sids, to_image: true });
+    },
+    // 1018 用户令: 修脸/压字独立流程 — 只对自己这一层负责, 不联动
+    async cartFace() {
+      const n = cartSize();
+      if (!n) { toast('篮是空的 — 先勾选镜头', true); return; }
+      if (!confirm(`👤 修脸 ${n} 镜:\n逐脸局部重绘 (guide 768 / denoise 0.5, 保构图身份)\n`
+        + `~10-60s/镜 · 已修过/无脸镜自动跳过 · 镜间可 ⛔停止\n`
+        + `注意: 建议在压字/生视频之前修 (先修脸后文字, 顺序自排)。继续?`)) return;
+      const sids = cartDump();
+      await startJob('/face-fix', { sids });
+    },
+    async cartText() {
+      const n = cartSize();
+      if (!n) { toast('篮是空的 — 先勾选镜头', true); return; }
+      if (!confirm(`🔤 压字 ${n} 镜:\n申报了图内字的镜把字写进画面 (~15s/镜)\n`
+        + `未申报的镜自动跳过 · 镜间可 ⛔停止\n`
+        + `注意: 建议在生视频之前压 (图内字烧进首帧, 后补无效)。继续?`)) return;
+      const sids = cartDump();
+      await startJob('/text-pass', { sids });
     },
   };
 }

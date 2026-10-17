@@ -8,6 +8,8 @@
   POST /ep/{book_id}/{ep}/approve    人检回填 {ok:[..]|"all", redo:[{sid,note}]} (同步)
   POST /ep/{book_id}/{ep}/h3         H3 批生视频 (job, body: only/retry_failed/reroll)
   POST /ep/{book_id}/{ep}/redo-queue 列队重做 (job, body: sids — 购物篮多镜一条龙)
+  POST /ep/{book_id}/{ep}/face-fix  购物篮修脸 (job, body: sids — 1018 独立相位)
+  POST /ep/{book_id}/{ep}/text-pass 购物篮压字 (job, body: sids — 1018 独立相位)
   POST /ep/{book_id}/{ep}/align      主线口播对齐归真 (同步, body: dry_run)
   POST /ep/{book_id}/{ep}/draft      装配剪映草稿 (同步)
   GET  /ep/{book_id}/{ep}/file/{path}  产物文件 (img/anim/audio/qc_sheet, 防穿越)
@@ -249,6 +251,32 @@ def ep_h3(book_id: str, ep: int, body: H3Body | None = None):
                                         retry_failed=bool(body.retry_failed) if body else False,
                                         reroll=reroll,
                                         reset=bool(body.reset) if body else False)
+    except AnimBusyError as exc:
+        raise _busy(exc)
+    except AnimNotFound as exc:
+        raise _not_found(exc)
+
+
+@router.post("/ep/{book_id}/{ep}/face-fix")
+def ep_face_fix(book_id: str, ep: int, body: RedoBody):
+    """购物篮修脸 (1018 用户令): 勾选镜逐脸局部重绘 — 独立相位, 不联动其他层."""
+    if not body.sids:
+        raise HTTPException(status_code=422, detail="sids 为空")
+    try:
+        return anim_service.start_phase(book_id, ep, "facefix", sids=set(body.sids))
+    except AnimBusyError as exc:
+        raise _busy(exc)
+    except AnimNotFound as exc:
+        raise _not_found(exc)
+
+
+@router.post("/ep/{book_id}/{ep}/text-pass")
+def ep_text_pass(book_id: str, ep: int, body: RedoBody):
+    """购物篮压字 (1018 用户令): 勾选中申报了图内字的镜写入文字 — 独立相位."""
+    if not body.sids:
+        raise HTTPException(status_code=422, detail="sids 为空")
+    try:
+        return anim_service.start_phase(book_id, ep, "textpass", sids=set(body.sids))
     except AnimBusyError as exc:
         raise _busy(exc)
     except AnimNotFound as exc:

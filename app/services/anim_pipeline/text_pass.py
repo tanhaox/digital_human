@@ -199,9 +199,14 @@ def run_text_pass(shot: dict[str, Any], doc: dict[str, Any],
         return None
 
 
-def batch_text_pass(doc: dict[str, Any], only: set[str] | None = None) -> int:
-    """对 doc 中有 in_image_text 的 img_done 镜批量运行入字 pass."""
-    n = 0
+def batch_text_pass(doc: dict[str, Any], only: set[str] | None = None,
+                    on_shot=None, stop_check=None) -> int:
+    """对 doc 中有 in_image_text 的 img_done 镜批量运行入字 pass.
+
+    1018 用户令: 入字改独立相位 (购物篮触发) — on_shot/stop_check 供 job 进度/⛔.
+    """
+    from .shots import ep_dir as _ep_dir
+    targets = []
     for shot in doc.get("shots") or []:
         if not shot.get("in_image_text"):
             continue
@@ -209,16 +214,20 @@ def batch_text_pass(doc: dict[str, Any], only: set[str] | None = None) -> int:
             continue
         if shot.get("text_passed"):
             continue  # 幂等
-        img_path = None
-        # 用 shots_mod 的路径逻辑更稳
-        from .shots import ep_dir as _ep_dir
         img_path = _ep_dir(doc["book_title"], int(doc.get("ep") or 0)) / str(shot.get("image_file") or "")
         if img_path and img_path.exists():
-            result = run_text_pass(shot, doc, img_path)
-            if result:
-                n += 1
+            targets.append((shot, img_path))
         else:
             logger.warning("[text-pass] %s 无图文件, 跳过", shot.get("shot_id"))
+    n = 0
+    for shot, img_path in targets:
+        if stop_check and stop_check():
+            logger.info("[text-pass] ⛔ 停止请求 — 完成 %d/%d 镜", n, len(targets))
+            break
+        if run_text_pass(shot, doc, img_path):
+            n += 1
+        if on_shot:
+            on_shot(str(shot.get("shot_id")), n, len(targets))
     if n:
         logger.info("[text-pass] %d 镜入字完成", n)
     return n

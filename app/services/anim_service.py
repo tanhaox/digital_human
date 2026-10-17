@@ -47,9 +47,11 @@ from app.services.book_service.fandeng_full import load_fandeng_full as _load_ff
 _register_feed("story_section", _load_section)
 _register_feed("fandeng_full", _load_ff)
 
-PHASES = ("plan", "replan", "redo", "k2", "h3", "brand", "enhance")
+PHASES = ("plan", "replan", "redo", "k2", "h3", "brand", "enhance",
+          "facefix", "textpass")
 # redo (列队重做) 含 LLM 段但入 GPU_PHASES: 全程持锁, 与 k2/h3/brand 互斥
-GPU_PHASES = ("redo", "k2", "h3", "brand")
+# 1018 用户令: facefix/textpass (购物篮修脸/压字) 走 ComfyUI — 同入 GPU 互斥群
+GPU_PHASES = ("redo", "k2", "h3", "brand", "facefix", "textpass")
 _LOG_TAIL = 400
 
 _JOBS: dict[str, dict[str, Any]] = {}
@@ -241,6 +243,10 @@ def _run_job(job: dict[str, Any]) -> None:
             _phase_brand(job)
         elif job["phase"] == "enhance":
             _phase_enhance(job)  # 1013 P0: 手动修复相位 (零 GPU, 不走 _phase_gpu)
+        elif job["phase"] == "facefix":
+            _phase_facefix(job)      # 1018: 购物篮修脸 (GPU, 独立不联动)
+        elif job["phase"] == "textpass":
+            _phase_textpass(job)     # 1018: 购物篮压字 (GPU, 独立不联动)
         else:
             _phase_gpu(job)
         with _JOBS_LOCK:
@@ -525,6 +531,47 @@ def _phase_brand(job: dict[str, Any]) -> None:
                 job["book_title"], paths.get("video"))
 
 
+def _pass_job_common(job: dict[str, Any]) -> None:
+    """facefix/textpass 共用骨架: ep 锁 + comfy 会话 + 逐镜进度/停止."""
+    def on_shot(shot_id: str, done: int, total: int) -> None:
+        with _JOBS_LOCK:
+            job["progress"] = {"done": done, "total": total, "current": shot_id}
+        _publish(job["id"], {"type": "anim_progress", "phase": job["phase"],
+                             "shot_id": shot_id, "done": done, "total": total})
+
+    def svc_notify(message: str) -> None:
+        _publish(job["id"], {"type": "anim_service", "message": message})
+
+    with _ep_lock(job["book_id"], job["ep"]):
+        with get_gpu_service_manager().session("comfyui", status_callback=svc_notify):
+            from app.services.anim_pipeline import comfy as comfy_mod
+            comfy_mod.free_memory()  # 相位边界卫生: 卸掉上一相位的模型栈
+            doc = shots_mod.load_doc(job["book_title"], job["ep"])
+            only = job.get("sids")
+            if job["phase"] == "facefix":
+                from app.services.anim_pipeline.face_fix import batch_face_fix
+                n = batch_face_fix(doc, only=only, on_shot=on_shot,
+                                   stop_check=lambda: job["cancel"])
+                key = "fixed"
+            else:
+                from app.services.anim_pipeline.text_pass import batch_text_pass
+                n = batch_text_pass(doc, only=only, on_shot=on_shot,
+                                    stop_check=lambda: job["cancel"])
+                key = "texted"
+            shots_mod.save(doc)
+            job["result"] = {**(job.get("result") or {}), key: n}
+
+
+def _phase_facefix(job: dict[str, Any]) -> None:
+    """1018 用户令: 修脸独立相位 — 购物篮勾选触发, 只对本镜层负责 (不联动)."""
+    _pass_job_common(job)
+
+
+def _phase_textpass(job: dict[str, Any]) -> None:
+    """1018 用户令: 压字独立相位 — 购物篮勾选触发, 只对本镜层负责 (不联动)."""
+    _pass_job_common(job)
+
+
 def _phase_gpu(job: dict[str, Any]) -> None:
     def on_shot(shot_id: str, done: int, total: int) -> None:
         with _JOBS_LOCK:
@@ -601,15 +648,9 @@ def _phase_gpu(job: dict[str, Any]) -> None:
                 if job["phase"] in ("k2", "redo"):
                     res = k2_mod.run_batch(doc, only=job["only"],
                                            on_shot_done=on_shot, stop_check=stop)
-                    # 1015 修脸 pass: K2 出图后逐脸 inpaint (先修脸后入字 — 文字层最后落)
-                    try:
-                        from app.services.anim_pipeline.face_fix import batch_face_fix
-                        doc = shots_mod.load_doc(job["book_title"], job["ep"])
-                        n_face = batch_face_fix(doc, only=job.get("only"))
-                        if n_face:
-                            shots_mod.save(doc)
-                    except Exception as exc:  # noqa: BLE001 — 修脸失败不阻断主链
-                        logger.warning("[face-fix] 批量修脸异常 (不阻断): %s", exc)
+                    # 1018 用户令: 修脸/入字摘出自动链 — 四按钮 (重绘/生视频/修脸/
+                    # 压字) 各管一层不联动; 修脸走 face-fix 相位 (购物篮勾选触发),
+                    # 入字走 text-pass 相位。顺序责任归用户: 修脸 → 压字 → 生视频。
                     # 1015 抹除 pass: 未申报镜的物件先验涂写 → 2511 编辑抹成空白素面
                     try:
                         from app.services.anim_pipeline.erase_pass import (
@@ -621,16 +662,7 @@ def _phase_gpu(job: dict[str, Any]) -> None:
                             shots_mod.save(doc)
                     except Exception as exc:  # noqa: BLE001 — 抹除失败不阻断主链
                         logger.warning("[erase] 批量抹除异常 (不阻断): %s", exc)
-                    # 1014 入字 pass: K2 出图后, 对有 in_image_text 的镜运行 2511 入字
-                    try:
-                        from app.services.anim_pipeline.text_pass import batch_text_pass
-                        doc = shots_mod.load_doc(job["book_title"], job["ep"])
-                        n_txt = batch_text_pass(doc, only=job["only"])
-                        if n_txt:
-                            shots_mod.save(doc)
-                            logger.info("[text-pass] %d 镜入字完成 ✓", n_txt)
-                    except Exception as exc:  # noqa: BLE001 — 入字失败不阻断主链
-                        logger.warning("[text-pass] 批量入字异常 (不阻断): %s", exc)
+                    # 1018 用户令: 入字 pass 同摘出自动链 → text-pass 相位 (购物篮)
                     # 1017 W3 beats_enrich pass: K2 图定稿后多拍化 (图真锚 VLM,
                     # 不可用退画面句; ID-100 锁构图 + 冻结瞬间续写; 失败保单拍)
                     try:
