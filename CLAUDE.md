@@ -14,6 +14,7 @@
    - 已裁量例外：main.py 的 comp/legacy/slots/hf 四目录 rmtree（B18 拍板，见 docs/REFACTOR_PLAN.md B18 条）。
 2. 数据库禁破坏性操作：禁 DROP DATABASE / DROP TABLE / TRUNCATE / 无 WHERE 的 DELETE。
 3. 部署链路：本地 → GitHub → 服务器；禁止直接改服务器。
+4. GPU 独享死命令：ComfyUI 与 llama 互斥独享大卡，禁双 AI 同时上卡（已机制化 gpu_mutex；违者驱动级卡死/批速 1/3 实锤 2026-10-17）。
 
 ## 三、工作流纪律
 
