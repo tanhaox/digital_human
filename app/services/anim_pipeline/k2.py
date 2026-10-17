@@ -250,8 +250,12 @@ _PORTRAIT_NEG = ("big head, oversized head, huge head, chibi proportions, "
 
 # 1014 五官完整性负词 (ep3 s28/s34/s12 实锤: 风格先验渲空白脸/缺嘴脸) — 只挂
 # k2 产线页; character/试渲页字节不变。
+# 1017 朝向负词 (s01/s02 仰面被翻成背朝下实锤, 用户词单): 完整性之外补朝向 —
+# cfg=2.0 真负通道 (1006 用户令), 词直接压失败模式 (背身/后脑勺/180°翻转/解剖扭)。
 _FACE_NEG = ("faceless, blank face, featureless face, empty face, missing facial features, "
-             "no eyes, eyeless, no mouth, missing mouth, missing nose")
+             "no eyes, eyeless, no mouth, missing mouth, missing nose, "
+             "character back only, back of head only, character fully facing away from camera, "
+             "head rotated 180, twisted anatomy, deformed limbs, jagged edges")
 
 
 def _platform_negative() -> str:
