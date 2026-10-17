@@ -2142,6 +2142,12 @@ def plan_shot(book_id: str, book_title: str, ep: int, shot_id: str,
         raise ValueError("导演产出不可解析 (无 keyframe_zh)")
 
     gen = min(span, H3_MAX_SPAN)
+    # 1017 W6 军规闸: writer 产出同过统一执法 (plan_shot 曾无帽产 559 字实锤)
+    from . import ruleset as _rs
+    from . import k2 as _k2
+    kf_zh, _fx = _rs.enforce_keyframe(kf_zh, _k2._person_in(kf_zh, str(doc.get('book_title') or '')))
+    if _fx:
+        logger.info("[ruleset] %s writer 画面句执法: %s", sid, "/".join(_fx))
     s.update({
         "keyframe_zh": kf_zh,
         "keyframe_en": str(d.get("keyframe_en") or "").strip(),
@@ -2828,6 +2834,12 @@ def _build_doc(book_id: str, book_title: str, ep: int, ep_title: str,
             # 兜底仍给 (doc 可组装) 但打标, 调用方见标抛错进 fix_hints 重试网
             _kf_missing = not str(raw.get("keyframe_zh") or "").strip()
             kf_zh = str(raw.get("keyframe_zh") or "").strip() or g_kf
+            # 1017 W6 军规闸: 全量合并口统一执法 (两轨同闸)
+            from . import ruleset as _rs
+            from . import k2 as _k2
+            kf_zh, _fx = _rs.enforce_keyframe(kf_zh, _k2._person_in(kf_zh, str(doc.get("book_title") or "")))
+            if _fx:
+                logger.info("[ruleset] %s 合并口执法: %s", str(raw.get("shot_id") or ""), "/".join(_fx))
             motion_en = str(raw.get("motion_en") or "").strip() or shots_mod.SINGLE_BEAT_FALLBACK
             gen_span = min(round(span, 2), H3_MAX_SPAN)  # H3 配方上限, 超出草稿定格吸收
             shot = {

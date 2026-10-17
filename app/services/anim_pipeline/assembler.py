@@ -602,6 +602,12 @@ def assemble_episode(doc: dict[str, Any], ss: dict[str, Any], bible: dict[str, A
         fa_shot, fa_scene = pair
         wp = arc_world.get(str(shot.get("arc_id") or ""), "")
         prompt = assemble_k2_prompt(shot, fa_shot, fa_scene, bible, world_phrase=wp)
+        # 1017 W6 军规闸: 器层产出同过统一执法 (长度+脸向, ruleset 单一源)
+        from . import ruleset as _rs
+        from . import k2 as _k2
+        _kf, _fx = _rs.enforce_keyframe(prompt, _k2._person_in(prompt, str(doc.get('book_title') or '')))
+        if _fx:
+            prompt = _kf
         shot["image_prompt_zh"] = prompt
         shot["keyframe_zh"] = prompt
         shot["keyframe_en"] = ""  # EN 由 anim.opening_desc 承担, 清旧值防双语漂移
