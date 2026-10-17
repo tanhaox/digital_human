@@ -110,6 +110,17 @@ class ServiceLifecycleMixin:
         # spec.env 是 GPU 钉卡的唯一事实源, 继承链上的钉卡/排序变量一律剥离.
         for leaked in ("CUDA_VISIBLE_DEVICES", "CUDA_DEVICE_ORDER"):
             env.pop(leaked, None)
+        # 1017 根治: 后端进程内 OCR (material_ingest/_new_ocr) 与 tts_verify 会把
+        # .venv 的 pip nvidia 轮子目录 (cudnn 9.25/cu12 系) 前置进 PATH; 子进程
+        # 原样继承后, ComfyUI 自带 cuDNN 9.20(cu130) 缺失的子库从 PATH 捡到异版
+        # → CUDNN_STATUS_SUBLIBRARY_VERSION_MISMATCH, H3 全灭 (实锤 2026-10-17).
+        # 子服务只准用自己的 DLL, 继承链上的 site-packages\nvidia 条目一律剥离.
+        _path = env.get("PATH")
+        if _path:
+            env["PATH"] = os.pathsep.join(
+                p for p in _path.split(os.pathsep)
+                if "site-packages\\nvidia" not in p.replace("/", "\\").lower()
+            )
         env.update(spec.env)
         # 子进程 UTF-8 输出, 避免 fish 的 GBK UnicodeEncodeError
         env.setdefault("PYTHONIOENCODING", "utf-8")
