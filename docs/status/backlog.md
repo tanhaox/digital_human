@@ -1935,3 +1935,21 @@ laotan-tech 加【科技版专属约束】（高于通用规则）：
 - **描述**: 图像闸（k2 gate_rejects）与视频闸（video_suspect）判决 → 台账计数（_资产/负词台账_书.json）→ 同族复发 ≥2 → 整族 token 沉淀圣经 `negative_keywords_auto`（系统累积区，与手填 negative_keywords 分离，注入合并、cap 12 族、banked 防重写、mtime 守卫免重启）。
 - **分层纪律**: 系统级=代码常量（_BASE/_FACE/_CROWD/_SHEET/_PORTRAIT_NEG + 平台合规 json，人类图形普适律走 git 发版）；书级=圣经两区（手填主权 + auto 累积）。背身/朝向族已全局（_FACE_NEG 1017）不重复入书。
 - **涉及模块**: neg_learn.py / k2.py（render_gated+bible_negative）/ h3.py（video_suspect）
+
+### ID-107：【缺陷】bl CLI 面部闸哑火 (WinError 2)
+
+- **状态**: pending
+- **优先级**: P2
+- **提出时间**: 2026-10-18
+- **描述**: K2 面部闸主判 qwen3-vl 走 `bl.cmd` CLI (k2.py:751 shutil.which("bl") 找不到) → `[k2] qwen 面部闸异常: WinError 2 系统找不到指定的文件`, 主判全哑, glm-4v-flash 弱眼力兜底 (fail-open 不阻断)。1018 修脸独立化后主判角色弱化, 但烂脸重掷链 (生图期) 仍依赖它。
+- **动机/背景**: ep5 K2 全程每镜报此警; 修脸已改用户眼检勾选, 但自动重掷烂脸的闸仍应在线。
+- **涉及模块**: k2.py:735-760
+- **备注**: 修法二选一: 装/修 bl CLI 入 PATH; 或主判切现有 VLM 通道 (reverse_prompt_service 同 glm 通道换强模型)。
+
+### ID-108：【质量】case 分区人物配额 LLM 取向偶发
+
+- **状态**: pending
+- **优先级**: P3
+- **提出时间**: 2026-10-18
+- **描述**: ep5 A3 两把同错 "分区人物配额: 场A3[case] 1镜仅0镜有人物 (需≥1)" — case 分区单镜时 deepseek/qwen 倾向物件隐喻, 配额闸整场毙; 续跑重掷手气过 (非死锁)。若复发频繁, 可给 case 分区加人物先验 (分区级提示或寄存器人物注入)。
+- **涉及模块**: director2 (分区配额闸) / scene_writer (分区提示)
