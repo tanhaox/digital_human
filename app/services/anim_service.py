@@ -1019,6 +1019,19 @@ def replan_shot(book_ref: str, ep: int, sid: str) -> dict[str, Any]:
                     target.pop("creative_slots", None)  # 重掷: 清旧槽
                     target.pop("slots_source", None)
                     target.pop("political_flag", None)  # 1010: 新keyframe获新扫描(旧标记残留=K2永久跳过)
+                    # 1017 修 (s03 实锤): 旧格式 text_layer (style 无 kind / 裸字符串)
+                    # 器层免覆写保留原样 → R1 校验必杀 → 槽路线对此类镜永久 422;
+                    # 装配前归一化形状 (style→kind, 字符串条目补桶, 无字条目剔除)
+                    _tl = []
+                    for _x in (target.get("text_layer") or []):
+                        if isinstance(_x, str):
+                            _x = {"kind": "caption", "text": _x.strip()}
+                        if not str(_x.get("text") or "").strip():
+                            continue
+                        if not str(_x.get("kind") or "").strip():
+                            _x["kind"] = str(_x.get("style") or "caption").strip() or "caption"
+                        _tl.append(_x)
+                    target["text_layer"] = _tl
                     doc = cur
                     fill_creative_slots(doc, _ss, only={sid}, bible=bible)
                     assemble_episode(doc, _ss, bible, only={sid})

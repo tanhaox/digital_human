@@ -2147,7 +2147,7 @@ def plan_shot(book_id: str, book_title: str, ep: int, shot_id: str,
     from . import k2 as _k2
     kf_zh, _fx = _rs.enforce_keyframe(kf_zh, _k2._person_in(kf_zh, str(doc.get('book_title') or '')))
     if _fx:
-        logger.info("[ruleset] %s writer 画面句执法: %s", sid, "/".join(_fx))
+        logger.info("[ruleset] %s writer 画面句执法: %s", shot_id, "/".join(_fx))
     s.update({
         "keyframe_zh": kf_zh,
         "keyframe_en": str(d.get("keyframe_en") or "").strip(),
