@@ -124,6 +124,11 @@ def _build_prompt(shot: dict[str, Any], char_names: list[str],
     # 1017 W3: 弧主旨锚 (同 h3 口径, 一行不推导)
     if thesis:
         prompt += f" Narrative anchor: {thesis} — the scene, props and motion all serve this thesis."
+    # 1017 无脸根治: 圣经角色纪律 (逐字取书)
+    from .h3 import character_policy  # 惰性避环
+    _cp = character_policy(book_title)
+    if _cp:
+        prompt += f" Character law (book bible, mandatory): {_cp}"
     from .h3 import motion_style  # 惰性: h3 顶部引 brand, 避免环
     _motion = motion_style(book_title)
     if _motion:

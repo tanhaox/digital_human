@@ -77,8 +77,11 @@ SKIN_HAIR_LAW = CST.skin_fallback() or (
 # 3D C4D 圆润风是残缺脸高发先验, 画面句的面部交代被风格锚压制 — 人物在场时
 # 正向锚 + k2 页负词防线双管 (确定性注入, 零 LLM; 跳过逻辑纯 status 制,
 # 只影响未来渲染, 存量图零扰动)。
+# 1017 无脸根治③: 补朝向 — 旧版只锚完整性, 完整侧脸/背身照样过闸
+# (A1/A3/A4 整弧避脸实锤: krea2 互动姿势默认背镜看道具)
 FACE_LAW = ("。人物面部五官完整清晰：明确的眼睛、鼻子和嘴巴，表情可辨"
-            "（面部绝不空白、不缺五官、不无嘴无眼）；人物完整入画，头顶不被画幅裁切")
+            "（面部绝不空白、不缺五官、不无嘴无眼）；面部朝向镜头方向可见"
+            "（正脸或四分之三侧脸, 不画纯背影/背身剪影）；人物完整入画，头顶不被画幅裁切")
 
 
 def _person_in(scene: str, book_title: str = "") -> bool:
@@ -501,6 +504,12 @@ def _scene_eff(shot: dict[str, Any], book_title: str) -> str:
         return en
     scene = _inject_char_looks(str(shot.get("image_prompt_zh") or ""), book_title)
     scene += main_color_tint(_bible_hue(book_title))  # 1016 W1: 主色尾单源
+    # 1017 无脸根治: 圣经角色纪律进 K2 (逐字取书; 人物镜才挂)
+    if _person_in(scene, book_title):
+        from .h3 import character_policy  # 惰性: h3 顶部引 brand, 避免环
+        _cp = character_policy(book_title)
+        if _cp:
+            scene += f"。角色纪律(书级圣经, 必须遵守): {_cp}"
     return scene
 
 

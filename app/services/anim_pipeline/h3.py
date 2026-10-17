@@ -202,6 +202,31 @@ def _strip_scene_label(s: str) -> str:
     return _SCENE_LABEL_RE.sub("scene: exactly as shown in Picture 1", s)
 
 
+_BIBLE_POLICY: dict[str, tuple[float, str]] = {}  # book_title → (mtime, 角色纪律)
+
+
+def character_policy(book_title: str = "") -> str:
+    """圣经 character_policy 单读口 (1017 无脸根治: 旧版只喂规划 LLM 不进渲染链).
+
+    mtime 守卫同 era_anchor/motion_style — 圣经手改保存即生效。"""
+    if not book_title:
+        return ""
+    try:
+        from .director2 import _bible_cache_path
+        p = _bible_cache_path(book_title)
+        mt = p.stat().st_mtime
+        hit = _BIBLE_POLICY.get(book_title)
+        if hit and hit[0] == mt:
+            return hit[1]
+        raw = str(json.loads(p.read_text(encoding="utf-8"))
+                  .get("character_policy") or "").strip()
+        out = raw[:400]
+        _BIBLE_POLICY[book_title] = (mt, out)
+        return out
+    except Exception:  # noqa: BLE001 — 无圣经/无字段 = 不注入
+        return ""
+
+
 def arc_thesis(doc: dict[str, Any], arc_id: str = "") -> str:
     """弧主旨单读口 (1017 W3, 立意单一源): doc.arcs 的 metaphor_core 优先,
     visual_metaphor 降级 — K2/H3/r2v 各拼一行主旨锚, 组装器不推导。"""
@@ -235,6 +260,11 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
     # 1017 W3: 弧主旨锚 (立意=圣经+弧主旨 单一源, 组装器只拼不推导)
     if thesis:
         lines.append(f"Narrative anchor: {thesis} — the scene, props and motion all serve this thesis.")
+        lines.append("")
+    # 1017 无脸根治: 圣经角色纪律进渲染链 (逐字取书, 组装器不推导)
+    _cp = character_policy(book_title)
+    if _cp:
+        lines.append(f"Character law (book bible, mandatory): {_cp}")
         lines.append("")
     # 1012 场景时代锁 (治风格卡场景越权): 风格锚只管画法, 场景/服饰/环境归时代锚
     # 与 Picture 1。**纯正向锚定** — 禁句里点名禁物 (红旗/灯笼/宫殿), 视频模型会把

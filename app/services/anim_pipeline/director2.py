@@ -3521,6 +3521,12 @@ def collect_warnings(doc: dict[str, Any]) -> list[str]:
     warns += [f"{s['shot_id']} 画面句疑含动作弧措辞 (应描述 t=0 冻结瞬间快照, S3 纪律)"
               for s in shots
               if re.search(r"先是|然后|接着|随后|最后再", str(s.get("keyframe_zh") or ""))]
+    # 1017 无脸根治④: 人物镜画面句缺脸向词 → 软警告 (writer 契约已要求必写)
+    _face_dir = re.compile(r"面向镜头|朝向镜头|回望镜头|正脸|侧脸|面朝")
+    warns += [f"{s['shot_id']} 人物镜画面句缺脸向词 (渲染默认背镜, 1017 无脸根治)"
+              for s in shots
+              if any(w in str(s.get("keyframe_zh") or "") for w in CST.person_words())
+              and not _face_dir.search(str(s.get("keyframe_zh") or ""))]
     # 白名单: 圣经 style_prefix / 配方风格词 (LLM 常把全局风格词带进画面描述, 非真违规)
     wl = set(re.findall(r"[A-Za-z]{3,}", (doc.get("bible") or {}).get("style_prefix") or ""))
     wl |= {"cel", "celanimation", "traditional"}
