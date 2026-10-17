@@ -138,6 +138,7 @@ def _ensure_local_qwen() -> bool:
         logger.warning("[llm] 本地 qwen 保底跳过: ComfyUI 占卡 (独享死命令)")
         return False
     import subprocess
+    import sys as _sys
     import time as _t
     cmd = [
         r"E:\Llama-cpp-13\llama-server.exe",
@@ -150,7 +151,7 @@ def _ensure_local_qwen() -> bool:
         "--parallel", "1", "--fit", "on", "--fit-target", "4096",
         "--cache-ram", "6144", "-lv", "1",
     ]
-    flags = subprocess.CREATE_NEW_PROCESS_GROUP if sys.platform == "win32" else 0
+    flags = subprocess.CREATE_NEW_PROCESS_GROUP if _sys.platform == "win32" else 0
     subprocess.Popen(cmd, creationflags=flags,
                      stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     logger.info("[llm] 本地 qwen36 拉起中 (35B Q5 加载 ~2-5 分钟)…")
