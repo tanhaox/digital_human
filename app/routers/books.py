@@ -653,19 +653,32 @@ def rename_book(book_id: str, body: BookRename, db: Session = Depends(get_db)):
         return hits
 
     def _rewrite_doc_titles(book_dir: Path, root: Path) -> int:
-        """shots.json / 风格board.json 顶层 book_title → 新名 (仅一处; _book_title 历史戳不动)."""
+        """shots.json / 风格board.json: 顶层 book_title + 路径值里的旧书名 → 新名.
+        _book_title 历史戳不动; save 靠 book_title 回写路径, 品牌镜 image/video_file 是
+        ../../_资产/ 相对路径 — 1018c 品牌镜空白实锤. 序列化对齐 shots.save (indent=2)."""
         files = sorted(book_dir.glob("ep*/shots.json"))
         board = root / "_资产" / "风格选型" / _anim_safe(title) / "board.json"
         if board.exists():
             files.append(board)
+
+        def _fix(o, key: str = ""):
+            if isinstance(o, dict):
+                return {k: (v if k == "_book_title" else _fix(v, k)) for k, v in o.items()}
+            if isinstance(o, list):
+                return [_fix(v, key) for v in o]
+            if isinstance(o, str) and old in o and ("/" in o or "\\" in o):
+                return o.replace(old, title)
+            return o
+
         n = 0
         for f in files:
-            raw = f.read_text(encoding="utf-8")
-            for pat in (f'"book_title": "{old}"', f'"book_title":"{old}"'):
-                if raw.count(pat) == 1:
-                    f.write_text(raw.replace(pat, pat.replace(old, title), 1), encoding="utf-8")
-                    n += 1
-                    break
+            doc = json.loads(f.read_text(encoding="utf-8"))
+            doc2 = _fix(doc)
+            if doc.get("book_title") == old:
+                doc2["book_title"] = title
+            if doc2 != doc:
+                f.write_text(json.dumps(doc2, ensure_ascii=False, indent=2), encoding="utf-8")
+                n += 1
         return n
 
     anim_root = _anim_root()
