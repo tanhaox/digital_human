@@ -582,23 +582,22 @@ class LLMService:
 def get_llm_service() -> LLMService:
     """全系统统一 LLM 入口。
 
-    0915 三级链 (用户令): kimi 主力 → qwen (token-plan 套餐, 不用白不用,
-    用完为止 → 套餐耗尽自然落到 deepseek) → deepseek 末位兜底。
-    kimi key 未配置时 qwen 顶主力, 再退 deepseek 单 provider。
+    0915 三级链 (用户令): kimi 主力 → qwen (token-plan 套餐) → deepseek 末位兜底。
+    1017 W8 用户令 (补残): 云端 qwen 到期退役 — 本链收为 kimi → deepseek。
+    W8 当时只退了 anim_pipeline/llm.py 管线链, 本通用链漏改 → plan_scene 等
+    仍兜到 token-plan qwen3.8-max (ep5 分镜实锤)。本地 qwen36 保底只挂管线链
+    (通用链调用方多且杂, 拉 35B 与 ComfyUI 抢卡代价大, 不挂)。
     """
     from ..config import get_config
 
     cfg = get_config()
     fallbacks = []
-    qw = getattr(cfg, "qwen", None)
-    if qw is not None and qw.api_key:
-        fallbacks.append(qw)
     if cfg.deepseek.api_key:
         fallbacks.append(cfg.deepseek)
     if cfg.kimi.api_key:
         return LLMService(cfg.kimi, fallback=fallbacks)
     if fallbacks:
-        return LLMService(fallbacks[0], fallback=fallbacks[1:])
+        return LLMService(fallbacks[0])
     return LLMService(cfg.deepseek)
 
 

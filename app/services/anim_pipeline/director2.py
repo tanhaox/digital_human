@@ -2837,7 +2837,7 @@ def _build_doc(book_id: str, book_title: str, ep: int, ep_title: str,
             # 1017 W6 军规闸: 全量合并口统一执法 (两轨同闸)
             from . import ruleset as _rs
             from . import k2 as _k2
-            kf_zh, _fx = _rs.enforce_keyframe(kf_zh, _k2._person_in(kf_zh, str(doc.get("book_title") or "")))
+            kf_zh, _fx = _rs.enforce_keyframe(kf_zh, _k2._person_in(kf_zh, str(book_title or "")))
             if _fx:
                 logger.info("[ruleset] %s 合并口执法: %s", str(raw.get("shot_id") or ""), "/".join(_fx))
             motion_en = str(raw.get("motion_en") or "").strip() or shots_mod.SINGLE_BEAT_FALLBACK
