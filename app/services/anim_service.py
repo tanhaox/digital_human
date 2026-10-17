@@ -1422,6 +1422,10 @@ def status_view(book_ref: str, ep: int) -> dict[str, Any]:
             # s.writer_source==='fallback' 永假): 写侧契约字段必须同步读侧投影
             "writer_source": s.get("writer_source") or "",
             "in_image_text": s.get("in_image_text") or [],   # 二段式申报 (页面 QC 可见)
+            # 1018 修 (s48 压字"未启动"实锤): 购物篮弹窗前置过滤需要幂等标 —
+            # 已压/已修的镜秒完成零反馈, 用户以为没跑; 读侧补投影
+            "text_passed": bool(s.get("text_passed")),
+            "face_fixed": bool(s.get("face_fixed")),
             "h3_text_event": s.get("h3_text_event") or {},    # H3 事件字 (文字三路由)
             "slots_source": s.get("slots_source"),           # 默认槽降级可见 (同族)
             # 1006 修 (ep1 审阅实锤): [:200] 视图截断误导逐镜细审 ("19/45 断在200"=

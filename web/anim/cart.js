@@ -91,9 +91,9 @@ export const cartDump = () => { const out = [...sel]; sel.clear(); saveSel(); re
 import { toast } from './ui.js';
 
 /**
- * @param {{startJob: Function}} ctx actions.js 组装的共享上下文
+ * @param {{startJob: Function, shot: Function}} ctx actions.js 组装的共享上下端
  */
-export function wireCartActions({ startJob }) {
+export function wireCartActions({ startJob, shot }) {
   return {
     cartClear: () => { cartClear(); toast('篮已清空'); },
     async cartRedo() {
@@ -117,23 +117,34 @@ export function wireCartActions({ startJob }) {
       await startJob('/redo-queue', { sids, to_image: true });
     },
     // 1018 用户令: 修脸/压字独立流程 — 只对自己这一层负责, 不联动
+    // 1018 修 (s48 实锤): 前置过滤已处理/未申报镜 — 否则秒完成零反馈, 用户以为没启动
     async cartFace() {
-      const n = cartSize();
-      if (!n) { toast('篮是空的 — 先勾选镜头', true); return; }
-      if (!confirm(`👤 修脸 ${n} 镜:\n逐脸局部重绘 (guide 768 / denoise 0.5, 保构图身份)\n`
-        + `~10-60s/镜 · 已修过/无脸镜自动跳过 · 镜间可 ⛔停止\n`
+      const sids = [...sel];
+      if (!sids.length) { toast('篮是空的 — 先勾选镜头', true); return; }
+      const cand = sids.filter(sid => {
+        const s = shot(sid);
+        return s && s.image_file && !s.face_fixed;
+      });
+      if (!cand.length) { toast('勾选镜都已修过脸 — 无需再修 (要重修先 ♻️ 重绘换新图)', true); return; }
+      if (!confirm(`👤 修脸 ${cand.length}/${sids.length} 镜:\n逐脸局部重绘 (guide 768 / denoise 0.5, 保构图身份)\n`
+        + `~10-60s/镜 · 无脸镜自动跳过 · 镜间可 ⛔停止\n`
         + `注意: 建议在压字/生视频之前修 (先修脸后文字, 顺序自排)。继续?`)) return;
-      const sids = cartDump();
-      await startJob('/face-fix', { sids });
+      cartDump();
+      await startJob('/face-fix', { sids: cand });
     },
     async cartText() {
-      const n = cartSize();
-      if (!n) { toast('篮是空的 — 先勾选镜头', true); return; }
-      if (!confirm(`🔤 压字 ${n} 镜:\n申报了图内字的镜把字写进画面 (~15s/镜)\n`
+      const sids = [...sel];
+      if (!sids.length) { toast('篮是空的 — 先勾选镜头', true); return; }
+      const elig = sids.filter(sid => {
+        const s = shot(sid);
+        return s && s.image_file && (s.in_image_text || []).length && !s.text_passed;
+      });
+      if (!elig.length) { toast('勾选镜无需压字 — 未申报图内字, 或已压过 (已压的看图验收即可)', true); return; }
+      if (!confirm(`🔤 压字 ${elig.length}/${sids.length} 镜:\n申报了图内字的镜把字写进画面 (~15s/镜)\n`
         + `未申报的镜自动跳过 · 镜间可 ⛔停止\n`
         + `注意: 建议在生视频之前压 (图内字烧进首帧, 后补无效)。继续?`)) return;
-      const sids = cartDump();
-      await startJob('/text-pass', { sids });
+      cartDump();
+      await startJob('/text-pass', { sids: elig });
     },
   };
 }
