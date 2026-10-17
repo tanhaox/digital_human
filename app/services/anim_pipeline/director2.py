@@ -2800,6 +2800,24 @@ def plan_scene(book_id: str, book_title: str, ep: int, arc_id: str,
     return doc
 
 
+def _norm_text_layer(raw_list: Any) -> list[dict[str, Any]]:
+    """LLM text_layer 输出 → R1 合法条目 (kind+text 都在, 无字剔除).
+
+    1017 补 (ep5 A6 s53-56 实锤): 旧归一化只处理裸字符串且不补 kind →
+    R1 文字路由闸按镜整场两连毙。dict 缺 kind 从 style 补, 兜底 caption。
+    """
+    out: list[dict[str, Any]] = []
+    for x in raw_list or []:
+        if isinstance(x, str):
+            if x.strip():
+                out.append({"kind": "caption", "text": x.strip()})
+        elif isinstance(x, dict) and str(x.get("text") or "").strip():
+            if not str(x.get("kind") or "").strip():
+                x = {**x, "kind": str(x.get("style") or "caption").strip() or "caption"}
+            out.append(x)
+    return out
+
+
 def _build_doc(book_id: str, book_title: str, ep: int, ep_title: str,
                data: dict[str, Any], bible: dict[str, Any], *,
                sid_offset: int = 0, gid_offset: int = 0) -> dict[str, Any]:
@@ -2886,9 +2904,9 @@ def _build_doc(book_id: str, book_title: str, ep: int, ep_title: str,
                 },
                 # 1014 修: LLM 偶发把 text_layer 吐成字符串列表 → 下游 t.get("text")
                 # 全线 AttributeError (ep3 A1/A6 各烧一把实锤) — 合并口统一归一化
-                "text_layer": [{"text": str(x)} if isinstance(x, str) else x
-                               for x in (raw.get("text_layer") or [])
-                               if isinstance(x, (str, dict))],
+                # 1017 补 (ep5 A6 s53-56 实锤): 归一化须同时满足 R1 (kind+text 都在) —
+                # 裸字符串补 caption 桶, dict 缺 kind 从 style 补, 无字条目剔除
+                "text_layer": _norm_text_layer(raw.get("text_layer")),
                 # 1015 修 (用户问二段式断链): 合并口此前根本不带 in_image_text —
                 # writer 按 §10b 申报了也被丢 → text_pass 永不触发 + 出口闸误拦申报
                 # 路线 (唯一过闸剩"删文字物件")。归一化 ≤4 行 (契约同源)
