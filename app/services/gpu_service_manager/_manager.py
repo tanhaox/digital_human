@@ -114,6 +114,10 @@ class GPUServiceManager(ServiceLifecycleMixin):
             return
 
         ensure_vpn_quiet(backend)
+        # 1017 用户死命令: ComfyUI 与 llama 只允许独享显卡 — 产线起批前 llama 让位
+        if backend == 'comfyui':
+            from ._gpu_mutex import kill_llama_for_comfyui
+            kill_llama_for_comfyui()
 
         notify = status_callback or (lambda msg: None)
 

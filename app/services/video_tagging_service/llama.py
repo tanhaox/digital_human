@@ -148,6 +148,12 @@ def _ensure_llama_server() -> bool:
     except RuntimeError as exc:
         print(f"[llama] {exc}")
         return False
+    # 1017 用户死命令: ComfyUI 与 llama 只允许独享显卡 — ComfyUI 占卡时
+    # llama 拒绝上卡 (调用方 fail-open 退路: beats_enrich 退画面句锚等)
+    from app.services.gpu_service_manager._gpu_mutex import comfyui_holds_gpu
+    if comfyui_holds_gpu():
+        print("[llama] ComfyUI 占卡中, llama 拒绝上卡 (独享死命令 1017)")
+        return False
 
     with _LLAMA_PROC_LOCK:
         if _is_llama_running():
