@@ -550,13 +550,18 @@ def create_book(body: BookCreate, db: Session = Depends(get_db)):
 
 @router.post("/books/{book_id}/rename")
 def rename_book(book_id: str, body: BookRename, db: Session = Depends(get_db)):
-    """改名 (1018 用户令): 只改 book_title, 同步迁移按书名 key 的三处磁盘目录防孤岛化
-    (L0 蒸馏 / 拆书生成留档 / 封面缓存)。书库源文件不动 — 匹配是子串容错。
-    迁移任一步失败 → 回滚已动目录, DB 不动。
+    """改名 (1018 用户令): 只改 book_title, 同步迁移按书名 key 的磁盘产物防孤岛化.
+
+    覆盖: L0蒸馏 / 拆书留档 / 封面缓存 / 动画ep树(outputs/动画/书名) /
+    _资产(圣经·品牌卡·开场白·角色设计·风格选型·负词台账) / shots.json·board.json
+    顶层 book_title 字段 (save_doc 靠它回写路径)。书库源文件不动 — 匹配是子串容错。
+    ① 简单对失败 → 回滚已动; ② 动画侧失败 → 逆移已动项 (回收站项不逆, 重生成即可)。
     """
     import re as _re
 
     from app.services.anim_pipeline.covers import book_cover_path
+    from app.services.anim_pipeline.shots import _safe as _anim_safe
+    from app.services.anim_pipeline.shots import anim_output_root as _anim_root
     from app.services.book_service.l0 import _l0_dir
 
     b = _book_or_404(db, book_id)
@@ -576,15 +581,17 @@ def rename_book(book_id: str, body: BookRename, db: Session = Depends(get_db)):
     def _bdir(t: str) -> str:  # 同留档写盘规则 episode_gen.py:1048 _book_dir
         return _re.sub(r'[\\/:*?"<>|\s]+', "_", t).strip("_") or "unnamed"
 
-    chai_root = Path(__file__).resolve().parents[2] / "outputs" / "拆书"  # 项目根; 留档写盘在 episode_gen.py:1049 (parents[3] 同义)
-    pairs = [(_l0_dir(old), _l0_dir(title), "L0蒸馏"),
-             (chai_root / _bdir(old), chai_root / _bdir(title), "拆书留档"),
-             (book_cover_path(old), book_cover_path(title), "封面缓存")]
+    chai_root = Path(__file__).resolve().parents[2] / "outputs" / "拆书"  # 项目根; 写盘在 episode_gen.py:1049 (parents[3] 同义)
+
+    # ── ① 简单对: 整目录/文件 rename, 失败全回滚 ──
+    simple = [(_l0_dir(old), _l0_dir(title), "L0蒸馏"),
+              (chai_root / _bdir(old), chai_root / _bdir(title), "拆书留档"),
+              (book_cover_path(old), book_cover_path(title), "封面缓存")]
     moved: list[str] = []
     undo: list[tuple[Path, Path]] = []
     try:
-        for old_p, new_p, note in pairs:
-            if not old_p.exists():
+        for old_p, new_p, note in simple:
+            if not old_p.exists() or old_p == new_p:  # 后者: 仅空格等差异致 safe 名相同
                 continue
             if new_p.exists():
                 raise FileExistsError(f"目标已存在: {new_p}")
@@ -600,10 +607,102 @@ def rename_book(book_id: str, body: BookRename, db: Session = Depends(get_db)):
         logger.warning("[book] 改名目录迁移失败 %s → %s: %s", old, title, exc)
         raise HTTPException(500, f"目录迁移失败, 已回滚: {exc}") from exc
 
+    # ── ② 动画侧 (1018b 补, 首版漏迁致 anim 页全空实锤): ep树合并 + _资产改名 + 文档字段重写 ──
+    anim_moves: list[tuple[Path, Path]] = []
+
+    def _merge_tree(src: Path, dst: Path) -> None:
+        """旧ep树并入新ep树; 同名冲突留 mtime 新的一方, 旧方进回收站."""
+        from send2trash import send2trash
+
+        dst.mkdir(parents=True, exist_ok=True)
+        for it in list(src.iterdir()):
+            tgt = dst / it.name
+            if it.is_dir():
+                if tgt.exists():
+                    _merge_tree(it, tgt)
+                else:
+                    it.rename(tgt)
+                    anim_moves.append((it, tgt))
+            elif tgt.exists() and tgt.stat().st_mtime >= it.stat().st_mtime:
+                send2trash(str(it))
+            else:
+                if tgt.exists():
+                    send2trash(str(tgt))
+                it.rename(tgt)
+                anim_moves.append((it, tgt))
+
+    def _rename_assets(root: Path) -> int:
+        """/_资产 及 风格选型/角色设计 子目录: 名字含旧书名键 → 新名 (raw 与 _safe 两种键)."""
+        repl: dict[str, str] = {}
+        for o, n in ((old, title), (_anim_safe(old), _anim_safe(title))):
+            if o and o != n:
+                repl[o] = n
+        hits = 0
+        for base in (root / "_资产", root / "_资产" / "风格选型", root / "_资产" / "角色设计"):
+            if not base.is_dir():
+                continue
+            for it in list(base.iterdir()):
+                for o in sorted(repl, key=len, reverse=True):
+                    if o in it.name:
+                        tgt = base / it.name.replace(o, repl[o])
+                        if not tgt.exists():
+                            it.rename(tgt)
+                            anim_moves.append((it, tgt))
+                            hits += 1
+                        break
+        return hits
+
+    def _rewrite_doc_titles(book_dir: Path, root: Path) -> int:
+        """shots.json / 风格board.json 顶层 book_title → 新名 (仅一处; _book_title 历史戳不动)."""
+        files = sorted(book_dir.glob("ep*/shots.json"))
+        board = root / "_资产" / "风格选型" / _anim_safe(title) / "board.json"
+        if board.exists():
+            files.append(board)
+        n = 0
+        for f in files:
+            raw = f.read_text(encoding="utf-8")
+            for pat in (f'"book_title": "{old}"', f'"book_title":"{old}"'):
+                if raw.count(pat) == 1:
+                    f.write_text(raw.replace(pat, pat.replace(old, title), 1), encoding="utf-8")
+                    n += 1
+                    break
+        return n
+
+    anim_root = _anim_root()
+    old_book_dir = anim_root / _anim_safe(old)
+    new_book_dir = anim_root / _anim_safe(title)
+    try:
+        if old_book_dir.is_dir() and old_book_dir != new_book_dir:
+            _merge_tree(old_book_dir, new_book_dir)
+            moved.append("动画ep树")
+            if not any(p.is_file() for p in old_book_dir.rglob('*')):  # 只剩空壳 → 整壳回收; 有文件(被占用)留下不阻断
+                from send2trash import send2trash
+
+                send2trash(str(old_book_dir))
+        if _rename_assets(anim_root):
+            moved.append("动画资产")
+        if _rewrite_doc_titles(new_book_dir, anim_root):
+            moved.append("文档字段")
+    except Exception as exc:  # noqa: BLE001 — 逆移是尽力而为, 统一转 500
+        for src_p, dst_p in reversed(anim_moves):
+            try:
+                if dst_p.exists() and not src_p.exists():
+                    dst_p.rename(src_p)
+            except OSError:
+                logger.error("[book] 改名逆移失败, 需手工处理: %s → %s", dst_p, src_p)
+        for new_p, old_p in undo:  # 简单对一并回滚
+            try:
+                new_p.rename(old_p)
+            except OSError:
+                logger.error("[book] 改名回滚失败, 需手工处理: %s → %s", new_p, old_p)
+        logger.warning("[book] 改名动画侧迁移失败 %s → %s: %s", old, title, exc)
+        raise HTTPException(500, f"动画产物迁移失败, 已尽力回滚: {exc}") from exc
+
     b.book_title = title
     db.commit()
     logger.info("[book] 改名 %r → %r, 迁移: %s", old, title, ", ".join(moved) or "无")
     return {"book_title": title, "moved": moved}
+
 
 
 @router.get("/books/{book_id}/prep")
