@@ -428,6 +428,38 @@ def pack_zone_slots(sent_table: list[dict[str, Any]] | None,
         slots.sort(key=lambda s: float(s["t_start"]))
     else:
         slots = _pack_dp(units)
+    # 1017 修 (ep5 A2 s12 1.08s ×2 同错实锤): DP 成本带只覆盖 [1.5,∞), <1.5s 碎槽
+    # 落进 >7.5 平方罚公式 → max(4.5, ~0) = 4.5 反而是"低价" → 确定性切出碎槽,
+    # 而 director2 硬校验 1.5s 地板 (3487) 必杀 → 场级死循环 (LLM 重掷改不了槽)。
+    # 出包口确定性并槽: 碎槽并入相邻非品牌槽 (品牌原子槽不作合并目标, 槽文本
+    # 必须纯品牌句 — tag_brand_cards 定卡契约); 并后 >10s 不并 (保 DP 切点哲学)。
+    def _brand_slot(s: dict[str, Any]) -> bool:
+        return is_brand_text(norm_for_match(str(s.get("text") or "")))
+
+    def _try_merge(k: int) -> bool:
+        """slots[k] 为碎槽时尝试并入相邻非品牌槽; 返回是否发生合并。"""
+        d = float(slots[k]["t_end"]) - float(slots[k]["t_start"])
+        if d >= 1.5 or _brand_slot(slots[k]):
+            return False
+        for nk in (k - 1, k + 1):
+            if not 0 <= nk < len(slots) or _brand_slot(slots[nk]):
+                continue
+            lo = min(float(slots[k]["t_start"]), float(slots[nk]["t_start"]))
+            hi = max(float(slots[k]["t_end"]), float(slots[nk]["t_end"]))
+            if hi - lo > 10.0:
+                continue
+            first, second = sorted((slots[k], slots[nk]), key=lambda x: float(x["t_start"]))
+            slots[nk] = {"t_start": lo, "t_end": hi,
+                         "text": str(first["text"]) + str(second["text"])}
+            del slots[k]
+            return True
+        return False
+
+    k = 0
+    while k < len(slots):
+        if _try_merge(k):
+            continue          # 发生合并 → 原位重查 (新槽可能又邻碎槽)
+        k += 1
     viol = [round(s["t_end"] - s["t_start"], 2) for s in slots
             if not ELASTIC_LO <= s["t_end"] - s["t_start"] <= ELASTIC_HI]
     logger.info("[hook-zone] 窗 [%.1f,%.1f] %d 单元 → %d 槽 (总成本 %.2f)%s",

@@ -2319,6 +2319,23 @@ def plan_scene(book_id: str, book_title: str, ep: int, arc_id: str,
         except Exception as exc:  # noqa: BLE001 — 装包失败走旧 refs 兜底
             logger.warning("[replan] 场 %s 余窗装包失败 (降级 refs): %s",
                            arc["arc_id"], exc)
+    # 1017 修 (ep5 A2 s12 1.08s ×N 实锤): 余窗窗头碎片 = 跨窗句尾 (<1.5s,
+    # 前邻=特区末槽(不同槽表)/后邻常为品牌身份句原子槽, 两头不可并) →
+    # 确定性并回特区末槽 (同句连续音频, 末槽止=窗界的钉是为防隙, 延伸无缝)。
+    # 碎片自身是品牌句则不并 (原子契约); 无特区槽 (场起于 60s 后) 则留原样。
+    if scene_slots and zone_slots:
+        _frag = scene_slots[0]
+        _frag_d = float(_frag["t_end"]) - float(_frag["t_start"])
+        _frag_brand = shots_mod.is_brand_text(
+            shots_mod.norm_for_match(str(_frag.get("text") or "")))
+        _z_last = zone_slots[-1]
+        if (_frag_d < 1.5 and not _frag_brand
+                and abs(float(_z_last["t_end"]) - float(_frag["t_start"])) < 0.35):
+            _z_last["t_end"] = _frag["t_end"]
+            _z_last["text"] = str(_z_last.get("text") or "") + str(_frag.get("text") or "")
+            scene_slots = scene_slots[1:]
+            logger.info("[replan] 场 %s 窗头碎片 %.2fs 并回特区末槽 (尾 %.1fs)",
+                        arc["arc_id"], _frag_d, float(_z_last["t_end"]))
     slot_mode = bool(zone_slots or scene_slots)
     refs_mode = bool(sent_table) and not slot_mode
     refs_block = ""
@@ -3484,7 +3501,10 @@ def validate_doc(doc: dict[str, Any]) -> list[str]:
                           f"{shots[i]['shot_id']}({cur_start:.1f}s)")
     for s in shots:
         dur = float(s["t_end"]) - float(s["t_start"])
-        if dur < 1.5:
+        # 1017 修 (ep5 A2 s12 1.1s ×2 同错实锤): 地板为生成镜设 (H3 最小有效时长);
+        # 品牌卡镜零 GPU 直通插冻结资产, 时长跟口播走 — 1s 级身份句/收官句原子槽
+        # (hook_zone 1004 契约) 不受地板拦, 否则品牌句短的场必死循环
+        if dur < 1.5 and not s.get("brand_card"):
             issues.append(f"{s['shot_id']} 时长 {dur:.1f}s < 1.5s")
         # 超长镜不硬拒: 归真层自动拆镜兜底 (0916 句级细分, 整句包分块 ≤H3上限);
         # 硬拒会与自动拆镜重复执法 → 规划死循环 (LLM 难精确控时长实锤)

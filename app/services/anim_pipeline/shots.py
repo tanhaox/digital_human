@@ -74,11 +74,13 @@ def tag_brand_cards(doc: dict[str, Any]) -> list[str]:
     """
     tagged: list[str] = []
     for s in doc.get("shots") or []:
-        if s.get("brand_card"):
-            continue
-        if is_brand_text(norm_for_match(s.get("narration", ""))):
+        if not s.get("brand_card") and is_brand_text(norm_for_match(s.get("narration", ""))):
             s["brand_card"] = True
             tagged.append(s["shot_id"])
+        if s.get("brand_card") and (s.get("h3_text_event") or {}).get("text"):
+            # 1017 修 (ep5 s13 ×2 同错实锤): 品牌镜直通无渲染通道, writer 偶带
+            # h3_text_event 必踩 R2 硬闸 → 定卡处确定性剥除, 不赌 LLM 记得规则
+            s.pop("h3_text_event", None)
     return tagged
 
 
