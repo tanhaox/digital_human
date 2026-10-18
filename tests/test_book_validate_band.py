@@ -9,6 +9,7 @@ from app.services.book_service.creation_common import (
     RATE_FAST,
     RATE_SLOW,
     SPEECH_RATE,
+    hook_position_issues,
     validate_script,
     word_band,
 )
@@ -101,3 +102,73 @@ def test_word_band_ok_uses_new_band():
     closer = ["字数 1600 超出 1620 (目标300s → 1434-1620)"]  # 假设文案, 只取数字
     assert word_band_ok(closer, base, 300) is True
     assert word_band_ok(base, closer, 300) is False
+
+
+# ── C2 书名错写闸 (1018; fdopen 无书名字段意译《被信任的专业顾问》实锤) ──
+
+_BOOK = "值得信赖的顾问：成为客户心中无可替代的人"
+
+
+def test_bookname_gate_flags_paraphrase():
+    t = _script(1500).replace("字" * 50, "《被信任的专业顾问》" + "字" * 38, 1)
+    issues = validate_script(t, 300, book_title=_BOOK)[1]
+    assert any(i.startswith("书名错写") and "被信任的专业顾问" in i for i in issues)
+
+
+def test_bookname_gate_allows_full_and_main():
+    t = _script(1500).replace("字" * 50, f"《{_BOOK}》主名《值得信赖的顾问》" + "字" * 10, 1)
+    issues = validate_script(t, 300, book_title=_BOOK)[1]
+    assert not [i for i in issues if i.startswith("书名错写")]
+
+
+def test_bookname_gate_tool_name_not_flagged():
+    t = _script(1500).replace("字" * 50, "《付费主体判定表》" + "字" * 36, 1)
+    issues = validate_script(t, 300, book_title=_BOOK)[1]
+    assert not [i for i in issues if i.startswith("书名错写")]
+
+
+# ── C4c 收尾计数收口闸 (1018; ep1 "这7集一集一件工具…第7集装订" 穿透禁令实锤) ──
+
+_TAIL_OK = "下集聊聊：为什么把自己活成百科全书。转给还在硬扛的朋友，这张表能帮他。收藏起来，下次立项前翻出来过一遍。"
+
+
+def _tail_script(tail: str) -> str:
+    t = _script(1500, title=_BOOK)
+    return t[: t.rfind("字")] + tail
+
+
+def test_counting_gate_flags_series_count_wrap():
+    tail = "这7集一集一件工具，完整行动册在第7集装订。\n" + _TAIL_OK
+    issues = validate_script(_tail_script(tail), 300, book_title=_BOOK, require_cta=True)[1]
+    assert any(i.startswith("收尾计数收口") for i in issues)
+
+
+def test_counting_gate_allows_normal_preview_and_cta():
+    issues = validate_script(_tail_script(_TAIL_OK), 300, book_title=_BOOK, require_cta=True)[1]
+    assert not [i for i in issues if i.startswith("收尾计数收口")]
+
+
+def test_counting_gate_finale_exempt():
+    tail = "这套7集拼完了，行动册齐了。\n转给朋友。收藏起来翻出来用。"
+    issues = validate_script(_tail_script(tail), 300, book_title=_BOOK,
+                             require_cta=True, finale=True)[1]
+    assert not [i for i in issues if i.startswith("收尾计数收口")]
+
+
+# ── C4c 黄金三秒钩子落位闸 (1018; ep1 钩子埋 ~25s 实锤, 工具集/收官集适用) ──
+
+_HOOK = "你的方案被毙掉，根本不是因为不专业，而是因为你没拿到信任这张底牌。"
+
+
+def test_hook_position_pass_when_leading():
+    t = "【0-28秒｜钩子】\n" + _HOOK[:20] + "\n" + "字" * 1500 + "\n【28-56秒｜回顾+引入】\n回顾。"
+    assert hook_position_issues(t, _HOOK) == []
+
+
+def test_hook_position_flag_when_buried():
+    t = "【0-28秒｜钩子】\n" + "字" * 200 + "\n" + _HOOK[:20] + "\n【28-56秒｜回顾+引入】\n回顾。"
+    assert any("黄金三秒钩子未落位" in i for i in hook_position_issues(t, _HOOK))
+
+
+def test_hook_position_ep1_exempt_via_empty_ref():
+    assert hook_position_issues("任意稿", "") == []
