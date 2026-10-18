@@ -511,7 +511,8 @@ def validate_script(text: str, target: float, book_title: str = "",
         _m_rev = re.search(r"【\d+-\d+秒｜回顾\+引入】(.*?)(?=【|\Z)", text or "", flags=re.S)
         _rev_seg = _m_rev.group(1) if _m_rev else ""
         _has_itch = (bool(re.search(r"你[^。！？\n]{0,30}？", _rev_seg))
-                     or bool(re.search(r"你身边|你组里|你老板|你是不是|你上次|你是第几|第几年|暗规律|办公室里", _rev_seg)))
+                     or bool(re.search(r"你身边|你组里|你老板|你是不是|你上次|你是第几|第几年|暗规律|办公室里", _rev_seg))
+                     or bool(re.search(r"我(第一次|那年|当年|第[一二三四五六七八九十\d]+年)[^。！？\n]{0,40}(才|才看|明白|看破|练|熬)", _rev_seg)))
         if not _has_itch:
             issues.append("1:30战区缺痒点钩 — 回顾段末须有面向观众的对号问句/断言 "
                           "(对号断言/自曝镜像/时机叩问/反差留白四型; 用户互动决策全在前90s完成)")
