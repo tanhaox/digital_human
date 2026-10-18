@@ -161,8 +161,8 @@ function render() {
             <figcaption><span>横 1920×1080</span>${d.cover_h ? `<a class="dl" href="${d.cover_h}" download="${esc(dlName('横版'))}">下载</a>` : ''}</figcaption>
           </figure>
         </div>
-        <label>红字钩子 <span class="cnt">${d.copy?.cover_sub ? '调取自本集主题' : '调取后自动填入 (取自主题)'}</span></label>
-        <input id="f-sub" value="${esc(d.copy?.cover_sub || '')}" maxlength="26" placeholder="调取后自动填入 (取自本集主题)">
+        <label>红字钩子 <span class="cnt">${d.copy?.cover_sub ? '调取自钩子/主题后段' : '调取后自动填入 (钩子后段优先)'}</span></label>
+        <input id="f-sub" value="${esc(d.copy?.cover_sub || '')}" maxlength="26" placeholder="调取后自动填入 (钩子后段优先)">
         <button class="btn-gold btn-block" onclick="genCovers()" id="btn-cover">生成封面 · 横 + 竖</button>
       </div>
     </div>`;

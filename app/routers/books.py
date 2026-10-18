@@ -1704,11 +1704,20 @@ def publish_card_gen(book_id: str, n: int, body: PublishCardBody,
                     out += cl
             return out.rstrip("，。；、 ") or t[:limit]
 
-        theme = str(rm.get("主题") or "")
-        fallback_sub = _clause2(theme.split("——")[-1].strip()
-                                if "——" in theme else theme, 20) \
-            or _clause2(str(rm.get("黄金三秒钩子") or ep.title), 20)
-        subtitle = (body.sub or "").strip() or fallback_sub
+        # 1018e: 与三件套同链 — 钩子后段 > 主题后段 (剥壳词); 页面编辑框仍最优先
+        _fb = ""
+        for _src in (str(rm.get("黄金三秒钩子") or ""), str(rm.get("主题") or "")):
+            if "——" in _src:
+                _t = _re2.sub(r"^(秘密是|答案是|其实是|其实就是|那就是)", "",
+                              _src.split("——")[-1].strip()).strip(" \'‘’\"“”。.，").strip()
+                if _t:
+                    _fb = _clause2(_t, 20)
+                    break
+        if not _fb:
+            _th = str(rm.get("主题") or "")
+            _fb = _clause2(_th.split("——")[-1].strip() if "——" in _th else _th, 20) \
+                or _clause2(str(rm.get("黄金三秒钩子") or ep.title), 20)
+        subtitle = (body.sub or "").strip() or _fb
         out_dir = _shots.ep_dir(b.book_title, n) / "publish"
         render_covers({"ep_label": f"第{n}集", "main_title": b.book_title,
                        "subtitle": str(subtitle)}, out_dir)
@@ -1743,16 +1752,24 @@ def publish_card_gen(book_id: str, n: int, body: PublishCardBody,
         return out.rstrip("，。；、 ") or t[:limit]
 
     def _cover_sub_from(rm: dict, ep_title: str = "") -> str:
-        """红字正源: 主题破折号后段 (悬念短句质地), ≤20 整用, 超长子句收口."""
+        """红字正源 (1018e 升级): 钩子破折号后段 > 主题破折号后段 > 主题子句收口.
+        旧版只吃主题 = 说明性标签无钩力 (用户令); 后段剥「秘密是」类壳词与引号."""
+        for src in (str(rm.get("黄金三秒钩子") or ""), str(rm.get("主题") or "")):
+            if "——" in src:
+                tail = _re.sub(r"^(秘密是|答案是|其实是|其实就是|那就是)", "",
+                               src.split("——")[-1].strip())
+                tail = tail.strip(" \'‘’\"“”。.，").strip()
+                if tail:
+                    return _clause_fit(tail, 20)
         theme = str(rm.get("主题") or "")
-        sub = theme.split("——")[-1].strip() if "——" in theme else theme.strip()
-        return _clause_fit(sub, 20) or _clause_fit(ep_title, 20)
+        return _clause_fit(theme, 20) or _clause_fit(ep_title, 20)
 
     def _first_sentence(text: str, limit: int = 24) -> str:
         t = _re.split(r"[。！？!?]", str(text or "").strip())[0].strip("，,；;、 ")
         return _clause_fit(t, limit)
 
-    def _opening_desc(script_text: str, limit: int = 122) -> str:
+    def _opening_desc(script_text: str, hook: str = "", title: str = "",
+                      limit: int = 122) -> str:
         """讲稿开场块 → 简介: 剥【】标注/书名句/作者句/悬尾句, 按整行贪心装 +
         固定互动尾 — 行粒度拼装, 不截半句. 开场块=跳过头部标记行后收正文,
         遇下一个【】段标记即止 (不串场); 时间码标记独占成段 (1003 d2ef4c74
@@ -1773,6 +1790,12 @@ def publish_card_gen(book_id: str, n: int, body: PublishCardBody,
                 continue
             started = True
             out_lines.append(ln)
+        # 1018e 去重 (一料一位): 钩子句已当标题, 红字吃后段 — 简介剔除与之
+        # 重叠的行 (归一化前缀匹配) 且限 3 行, 三处不再互为复读机
+        _tbl = str.maketrans("", "", " \t'‘’\"“”.,，。;；:：!！?？-—…·()（）[]【】")
+        _ref = str(hook or "").translate(_tbl) + "|" + str(title or "").translate(_tbl)
+        out_lines = [ln for ln in out_lines
+                     if not (ln.translate(_tbl)[:10] and ln.translate(_tbl)[:10] in _ref)][:3]
         out = ""
         for ln in out_lines:
             if len(out) + len(ln) > limit - 6:  # 留互动尾空间
@@ -1787,7 +1810,8 @@ def publish_card_gen(book_id: str, n: int, body: PublishCardBody,
     # 红字 = 主题破折号后段, 子句收口不截词 (covers 兜底同源 _cover_sub_from)
     cover_sub = _cover_sub_from(rm, ep.title)
     # 简介 = 讲稿开场块直出
-    desc = _opening_desc(ep.script_text)
+    desc = _opening_desc(ep.script_text, hook=str(rm.get("黄金三秒钩子") or ""),
+                         title=title)
     # 标签 = 固定五件套 (1005 用户令: 全集完全一致, 品牌 tag 常驻 — 语义纯度
     # 靠口播全文, tag 求零成本一致性): 书名短名 + 品类三常驻 + 老谭读书会
     def _short_title(t: str) -> str:
@@ -1797,12 +1821,39 @@ def publish_card_gen(book_id: str, n: int, body: PublishCardBody,
                                       "商业思维", "读书", "老谭读书会"]) if t][:5]
     # 评论引导 (1005 用户令: 发布卡新区域, 每集一条 — 程序调取零 LLM):
     # 正源 = 主题 + 钩子句原文, 模板只包壳; 置顶评/首评直接复制用
+    # 1018e 升级 (一料一位): 主题/钩子已住标题+红字, 此处不再复读 —
+    # 秘籍首次入位 (此前三件套无家) + 讲稿自带互动句 > 通用兜底
+    _tool = _re.split("[（(]", str(rm.get("本集秘籍") or ""))[0].strip()
+    # 互动句三级: ①问句(≥8字, 「你站哪边？」类短问弃用) ②自查句(可。结尾)
+    # ③通用兜底 — 报到/续集向句子永不入位置顶评 (ep4/ep6 实锤)
+    _lines = [ln.strip() for ln in str(ep.script_text or "").split("\n")
+              if ln.strip() and not ln.strip().startswith("【")
+              and ("评论区" in ln or "自查" in ln or "留言" in ln)]
+    _q = ""
+    for ln in _lines:  # ① 问句
+        if "？" not in ln and "?" not in ln:
+            continue
+        _c = _re.sub(r"^(先?自查[：:]?\s*)", "",
+                     _re.split("(?<=[？?])", ln)[0]).strip().rstrip("。.，；; ")
+        if len(_c) >= 8:
+            _q = _c if _c.endswith(("？", "?")) else _c + "？"
+            break
+    if not _q:  # ② 自查句 (。结尾也收, ep4 实锤)
+        for ln in _lines:
+            if "自查" not in ln:
+                continue
+            _c = _re.sub(r"^(先?自查[：:]?\s*)", "",
+                         _re.split("[。！？!?]", ln)[0]).strip()
+            if len(_c) >= 8:
+                _q = _c
+                break
+    if not _q:  # ③ 通用兜底
+        _q = "你遇到过这种情况吗？当时怎么处理的？"
     _cue = []
-    if str(rm.get("主题") or "").strip():
-        _cue.append(f"📌 本期话题：{str(rm.get('主题')).strip()}")
-    if str(rm.get("黄金三秒钩子") or "").strip():
-        _cue.append(f"「{str(rm.get('黄金三秒钩子')).strip()}」")
-    _cue.append("你遇到过这种情况吗？当时怎么处理的？评论区聊聊👇")
+    if _tool:
+        _cue.append(f"📌 本期工具：{_tool}")
+    _cue.append(_q)
+    _cue.append("工具细节看视频，收藏备用👇" if _tool else "评论区聊聊👇")
     comment_cue = "\n".join(_cue)
     if not title or not desc:
         raise HTTPException(422, "大纲/讲稿数据不全, 调取失败 — 检查本集大纲与讲稿")
