@@ -1227,45 +1227,6 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
                     and not _zh_brand_issues(retry, book.book_title):
                 out = retry
                 logger.info("[book] 品牌闸优先: 重试稿(含中国品牌)替换首稿(零品牌)")
-            # 0913 压缩pass (⑦): 二次仍只剩"字数超出"一类问题 → 定向压缩 (只删不改),
-            # 禁全文重写碰运气 — 删连接词/重复修饰/最弱的钉, 目标=字数带中值
-            _only_over = issues2 and all("超出" in i for i in issues2)
-            if _only_over:
-                _wb7 = word_band(float(ep.target_duration_sec or 300))
-                _tgt7 = (_wb7[0] + _wb7[1]) // 2
-                try:
-                    # 1009 P5 (设计§七): 先走行级 patch — 未动行由代码逐字保留
-                    # (段落标签/coverage JSON 零漂移是构造保证), 失败回退全稿重写
-                    comp = _llm().edit_patch(
-                        out,
-                        "你是口播稿压缩师。只删不改: 删连接词/重复修饰/最弱的书证钉,"
-                        "禁新增任何内容, 禁改判断与结构, 保留全部段落标签与coverage JSON。"
-                        f"把稿压到 ≤{_tgt7}字 (现超带) — 用删行 (空串) 与整行压缩达成。",
-                        "", model="pro", max_tokens=3000, tag="epgen:compress")
-                    if comp is None:
-                        comp = _llm().chat(
-                            "你是口播稿压缩师。只删不改: 删连接词/重复修饰/最弱的书证钉,"
-                            "禁新增任何内容, 禁改判断与结构, 保留全部段落标签与coverage JSON。"
-                            f"把稿压到 ≤{_tgt7}字 (现超带)。直接输出压缩后全稿。",
-                            out, model="pro", temperature=0.3, tag="epgen:compress")
-                    comp = (comp or "").strip()
-                    c_ok, c_issues = validate_script(comp, ep.target_duration_sec,
-                                                     book_title=book.book_title,
-                                                     require_cta=_req_cta)
-                    _flow_c = section_flow_issues(comp, book_title=book.book_title, ep_index=ep.ep_index,
-                                                 flow_check=_is_tool_ep)                         + fandeng_opening_issues(comp, _fd_open_paras)
-                    if comp and c_ok and not _flow_c and not _scan_occult_quotes(comp):
-                        out = comp
-                        logger.info("[book] ep%d 压缩pass通过: %d→%d字",
-                                    ep.ep_index, len(out), len(comp))
-                        try:
-                            (_gen_dir / "05b_compressed.txt").write_text(comp, encoding="utf-8")
-                        except Exception:
-                            pass
-                    else:
-                        logger.warning("[book] ep%d 压缩pass未过: %s", ep.ep_index, c_issues)
-                except Exception as _exc7:
-                    logger.warning("[book] ep%d 压缩pass异常: %s", ep.ep_index, _exc7)
 
     # 0926 品牌注入 pass (硬核层终局兜底): 首稿+重试双双零中国品牌时 (ep2 第四连实锤
     # — 重试是单掷, 修了字数丢了品牌是采样方差), 定向微注射而非全文重写:
@@ -1415,6 +1376,59 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
                                ep.ep_index, _cta_new)
         except Exception as _exc11:  # noqa: BLE001
             logger.warning("[book] ep%d CTA 追加 pass 异常: %s", ep.ep_index, _exc11)
+    # 1018 C1c 压缩pass重定位 (R3a, 北斗星4裁决序): 从重试else分支移出 — 旧位触发
+    # 要求重试稿"只剩字数族" (多病族永不触发), 且验收 require_cta 全过但指令"禁新增"
+    # 无法补CTA = DOA。新位=CTA之后/去重之前 (先加后删, 删时CTA已在稿内受保护);
+    # 触发放宽为"当前稿出软带即压"; 验收=字数落带(或距带更近)+病族不新增
+    # (require_cta=False — CTA 缺失归 CTA pass 管, 压缩只删不加不背别家的闸)。
+    _cpr_base = passes_mod.snap_issues(passes_mod.snapshot(
+        out, target=ep.target_duration_sec, book_title=book.book_title,
+        require_cta=False, ep_index=ep.ep_index, flow_check=_is_tool_ep, figure=_figure,
+        include=("validate", "flow", "fig")))
+    _cpr_wc = next((i for i in _cpr_base if i.startswith("字数")), "")
+    if ("超出" in _cpr_wc or "超硬线" in _cpr_wc):
+        _wb7 = word_band(float(ep.target_duration_sec or 300))
+        _tgt7 = (_wb7[0] + _wb7[1]) // 2
+        try:
+            # 1009 P5 (设计§七): 先走行级 patch — 未动行由代码逐字保留
+            # (段落标签/coverage JSON 零漂移是构造保证), 失败回退全稿重写
+            comp = _llm().edit_patch(
+                out,
+                "你是口播稿压缩师。只删不改, 按可牺牲度从高到低删 (六层裁决序链底向上): "
+                "人设修饰(口头禅/自指) → 案例次要细节(保主案例骨架) → 趣味修饰/连接词; "
+                "禁删: 黄金三秒钩子断言、转发/收藏CTA、讲解骨架(立论/判定/步骤)、"
+                "⟦⟧原话、段落标签、数字锚(年份/倍数/百分比)。"
+                f"把稿压到 ≤{_tgt7}字 (现超软带)。删行用空串或整行压缩, 禁新增任何内容。",
+                "", model="pro", max_tokens=3000, tag="epgen:compress")
+            if comp is None:
+                comp = _llm().chat(
+                    "你是口播稿压缩师。只删不改, 按可牺牲度从高到低删: 人设修饰 → "
+                    "案例次要细节 → 趣味修饰/连接词; 禁删: 钩子断言、转发/收藏CTA、"
+                    "讲解骨架、⟦⟧原话、段落标签、数字锚。"
+                    f"把稿压到 ≤{_tgt7}字 (现超软带)。直接输出压缩后全稿。",
+                    out, model="pro", temperature=0.3, tag="epgen:compress")
+            comp = (comp or "").strip()
+            _cpr_after = passes_mod.snap_issues(passes_mod.snapshot(
+                comp, target=ep.target_duration_sec, book_title=book.book_title,
+                require_cta=False, ep_index=ep.ep_index, flow_check=_is_tool_ep, figure=_figure,
+                include=("validate", "flow", "fig")))
+            _cpr_new = passes_mod.family_new(_cpr_after, _cpr_base)
+            _cpr_over_left = any(("超出" in i or "超硬线" in i) for i in _cpr_after if i.startswith("字数"))
+            _cpr_in = (not any(i.startswith("字数") for i in _cpr_after)
+                       or passes_mod.word_band_ok(_cpr_after, _cpr_base, ep.target_duration_sec))
+            if comp and _cpr_in and not _cpr_new and not _scan_occult_quotes(comp):
+                out = comp
+                logger.info("[book] ep%d 压缩pass ✓ (落带/距带更近, 病族不增)", ep.ep_index)
+                try:
+                    (_gen_dir / "05b_compressed.txt").write_text(comp, encoding="utf-8")
+                except Exception:
+                    pass
+            else:
+                logger.warning("[book] ep%d 压缩pass 未过 (字数仍出带=%s, 新病族=%s), 人闸留意",
+                               ep.ep_index, _cpr_over_left, _cpr_new)
+        except Exception as _exc7:
+            logger.warning("[book] ep%d 压缩pass 异常: %s", ep.ep_index, _exc7)
+
     _dedup_trig = [i for i in _fx_base if any(k in i for k in ("系列句", "复读段", "车轱辘话", "贯穿人物"))]
     if _is_laotan and _dedup_trig:
         try:
