@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from pathlib import Path
 
 from sqlalchemy.orm import Session
 
@@ -748,13 +749,21 @@ def build_book_cases(book: BookProject, *, force: bool = False) -> list[str]:
                        .get("L1", {}).get("reader", ""))[:120]
         except Exception:  # noqa: BLE001 — 受众字段形态漂移只弃锚不弃库
             _aud = ""
+        # 1019 黑名单配置化: config/brand_blacklist.txt (一行一品牌) — 用户口述追加即生效
+        try:
+            _bl = (Path(__file__).resolve().parents[3] / "config" / "brand_blacklist.txt")
+            _banned = "、".join(l.strip() for l in _bl.read_text(encoding="utf-8").splitlines()
+                                if l.strip() and not l.strip().startswith("#"))
+        except Exception:  # noqa: BLE001 — 缺文件回退硬底线
+            _banned = ""
+        _banned = _banned or "联想"
         sys_p = (
             "你是拆书稿创作系统的本书案例库模块。为这本拆书系列定制 12-15 条中国企业案例, "
             "筛选铁律 (1019 用户令): ①只收 **A股或港股上市公司** (沪深京港交易所 — 美股/未上市不收; "
             "唯一特例: 华为, 未上市但用户钦点); ②必须是该行业**绝对龙头** (市占率/规模公认 No.1, "
             "老二老三不收, 中兴通讯式跟随者剔除); ③行业覆盖分散, 禁同行业双条 (含细分重叠: "
             "海尔/格力同属家电只收其一, 汇川/中控同属工业自动化只收其一); "
-            "④用户黑名单品牌不收: 联想; "
+            f"④用户黑名单品牌不收: {_banned}; "
             "⑤案例时间铁律 (1019 北斗星第8条): 只用 **2010年前** 且有大量公开报道沉淀的事件 — "
             "2011+ 一律不收, era 字段须 ≤2010; facts 禁编撰 (AI幻觉故事=废条), 只写公开报道反复 "
             "沉淀过的公知骨架 (万科债务/药明康德法案类 2024+ 风波更不收)。"
