@@ -1460,7 +1460,10 @@ def edit_episode(book_id: str, n: int, body: EpisodeEdit, db: Session = Depends(
         try:
             from app.models.roles import Persona
             from app.services.book_service import passes as _passes
-            from app.services.book_service.episode_gen import _story_dup_issues
+            from app.services.book_service.episode_gen import (
+                _coverage_dup_issues,
+                _story_dup_issues,
+            )
             _total = len(ep.book.episodes) or 6
             _pid = (ep.book.input_json or {}).get("persona_id")
             _p = db.query(Persona).filter(Persona.id == _pid).first() if _pid else None
@@ -1478,6 +1481,7 @@ def edit_episode(book_id: str, n: int, body: EpisodeEdit, db: Session = Depends(
             # 1019 排重令③: 修稿复检同规补排重闸 — 否则人改稿触发的问题单刷新会
             # 洗掉阻断标记, 确认闸被绕过 (复检视野不含生成时闸, 须重算)
             relint_issues += _story_dup_issues(ep.book, ep, ep.script_text or "")
+            relint_issues += _coverage_dup_issues(ep.book, ep)
             _rm = dict(ep.roadmap_json or {})
             _rm["_issues"] = relint_issues if relint_issues else []
             _rm.setdefault("_checks", {})

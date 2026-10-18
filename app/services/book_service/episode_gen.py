@@ -204,6 +204,80 @@ def _drop_used_stories(text: str, used_in: str, noise: str = "") -> tuple[str, l
     return "\n\n".join(keep), dropped
 
 
+# 1019 coverage 模糊查重 (梅斯特被解雇×3集实锤 — 故事库锚词 fail-open 条目的兜底网):
+# 自报知识点两两比 bigram 交集 (≥4 ≈ 3字连续重合), 概念型豁免 (含总纲概念词即算概念),
+# 品牌名单命中一条即算; 命中 → 工具集阻断 / 头尾集提示 (前缀复用确认闸的抓取词)
+_COV_STRIP = ("公开报道", "公开资料", "当年", "早期", "对外披露", "案例", "教训",
+              "故事", "启示", "例子", "原书锚句", "原书直引", "五步转型",
+              "系列行动册")  # 五步转型第N件/步=系列脚手架, 各集合法携带
+
+
+def _coverage_dup_issues(book: BookProject, ep: Episode) -> list[str]:
+    out: list[str] = []
+    try:
+        cov = [str(c) for c in (ep.coverage_json or [])]
+        if not cov:
+            return out
+        sib = {e2.ep_index: [str(c) for c in (e2.coverage_json or [])]
+               for e2 in book.episodes
+               if e2.ep_index != ep.ep_index and (e2.coverage_json or [])}
+        if not sib:
+            return out
+        concepts = [str(c) for e2 in book.episodes
+                    for c in ((e2.roadmap_json or {}).get("概念") or []) if len(str(c)) >= 3]
+        brands: set[str] = set()
+        try:
+            from app.services.book_service.l0 import _l0_dir as _l0d3
+            for _cp in (_l0d3(book.book_title) / "案例库-本书.json",
+                        _l0d3(book.book_title).parent / "案例库.json"):
+                if _cp.exists():
+                    for c in (json.loads(_cp.read_text(encoding="utf-8")).get("cases") or []):
+                        for t in re.split(r"对|和|vs|与|:|（|\(", str(c.get("name") or "")):
+                            if len(t.strip()) >= 2:
+                                brands.add(t.strip())
+        except Exception:  # noqa: BLE001 — 品牌名单缺库只降级不炸
+            brands = set()
+
+        def _key(item: str) -> str:
+            for s in _COV_STRIP:
+                item = item.replace(s, "")
+            return item
+
+        def _bg(s: str) -> set[str]:
+            return {s[i:i + 2] for i in range(len(s) - 1)} if len(s) > 1 else set()
+
+        def _storylike(item: str) -> bool:
+            return not any(c in item for c in concepts)
+
+        mine = [(c, _key(c)) for c in cov if _storylike(c)]
+        total = len(book.episodes) or 6
+        tag = "阻断" if 1 < ep.ep_index < total else "提示"
+        for c, k in mine:
+            bg = _bg(k)
+            for j, cs in sorted(sib.items()):
+                hit = False
+                for c2 in cs:
+                    if not _storylike(c2):
+                        continue
+                    k2 = _key(c2)
+                    shared_brand = any(b in k and b in k2 for b in brands)
+                    # ≥6 bigram ≈ 4字连续重合 — 同一故事拍级重合; 4 字级 (工具名/脚手架
+                    # 序号, 如 低防御措辞/五步转型第N步) 是误报带, 实测两类都要放
+                    if len(bg & _bg(k2)) >= 6 or shared_brand:
+                        hit = True
+                        break
+                if hit:
+                    out.append(
+                        f"案例跨集重复({tag}): 「{c}」与第{j}集知识点重合 — "
+                        "同一故事/案例禁跨集重讲 (换案例, 或换角度半句带过)"
+                        if tag == "阻断" else
+                        f"案例跨集重复({tag}): 「{c}」与第{j}集知识点重合 — 头尾集导览点名可, 禁整案重讲")
+                    break
+    except Exception as exc:  # noqa: BLE001 — 兜底闸失败不炸生成
+        logger.warning("[book] coverage 排重闸异常(跳过): %s", exc)
+    return out
+
+
 def _story_dup_issues(book: BookProject, ep: Episode, script: str) -> list[str]:
     """兜底闸: 新稿锚中的故事条目已被兄弟集讲过 → 工具集(2..N-1)阻断, ep1/末集提示
     (集型使命: 头尾集点名前集案例是合法导览, 只提醒不拦)。"""
@@ -1873,6 +1947,9 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
     # 1019 排重令③: 案例跨集重复兜底闸 — 喂料层已剔已用, 此处拦拐棍层 [:3000] 直喂
     # 与 LLM 自选漏网 (ep7 看着覆盖清单仍复用梅斯特遗嘱实锤); 工具集(阻断)/头尾集(提示)
     issues += _story_dup_issues(book, ep, out)
+    # 1019 升格: coverage 自报知识点模糊查重 — 故事库 fail-open 条目 (主体只剩大卫/律师
+    # 类通用名) 的确定性兜底 (梅斯特被解雇/遗嘱律师 ×3 集实锤)
+    issues += _coverage_dup_issues(book, ep)
     ok = not issues
     theme = (ep.roadmap_json or {}).get("主题", "")
     checks["theme_in_script"] = bool(theme) and theme[:8] in out

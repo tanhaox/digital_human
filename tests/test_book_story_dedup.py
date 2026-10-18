@@ -144,3 +144,50 @@ def test_confirm_episode_blocked_by_hard_dup():
                status="draft", book=NS(episodes=[NS(status="draft")]))
     db = NS(commit=lambda: None)
     assert eg.confirm_episode(db, ep_ok).status == "confirmed"  # type: ignore[arg-type]
+
+
+# ── coverage 模糊查重 (1019 升格: fail-open 故事的确定性兜底网) ──
+
+def _mk_cov_book():
+    def _e(ep, cov, concepts):
+        return NS(ep_index=ep, coverage_json=cov,
+                  roadmap_json={"概念": concepts}, script_text="x")
+    return NS(book_title="测试三书", episodes=[
+        _e(1, ["信任等式", "梅斯特立遗嘱选律师案例", "系列行动册"], ["信任等式"]),
+        _e(2, ["大卫绩效评估被解雇案例", "大卫统计学教学措辞反思", "低防御措辞三句话",
+               "五步转型第1步"], ["技术至上论"]),
+        _e(3, ["梅斯特绩效评估被解雇教训", "信任等式：可信度与亲近感为分子",
+               "华为客户导向案例（公开报道：《华为基本法》表述客户价值）",
+               "低防御措辞我讲清楚了吗"], ["信任等式"]),
+        _e(4, ["华为早期海外技术服务公开报道案例", "五步转型第3步"], ["先付出后收获"]),
+        _e(5, ["收官"], []),
+    ])
+
+
+def test_coverage_dup_fuzzy_pair_and_tag(monkeypatch, tmp_path):
+    monkeypatch.setattr("app.services.book_service.l0._l0_dir", lambda t: tmp_path / t)
+    book = _mk_cov_book()
+    # ep2 工具集: 大卫绩效评估被解雇 ≈ ep3 梅斯特绩效评估被解雇 (bigram≥6) → 阻断;
+    # 低防御措辞×2 / 五步转型第N步 = 工具名/脚手架序号 (bigram=4) → 误报带放行
+    out = eg._coverage_dup_issues(book, book.episodes[1])
+    assert any(s.startswith("案例跨集重复(阻断): 「大卫绩效评估被解雇案例」与第3集") for s in out)
+    assert not any("低防御" in s or "五步转型" in s for s in out)
+    # ep1 头集: 遗嘱律师 vs ep2? 无; vs ep3 无 → 但系列行动册/信任等式=概念豁免 → 无
+    out1 = eg._coverage_dup_issues(book, book.episodes[0])
+    assert out1 == [] or all("(提示)" in s for s in out1)
+
+
+def test_coverage_dup_concept_escape_and_brand(monkeypatch, tmp_path):
+    (tmp_path / "测试三书").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "测试三书" / "案例库-本书.json").write_text(
+        '{"cases": [{"name": "华为"}]}', encoding="utf-8")
+    monkeypatch.setattr("app.services.book_service.l0._l0_dir", lambda t: tmp_path / t)
+    book = _mk_cov_book()
+    # ep3: 信任等式定义 = 概念型豁免; 梅斯特被解雇 ≈ ep2 → 阻断; 华为 vs ep4 → 品牌名单命中
+    out = eg._coverage_dup_issues(book, book.episodes[2])
+    assert any("梅斯特绩效评估被解雇教训」与第2集" in s and "(阻断)" in s for s in out)
+    assert any("华为客户导向案例" in s and "第4集" in s for s in out)
+    assert not any("信任等式" in s for s in out)  # 概念跨集复现不拦
+    # ep4 工具集: 华为 vs ep3 → 阻断
+    out4 = eg._coverage_dup_issues(book, book.episodes[3])
+    assert any("(阻断)" in s and "第3集" in s for s in out4)
