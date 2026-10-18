@@ -580,19 +580,33 @@ def hook_position_issues(text: str, hook_ref: str) -> list[str]:
     工具集/收官集: 路线图「黄金三秒钩子」的断言头 (剥标点后前 12 字) 须出现在
     钩子段 (首标签段) 前 150 字内 — 开段即出, 留存 3s 法则。ep1 豁免 (拼装式开局
     六拍+打字卡扛前 3 秒; ep1 旧实锤: 痛点钩子埋到 ~25s 处无人管)。
+    1018 钩子结构三律 (用户令, ep2-6 适用): ①首句疑问式 ②30s 内答案锚。
     """
     h = _STRIP_RE.sub("", hook_ref or "")[:12]
     if len(h) < 6:
         return []
+    issues: list[str] = []
     marks = list(_LABEL_RE.finditer(text or ""))
     if len(marks) < 2:
         return []
     seg = _LABEL_RE.sub("", text[marks[0].end():marks[1].start()])
     head = _STRIP_RE.sub("", seg)[:150]
-    if h in head:
-        return []
-    return [f"黄金三秒钩子未落位: 「{(hook_ref or '')[:18]}」未出现在钩子段前150字 — "
-            "钩子断言须开段即出 (留存3s法则, 北斗星tier-1)"]
+    if h not in head:
+        issues.append(f"黄金三秒钩子未落位: 「{(hook_ref or '')[:18]}」未出现在钩子段前150字 — "
+                      "钩子断言须开段即出 (留存3s法则, 北斗星tier-1)")
+    # ① 首句疑问式: 断言改设问 ("为什么说，X？"式) — 问句比陈述勾人往下听
+    _hk_first = next((l.strip() for l in seg.split("\n") if l.strip()), "")
+    if "？" not in _hk_first[:60]:
+        issues.append(f"钩子首句非疑问式: 「{_hk_first[:24]}」— 断言一律改设问 "
+                      "('为什么说，…？'式, 问句比陈述勾人往下听)")
+    # ② 30s 答案锚: 只提问不给期待, 30秒处耐心耗尽必划走 — 钩子段+回顾段内须明说
+    # 答案这集就给、给什么形态 (ep2 旧稿实锤: 答案 56s 后才来, 留存跑 80%)
+    _m_rev = re.search(r"【\d+-\d+秒｜回顾\+引入】(.*?)(?=【|\Z)", text or "", flags=re.S)
+    _zone = seg + (_m_rev.group(1) if _m_rev else "")
+    if not re.search(r"答案|拆成|拆给你|判定刻度|这集(就|给|拆)", _zone):
+        issues.append("30秒无答案锚 — 钩子段/回顾段内须明说答案这集就给、给什么形态 "
+                      "('这集把答案拆成三个判定刻度'式); 只戳痛不给期待, 30秒处耐心耗尽必划走")
+    return issues
 
 
 def source_context(book: BookProject, cap: int = 12000) -> str:

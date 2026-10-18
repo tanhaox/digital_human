@@ -161,7 +161,10 @@ _HOOK = "你的方案被毙掉，根本不是因为不专业，而是因为你�
 
 
 def test_hook_position_pass_when_leading():
-    t = "【0-28秒｜钩子】\n" + _HOOK[:20] + "\n" + "字" * 1500 + "\n【28-56秒｜回顾+引入】\n回顾。"
+    """1018 三律后: 落位+疑问式+答案锚 三者齐才清零 (旧版只查落位)。"""
+    t = ("【0-28秒｜钩子】\n为什么说，你的方案被毙掉，根本不是因为不专业？\n"
+         "这集把答案拆成三个判定刻度。\n" + "字" * 120
+         + "\n【28-56秒｜回顾+引入】\n回顾。你是第几年看破的？\n")
     assert hook_position_issues(t, _HOOK) == []
 
 
@@ -257,3 +260,28 @@ def test_table_gate_excludes_common_words():
         "转给他。收藏起来翻出来。", "他能代表团队表达立场。转给他。收藏起来翻出来。")
     issues = validate_script(t, 300, book_title=_BOOK, require_cta=True)[1]
     assert not [i for i in issues if i.startswith("视听不一致·表")]
+
+
+# ── 1018 钩子结构三律: 首句疑问式 + 30s 答案锚 (ep2 旧稿留存跑80%实锤) ──
+
+def test_hook_first_line_must_be_question():
+    t = ("【0-28秒｜钩子】\n把自己活成百科全书的顾问，是客户最先淘汰的人。\n" + "字" * 140
+         + "\n【28-56秒｜回顾+引入】\n这集把答案拆成三个判定刻度。你是第几年看破的？\n")
+    issues = hook_position_issues(t, "把自己活成百科全书的顾问，是客户最先淘汰的人。")
+    assert any("钩子首句非疑问式" in i for i in issues)
+    assert not any("30秒无答案锚" in i for i in issues)
+
+
+def test_hook_answer_anchor_missing_flagged():
+    t = ("【0-28秒｜钩子】\n为什么说，把自己活成百科全书的顾问，是客户最先淘汰的人？\n" + "字" * 140
+         + "\n【28-56秒｜回顾+引入】\n上集我们问了个问题。方向有了。\n")
+    issues = hook_position_issues(t, "把自己活成百科全书的顾问，是客户最先淘汰的人。")
+    assert any("30秒无答案锚" in i for i in issues)
+    assert not any("钩子首句非疑问式" in i for i in issues)
+
+
+def test_hook_question_form_with_anchor_clean():
+    t = ("【0-28秒｜钩子】\n为什么说，把自己活成百科全书的顾问，是客户最先淘汰的人？\n"
+         "这集把答案拆成三个判定刻度。\n" + "字" * 120
+         + "\n【28-56秒｜回顾+引入】\n方向有了，你是第几年看破的？\n")
+    assert hook_position_issues(t, "把自己活成百科全书的顾问，是客户最先淘汰的人。") == []
