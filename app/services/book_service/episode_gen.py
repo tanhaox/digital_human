@@ -1373,31 +1373,37 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
         include=("validate", "flow", "fig")))
     if _is_laotan and any("缺转发CTA" in i or "缺收藏CTA" in i for i in _fx_base):
         try:
-            # 1009 P5: 行级 patch 优先 (只在收尾段末行追加), 失败回退全稿
+            # 1009 P5: 行级 patch 优先; 1018 C1b 拆指令/闸错位 (R3b) — 旧版只让加
+            # "一句转发号召", 验收却要转发+收藏双 CTA (过闸全靠模型顺手=采样运气,
+            # ep1 实锤未过); 且"理由带工具名全称"撞 6-gram 复读检测+工具名≤2配额
+            # (模板旧例'这张三面墙定位表'自身即会触发) → 统一改回指 ('这张表'式)。
             cta = _llm().edit_patch(
                 out,
-                "你是口播稿CTA编辑。任务只有一个: 在收尾段最末行的行尾追加一句现造的转发号召, "
-                "对象=本集工具对应的痛点人群, 理由带本集工具名 ('把这张…表转给还在…的"
-                "朋友, 能帮他…'式, 禁'转给那个…的人'句式, 禁复用稿内已有短语 — 稿里已有"
-                "'把这张X表翻出来'一类说法时转发句必须换措辞, 否则触发复读)。"
-                "禁改其它任何行、禁动段落标签与⟦⟧原话。",
+                "你是口播稿CTA编辑。任务只有一个: 在收尾段内、以'下一集/下集/下期'开头的"
+                "下集预告行之前, 插入现造的转发号召与收藏号召 (各一句) — 把该预告行改为"
+                "'转发句\\n收藏句\\n原预告行原样保留在最后', 其余任何行禁改、禁动段落标签与⟦⟧原话。"
+                "转发句: 对象=本集秘籍对应的痛点人群, 理由用本集工具的**回指** ('这张表'/"
+                "'这套问话'式, 禁工具名全称《…》再出现, 禁'转给那个…的人'句式); "
+                "收藏句: 给场景理由 ('下次…之前翻出来过一遍'式, 挂钩本集工具使用场景)。"
+                "两句都禁复用稿内任何已有连续6字 (复读检测会打回)。",
                 "", model="pro", max_tokens=1500, tag="epgen:cta")
             if cta is None:
                 cta = _llm().chat(
-                    "你是口播稿CTA编辑。任务只有一个: 在收尾段最末尾追加一句现造的转发号召, "
-                    "对象=本集工具对应的痛点人群, 理由带本集工具名 ('把这张…表转给还在…的"
-                    "朋友, 能帮他…'式, 禁'转给那个…的人'句式, 禁复用稿内已有短语 — 稿里已有"
-                    "'把这张X表翻出来'一类说法时转发句必须换措辞, 否则触发复读)。铁律: 只在结尾追加这一句, "
-                    "禁改稿内任何已有句子、禁动段落标签、禁动⟦⟧原话。直接输出追加后的完整稿。",
+                    "你是口播稿CTA编辑。任务只有一个: 在收尾段内、下集预告行之前, 追加现造的"
+                    "转发号召与收藏号召各一句。转发句: 对象=本集秘籍对应的痛点人群, 理由用"
+                    "本集工具的**回指** ('这张表'式, 禁工具名全称《…》再出现, 禁'转给那个…的人'句式); "
+                    "收藏句: 给场景理由 ('下次…之前翻出来过一遍'式, 挂钩本集工具使用场景)。"
+                    "两句都禁复用稿内任何已有连续6字 (复读检测会打回)。"
+                    "铁律: 只在收尾段内追加这两句, 禁改稿内任何已有句子、禁动段落标签与⟦⟧原话。"
+                    "直接输出追加后的完整稿。",
                     "稿件:\n" + out, model="pro", temperature=0.4, tag="epgen:cta")
             cta = (cta or "").strip()
             _cta_after = passes_mod.snap_issues(passes_mod.snapshot(
                 cta, target=ep.target_duration_sec, book_title=book.book_title,
                 require_cta=_req_cta, include=("validate",)))
-            _cta_new = [i for i in _cta_after if i not in set(_fx_base)
-                        and not ("字数" in i and any("字数" in b for b in _fx_base))]
+            _cta_new = passes_mod.family_new(_cta_after, _fx_base)
             if (cta and not any("缺转发CTA" in i or "缺收藏CTA" in i for i in _cta_after)
-                    and not _cta_new and 0 <= len(cta) - len(out) <= 90):
+                    and not _cta_new and 0 <= len(cta) - len(out) <= 130):
                 out = cta
                 logger.info("[book] ep%d CTA 追加 pass ✓", ep.ep_index)
                 try:
