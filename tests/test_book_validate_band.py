@@ -172,3 +172,17 @@ def test_hook_position_flag_when_buried():
 
 def test_hook_position_ep1_exempt_via_empty_ref():
     assert hook_position_issues("任意稿", "") == []
+
+
+# ── 1018 用户令: 评论钩禁贬收藏 (ep2 "收藏夹吃灰" 实锤, 互动链收藏>评论) ──
+
+def test_comment_hook_devaluing_save_flagged():
+    t = _script(1500).replace("字" * 50, "上集那张表还在收藏夹吃灰的，评论区报个到。" + "字" * 20, 1)
+    issues = validate_script(t, 300, book_title=_BOOK)[1]
+    assert any(i.startswith("评论钩贬收藏") for i in issues)
+
+
+def test_comment_hook_usage_based_not_flagged():
+    t = _script(1500).replace("字" * 50, "上集那张表用上的，评论区说说卡在哪一步。" + "字" * 22, 1)
+    issues = validate_script(t, 300, book_title=_BOOK)[1]
+    assert not [i for i in issues if i.startswith("评论钩贬收藏")]
