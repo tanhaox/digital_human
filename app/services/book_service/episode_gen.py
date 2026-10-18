@@ -1163,7 +1163,7 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
     _want_n = ep.ep_index - 1 if (_is_tool_ep or ep.ep_index == 1) else None
     for _m in re.finditer(r"第([一二三四五六七八九\d]+)件工具|第([一二三四五六七八九\d]+)步转型", out or ""):
         _got = _m.group(1) or _m.group(2)
-        _got_n = _CN_NUM.get(_got) if len(_got) == 1 else (int(_got) if _got.isdigit() else None)
+        _got_n = int(_got) if _got.isdigit() else _CN_NUM.get(_got)
         if _want_n and _got_n and _got_n != _want_n:
             _concept_issues.append(f"件序错写: 「{_m.group(0)}」应为 第{_cn(_want_n)}件/步 "
                                    f"(件序=集数-1: 第{ep.ep_index}集=第{_want_n}件工具; 回顾段与总结段口径统一)")
