@@ -1376,9 +1376,66 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
                                ep.ep_index, _cta_new)
         except Exception as _exc11:  # noqa: BLE001
             logger.warning("[book] ep%d CTA 追加 pass 异常: %s", ep.ep_index, _exc11)
+    _dedup_trig = [i for i in _fx_base if any(k in i for k in ("系列句", "复读段", "车轱辘话", "贯穿人物"))]
+    if _is_laotan and _dedup_trig:
+        try:
+            # 1009 P5: 行级 patch 优先, 失败回退全稿
+            # 1018 C1d 解禁 (R3c): 删"以改代删禁越修越短" — 双开篇级重复段 156 字,
+            # 旧令 Δ≤60 永远删不动 (ep1 实锤 + ep4/ep7 日志"去重未过 剩2/2"连发);
+            # 跨⟦⟧锁段与非锁段的重复 → 裁非锁段那处; 字数交给其后的压缩 pass 兜底。
+            fix = _llm().edit_patch(
+                out,
+                "你是口播稿去重编辑。只修列出的问题, 禁改其它任何句子、禁动段落标签、"
+                "禁动⟦⟧原话: ①系列句出现2次 → 总结段保留行动册预告原句, 回顾段那处改成"
+                "'第X件工具'式说法; ②复读段/车轱辘话 → 优先把重复的两句合并成一句更满的; "
+                "整段级重复 (同一信息两遍介绍) → 整删其中一处, 重复信息跨⟦⟧锁段与非锁段时"
+                "只删/改**非锁段**那处 (锁段一字不动); ③贯穿人物出场超额 → 合并到职能配额: "
+                "钩子只留反差结论两三句, 完整故事只在中段讲一次, 拆解三改成拿工具"
+                "过表量化 (维度/刻度/判定, 禁重述故事), 总结只留身份重述一句。"
+                "总字数变化 ≤250。",
+                "\n待修问题:\n" + "\n".join(_dedup_trig),
+                model="pro", max_tokens=2500, tag="epgen:dedup")
+            if fix is None:
+                fix = _llm().chat(
+                    "你是口播稿去重编辑。只修列出的问题, 禁改其它任何句子、禁动段落标签、"
+                    "禁动⟦⟧原话: ①系列句出现2次 → 总结段保留行动册预告原句, 回顾段那处改成"
+                    "'第X件工具'式说法; ②复读段/车轱辘话 → 优先合并成一句更满的; 整段级重复"
+                    "→ 整删非锁段那处 (⟦⟧锁段一字不动); ③贯穿人物出场超额 → 合并到职能配额: "
+                    "钩子只留反差结论两三句, 完整故事只在中段讲一次, 拆解三改成拿工具"
+                    "过表量化 (维度/刻度/判定, 禁重述故事), 总结只留身份重述一句。"
+                    "总字数变化 ≤250。直接输出改后的完整稿。",
+                    "待修问题:\n" + "\n".join(_dedup_trig) + "\n\n稿件:\n" + out,
+                    model="pro", temperature=0.3, tag="epgen:dedup")
+            fix = (fix or "").strip()
+            _dd_after = passes_mod.snap_issues(passes_mod.snapshot(
+                fix, target=ep.target_duration_sec, book_title=book.book_title,
+                require_cta=_req_cta, ep_index=ep.ep_index, flow_check=_is_tool_ep,
+                figure=_figure, include=("validate", "flow", "fig")))
+            _dd_left = [i for i in _dd_after if any(k in i for k in ("系列句", "复读段", "车轱辘话", "贯穿人物"))]
+            _dd_new = passes_mod.family_new(_dd_after, _fx_base)
+            _b_fig = next((i for i in _fx_base if "贯穿人物" in i), None)
+            _a_fig = next((i for i in _dd_after if "贯穿人物" in i), None)
+            _fig_improved = passes_mod.fig_better(_a_fig, _b_fig)
+            if (fix and (len(_dd_left) < len(_dedup_trig) or _fig_improved) and not _dd_new
+                    and abs(len(fix) - len(out)) <= 250
+                    and not (_is_tool_ep and _zh_brand_issues(fix, book.book_title))):
+                out = fix
+                logger.info("[book] ep%d 去重 pass ✓ (%d→%d项)", ep.ep_index,
+                            len(_dedup_trig), len(_dd_left))
+                try:
+                    (_gen_dir / "05g_dedup.txt").write_text(out, encoding="utf-8")
+                except Exception:
+                    pass
+            else:
+                logger.warning("[book] ep%d 去重 pass 未过 (剩%d/%d, 新增%s), 人闸留意",
+                               ep.ep_index, len(_dd_left), len(_dedup_trig), _dd_new)
+        except Exception as _exc12:  # noqa: BLE001
+            logger.warning("[book] ep%d 去重 pass 异常: %s", ep.ep_index, _exc12)
+
     # 1018 C1c 压缩pass重定位 (R3a, 北斗星4裁决序): 从重试else分支移出 — 旧位触发
     # 要求重试稿"只剩字数族" (多病族永不触发), 且验收 require_cta 全过但指令"禁新增"
-    # 无法补CTA = DOA。新位=CTA之后/去重之前 (先加后删, 删时CTA已在稿内受保护);
+    # 无法补CTA = DOA。新位=去重之后/幽默之前 (去重先并重复段, 压缩最后兜底收带 —
+    # 去重若在压缩后, 删 156 字重复段必破带下限, ep1 双开篇实锤; CTA 已在稿内受禁删令保护)。
     # 触发放宽为"当前稿出软带即压"; 验收=字数落带(或距带更近)+病族不新增
     # (require_cta=False — CTA 缺失归 CTA pass 管, 压缩只删不加不背别家的闸)。
     _cpr_base = passes_mod.snap_issues(passes_mod.snapshot(
@@ -1428,59 +1485,6 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
                                ep.ep_index, _cpr_over_left, _cpr_new)
         except Exception as _exc7:
             logger.warning("[book] ep%d 压缩pass 异常: %s", ep.ep_index, _exc7)
-
-    _dedup_trig = [i for i in _fx_base if any(k in i for k in ("系列句", "复读段", "车轱辘话", "贯穿人物"))]
-    if _is_laotan and _dedup_trig:
-        try:
-            # 1009 P5: 行级 patch 优先, 失败回退全稿
-            fix = _llm().edit_patch(
-                out,
-                "你是口播稿去重编辑。只修列出的问题, 禁改其它任何句子、禁动段落标签、"
-                "禁动⟦⟧原话: ①系列句出现2次 → 总结段保留行动册预告原句, 回顾段那处改成"
-                "'第X件工具'式说法; ②复读段/车轱辘话 → 把重复的两句合并成一句更满的"
-                " (以改代删, 禁把稿越修越短); ③贯穿人物出场超额 → 合并到职能配额: "
-                "钩子只留反差结论两三句, 完整故事只在中段讲一次, 拆解三改成拿工具"
-                "过表量化 (维度/刻度/判定, 禁重述故事), 总结只留身份重述一句。"
-                "总字数变化 ≤60。",
-                "\n待修问题:\n" + "\n".join(_dedup_trig),
-                model="pro", max_tokens=2500, tag="epgen:dedup")
-            if fix is None:
-                fix = _llm().chat(
-                    "你是口播稿去重编辑。只修列出的问题, 禁改其它任何句子、禁动段落标签、"
-                    "禁动⟦⟧原话: ①系列句出现2次 → 总结段保留行动册预告原句, 回顾段那处改成"
-                    "'第X件工具'式说法; ②复读段/车轱辘话 → 把重复的两句合并成一句更满的"
-                    " (以改代删, 禁把稿越修越短); ③贯穿人物出场超额 → 合并到职能配额: "
-                    "钩子只留反差结论两三句, 完整故事只在中段讲一次, 拆解三改成拿工具"
-                    "过表量化 (维度/刻度/判定, 禁重述故事), 总结只留身份重述一句。"
-                    "总字数变化 ≤60。直接输出改后的完整稿。",
-                    "待修问题:\n" + "\n".join(_dedup_trig) + "\n\n稿件:\n" + out,
-                    model="pro", temperature=0.3, tag="epgen:dedup")
-            fix = (fix or "").strip()
-            _dd_after = passes_mod.snap_issues(passes_mod.snapshot(
-                fix, target=ep.target_duration_sec, book_title=book.book_title,
-                require_cta=_req_cta, ep_index=ep.ep_index, flow_check=_is_tool_ep,
-                figure=_figure, include=("validate", "flow", "fig")))
-            _dd_left = [i for i in _dd_after if any(k in i for k in ("系列句", "复读段", "车轱辘话", "贯穿人物"))]
-            _dd_new = [i for i in _dd_after if i not in set(_fx_base)
-                       and not ("字数" in i and any("字数" in b for b in _fx_base))]
-            _b_fig = next((i for i in _fx_base if "贯穿人物" in i), None)
-            _a_fig = next((i for i in _dd_after if "贯穿人物" in i), None)
-            _fig_improved = passes_mod.fig_better(_a_fig, _b_fig)
-            if (fix and (len(_dd_left) < len(_dedup_trig) or _fig_improved) and not _dd_new
-                    and abs(len(fix) - len(out)) <= 120
-                    and not (_is_tool_ep and _zh_brand_issues(fix, book.book_title))):
-                out = fix
-                logger.info("[book] ep%d 去重 pass ✓ (%d→%d项)", ep.ep_index,
-                            len(_dedup_trig), len(_dd_left))
-                try:
-                    (_gen_dir / "05g_dedup.txt").write_text(out, encoding="utf-8")
-                except Exception:
-                    pass
-            else:
-                logger.warning("[book] ep%d 去重 pass 未过 (剩%d/%d, 新增%s), 人闸留意",
-                               ep.ep_index, len(_dd_left), len(_dedup_trig), _dd_new)
-        except Exception as _exc12:  # noqa: BLE001
-            logger.warning("[book] ep%d 去重 pass 异常: %s", ep.ep_index, _exc12)
 
     # 0929 幽默 pass (用户令: 生稿回原方法, 轻松剂独立成遍 — 六律进 104 禁墙后两连零
     # 笑实锤, 中段稀释不可治, 拆出来单独喂): 定向加笑微编辑, 品牌注入/口播卫生同架构
