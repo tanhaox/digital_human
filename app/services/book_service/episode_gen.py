@@ -1042,7 +1042,11 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
                     if _t:
                         _story_parts.append(_t[:_cap])
                 _story_mat = "\n\n".join(_story_parts) if _story_parts else (inp.get("全书核心主张") or {}).get("value", "")
-                _fd_user = (f"【本集】第{ep.ep_index}集 | {ep.title or ''}\n"
+                # 1018 C2 (R1): 补书名/作者 — 旧版无此字段, fdopen 凭书内容意译书名
+                # 《被信任的专业顾问》(ep1 01_fd_draft.txt 第3段实锤)。
+                _fd_user = (f"【书名】《{book.book_title}》(提及一律用此名, 禁意译)\n"
+                            f"【作者】{book.author or '未知'}\n"
+                            f"【本集】第{ep.ep_index}集 | {ep.title or ''}\n"
                             f"秘籍: {_rm_hint(ep)}\n\n【书的蒸馏材料】\n{_story_mat}")
                 _fd_out = _llm().chat(_fd_sys, _fd_user, model="pro", temperature=0.6, timeout=600, tag="epgen:fdopen")
                 logger.info("[book] 樊登讲故事完成: %d 字", len(_fd_out))
@@ -1050,8 +1054,11 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
             logger.warning("[book] 樊登步骤跳过: %s", exc)
             _fd_out = ""
     if _fd_out:
+        # 1018 C2 (R1): 拐棍双真相源仲裁 — 拐棍稿内书名/作者与 user_p 顶部分义时, 以顶部为准
         user_p = (f"【樊登讲述参考 (拐棍 — 保持故事质量: 场景/对话/心理变化/流畅口语), "
-                  f"但用你老谭的方式重讲: 你的决策场景/金句/工具/互动照常加】\n{_fd_out[:6000]}\n\n"
+                  f"但用你老谭的方式重讲: 你的决策场景/金句/工具/互动照常加。"
+                  f"拐棍稿内如出现书名/作者与本提示词顶部【书名】【作者】不一致, 一律以顶部为准】\n"
+                  f"{_fd_out[:6000]}\n\n"
                   f"---\n{user_p}")
 
     # ── 生成留档 (0912 用户令: 每层留档, 改提示词→看效果要有证据链) ──

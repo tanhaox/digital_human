@@ -489,6 +489,20 @@ def validate_script(text: str, target: float, book_title: str = "",
     if _jargon_hits:
         issues.append("内部黑话渗稿: " + "/".join(_jargon_hits)
                       + " — 管线词说人话 ('判定钉'→'就问一句: 不做会有什么后果'式直给)")
+    # 1018 C2 书名错写闸 (R1): 书名提及只许 全名 或 冒号前主名; 与真名用字重叠
+    # ≥0.5 的意译名 (《被信任的专业顾问》vs《值得信赖的顾问》— fdopen 无书名字段
+    # 意译实锤, 字集重叠 4/7=0.57) → 打回。工具名/他书引用与真名字集重叠低, 不误伤。
+    _t_full = re.sub(r"[《》\s]", "", book_title or "")
+    if _t_full:
+        _t_main = re.split(r"[：:]", _t_full)[0]
+        _t_chars = set(_t_full)
+        for _nm in set(re.findall(r"《([^《》]{2,24})》", text or "")):
+            _mm = re.sub(r"\s", "", _nm)
+            if _mm == _t_full or _mm == _t_main:
+                continue
+            if len(_mm) >= 4 and len(set(_mm) & _t_chars) / min(len(set(_mm)), len(_t_chars)) >= 0.5:
+                issues.append(f"书名错写: 《{_nm}》≠《{book_title}》— 提及只许全名或主名"
+                              f"《{_t_main}》(拐棍稿书名以提示词顶部为准)")
     # 0913 CTA 集间差异化: 老谭非收官集 — 收尾段须有按本集秘籍现造的转发+收藏 CTA
     # (固定结尾已缩为品牌句, 漏写=这集没有转发号召; 打回后重试在收尾段自补)
     if require_cta:
