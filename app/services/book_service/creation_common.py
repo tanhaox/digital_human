@@ -645,7 +645,8 @@ _QUALIFIER_TOKS = ("公开报道", "公开资料", "当年", "早期", "对外�
 # 平台自指("在抖音上刷到")/生活动作("点个美团外卖")不带这些词, 天然豁免
 _CASE_INTRO_RE = re.compile(r"推行|推出|提出|实行|宣布|做法|战略|打法|文化|制度|组织|内部|曾经|起家|发家|转型|改革")
 _HYPO_HEAD_RE = re.compile(r"你|如果|假如|假设|要是|想象")   # 品牌前提及=假设句非案例
-_RECENT_YEARS_RE = re.compile(r"(?:202[4-9]|20[3-9]\d)年")
+# 1019 北斗星第8条 (用户令): 案例时间铁律 2010 线 — 旧 2024+ 近两年带收紧为 2011+ 全禁
+_RECENT_YEARS_RE = re.compile(r"(?:201[1-9]|20[2-9]\d)年")
 
 
 def _zh_brands(book_title: str = "") -> set[str]:
@@ -670,8 +671,8 @@ def _zh_brands(book_title: str = "") -> set[str]:
 
 def _zh_brand_case_issues(text: str, book_title: str = "") -> list[str]:
     """0927 案例口径三则闸 (确定性, 可修级): 判词贴品牌=评企业; 大厂首提句有案例
-    动词而无信源限定词; 品牌与2024+年份同句=近两年热点 — 全部可通过加限定词/
-    换措辞/换案例修复, 与零中国案例废稿闸同函数族返回."""
+    动词而无信源限定词; 品牌与2011+年份同句=违2010线 (1019 北斗星第8条收紧,
+    原2024+近两年带) — 全部可通过加限定词/换措辞/换案例修复, 与零中国案例废稿闸同函数族返回."""
     issues: list[str] = []
     brands = _zh_brands(book_title) | _ZH_BIGTECH
     sents = [s for s in re.split(r"[。！？!?\n]+", text or "") if s.strip()]
@@ -697,8 +698,8 @@ def _zh_brand_case_issues(text: str, book_title: str = "") -> list[str]:
     for s in sents:
         if _RECENT_YEARS_RE.search(s) and not _HYPO_HEAD_RE.search(s) \
                 and any(b in s for b in brands):
-            issues.append("案例口径违规(选题避雷): 品牌案例与2024年后年份同句 — 近两年热点"
-                          "争议事件避开, 换已沉淀的公知商业史案例")
+            issues.append("案例口径违规(2010线): 品牌案例与2011年后年份同句 — 案例时间铁律"
+                          "只用2010年前大量公开报道事件, 换已沉淀的公知商业史案例")
             break
     return list(dict.fromkeys(issues))
 
