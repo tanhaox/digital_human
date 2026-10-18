@@ -1199,14 +1199,24 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
                                            require_cta=_req_cta)
         # 0926 硬核层: 中国品牌闸在重试稿同规 (ep2 实锤: 品牌在重试轮进了、其它校验
         # 未全过回退首稿时被丢弃 → 终稿零品牌)
-        if out2_ok and _zh_brand_issues(retry, book.book_title):
-            out2_ok, issues2 = False, list(issues2) + _zh_brand_issues(retry, book.book_title)
+        if _zh_brand_issues(retry, book.book_title):
+            issues2 = list(issues2) + _zh_brand_issues(retry, book.book_title)
         # 0913b: 重试稿承接检测同规 (重试只顾字数/车轱辘、割裂照旧 = 白重试)
         _flow2 = section_flow_issues(retry, book_title=book.book_title, ep_index=ep.ep_index,
                                      flow_check=_is_tool_ep)             + fandeng_opening_issues(retry, _fd_open_paras)
-        if out2_ok and _flow2:
-            out2_ok, issues2 = False, list(issues2) + _flow2
-        if out2_ok and not _scan_occult_quotes(retry):
+        issues2 = list(issues2) + _flow2
+        # 1018 C1a (北斗星源头闸): 重试全有全无 → 病族不新增 且 字数距带不倒退 即接受;
+        # 残余病 (软带字数/CTA/复读) 交给后置 pass 收尾 — ep1 实锤: 重试修好 5/6 病
+        # (书名✓CTA✓钩子秩序✓) 因字数爆 2728 被整稿弃用, 修好的全被扔 (05_raw_retry.txt)。
+        # 验收复用 passes 现成 family_new + word_band_ok (与 CTA/去重 pass 同判据)。
+        _rn_all = list(issues2) + _scan_occult_quotes(retry)
+        _rn_new = passes_mod.family_new(_rn_all, list(issues))
+        _rn_wc_ok = (not any("字数" in i for i in _rn_all)
+                     or passes_mod.word_band_ok(_rn_all, list(issues), ep.target_duration_sec))
+        if (out2_ok or (not _rn_new and _rn_wc_ok)) and not _scan_occult_quotes(retry):
+            if not out2_ok:
+                logger.info("[book] ep%d 重试按病族放宽接受 (残余=%s, 后置 pass 接手)",
+                            ep.ep_index, [i[:24] for i in _rn_all][:4])
             out = retry
         else:
             logger.warning("[book] ep%d 硬校验二次仍不过: %s", ep.ep_index, issues2)
