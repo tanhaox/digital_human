@@ -1157,6 +1157,17 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
     # 1018 C4c: 黄金三秒钩子落位闸 — 工具集/收官集才查 (ep1 豁免: 六拍+打字卡扛前3秒)
     _hook_ref = str(_rm.get("黄金三秒钩子") or "") if ep.ep_index > 1 else ""
     _concept_issues.extend(hook_position_issues(out, _hook_ref))
+    # 1018 件序闸 (ID-112④ 清账; ep2 两轮一错一对=50%漂移实锤): 工具件序公式=
+    # ep_index-1 (ep2=第1件…ep6=第5件); 稿内"第N件工具/第N步转型"数字须吻合
+    _CN_NUM = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
+    _want_n = ep.ep_index - 1 if (_is_tool_ep or ep.ep_index == 1) else None
+    for _m in re.finditer(r"第([一二三四五六七八九\d]+)件工具|第([一二三四五六七八九\d]+)步转型", out or ""):
+        _got = _m.group(1) or _m.group(2)
+        _got_n = _CN_NUM.get(_got) if len(_got) == 1 else (int(_got) if _got.isdigit() else None)
+        if _want_n and _got_n and _got_n != _want_n:
+            _concept_issues.append(f"件序错写: 「{_m.group(0)}」应为 第{_cn(_want_n)}件/步 "
+                                   f"(件序=集数-1: 第{ep.ep_index}集=第{_want_n}件工具; 回顾段与总结段口径统一)")
+            break
     ok, issues = validate_script(out, ep.target_duration_sec, book_title=book.book_title,
                                  require_cta=_req_cta)
     # 六拍模块总线 (0917 架构令): 标记解析不足 6 段 = 结构不合规, 进打回链自动重试
