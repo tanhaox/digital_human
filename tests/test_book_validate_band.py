@@ -186,3 +186,48 @@ def test_comment_hook_usage_based_not_flagged():
     t = _script(1500).replace("字" * 50, "上集那张表用上的，评论区说说卡在哪一步。" + "字" * 22, 1)
     issues = validate_script(t, 300, book_title=_BOOK)[1]
     assert not [i for i in issues if i.startswith("评论钩贬收藏")]
+
+
+# ── 1018 v3 互动钩: 钩≠邀请 + 1:30 在场闸 + 控制符渗稿 (17集2评论实锤) ──
+
+_L6 = ("【0-28秒｜钩子】", "【28-56秒｜回顾+引入】", "【56-117秒｜核心概念拆解（一）】",
+       "【117-178秒｜核心概念拆解（二）】", "【178-233秒｜核心概念拆解（三）】", "【233-300秒｜总结+下期预告】")
+
+
+def _hook_script(recap: str, extra: str = "") -> str:
+    return "\n".join([_L6[0], "断言开头。", "字" * 150, _L6[1], recap, "字" * 80,
+                      _L6[2], "概念一。", "字" * 300, _L6[3], "概念二。", "字" * 300,
+                      _L6[4], "概念三。", "字" * 300, _L6[5], "转给他。收藏起来翻出来。"]) + extra
+
+
+def test_hard_invitation_banned():
+    t = _hook_script("上集那张表用上的，评论区说说卡在哪一步。")
+    issues = validate_script(t, 300, book_title=_BOOK, require_cta=True)[1]
+    assert any(i.startswith("硬邀请无效") for i in issues)
+
+
+def test_itch_hook_missing_flagged():
+    t = _hook_script("方向有了，这是第1件工具。")
+    issues = validate_script(t, 300, book_title=_BOOK, require_cta=True)[1]
+    assert any(i.startswith("1:30战区缺痒点钩") for i in issues)
+
+
+def test_itch_hook_legal_variants_pass():
+    for recap in ("这一层我是第八年才看破的，你是第几年？",
+                  "二三线的办公室有条暗规律：活最重的人，往往不是明年升的那个。",
+                  "我第一次汇报，开场白练了一晚上。"):
+        t = _hook_script(recap)
+        issues = validate_script(t, 300, book_title=_BOOK, require_cta=True)[1]
+        assert not [i for i in issues if i.startswith(("1:30战区", "硬邀请"))], recap
+
+
+def test_ctrl_marker_leak_flagged():
+    t = _hook_script("这是第1件工具。你是第几年？", extra="-0.3s-A：专注")
+    issues = validate_script(t, 300, book_title=_BOOK, require_cta=True)[1]
+    assert any(i.startswith("控制符渗稿") for i in issues)
+
+
+def test_gates_scoped_to_laotan_only():
+    t = _hook_script("上集那张表用上的，评论区说说。")
+    issues = validate_script(t, 300, book_title=_BOOK, require_cta=False)[1]
+    assert not [i for i in issues if i.startswith(("硬邀请", "1:30战区"))]

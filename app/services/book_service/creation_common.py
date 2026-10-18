@@ -498,6 +498,27 @@ def validate_script(text: str, target: float, book_title: str = "",
     if _deval:
         issues.append(f"评论钩贬收藏: 「{_deval.group(0)}」— 报到晒点须是在用/用了/卡在哪, "
                       "禁以'收藏了没用'为梗 (讽刺收藏=降收藏率, 互动链收藏>评论)")
+    # 1018 v3 (17集仅2条真实评论实锤): 钩≠邀请 — 平台词/邀请令只占字数催流失, 全禁。
+    # 老谭线 (require_cta=True) 执法; 转发/收藏 CTA 不用这些词, 不受影响。
+    if require_cta:
+        _invite = re.search(r"评论区|留言区|留言|打在评论|扣[个一下]\s?[1一2二]|报个到|来杠|教教我|立个\s?flag|打卡",
+                            text or "")
+        if _invite:
+            issues.append(f"硬邀请无效: 「{_invite.group(0)}」— 钩≠邀请, 痒点句本身即钩; "
+                          "平台词只占字数催流失 (17集2评论实锤), 全稿禁写")
+        # 1:30 法则在场闸: 主互动转化位=回顾段末痒点句 — 须含 面向观众的问句(带"你"带"？")
+        # 或 对号断言标记; 缺位=1:30 战区空防 (用户互动决策全在前90s完成)
+        _m_rev = re.search(r"【\d+-\d+秒｜回顾\+引入】(.*?)(?=【|\Z)", text or "", flags=re.S)
+        _rev_seg = _m_rev.group(1) if _m_rev else ""
+        _has_itch = (bool(re.search(r"你[^。！？\n]{0,30}？", _rev_seg))
+                     or bool(re.search(r"你身边|你组里|你老板|你是不是|你上次|你是第几|第几年|暗规律|办公室里", _rev_seg)))
+        if not _has_itch:
+            issues.append("1:30战区缺痒点钩 — 回顾段末须有面向观众的对号问句/断言 "
+                          "(对号断言/自曝镜像/时机叩问/反差留白四型; 用户互动决策全在前90s完成)")
+    # 1018: 控制符/时序标记渗稿 (定位 ep5 上线实锤: '-0.3s-A：' 被 TTS 念出)
+    _ctrl = re.search(r"-\d+(\.\d+)?s-|\|\d+(\.\d+)?s\||【?A/B?选项", text or "")
+    if _ctrl:
+        issues.append(f"控制符渗稿: 「{_ctrl.group(0)}」— 时序/选项标记禁入口播稿 (TTS 会念)")
     # 1018 C2 书名错写闸 (R1): 书名提及只许 全名 或 冒号前主名; 与真名用字重叠
     # ≥0.5 的意译名 (《被信任的专业顾问》vs《值得信赖的顾问》— fdopen 无书名字段
     # 意译实锤, 字集重叠 4/7=0.57) → 打回。工具名/他书引用与真名字集重叠低, 不误伤。
