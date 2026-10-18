@@ -108,9 +108,14 @@ async function run(path, btn) {
     }, 1000);
   }
   try {
-    await api(`/books/${BOOKS.cur.id}/${path}`, { method: 'POST' });
+    const resp = await api(`/books/${BOOKS.cur.id}/${path}`, { method: 'POST' });
     await loadBook(BOOKS.cur.id);
-    toast('完成', 'success');
+    // 1018 C4d (R9): generate 返回的 issues 不再丢弃 — 有红灯明说, 人闸不再盲飞
+    if (isGen && Array.isArray(resp.issues) && resp.issues.length) {
+      toast(`完成，但仍有 ${resp.issues.length} 项校验问题（见该集行红灯明细）`, 'error');
+    } else {
+      toast('完成', 'success');
+    }
   } catch (e) {
     toast('失败: ' + e.message, 'error');
   } finally {

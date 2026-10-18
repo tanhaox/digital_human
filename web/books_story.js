@@ -44,7 +44,8 @@ function renderPage(b) {
     btns.push(`<button class="sm secondary" onclick="openEdit(${e.ep})" ${e.script_text ? '' : 'disabled title="先生成稿"'}>修稿</button>`);
     // TTS 先行 (0912 用户令): 稿→音→人耳验收, 复用音频加工页 (2.5 说书音色走 persona 链)
     btns.push(`<button class="sm" style="background:#5b21b6" onclick="ttsPreview(${e.ep})" ${e.script_text ? '' : 'disabled title="先生成稿"'}>🔊 TTS音频</button>`);
-    btns.push(`<button class="sm warn" onclick="run('episodes/${e.ep}/confirm', this)" ${e.status==='draft' ? '' : 'disabled title="稿子需先生成并人工过稿"'}>确认3</button>`);
+    // 1018 C4d (R9): 确认3 前有未清校验问题 → 弹窗警示 (warn 不 block, 人闸保留终审权)
+    btns.push(`<button class="sm warn" onclick="confirmEp(${e.ep}, this)" ${e.status==='draft' ? '' : 'disabled title="稿子需先生成并人工过稿"'}>确认3</button>`);
     btns.push(`<button class="sm secondary" onclick="rerunEp(${e.ep})" ${e.status==='pending' ? 'disabled' : ''}>级联重跑≥${e.ep}</button>`);
     if (e.status === 'confirmed' && !e.script_id) {
       // 0908 双产线: 静读书=produce 进产线(audio页 pptx链); 老谭=bs1 页单工坊直跳
@@ -62,8 +63,22 @@ function renderPage(b) {
       btns.push(`<button class="sm ep-bs1-btn" style="display:none;background:#14532d"
         onclick="location.href='/web/bs1_story.html?book_id=${encodeURIComponent(BOOKS.cur.id)}&ep_index=${e.ep}'">📐 页单工坊 →</button>`);
     }
+    // 1018 C4d (R9): 人闸视野 — _issues 红灯明示 + _checks 摘要 (此前落库不显示, 确认3盲飞)
+    const _rm = e.roadmap || {};
+    const _issues = Array.isArray(_rm._issues) ? _rm._issues : [];
+    const _checks = _rm._checks || {};
+    const _chkTip = Object.entries(_checks).filter(([k]) => k !== 'modules')
+      .map(([k, v]) => `${k}=${typeof v === 'boolean' ? v : (Array.isArray(v) ? v.length : v)}`).join('  ');
+    const issuesHtml = _issues.length
+      ? `<div style="margin:0.25rem 0 0;font-size:0.78rem;line-height:1.5;color:#fca5a5">`
+        + _issues.slice(0, 4).map(i => `• ${esc(i.length > 72 ? i.slice(0, 72) + '…' : i)}`).join('<br>')
+        + (_issues.length > 4 ? `<br>… +${_issues.length - 4} 项` : '')
+        + `</div>`
+      : (e.status === 'draft' && e.script_text
+          ? '<div style="margin:0.25rem 0 0;font-size:0.78rem;color:#86efac">✓ 确定性校验清零</div>' : '');
     return `<div style="border-top:1px solid #334155; padding:0.7rem 0">
-      <div class="kv"><b>第${e.ep}集 ${esc(e.title || '')}</b> <span class="badge ${e.status==='confirmed'?'':'need'}">${EP_BADGE[e.status] || e.status}</span>${(e.roadmap || {})._stale_outline ? '<span class="badge" style="background:#7f1d1d;color:#fecaca" title="总纲已重排,此稿基于旧总纲 — 建议级联重跑">⚠旧总纲稿</span>' : ''}${genAt}</div>
+      <div class="kv"><b>第${e.ep}集 ${esc(e.title || '')}</b> <span class="badge ${e.status==='confirmed'?'':'need'}">${EP_BADGE[e.status] || e.status}</span>${_issues.length ? ` <span class="badge" style="background:#7f1d1d;color:#fecaca">⚠ ${_issues.length}项校验红灯</span>` : ''}${(e.roadmap || {})._stale_outline ? '<span class="badge" style="background:#7f1d1d;color:#fecaca" title="总纲已重排,此稿基于旧总纲 — 建议级联重跑">⚠旧总纲稿</span>' : ''}${genAt}${_chkTip ? ` <span class="hint" title="${esc(_chkTip)}">自检▸</span>` : ''}</div>
+      ${issuesHtml}
       ${e.script_text ? `<pre class="script">${esc(stripMarks(e.script_text).slice(0, 1200))}${stripMarks(e.script_text).length > 1200 ? '\n…' : ''}</pre>` : ''}
       <div class="toolbar" style="margin-top:0.5rem;margin-bottom:0">${btns.join('')}</div>
     </div>`;
@@ -125,6 +140,14 @@ function renderPage(b) {
     </div>`;
 
   if (eps.length) loadProducePersonas(inp.persona_id);
+}
+
+// 1018 C4d (R9): 确认3 人闸守门 — 有未清校验问题先弹窗明示 (warn 不 block, 终审在人)
+async function confirmEp(n, btn) {
+  const e = (BOOKS.cur && BOOKS.cur.episodes || []).find(x => x.ep === n);
+  const issues = ((e && e.roadmap) || {})._issues || [];
+  if (issues.length && !confirm(`⚠ 第 ${n} 集仍有 ${issues.length} 项校验问题未清：\n\n${issues.map(i => '• ' + i).join('\n')}\n\n确认放行进产线？（人闸终审，放行后问题不再拦截）`)) return;
+  return run(`episodes/${n}/confirm`, btn);
 }
 
 // 2026-08-22: 总纲自动编排 — 从蒸馏 facing-units 生成 (免手动"生成总纲")

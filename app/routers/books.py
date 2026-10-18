@@ -1431,9 +1431,15 @@ def update_roadmap(book_id: str, body: RoadmapUpdate, db: Session = Depends(get_
 
 @router.put("/books/{book_id}/episodes/{n}")
 def edit_episode(book_id: str, n: int, body: EpisodeEdit, db: Session = Depends(get_db)):
-    """人工修稿 (确认节点内)."""
+    """人工修稿 (确认节点内).
+
+    1018 C4d (R8): 修稿保存后重跑终稿复检刷新 _issues/_checks — 旧版只重解析模块表,
+    人编辑后的稿零校验, roadmap 问题单永远陈旧 (episode_gen "三点齐查"注释与实现不符)。
+    不阻塞保存, 只刷新人闸视野。
+    """
     ep = _ep_or_404(db, book_id, n)
     module_warning = None
+    relint_issues: list[str] = []
     for f in ("script_text", "title", "target_duration_sec"):
         v = getattr(body, f)
         if v is not None:
@@ -1450,8 +1456,33 @@ def edit_episode(book_id: str, n: int, body: EpisodeEdit, db: Session = Depends(
             module_warning = ("稿件无六拍标记: 沿用历史模块表 (按末行锚定位); "
                               "若正文大改, 建议补标记或重新生成 — 否则 TTS 模块墙/切场将退化为旧结构")
         ep.script_generated_at = _now()  # 修稿也算新稿落定 (成稿时间刷新)
+        # 终稿同规复检 (快照化): 与生成链同一把尺, 人闸看到的就是当前稿的真问题
+        try:
+            from app.models.roles import Persona
+            from app.services.book_service import passes as _passes
+            _total = len(ep.book.episodes) or 6
+            _pid = (ep.book.input_json or {}).get("persona_id")
+            _p = db.query(Persona).filter(Persona.id == _pid).first() if _pid else None
+            _laotan = bool(_p and "laotan" in (_p.prompt_template or ""))
+            _hook_ref = str((ep.roadmap_json or {}).get("黄金三秒钩子") or "") if ep.ep_index > 1 else ""
+            _snap = _passes.snapshot(
+                ep.script_text, target=ep.target_duration_sec,
+                book_title=ep.book.book_title,
+                require_cta=(_laotan and not (ep.ep_index >= _total and _total > 1)),
+                ep_index=ep.ep_index, flow_check=(1 < ep.ep_index < _total),
+                figure=str((ep.roadmap_json or {}).get("贯穿人物") or ""),
+                hook_ref=_hook_ref,
+                include=("validate", "flow", "fig", "hook"))
+            relint_issues = _passes.snap_issues(_snap)
+            _rm = dict(ep.roadmap_json or {})
+            _rm["_issues"] = relint_issues if relint_issues else []
+            _rm.setdefault("_checks", {})
+            ep.roadmap_json = _rm
+        except Exception as _exc:  # noqa: BLE001 — 复检失败不阻塞保存
+            module_warning = (module_warning or "") + f" | 修稿复检异常: {_exc}"
     db.commit()
-    return {"ep": ep.ep_index, "status": ep.status, "module_warning": module_warning}
+    return {"ep": ep.ep_index, "status": ep.status, "module_warning": module_warning,
+            "issues": relint_issues}
 
 
 @router.post("/books/{book_id}/episodes/{n}/generate")
