@@ -50,7 +50,7 @@
 
 ## 七、关键上下文
 
-- pytest 基线：`pytest tests/ -m "not real_api"` → **6 failed / 217 passed / 5 deselected**。
+- pytest 基线：`pytest tests/ -m "not real_api"` → **6 failed / 253 passed / 5 deselected**（1019 生稿北极星对齐后, 新增36测）。
   已知失败项（历史债，与本轮重构无关）：
   - test_module_map ×3（AssertionError×2 / IndexError）
   - test_tts_chunk_semantic ×2
