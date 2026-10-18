@@ -231,3 +231,29 @@ def test_gates_scoped_to_laotan_only():
     t = _hook_script("上集那张表用上的，评论区说说。")
     issues = validate_script(t, 300, book_title=_BOOK, require_cta=False)[1]
     assert not [i for i in issues if i.startswith(("硬邀请", "1:30战区"))]
+
+
+# ── 1018 视听一致 (用户令: 画面无表格) — 口播禁开"表"的视觉支票 ──
+
+def test_table_reference_flagged():
+    for s in ("把这张表转给还在硬扛的朋友。", "工具定名：这张定位表叫《空位判定表》。",
+              "这张三面墙定位表，能帮他省半年弯路。"):
+        t = _hook_script("这一层我是第八年才看破的，你是第几年？").replace(
+            "转给他。收藏起来翻出来。", s + " 转给他。收藏起来翻出来。")
+        issues = validate_script(t, 300, book_title=_BOOK, require_cta=True)[1]
+        assert any(i.startswith("视听不一致·表") for i in issues), s
+
+
+def test_table_gate_clean_wording_passes():
+    t = _hook_script("这一层我是第八年才看破的，你是第几年？").replace(
+        "转给他。收藏起来翻出来。", "把这套问话转给还在硬扛的朋友。收藏起来翻出来。")
+    issues = validate_script(t, 300, book_title=_BOOK, require_cta=True)[1]
+    assert not [i for i in issues if i.startswith("视听不一致·表")]
+
+
+def test_table_gate_excludes_common_words():
+    """代表/表达/时间表等常用词不误伤 (窄pattern: 表格/指示词+表/《…表》)。"""
+    t = _hook_script("这一层我是第八年才看破的，你是第几年？").replace(
+        "转给他。收藏起来翻出来。", "他能代表团队表达立场。转给他。收藏起来翻出来。")
+    issues = validate_script(t, 300, book_title=_BOOK, require_cta=True)[1]
+    assert not [i for i in issues if i.startswith("视听不一致·表")]
