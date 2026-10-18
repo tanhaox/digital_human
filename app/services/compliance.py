@@ -204,9 +204,10 @@ def platform_bans_negative() -> list[str]:
     return _platform_neg_cache
 
 
-# 1008 规层: 平台限流/禁止类目键 (compliance_visual.json v2 新增的 8 类)
+# 1008 规层: 平台限流/禁止类目键 (compliance_visual.json v2 的 8 类 + 1019 新 4 类)
 PLATFORM_CATEGORIES = ("tobacco_alcohol", "gambling", "violence_gore", "sexual_content",
-                       "drug_content", "financial_risk", "minor_safety", "religious_symbols")
+                       "drug_content", "financial_risk", "minor_safety", "religious_symbols",
+                       "disturbing_imagery", "horror_funeral", "dangerous_acts", "visual_diversion")
 
 
 def visual_platform_labels() -> list[str]:
@@ -235,6 +236,15 @@ _VISUAL_SOFT_FIX = {
     # 赌博 (平台禁止): 棋族替身
     "扑克牌": "棋牌", "骰子": "棋子", "老虎机": "弹珠机", "赌场": "游戏厅",
     "赌博": "对弈", "赌桌": "棋桌", "筹码": "棋子", "彩票": "奖券",
+    # 1019 执法装备族 (用户清单: 非官方展示判违规): 手铐/对讲机给叙事替身
+    "手铐": "布绳缠绕", "对讲机": "复古收音机", "警戒线": "围栏",
+    # 1019 宗教 (用户清单分级: 客观文化展示低危, 但词面仍触发机器审 → 换中性说法)
+    "佛珠": "木质手串", "符咒": "古信笺",
+    # 1019 恐怖丧葬 (讲书悬疑重灾区): 蒙面怪影/哀悼意象替身
+    "僵尸": "蒙面怪影", "丧尸": "蒙面怪影", "鬼怪": "雾中黑影", "恐怖玩偶": "旧布偶",
+    "丧葬": "烛光白菊", "葬礼": "追思会", "灵堂": "烛光厅",
+    # 1019 危险行为: 后果暗示空镜替身 (不给过程)
+    "车祸": "事故现场", "火灾": "浓烟弥漫",
 }
 
 
