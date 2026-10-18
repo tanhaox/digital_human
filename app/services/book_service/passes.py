@@ -38,12 +38,15 @@ def _word_count(issue: str) -> int | None:
 
 
 def word_band_ok(h_issues: list[str], b_issues: list[str], target_sec: float) -> bool:
-    """字数同病豁免: 新问题全为字数族 且 距带更近 (1013欠24 vs 1109超5 误杀实锤)。"""
-    cap = int(float(target_sec or 300) * 4.6)
-    lo = int(cap * 0.94)
+    """字数同病豁免: 新问题全为字数族 且 距带更近 (1013欠24 vs 1109超5 误杀实锤)。
+
+    1018 C4a: 带子改用 creation_common.word_band (语速 5.0 实测 + 平台包络)。
+    """
+    from .creation_common import word_band
+    lo, hi, _, _ = word_band(target_sec or 300)
 
     def dist(n):
-        return 0 if n is None or lo <= n <= cap else min(abs(n - lo), abs(n - cap))
+        return 0 if n is None or lo <= n <= hi else min(abs(n - lo), abs(n - hi))
 
     h_n = next((_word_count(i) for i in h_issues if "字数" in i), None)
     b_n = next((_word_count(i) for i in b_issues if "字数" in i), None)

@@ -17,6 +17,8 @@ from app.models import BookProject, Episode
 from app.models.base import _now
 from app.services.book_service import passes as passes_mod
 from app.services.book_service.creation_common import (
+    PLATFORM_DURATION_BAND,
+    SPEECH_RATE,
     _llm,
     _parse_json,
     _scan_occult_quotes,
@@ -32,6 +34,7 @@ from app.services.book_service.creation_common import (
     source_context,
     typing_card_issues,
     validate_script,
+    word_band,
 )
 from app.services.book_service.creation_steps import _l0_facing
 from app.services.book_service.distiller import load_book_rules
@@ -136,9 +139,15 @@ def _strip_for_series_feed(t: str) -> str:
 def generate_episode(db: Session, ep: Episode) -> Episode:
     book = ep.book
     inp = book.input_json or {}
+    # 1018 C4a 北斗星第5条: 目标时长平台带闸 (270,420)s — 越带不代改 (target 是内容决策, 归人调)
+    if not PLATFORM_DURATION_BAND[0] < float(ep.target_duration_sec or 0) < PLATFORM_DURATION_BAND[1]:
+        raise ValueError(
+            f"目标时长 {float(ep.target_duration_sec or 0):.0f}s 越北斗星平台带 "
+            f"({PLATFORM_DURATION_BAND[0]:.0f}-{PLATFORM_DURATION_BAND[1]:.0f}s, 单条视频须 >4:30 且 <7:00), "
+            "请先调整本集 target_duration_sec 再生成")
     labels = elastic_labels(ep.target_duration_sec)
     label_table = "\n".join(f"【{a}-{b}秒｜{n}】" for a, b, n in labels)
-    char_hints = "、".join(f"【{n}】约{int((b - a) * 4.6)}字" for a, b, n in labels)
+    char_hints = "、".join(f"【{n}】约{int((b - a) * SPEECH_RATE)}字" for a, b, n in labels)
 
     prev = next((e for e in book.episodes if e.ep_index == ep.ep_index - 1), None)
     coverages = [e.coverage_json or [] for e in book.episodes if e.ep_index < ep.ep_index]
@@ -201,7 +210,7 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
                 labels[_i3] = (_a3 + _span, _b3, _n3)
                 labels.insert(_i3, (_a3, _a3 + _span, "书里怎么说的"))
                 label_table = "\n".join(f"【{a}-{b}秒｜{n}】" for a, b, n in labels)
-                char_hints = "、".join(f"【{n}】约{int((b - a) * 4.6)}字" for a, b, n in labels)
+                char_hints = "、".join(f"【{n}】约{int((b - a) * SPEECH_RATE)}字" for a, b, n in labels)
         _CN = {2: "二", 3: "三", 4: "四", 5: "五", 6: "六", 7: "七", 8: "八", 9: "九"}
         _cn = lambda n: _CN.get(n, str(n))
         # 秘籍形态适配 (0908 用户令: 集分开生成, 提示词应随集差异化)
@@ -431,9 +440,12 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
     # ── 附加指令: 动态硬数据, 优先级高于模板 ──
     # 0912: 语速 4.7→4.6 (2.5 实测锚); 0907: 字数基线按目标时长动态换算 — 旧硬编码 2800-2950 按 600s
     # 设计, 老谭读书 300s 时误导 LLM 写超一倍 (155句/3166字/11分钟实锤)。
+    # 1018 C4a: 语速 4.6→SPEECH_RATE=5.0 (《定位》7 集实测 median 4.974); 单带改弹性带
+    # (北斗星第3条 字数=弹性工具): 严格≤软带上限 (相对带∩平台包络), 推荐 带下限~cap。
     _dur = float(ep.target_duration_sec or 600)
-    _cap_chars = int(_dur * 4.6)
-    _char_lo, _char_hi = int(_cap_chars * 0.94), int(_cap_chars * 0.985)
+    _wb_lo, _wb_hi, _wb_hlo, _wb_hhi = word_band(_dur)
+    _cap_chars = int(_dur * SPEECH_RATE)
+    _char_lo, _char_hi = _wb_lo, min(_cap_chars, _wb_hi)
     sys_p = (
         base
         + "\n\n【本集附加指令 · 优先级高于模板】\n"
@@ -443,9 +455,9 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
            f"{str(_rm.get('核心问题') or '')}\n" if _rm.get('核心问题') else "")
         + "   【】括号是标签专用符号：除上述 6 个标签行外，正文任何位置禁止使用【】"
           "（含引用/强调/批注/小标题）——需要强调时用引号或破折号。\n"
-        + f"3. 各段参考字数（4.6 字/秒）：{char_hints}。\n"
+        + f"3. 各段参考字数（{SPEECH_RATE} 字/秒）：{char_hints}。\n"
         + f"4. 字数基线（硬校验, 按目标时长 {_dur:.0f}s 换算, 覆盖模板基线数字）："
-          f"全文正文严格≤{_cap_chars}字、推荐{_char_lo}-{_char_hi}字，宁短勿超。\n"
+          f"全文正文严格≤{_char_hi}字、推荐{_char_lo}-{_char_hi}字，宁短勿超。\n"
         + "5. 必须输出全部 6 个标签行，末段终点≈目标时长±10%；**语义段落之间空一行**"
           "（空行=段界 — 音频断包/段落气口/分镜切场全按它切, 标签行下每个独立语义单元"
           "自成一段, 禁整节连排不空行; 单换行=同段内的句行）。\n"
@@ -1209,8 +1221,8 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
             # 禁全文重写碰运气 — 删连接词/重复修饰/最弱的钉, 目标=字数带中值
             _only_over = issues2 and all("超出" in i for i in issues2)
             if _only_over:
-                _cap7 = int(float(ep.target_duration_sec or 300) * 4.6)
-                _tgt7 = int(_cap7 * 0.97)
+                _wb7 = word_band(float(ep.target_duration_sec or 300))
+                _tgt7 = (_wb7[0] + _wb7[1]) // 2
                 try:
                     # 1009 P5 (设计§七): 先走行级 patch — 未动行由代码逐字保留
                     # (段落标签/coverage JSON 零漂移是构造保证), 失败回退全稿重写

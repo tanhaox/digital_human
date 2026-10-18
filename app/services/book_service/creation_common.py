@@ -18,7 +18,35 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["elastic_labels", "validate_script", "source_context", "persona_anchor_issues",
            "derive_breakdown_steps", "section_flow_issues",
-           "fandeng_opening_issues"]
+           "fandeng_opening_issues", "word_band",
+           "SPEECH_RATE", "RATE_FAST", "RATE_SLOW", "PLATFORM_DURATION_BAND"]
+
+# ── 语速真值与字数带 (1018 C4a, 北斗星第3/5条) ──────────────────────────
+# 实测 (2026-10-18): 《定位》7 集成稿 × 各自 full_paragraph.wav 真实时长 (ffprobe,
+# 老谭·说书 TTS2, E盘 outputs/audio 2026-09-22~10-04), 字数按 validate 同口径
+# (剥标签/空白): ep1 5.31 / ep2 4.96 / ep3 5.16 / ep4 5.13 / ep5 4.97 / ep6 4.82 /
+# ep7 4.90 → median 4.974。旧 4.6 (0912 锚) 偏慢 8%: 300s 按 4.6 预算 1380 字
+# 实际只出 ~276s (4:36)。设计值取 5.0, 包络校验用实测两端。
+SPEECH_RATE = 5.0    # 字/秒 设计值 (median 4.974)
+RATE_FAST = 5.31     # 实测最快 — 包络下限用 (最快语速下仍 >4:30)
+RATE_SLOW = 4.82     # 实测最慢 — 包络上限用 (最慢语速下仍 <7:00)
+# 平台带 (北斗星第5条): 单条视频 >4:30 且 <7:00
+PLATFORM_DURATION_BAND = (270.0, 420.0)
+# 字数绝对包络: 下限 ceil(270×5.31)=1434 (n/5.31 > 270), 上限 floor(420×4.82)=2024 (n/4.82 < 420)
+_WORD_ENV = (1434, 2024)
+
+
+def word_band(target: float) -> tuple[int, int, int, int]:
+    """生效修复带 (lo, hi) 与硬线 (hlo, hhi) — 相对带 ∩ 平台包络 (1018 C4a)。
+
+    相对: cap = target×SPEECH_RATE, 软带 [0.90, 1.08]×cap, 硬线 [0.80, 1.20]×cap;
+    包络: _WORD_ENV (平台带按实测语速两端保真)。
+    target ∈ PLATFORM_DURATION_BAND 时带子必非空 (270s→[1434,1458], 420s→[1890,2024])。
+    """
+    cap = int(float(target or 600) * SPEECH_RATE)
+    lo, hi = max(int(cap * 0.90), _WORD_ENV[0]), min(int(cap * 1.08), _WORD_ENV[1])
+    hlo, hhi = max(int(cap * 0.80), _WORD_ENV[0]), min(int(cap * 1.20), _WORD_ENV[1])
+    return lo, hi, hlo, hhi
 
 # ── 人设后处理注入层 (P1 定稿措辞): 创作 LLM 保持中性, 身份段/结尾在此加 ──
 # 2026-08-23: 自称"静"而非"静姐" — 拉大受众群 (静姐限定了已婚熟龄, 静覆盖更广)
@@ -388,6 +416,9 @@ def validate_script(text: str, target: float, book_title: str = "",
     "字数不足"永远打回 (LLM 怎么写都过不了)。改为语速×target,
     带宽 -6%/+0% (宁短勿超)。
     0912: 语速 4.7→4.6 (2.5 说书音色实测锚, ep1 368s/ep5 422s 双证);
+    1018 C4a: 4.6→SPEECH_RATE=5.0 (《定位》7 集 full_paragraph.wav 实测 median 4.974,
+    旧锚偏慢 8%); 单带改三档 — 软带出带=进修复, 硬线=打回重写级, 平台包络=北斗星第5条。
+    字数=弹性工具 (北斗星第3条), 带子存在只为逼 LLM 在板块预算内完成运营任务。
     并加车轱辘话检测 (论点级复读 + 近重复句) — 用户令: 超字数背后藏着同义反复。
     0913: require_cta — 老谭非收官集收尾段须含转发+收藏 CTA (系统结尾已缩为品牌句,
     漏写=这一集没有任何转发号召, 确定性打回让重试自己补)。
@@ -395,9 +426,13 @@ def validate_script(text: str, target: float, book_title: str = "",
     issues: list[str] = []
     body = _LABEL_RE.sub("", text or "")
     n = len(re.sub(r"\s", "", body))
-    _cap = int(float(target or 600) * 4.6)
-    _lo, _hi = int(_cap * 0.94), _cap
-    if not _lo <= n <= _hi:
+    # 1018 C4a: 三档字数带 (软带→修复 / 硬线→重写级 / 包络=平台带保真); 文案保持"字数 N"前缀
+    # (passes.issue_family/word_band_ok 的 `字数 (\d+)` 正则依赖)
+    _lo, _hi, _hlo, _hhi = word_band(target or 600)
+    if n > _hhi or n < _hlo:
+        issues.append(f"字数 {n} {'超硬线 ' + str(_hhi) if n > _hhi else '不足硬线 ' + str(_hlo)}"
+                      f" (目标{target:.0f}s → 修复带{_lo}-{_hi}, 硬线{_hlo}-{_hhi})")
+    elif not _lo <= n <= _hi:
         issues.append(f"字数 {n} {'超出 ' + str(_hi) if n > _hi else '不足 ' + str(_lo)} (目标{target:.0f}s → {_lo}-{_hi})")
     # 车轱辘话检测 (0912): ①近重复句 (字符 bigram 重叠 ≥65% 的句子对) ②高频复读词
     sents = [s.strip() for s in re.split(r"[。！？\n]", body) if len(s.strip()) >= 10]

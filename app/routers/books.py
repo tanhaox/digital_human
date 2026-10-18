@@ -1457,7 +1457,11 @@ def edit_episode(book_id: str, n: int, body: EpisodeEdit, db: Session = Depends(
 @router.post("/books/{book_id}/episodes/{n}/generate")
 def generate(book_id: str, n: int, db: Session = Depends(get_db)):
     """步骤5: 逐集生成 (pro) + 硬校验 + 人设注入 →【确认3】."""
-    ep = orch.generate_episode(db, _ep_or_404(db, book_id, n))
+    try:
+        ep = orch.generate_episode(db, _ep_or_404(db, book_id, n))
+    except ValueError as e:
+        # 1018 C4a: 目标时长平台带闸 (270,420)s — 人调 target, 不代改
+        raise HTTPException(status_code=422, detail=str(e)) from e
     return {"ep": ep.ep_index, "status": ep.status,
             "issues": (ep.roadmap_json or {}).get("_issues", []),
             "checks": (ep.roadmap_json or {}).get("_checks", {})}
