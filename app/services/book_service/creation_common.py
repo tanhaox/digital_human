@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 __all__ = ["elastic_labels", "validate_script", "source_context", "persona_anchor_issues",
            "derive_breakdown_steps", "section_flow_issues",
-           "fandeng_opening_issues", "word_band",
+           "fandeng_opening_issues", "word_band", "hook_position_issues",
            "SPEECH_RATE", "RATE_FAST", "RATE_SLOW", "PLATFORM_DURATION_BAND"]
 
 # ── 语速真值与字数带 (1018 C4a, 北斗星第3/5条) ──────────────────────────
@@ -409,7 +409,8 @@ def section_flow_issues(text: str, book_title: str = "",
 
 
 def validate_script(text: str, target: float, book_title: str = "",
-                    *, require_cta: bool = False) -> tuple[bool, list[str]]:
+                    *, require_cta: bool = False, finale: bool = False,
+                    ) -> tuple[bool, list[str]]:
     """硬校验: 字数按目标时长换算 + 六标签完整 + 末段终点≈目标±10%.
 
     0907: 旧硬编码 2700-3000 按 600s 设计 — 老谭读书 300s 时正确长稿被判
@@ -422,6 +423,8 @@ def validate_script(text: str, target: float, book_title: str = "",
     并加车轱辘话检测 (论点级复读 + 近重复句) — 用户令: 超字数背后藏着同义反复。
     0913: require_cta — 老谭非收官集收尾段须含转发+收藏 CTA (系统结尾已缩为品牌句,
     漏写=这一集没有任何转发号召, 确定性打回让重试自己补)。
+    1018 C4c: finale — 非收官集收尾段禁集数计数收口 (ep1 实锤"这7集一集一件工具…
+    第7集装订"穿透提示词禁令; 系列导览归导览拍, CTA 规格④只许"第X件")。
     """
     issues: list[str] = []
     body = _LABEL_RE.sub("", text or "")
@@ -512,6 +515,15 @@ def validate_script(text: str, target: float, book_title: str = "",
             issues.append("收尾段缺转发CTA — 收尾段末须写转发号召(对象/理由挂钩本集秘籍, 系统结尾不再带)")
         if not re.search(r"收藏|留到|存下|翻出来", _tail_seg):
             issues.append("收尾段缺收藏CTA — 收藏须给场景理由(何时翻出来用本集工具)")
+        # 1018 C4c 计数收口闸 (北斗星2): 非收官集收尾段禁集数计数收口 — 三窄 pattern
+        # (校准锚 ep1"这7集一集一件工具…第7集装订"); "下一集/下集"预告与"第X件"CTA 不误伤。
+        if not finale and _tail_seg:
+            _cnt = (re.search(r"[一二三四五六七八九\d]\s*集一集一件", _tail_seg)
+                    or re.search(r"第[一二三四五六七八九\d]\s*集[^。！？\n]{0,20}(装订|集齐|拼完|行动册)", _tail_seg)
+                    or re.search(r"(全|整)(套|部)[一二三四五六七八九\d]\s*集", _tail_seg))
+            if _cnt:
+                issues.append(f"收尾计数收口: 「{_cnt.group(0)}」— 非收官集收尾禁集数计数收口; "
+                              "系列导览归导览拍, 系列感用'第X件工具'式 (收官集由系统结尾注入)")
     labels = _LABEL_RE.findall(text or "")
     names = [x[2].strip() for x in labels]
     for _a, _b, name in _LABEL_BASE:
@@ -522,6 +534,31 @@ def validate_script(text: str, target: float, book_title: str = "",
         if abs(end - target) > target * 0.1:
             issues.append(f"末段终点 {end}s 偏离目标 {target:.0f}s ±10%")
     return (not issues, issues)
+
+
+# 黄金三秒钩子落位闸正交化用: 剥空白与常见标点 (弯直引号/破折号/省略号)
+_STRIP_RE = re.compile(r"[\s，。！？、：；⋯…·—\-“”\"'‘’]")
+
+
+def hook_position_issues(text: str, hook_ref: str) -> list[str]:
+    """黄金三秒钩子落位闸 (1018 C4c, 北斗星1/3 — tier-1 吸粉零执法补位)。
+
+    工具集/收官集: 路线图「黄金三秒钩子」的断言头 (剥标点后前 12 字) 须出现在
+    钩子段 (首标签段) 前 150 字内 — 开段即出, 留存 3s 法则。ep1 豁免 (拼装式开局
+    六拍+打字卡扛前 3 秒; ep1 旧实锤: 痛点钩子埋到 ~25s 处无人管)。
+    """
+    h = _STRIP_RE.sub("", hook_ref or "")[:12]
+    if len(h) < 6:
+        return []
+    marks = list(_LABEL_RE.finditer(text or ""))
+    if len(marks) < 2:
+        return []
+    seg = _LABEL_RE.sub("", text[marks[0].end():marks[1].start()])
+    head = _STRIP_RE.sub("", seg)[:150]
+    if h in head:
+        return []
+    return [f"黄金三秒钩子未落位: 「{(hook_ref or '')[:18]}」未出现在钩子段前150字 — "
+            "钩子断言须开段即出 (留存3s法则, 北斗星tier-1)"]
 
 
 def source_context(book: BookProject, cap: int = 12000) -> str:

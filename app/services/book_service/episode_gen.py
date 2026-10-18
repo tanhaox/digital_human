@@ -28,6 +28,7 @@ from app.services.book_service.creation_common import (
     ep1_opening_order_issues,
     fallback_base,
     fandeng_opening_issues,
+    hook_position_issues,
     persona_anchor_issues,
     persona_identity_ending,
     section_flow_issues,
@@ -1144,6 +1145,9 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
     def _fig_quota(text: str) -> list[str]:
         return passes_mod.fig_quota_issues(text, _figure)
     _concept_issues.extend(_fig_quota(out))
+    # 1018 C4c: 黄金三秒钩子落位闸 — 工具集/收官集才查 (ep1 豁免: 六拍+打字卡扛前3秒)
+    _hook_ref = str(_rm.get("黄金三秒钩子") or "") if ep.ep_index > 1 else ""
+    _concept_issues.extend(hook_position_issues(out, _hook_ref))
     ok, issues = validate_script(out, ep.target_duration_sec, book_title=book.book_title,
                                  require_cta=_req_cta)
     # 六拍模块总线 (0917 架构令): 标记解析不足 6 段 = 结构不合规, 进打回链自动重试
@@ -1221,7 +1225,7 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
         # 0913b: 重试稿承接检测同规 (重试只顾字数/车轱辘、割裂照旧 = 白重试)
         _flow2 = section_flow_issues(retry, book_title=book.book_title, ep_index=ep.ep_index,
                                      flow_check=_is_tool_ep)             + fandeng_opening_issues(retry, _fd_open_paras)
-        issues2 = list(issues2) + _flow2
+        issues2 = list(issues2) + _flow2 + hook_position_issues(retry, _hook_ref)
         # 1018 C1a (北斗星源头闸): 重试全有全无 → 病族不新增 且 字数距带不倒退 即接受;
         # 残余病 (软带字数/CTA/复读) 交给后置 pass 收尾 — ep1 实锤: 重试修好 5/6 病
         # (书名✓CTA✓钩子秩序✓) 因字数爆 2728 被整稿弃用, 修好的全被扔 (05_raw_retry.txt)。
@@ -1595,7 +1599,10 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
     if _lbls:
         _tail = out[_lbls[-1].end():]
         _lines = _tail.split("\n")
-        _nxt = [i for i, l in enumerate(_lines) if l.strip().startswith("下一集")]
+        # 1018 C4c: pattern 扩 下集/下期 — 旧版只认"下一集"开头, "下集聊聊"不匹配
+        # (ep1 实锤: 站队问句排在下集预告后, 件序铁律未执法)
+        _nxt = [i for i, l in enumerate(_lines)
+                if l.strip().startswith(("下一集", "下集", "下期"))]
         if _nxt:
             _line = _lines.pop(_nxt[-1])
             while _lines and not _lines[-1].strip():
@@ -1640,12 +1647,16 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
     _fin = passes_mod.snapshot(
         out, target=ep.target_duration_sec, book_title=book.book_title, require_cta=_req_cta,
         ep_index=ep.ep_index, flow_check=_is_tool_ep, figure=_figure,
-        verbatim_paras=_fd_open_paras,
-        include=("validate", "flow", "fig", "opening") + (("brand",) if _is_tool_ep else ()))
+        verbatim_paras=_fd_open_paras, hook_ref=_hook_ref,
+        include=("validate", "flow", "fig", "opening", "hook") + (("brand",) if _is_tool_ep else ()))
     issues = passes_mod.snap_issues(_fin)
     ok = not issues
     theme = (ep.roadmap_json or {}).get("主题", "")
     checks["theme_in_script"] = bool(theme) and theme[:8] in out
+    # 1018 C4c 记录级 (集型任务卡 ep1 项): 系列导览命中 — 后续集标题头4字在稿率
+    if ep.ep_index == 1:
+        _guide_eps = [e2 for e2 in book.episodes if e2.ep_index > 1 and (e2.title or "").strip()]
+        checks["ep1_guide_hits"] = f"{sum(1 for e2 in _guide_eps if e2.title[:4] in out)}/{len(_guide_eps)}"
     if prev:
         prev_theme = (prev.roadmap_json or {}).get("主题", "")
         checks["links_prev"] = bool(prev_theme) and prev_theme[:8] in out
