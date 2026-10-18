@@ -1460,6 +1460,7 @@ def edit_episode(book_id: str, n: int, body: EpisodeEdit, db: Session = Depends(
         try:
             from app.models.roles import Persona
             from app.services.book_service import passes as _passes
+            from app.services.book_service.episode_gen import _story_dup_issues
             _total = len(ep.book.episodes) or 6
             _pid = (ep.book.input_json or {}).get("persona_id")
             _p = db.query(Persona).filter(Persona.id == _pid).first() if _pid else None
@@ -1474,6 +1475,9 @@ def edit_episode(book_id: str, n: int, body: EpisodeEdit, db: Session = Depends(
                 hook_ref=_hook_ref,
                 include=("validate", "flow", "fig", "hook"))
             relint_issues = _passes.snap_issues(_snap)
+            # 1019 排重令③: 修稿复检同规补排重闸 — 否则人改稿触发的问题单刷新会
+            # 洗掉阻断标记, 确认闸被绕过 (复检视野不含生成时闸, 须重算)
+            relint_issues += _story_dup_issues(ep.book, ep, ep.script_text or "")
             _rm = dict(ep.roadmap_json or {})
             _rm["_issues"] = relint_issues if relint_issues else []
             _rm.setdefault("_checks", {})
@@ -1500,7 +1504,11 @@ def generate(book_id: str, n: int, db: Session = Depends(get_db)):
 
 @router.post("/books/{book_id}/episodes/{n}/confirm")
 def confirm_episode(book_id: str, n: int, db: Session = Depends(get_db)):
-    ep = orch.confirm_episode(db, _ep_or_404(db, book_id, n))
+    try:
+        ep = orch.confirm_episode(db, _ep_or_404(db, book_id, n))
+    except ValueError as e:
+        # 1019 排重令③: 案例跨集重复阻断 → 422 (同 generate 路由口径)
+        raise HTTPException(status_code=422, detail=str(e)) from e
     return {"ep": ep.ep_index, "status": ep.status, "book_status": ep.book.status}
 
 

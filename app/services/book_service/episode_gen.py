@@ -132,6 +132,112 @@ def _strip_for_series_feed(t: str) -> str:
     return re.sub(r"\n{3,}", "\n\n", t).strip()
 
 
+# ── 1019 故事库跨集排重 (agent 调查实锤: 5/7 集概念 0 命中→静默回退全量→头部
+# 硬截 2500 字 → 多集共享"前13条"池, 29 条只用 11; 用户三案令: 喂料剔除已用 +
+# 废静默回退 + 阻断闸兜底)。锚词法: 只取主体行人名, 滤"某/一位"起手与角色词
+# (潜在客户/资深合伙人这类通用词当锚会把没讲过的条目误判已用), 跨条目重复名
+# (罗伯特/大卫/查理/梅斯特) 与书元词不作锚; 标题碎片不作锚 (主题词误锚源)。
+# 锚中即视为该条目被讲过; 无锚条目 (主体只剩通用角色) 放行不拦 (fail-open)。──
+_ROLE_NOUNS = ("客户", "合伙人", "开发商", "丈夫", "妻子", "学生", "团队",
+               "员工", "老板", "企业", "公司", "对方", "朋友", "顾问", "总裁", "高管")
+# 职业+姓名复合 (牙医安德鲁/科伦坡中尉) 整串当锚太死 — 稿里常写"牙医，安德鲁"
+_ROLE_AFFIXES = ("牙医", "律师", "医生", "中尉", "董事长", "总监", "教授")
+
+
+def _story_anchor_map(text: str, noise: str = "") -> dict[int, tuple[str, set[str]]]:
+    """故事库文本 → {条目序: (标题, 锚词集)}。条目 = **【标题】** 起的空行段
+    (search 不锚段首 — 文件头标题行常与首条目同段, match 会漏第一条)。"""
+    entries: list[tuple[str, list[str]]] = []
+    for p in re.split(r"\n\s*\n", text or ""):
+        m = re.search(r"\*\*【(.+?)】\*\*", p)
+        if not m:
+            continue
+        toks: list[str] = []
+        subj = re.search(r"^主体：(.+)$", p, re.M)
+        if subj:
+            for x in subj.group(1).split("、"):
+                x = x.strip().rstrip("。")
+                if len(x) >= 2 and not x.startswith(("某", "一", "那", "这", "几")) \
+                        and not any(r in x for r in _ROLE_NOUNS):
+                    toks.append(x)
+                    for r in _ROLE_AFFIXES:  # 剥职业前后缀, 姓名单独成锚
+                        if x.startswith(r) and len(x) > len(r) + 1:
+                            toks.append(x[len(r):])
+                        if x.endswith(r) and len(x) > len(r) + 1:
+                            toks.append(x[: -len(r)])
+        entries.append((m.group(1), toks))
+    freq: dict[str, int] = {}
+    for _, toks in entries:
+        for t in set(toks):
+            freq[t] = freq.get(t, 0) + 1
+    return {i: (title, {t for t in set(toks) if freq[t] == 1 and t not in noise})
+            for i, (title, toks) in enumerate(entries)}
+
+
+def _hit_stories(amap: dict[int, tuple[str, set[str]]], text: str) -> set[int]:
+    """锚词命中 text 的条目序集 (子串归并: 短名是长名子串时只记长名条目 —
+    讲"吉姆·柯波兰德"不应误判"吉姆的记忆挑战"也讲过)。"""
+    if not text:
+        return set()
+    hit = {i for i, (_, a) in amap.items() if a and any(x in text for x in a)}
+    return {i for i in hit
+            if not any(j != i and x != y and x in y
+                       for j in hit for x in amap[i][1] for y in amap[j][1])}
+
+
+def _drop_used_stories(text: str, used_in: str, noise: str = "") -> tuple[str, list[str]]:
+    """剔除锚词命中 used_in (兄弟集稿拼盘) 的条目; 返回 (剩余文本, 已用标题列表)。"""
+    amap = _story_anchor_map(text, noise)
+    used = _hit_stories(amap, used_in)
+    keep: list[str] = []
+    dropped: list[str] = []
+    i = 0
+    for p in re.split(r"\n\s*\n", text or ""):
+        if p.strip() and re.search(r"\*\*【(.+?)】\*\*", p):
+            if i in used:
+                dropped.append(amap[i][0])
+                i += 1
+                continue
+            i += 1
+        keep.append(p)
+    return "\n\n".join(keep), dropped
+
+
+def _story_dup_issues(book: BookProject, ep: Episode, script: str) -> list[str]:
+    """兜底闸: 新稿锚中的故事条目已被兄弟集讲过 → 工具集(2..N-1)阻断, ep1/末集提示
+    (集型使命: 头尾集点名前集案例是合法导览, 只提醒不拦)。"""
+    from app.services.book_service.distiller import load_section
+    total = len(book.episodes) or 6
+    out: list[str] = []
+    try:
+        sib = {e2.ep_index: (e2.script_text or "")
+               for e2 in book.episodes
+               if e2.ep_index != ep.ep_index and (e2.script_text or "")}
+        if not sib or not script:
+            return out
+        lib = load_section(book.book_title, "故事库")
+        if not lib:
+            return out
+        noise = (book.author or "") + (book.book_title or "")
+        tag = "阻断" if 1 < ep.ep_index < total else "提示"
+        amap = _story_anchor_map(lib, noise)
+        for i in sorted(_hit_stories(amap, script)):
+            title = amap[i][0]
+            prev = "、".join(str(j) for j, st in sorted(sib.items())
+                             if i in _hit_stories(amap, st))
+            if not prev:
+                continue
+            if tag == "阻断":
+                out.append(f"案例跨集重复(阻断): 「{title}」已由第{prev}集讲过 — "
+                           "禁原案重讲 (要提只许换角度半句带过); 须换未用案例重写该段")
+            else:
+                out.append(f"案例跨集重复(提示): 「{title}」已由第{prev}集讲过 — "
+                           "头尾集导览点名可, 禁整案重讲")
+    except Exception as exc:  # noqa: BLE001 — 兜底闸失败不炸生成
+        logger.warning("[book] 案例排重闸异常(跳过): %s", exc)
+    return out
+
+
 # 0927 案例口径三则 (用户×豆包合议定稿, 用户令"需要成为一种规则"):
 # ①不评企业好坏: 只描述管理动作, 收口句式="这个动作印证了书中观点";
 # ②信源限定词: 引入大厂案例的句子必带 公开报道/当年对外披露/早期 之一;
@@ -814,14 +920,34 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
             from app.services.book_service.distiller import load_section
             _rm_concepts = [str(c) for c in ((ep.roadmap_json or {}).get("概念") or [])]
             _sp = book.source_path or ""
+            # 1019 排重令①: 兄弟集已用故事先剔除 (生成顺序 2..N-1→1→N, 故比对全部
+            # 已有稿兄弟集, 不止低集号); 剔完再概念过滤, 0 命中回退也吃排重后文本
+            _sib_text = "".join(e2.script_text or "" for e2 in book.episodes
+                                if e2.ep_index != ep.ep_index)
             for _sec_name, _label, _cap in _feed_secs:
                 _t = load_section(book.book_title, _sec_name)
                 if not _t:
                     continue
+                if _sec_name == "故事库" and _sib_text:
+                    _noise = (book.author or "") + (book.book_title or "")
+                    _t, _dropped = _drop_used_stories(_t, _sib_text, _noise)
+                    if _dropped:
+                        logger.info("[book] 第%d集 故事库排重: 剔除兄弟集已用 %d 条 (%s)",
+                                    ep.ep_index, len(_dropped), "、".join(_dropped[:5]))
+                    if not _t.strip():
+                        logger.warning("[book] 第%d集 故事库条目全被兄弟集用过, 本集停喂故事库 (走提名制)",
+                                       ep.ep_index)
+                        continue
                 if _rm_concepts:
                     _paras = [p for p in re.split(r"\n\s*\n", _t)
                               if any(k and k in p for k in _rm_concepts)]
-                    _t = "\n\n".join(_paras) if _paras else _t
+                    if _paras:
+                        _t = "\n\n".join(_paras)
+                    else:
+                        # 1019 排重令②: 废静默回退 — 0 命中照回退但必须留痕 (此前 5/7 集
+                        # 概念自造词 0 命中无声吃全量头部截断, 多集共享前13条池)
+                        logger.warning("[book] 第%d集 概念(%s…) 在%s 0 段命中, 回退排重后全量",
+                                       ep.ep_index, "/".join(_rm_concepts[:3]), _sec_name)
                 _safe_t, _ = sanitize_material(_t[:_cap], book.book_title, source_path=_sp)
                 if _safe_t.strip():
                     unit_quotes_cases += f"\n【{_label}】\n{_safe_t.strip()}\n"
@@ -1699,6 +1825,9 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
         verbatim_paras=_fd_open_paras, hook_ref=_hook_ref,
         include=("validate", "flow", "fig", "opening", "hook") + (("brand",) if _is_tool_ep else ()))
     issues = passes_mod.snap_issues(_fin)
+    # 1019 排重令③: 案例跨集重复兜底闸 — 喂料层已剔已用, 此处拦拐棍层 [:3000] 直喂
+    # 与 LLM 自选漏网 (ep7 看着覆盖清单仍复用梅斯特遗嘱实锤); 工具集(阻断)/头尾集(提示)
+    issues += _story_dup_issues(book, ep, out)
     ok = not issues
     theme = (ep.roadmap_json or {}).get("主题", "")
     checks["theme_in_script"] = bool(theme) and theme[:8] in out
@@ -1788,6 +1917,12 @@ def auto_confirm_by_anim(book_id: str, ep_index: int) -> bool:
 
 
 def confirm_episode(db: Session, ep: Episode) -> Episode:
+    # 1019 排重令③: 阻断式闸 — 工具集案例跨集重复未解决禁确认 (头尾集为提示, 不拦);
+    # auto_confirm_if_anim_done 直置 status 不走此闸 (预览产线豁免)
+    _block = [str(i) for i in (ep.roadmap_json or {}).get("_issues") or []
+              if "案例跨集重复(阻断)" in str(i)]
+    if _block:
+        raise ValueError("确认被阻断: " + _block[0])
     ep.status = "confirmed"
     if all(e.status == "confirmed" for e in ep.book.episodes):
         ep.book.status = "done"
