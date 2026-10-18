@@ -1635,10 +1635,13 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
     # 换稿后从不清零, UI 一直显示首稿旧账 (ep4 "字数960/缺中国案例"在终稿早已不成立
     # 实锤) — 以终稿为真相源重新校验, 显示与稿一致; 0930 快照化 (validate+flow+fig,
     # 工具集加 brand), validate_script 调用 11→5
+    # 1018 C4b (R5): include 补 opening (樊登逐字+ep1开场秩序) — 旧终检不含开局类
+    # 检查, 人闸问题单漏报 (ep1 终稿实犯"fd段被改写"但 _issues 不显示)。
     _fin = passes_mod.snapshot(
         out, target=ep.target_duration_sec, book_title=book.book_title, require_cta=_req_cta,
         ep_index=ep.ep_index, flow_check=_is_tool_ep, figure=_figure,
-        include=("validate", "flow", "fig") + (("brand",) if _is_tool_ep else ()))
+        verbatim_paras=_fd_open_paras,
+        include=("validate", "flow", "fig", "opening") + (("brand",) if _is_tool_ep else ()))
     issues = passes_mod.snap_issues(_fin)
     ok = not issues
     theme = (ep.roadmap_json or {}).get("主题", "")
