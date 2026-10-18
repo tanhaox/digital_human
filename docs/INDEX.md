@@ -101,7 +101,7 @@
 - [模板入产线-风格页评审门.md](design/模板入产线-风格页评审门.md) — 新模板必须先过风格候选页评审（含「杂志风预览页面」命名约定 + 八处接线清单指引）
 - [剪映草稿产线-设计方案.md](design/剪映草稿产线-设计方案.md) — J1 轨道搬运 / J2 特效产线 / J3 草稿直出
 - [合规审查Pass-设计方案.md](design/合规审查Pass-设计方案.md) — 洗稿/拆书合规 Pass 流水线
-- [合规统一词库-全系统入口.md](design/合规统一词库-全系统入口.md) — `compliance_common.json` 唯一事实源架构
+- [合规统一词库-全系统入口.md](design/合规统一词库-全系统入口.md) — `compliance_common.json` 唯一事实源架构; 1019 起 substitutes 四表 + substitute_text 出口主闸 (LLM松抖音严)
 - [数字人海报封面系统-设计方案.md](design/数字人海报封面系统-设计方案.md) — 封面/海报生成系统
 - [拆书项目-实施方案.md](design/拆书项目-实施方案.md) — 拆书挂小黄车全链（书库→L0 蒸馏→六集脚本）
 - [蒸馏产物schema设计.md](design/蒸馏产物schema设计.md) — 两级蒸馏 L0/L1 schema（book_service 权威依据）
