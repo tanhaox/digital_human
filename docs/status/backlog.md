@@ -1973,3 +1973,13 @@ laotan-tech 加【科技版专属约束】（高于通用规则）：
 - **动机/背景**: 1018 改名审计时发现; 该端点如常被用会 404/空。
 - **涉及模块**: app/routers/books.py (下载留档端点)
 - **备注**: 一行修; 顺手验证下载链路。
+
+### ID-111：【机制】生稿北极星对齐 C 系列（pass 死锁+执法倒挂）
+
+- **状态**: in_progress
+- **优先级**: P0
+- **提出时间**: 2026-10-18
+- **描述**: 生稿修复 pass 层三个 Catch-22（压缩 DOA/CTA 指令闸错位/去重禁删）致多病族稿无收敛路径；执法强度与六层价值链倒挂（字数五层执法、钩子位置/双CTA 零执法）；另有书名双真相源无仲裁、ep1 双开篇架构性重复、终检漏 opening、编辑层零复检、人闸 UI 盲飞、pass 未过不留档、语速 4.6 估算偏慢 8%（实测 5.0）。
+- **动机/背景**: 《值得信赖的顾问》ep1 五红灯评分触发; 用户北斗星五原则 (源头/集型使命/运营链/裁决序/平台带 4:30-7:00)。
+- **涉及模块**: app/services/book_service/{episode_gen,passes,creation_common}.py; config/laotan-book.txt; app/routers/books.py; web/books_story.js, web/books.js; tests/
+- **备注**: 案卷 docs/improvements/进行中-20261018-生稿北极星对齐.md; 13 批每批独立 commit。
