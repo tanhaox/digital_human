@@ -25,7 +25,7 @@ from app.services.llm_service import get_llm_service
 logger = logging.getLogger(__name__)
 
 __all__ = ["assess_book_risk", "complete_input", "auto_fill_from_l0",
-           "build_comment_layer", "build_materials", "build_roadmap"]
+           "build_comment_layer", "build_materials", "build_roadmap", "build_book_cases"]
 
 
 # ── Gate 0: 蒸馏前置预评估 (2026-08-19, 豆包第4发框架) ────────────
@@ -538,6 +538,8 @@ def auto_fill_from_l0(db: Session, book: BookProject) -> list[str]:
             filled.append(f"总纲←facing-units({len(unit_list)}集)")
 
     db.commit()
+    # 1019 一案一库: 总纲在库即补本书案例库 (幂等 — 已存在不重产)
+    filled += [f"本书案例库: {i}" for i in build_book_cases(book)]
     return filled
 
 
@@ -709,4 +711,91 @@ def build_roadmap(db: Session, book: BookProject) -> tuple[BookProject, list[str
         ))
     book.status = "roadmap_review"
     db.commit()
+    # 1019 一案一库 (用户令): 总纲定稿即产本书案例库 — force 重产 (总纲重建概念可能变)
+    issues += build_book_cases(book, force=True)
     return book, issues
+
+
+# ── 步骤 4b: 本书专用中国案例库 (1019 用户令 ①案一库: 大纲时生成, 调性一致) ──
+def build_book_cases(book: BookProject, *, force: bool = False) -> list[str]:
+    """产 12-15 条与总纲概念对齐的中国案例 → data/l0/{书}/案例库-本书.json。
+
+    幂等 (已存在跳过, force 重产); 消费端三处并入 (episode_gen 喂料+排重词表,
+    creation_common._zh_brands) — 海底捞式提名案例入库后跨集可查重 (ep1+ep3 撞实锤)。
+    返回 issues (空=成功或已存在)。"""
+    issues: list[str] = []
+    try:
+        from app.services.book_service.l0 import _l0_dir as _l0d
+        _bp = _l0d(book.book_title) / "案例库-本书.json"
+        if _bp.exists() and not force:
+            return issues
+        eps = sorted(book.episodes or [], key=lambda e: e.ep_index)
+        concepts: list[str] = []
+        for e in eps:
+            for c in (e.roadmap_json or {}).get("概念") or []:
+                c = str(c).strip()
+                if c and c not in concepts:
+                    concepts.append(c)
+        if not concepts:
+            return ["本书案例库跳过: 总纲概念为空 (先出总纲)"]
+        ep_lines = "\n".join(
+            f"- 第{e.ep_index}集《{e.title}》 概念: "
+            f"{','.join(str(c) for c in ((e.roadmap_json or {}).get('概念') or [])[:5])}"
+            for e in eps)
+        _aud = ""
+        try:
+            _aud = str((((book.input_json or {}).get("受众地图") or {}).get("value") or {})
+                       .get("L1", {}).get("reader", ""))[:120]
+        except Exception:  # noqa: BLE001 — 受众字段形态漂移只弃锚不弃库
+            _aud = ""
+        sys_p = (
+            "你是拆书稿创作系统的本书案例库模块。为这本拆书系列定制 12-15 条**中国本土**品牌/企业案例, "
+            "禁海外品牌与外企分支 (IBM/麦肯锡/埃森哲类不收, 要中国自己的企业), "
+            "调性必须与本书一致 — concepts 键必须能对上总纲概念清单 (原文或同义表述), 禁硬凑无关行业。"
+            "铁律 (0927 案例口径三则): ①只述管理动作禁评企业好坏; "
+            "②facts 只用公知口径骨架 (公开报道/当年对外披露/早期), 禁编细节数字; "
+            "③禁近两年热点争议事件 (2024+年份与品牌同句即废), 只取已沉淀公知商业史。"
+            '每条 JSON: {"name":str(纯品牌名,禁括号后缀/时代标注 — 时代入era, 排重词表按裸名拆),'
+            '"industry":str,"era":str,"fame":str(国民级/行业知名),'
+            '"concepts":[str],"role":str(正面/反面/格局),"facts":[str×2-4],"src":str(公知来源口径),'
+            '"status":"可用","boundary":str(失效边界一句),"region":"cn"}。'
+            "输出严格 JSON 数组 12-15 项, 无其他文字。"
+        )
+        user_p = (
+            f"书名：《{book.book_title}》\n核心主张：{book.core_claim or ''}\n受众：{_aud}\n"
+            f"【总纲各集】\n{ep_lines}\n【总纲概念清单 (concepts 键从此对齐)】\n{'、'.join(concepts)}"
+        )
+        rows = _first_list(_parse_json(_llm().chat(sys_p, user_p, model="pro", temperature=0.4)))
+        valid, seen = [], set()
+
+        def _norm_key(n: str) -> str:
+            # 同企变体归一 (联想集团→联想): 企业后缀剥掉才查重, 防同企双条分喂两集
+            return re.sub(r"集团|公司|中国|（[^）]*）|\([^)]*\)", "", n)
+
+        for c in rows if isinstance(rows, list) else []:
+            name = re.sub(r"（[^）]*）|\([^)]*\)", "", str(c.get("name") or "")).strip()
+            facts = [str(f) for f in (c.get("facts") or []) if str(f).strip()]
+            cc = [str(x) for x in (c.get("concepts") or []) if str(x).strip()]
+            if not name or str(c.get("region")) == "global" or not facts or not cc:
+                continue
+            if not any("一" <= ch <= "鿿" for ch in name):
+                continue  # 纯ASCII名 (IBM式) — 中国本土库不收
+            _k = _norm_key(name)
+            if _k in seen:
+                continue
+            seen.add(_k)
+            c["name"], c["facts"], c["concepts"], c["status"] = name, facts, cc, "可用"
+            valid.append(c)
+        if len(valid) < 8:
+            return [f"本书案例库生成不合格 ({len(valid)} 条 < 8), 不落盘"]
+        _bp.parent.mkdir(parents=True, exist_ok=True)
+        _bp.write_text(json.dumps({"cases": valid}, ensure_ascii=False, indent=1),
+                       encoding="utf-8")
+        _aligned = sum(1 for c in valid if any(x in concepts for x in c["concepts"]))
+        if _aligned < len(valid) // 2:
+            issues.append(f"本书案例库概念对齐率低: {_aligned}/{len(valid)}")
+        logger.info("[book] 本书案例库落盘 %d 条: %s", len(valid),
+                    "、".join(c["name"] for c in valid[:5]))
+    except Exception as exc:  # noqa: BLE001 — 案例库失败不炸大纲步
+        issues.append(f"本书案例库生成失败: {exc}")
+    return issues

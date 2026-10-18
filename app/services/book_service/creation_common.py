@@ -652,12 +652,15 @@ def _zh_brands(book_title: str = "") -> set[str]:
     out = set(_ZH_BRANDS_BASE)
     try:
         from app.services.book_service.l0 import _l0_dir as _l0d
-        _bp = _l0d(book_title).parent / "案例库.json"
-        if _bp.exists():
+        # 1019 一案一库: 词典并入本书库 — 提名案例 (海底捞式) 入库即受口径/废稿闸管
+        _bk = _l0d(book_title)
+        for _bp in (_bk / "案例库-本书.json", _bk.parent / "案例库.json"):
+            if not _bp.exists():
+                continue
             for c in (json.loads(_bp.read_text(encoding="utf-8")).get("cases") or []):
                 if c.get("region") == "global":
                     continue   # 0926 修: 海外案例名 (安飞士/赫兹) 入词库会让闸误判
-                for _tok in re.split(r"对|和|vs|与|:", str(c.get("name") or "")):
+                for _tok in re.split(r"对|和|vs|与|:|（|\(", str(c.get("name") or "")):
                     if len(_tok.strip()) >= 2:
                         out.add(_tok.strip())
     except Exception:  # noqa: BLE001 — 词典缺库不炸校验

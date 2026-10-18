@@ -19,6 +19,8 @@ from app.services.book_service.creation_common import (
     validate_script,
 )
 from app.services.book_service.creation_steps import (
+    auto_fill_from_l0,
+    build_book_cases,
     build_comment_layer,
     build_materials,
     build_roadmap,
@@ -34,4 +36,6 @@ __all__ = [
     "complete_input", "build_comment_layer", "build_materials",
     "build_roadmap", "generate_episode", "confirm_episode", "rerun_cascade",
     "elastic_labels", "validate_script", "source_context",
+    # 1019 补: auto_fill_from_l0 转口曾被 B16a ruff 清理吞掉, books.py 三处调用哑弹
+    "auto_fill_from_l0", "build_book_cases",
 ]

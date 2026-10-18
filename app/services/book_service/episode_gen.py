@@ -373,10 +373,14 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
         _used_cases = []
         try:
             from app.services.book_service.l0 import _l0_dir as _l0d2
-            _cbp = _l0d2(book.book_title).parent / "案例库.json"
-            if _cbp.exists():
-                _names = [str(c.get("name") or "") for c in
-                          (json.loads(_cbp.read_text(encoding="utf-8")).get("cases") or [])]
+            # 1019 一案一库: 词表并入本书库 — 提名案例 (海底捞式) 入库即可查重
+            _names: list[str] = []
+            for _cp in (_l0d2(book.book_title) / "案例库-本书.json",
+                        _l0d2(book.book_title).parent / "案例库.json"):
+                if _cp.exists():
+                    _names += [str(c.get("name") or "") for c in
+                               (json.loads(_cp.read_text(encoding="utf-8")).get("cases") or [])]
+            if _names:
                 _prev_text = "".join(e2.script_text or "" for e2 in book.episodes
                                      if e2.ep_index < ep.ep_index)
                 _used_cases = [n for n in _names if n and n in _prev_text]
@@ -837,13 +841,34 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
             return {s[i:i + 2] for i in range(len(s) - 1)} if len(s) > 1 else set()
 
         _ak = _bg2(_kw[:500])
-        _bank_p = _l0d(book.book_title).parent / "案例库.json"
-        if _bank_p.exists():
+        # 1019 一案一库: 本书库优先 + 公共库兜底; 存量书无本书库 lazy 现产一次
+        _book_bank = _l0d(book.book_title) / "案例库-本书.json"
+        if not _book_bank.exists():
+            from app.services.book_service.creation_steps import (
+                build_book_cases as _bbc,
+            )
+            try:
+                _bi = _bbc(book)
+                if _bi:
+                    logger.warning("[book] 本书案例库 lazy 生成未成: %s", "; ".join(_bi))
+            except Exception as _exc:  # noqa: BLE001
+                logger.warning("[book] 本书案例库 lazy 兜底异常: %s", _exc)
+        _cases: list[dict] = []
+        _seen_names: set[str] = set()
+        for _cp in (_book_bank, _l0d(book.book_title).parent / "案例库.json"):
+            if not _cp.exists():
+                continue
+            for _c in (json.loads(_cp.read_text(encoding="utf-8")).get("cases") or []):
+                _n = str(_c.get("name") or "")
+                if _n and _n not in _seen_names:
+                    _seen_names.add(_n)
+                    _cases.append(_c)
+        if _cases:
             def _cscore(c: dict) -> int:
                 blob = c["name"] + "、".join(str(t) for t in (c.get("concepts") or []))
                 s = sum(5 for t in (c.get("concepts") or []) if str(t) and str(t) in _kw)
                 return s + len(_bg2(blob) & _ak)
-            _hit = [c for c in (json.loads(_bank_p.read_text(encoding="utf-8")).get("cases") or [])
+            _hit = [c for c in _cases
                     if c.get("status") == "可用" and _cscore(c) > 3]
             _hit = sorted(_hit, key=_cscore, reverse=True)[:6]
             if _hit:
@@ -851,7 +876,8 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
                           f"概念: {'/'.join(c.get('concepts') or [])}\n"
                           f"  事实: {'；'.join(c.get('facts') or [])}\n"
                           f"  边界: {c.get('boundary') or ''}" for c in _hit]
-                unit_quotes_cases += ("\n【公共案例库·本集概念匹配 (主案例与反例必须从此选, "
+                unit_quotes_cases += ("\n【案例库·本集概念匹配 (1019 本书定制库优先+公共库; "
+                                      "主案例与反例必须从此选, "
                                       "主案例只准国民级; 每案必答 为什么起效/什么时候失效, "
                                       "边界字段是预埋答案; 库外案例=提名制待审; "
                                       "大厂案例口径三则: ①只述管理动作禁评企业好坏 "
