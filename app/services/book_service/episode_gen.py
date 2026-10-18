@@ -17,6 +17,7 @@ from app.models import BookProject, Episode
 from app.models.base import _now
 from app.services.book_service import passes as passes_mod
 from app.services.book_service.creation_common import (
+    _WORD_ENV,
     PLATFORM_DURATION_BAND,
     SPEECH_RATE,
     _llm,
@@ -383,8 +384,10 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
                     _names += [str(c.get("name") or "") for c in
                                (json.loads(_cp.read_text(encoding="utf-8")).get("cases") or [])]
             if _names:
+                # 1019 修: 视野对齐全兄弟集 (生成序 2..N-1→1→N, 仅低集号会让 ep2 看不见
+                # ep3 的华为 → 撞车); 与书内故事排重 (_sib_text) 同口径
                 _prev_text = "".join(e2.script_text or "" for e2 in book.episodes
-                                     if e2.ep_index < ep.ep_index)
+                                     if e2.ep_index != ep.ep_index and (e2.script_text or ""))
                 _used_cases = [n for n in _names if n and n in _prev_text]
         except Exception:  # noqa: BLE001
             _used_cases = []
@@ -880,6 +883,8 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
                           f"  边界: {c.get('boundary') or ''}" for c in _hit]
                 unit_quotes_cases += ("\n【案例库·本集概念匹配 (1019 本书定制库优先+公共库; "
                                       "主案例与反例必须从此选, "
+                                      "每集至少 1 条案例落进拆解一/二/三 — 按与该块概念的贴合度自由选位, "
+                                      "不限固定槽 (1019 用户令①); 只点名不展开=未落位, 零落位=废稿; "
                                       "主案例只准国民级; 每案必答 为什么起效/什么时候失效, "
                                       "边界字段是预埋答案; 库外案例=提名制待审; "
                                       "大厂案例口径三则: ①只述管理动作禁评企业好坏 "
@@ -1155,7 +1160,8 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
                 "5. 三步骨架: 每步教什么(是什么+怎么操作/判定条件/话术模板), 每步一句教学目标;\n"
                 "6. 个人锚: 人设的哪个实战场景配哪一步。\n"
                 "铁律: 案例从素材的案例库匹配项里选(中国品牌优先, 主案例只准国民级), "
-                "禁发明素材外案例; 每案必答两问(为什么起效/什么时候失效); "
+                "禁发明素材外案例; 每集至少 1 条案例落进拆解一/二/三 (贴合度选位, 1019 用户令①); "
+                "每案必答两问(为什么起效/什么时候失效); "
                 "大厂案例口径三则: 只述管理动作禁评企业好坏、引入句带限定词"
                 "(公开报道/当年对外披露/早期)、只用2010年前大量公开报道事件 (2011+一律不收, 北斗星第8条); "
                 "直接输出骨架, 不写口播。")
@@ -1433,14 +1439,19 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
             _cands = ""
             try:
                 from app.services.book_service.l0 import _l0_dir as _l0d
-                _bp = _l0d(book.book_title).parent / "案例库.json"
-                if _bp.exists():
-                    _cs = [c for c in (json.loads(_bp.read_text(encoding="utf-8")).get("cases") or [])
-                           if c.get("status") == "可用"]
-                    # 0928: 候选放开全量 — 旧 [:8] 把排在库尾的字节/华为两案永远挡在
-                    # 候选外 (ep2 实锤: 8 个不相关旧案 → 模型原稿退回 长度差=0)
-                    _cands = "\n".join(f"- {c['name']} ({c.get('role')}): "
-                                       f"{'；'.join(c.get('facts') or [])[:120]}" for c in _cs)
+                # 1019 一案一库补线: 候选先本书库后公共库 — 旧版只读公共库, 本书定制案例
+                # 从未进过注入候选 (ep2 三连缺中国案例主因之一)
+                _cases_in = []
+                for _cp in (_l0d(book.book_title) / "案例库-本书.json",
+                            _l0d(book.book_title).parent / "案例库.json"):
+                    if _cp.exists():
+                        _cases_in += [c for c in
+                                      (json.loads(_cp.read_text(encoding="utf-8")).get("cases") or [])
+                                      if c.get("status") == "可用"]
+                # 0928: 候选放开全量 — 旧 [:8] 把排在库尾的字节/华为两案永远挡在
+                # 候选外 (ep2 实锤: 8 个不相关旧案 → 模型原稿退回 长度差=0)
+                _cands = "\n".join(f"- {c['name']} ({c.get('role')}): "
+                                   f"{'；'.join(c.get('facts') or [])[:120]}" for c in _cases_in)
             except Exception:  # noqa: BLE001
                 _cands = ""
             # 1009 P5: 行级 patch 优先 (未动行零漂移), 失败回退全稿
@@ -1450,7 +1461,7 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
                 "中国品牌案例证据句 (从候选案例选, 只用候选里给出的事实口径, 禁编数字), "
                 "句内必带 当年/早期/公开报道 限定词, 只述管理动作不评企业好坏, "
                 "位置=紧贴它支撑的那个论断 (改写该行, 把证据句并入); 同时把稿内出现的"
-                "英文品牌名 (如 Saturn) 改成中文说法。禁动段落标签与⟦⟧原话, 总字数变化 ≤60。",
+                "英文品牌名 (如 Saturn) 改成中文说法。禁动段落标签与⟦⟧原话, 总字数变化 ≤120。",
                 f"\n候选案例:\n{_cands or '(缺库 — 从公共商业史提名: 美团/蒙牛/滴滴/支付宝等国民级)'}",
                 model="pro", max_tokens=2000, tag="epgen:inject")
             if inj is None:
@@ -1460,11 +1471,15 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
                     "句内必带 当年/早期/公开报道 限定词, 只述管理动作不评企业好坏, "
                     "位置=紧贴它支撑的那个论断; 同时把稿内出现的英文品牌名 (如 Saturn) 改成"
                     "中文说法或删除。铁律: 禁改其它任何句子、禁动段落标签、禁动⟦⟧原话、"
-                    "总字数变化 ≤60。直接输出改后的完整稿。",
+                    "总字数变化 ≤120。直接输出改后的完整稿。",
                     f"候选案例:\n{_cands or '(缺库 — 从公共商业史提名: 美团/蒙牛/滴滴/支付宝等国民级)'}\n\n稿件:\n{out}",
                     model="pro", temperature=0.3, tag="epgen:inject")
             inj = (inj or "").strip()
-            if inj and not _zh_brand_issues(inj, book.book_title) and abs(len(inj) - len(out)) <= 80:
+            # 1019 ② 号令: 字数不是硬伤 (7 分钟包络内随意) — 旧验收 长度差≤80 把
+            # 含品牌=True 的好修复因 98 字差拒收 (ep2 三连缺中国案例主因之二);
+            # 放宽为 长度差≤240 (仍拦全稿重写漂移) 且不超 7 分钟包络
+            if inj and not _zh_brand_issues(inj, book.book_title) \
+                    and abs(len(inj) - len(out)) <= 240 and len(inj) <= _WORD_ENV[1]:
                 out = inj
                 logger.info("[book] ep%d 品牌注入 pass ✓ (%d→%d字)", ep.ep_index, len(out), len(inj))
                 try:

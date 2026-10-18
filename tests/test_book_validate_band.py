@@ -69,16 +69,20 @@ def test_speech_rate_constants_match_measurement():
 # ── validate_script: 三档判定 ──
 
 def test_validate_soft_over_band_1765():
-    """ep1 实锤回放: 1765 字在 300s 软带外 (1620) 硬线内 (1800) → 软带 issue, 无"硬线"字样。"""
+    """1019 用户令 (字数执法降级): 1765 字超 300s 软带 (1620) 但在 7 分钟包络内
+    (2024) → 不再报字数 issue (超带=板块预算弹性, 非硬伤)。"""
     issues = validate_script(_script(1765), 300)[1]
-    wc = [i for i in issues if i.startswith("字数")]
-    assert len(wc) == 1 and "超出 1620" in wc[0] and "硬线" not in wc[0]
+    assert not [i for i in issues if i.startswith("字数")]
 
 
 def test_validate_hard_line_over_1800():
-    """1810 字超 300s 硬线上限 1800 → "超硬线" issue (打回重写级)。"""
+    """1019 用户令: 1810 字 (超旧硬线 1800) 仍在包络 2024 内 → 不报;
+    2100 字破 7 分钟包络 → "超出7分钟包络" 硬伤 issue (压缩 pass 靠"超出"触发)。"""
     issues = validate_script(_script(1810), 300)[1]
-    assert any(i.startswith("字数") and "超硬线" in i for i in issues)
+    assert not [i for i in issues if i.startswith("字数")]
+    issues = validate_script(_script(2100), 300)[1]
+    wc = [i for i in issues if i.startswith("字数")]
+    assert len(wc) == 1 and "超出7分钟包络 2024" in wc[0]
 
 
 def test_validate_in_band_clean():

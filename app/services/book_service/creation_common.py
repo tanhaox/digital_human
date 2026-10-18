@@ -432,11 +432,15 @@ def validate_script(text: str, target: float, book_title: str = "",
     # 1018 C4a: 三档字数带 (软带→修复 / 硬线→重写级 / 包络=平台带保真); 文案保持"字数 N"前缀
     # (passes.issue_family/word_band_ok 的 `字数 (\d+)` 正则依赖)
     _lo, _hi, _hlo, _hhi = word_band(target or 600)
-    if n > _hhi or n < _hlo:
-        issues.append(f"字数 {n} {'超硬线 ' + str(_hhi) if n > _hhi else '不足硬线 ' + str(_hlo)}"
-                      f" (目标{target:.0f}s → 修复带{_lo}-{_hi}, 硬线{_hlo}-{_hhi})")
-    elif not _lo <= n <= _hi:
-        issues.append(f"字数 {n} {'超出 ' + str(_hi) if n > _hi else '不足 ' + str(_lo)} (目标{target:.0f}s → {_lo}-{_hi})")
+    # 1019 用户令 (字数执法降级): 字数不是硬伤, 超 7 分钟包络才算 — 超长只报
+    # _WORD_ENV 上限; 修复带/硬线上限停报 (超带=板块预算弹性, 人闸不管); 下限照报
+    # (>4:30 是平台硬门)。文案保留"超出"字样 — episode_gen 压缩 pass 靠它触发修复。
+    if n > _WORD_ENV[1]:
+        issues.append(f"字数 {n} 超出7分钟包络 {_WORD_ENV[1]} (目标{target:.0f}s → 硬伤级: 过7分钟)")
+    elif n < _hlo:
+        issues.append(f"字数 {n} 不足硬线 {_hlo} (目标{target:.0f}s → 修复带{_lo}-{_hi}, 硬线{_hlo}-{_hhi})")
+    elif n < _lo:
+        issues.append(f"字数 {n} 不足 {_lo} (目标{target:.0f}s → {_lo}-{_hi})")
     # 车轱辘话检测 (0912): ①近重复句 (字符 bigram 重叠 ≥65% 的句子对) ②高频复读词
     sents = [s.strip() for s in re.split(r"[。！？\n]", body) if len(s.strip()) >= 10]
     def _bg(s: str) -> set[str]:
