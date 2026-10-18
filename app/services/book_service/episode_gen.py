@@ -1299,6 +1299,12 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
                 logger.warning("[book] ep%d 品牌注入 pass 未过 (含品牌=%s, 长度差=%d), 人闸留意",
                                ep.ep_index, not _zh_brand_issues(inj, book.book_title) if inj else False,
                                abs(len(inj or "") - len(out)))
+                try:  # 1018 C5: 未过也留档 (R7)
+                    (_gen_dir / "05c_brand_injected_rejected.txt").write_text(
+                        f"未过原因: 含品牌={not _zh_brand_issues(inj, book.book_title) if inj else False}, "
+                        f"长度差={abs(len(inj or '') - len(out))}\n\n{inj or '(空返回)'}", encoding="utf-8")
+                except Exception:
+                    pass
         except Exception as _exc8:  # noqa: BLE001
             logger.warning("[book] ep%d 品牌注入 pass 异常: %s", ep.ep_index, _exc8)
 
@@ -1342,6 +1348,11 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
                         pass
                 else:
                     logger.warning("[book] ep%d 口播卫生 pass 未过, 人闸留意: %s", ep.ep_index, _hyg2)
+                    try:  # 1018 C5: 未过也留档 (R7)
+                        (_gen_dir / "05d_hygiene_rejected.txt").write_text(
+                            f"未过原因: {_hyg2}\n\n{fix or '(空返回)'}", encoding="utf-8")
+                    except Exception:
+                        pass
             except Exception as _exc9:  # noqa: BLE001
                 logger.warning("[book] ep%d 口播卫生 pass 异常: %s", ep.ep_index, _exc9)
 
@@ -1395,6 +1406,11 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
             else:
                 logger.warning("[book] ep%d CTA 追加 pass 未过 (新问题=%s), 人闸留意",
                                ep.ep_index, _cta_new)
+                try:  # 1018 C5: 未过也留档 — 裸启动无日志时 verdict 不丢 (R7)
+                    (_gen_dir / "05f_cta_rejected.txt").write_text(
+                        f"未过原因: 新问题={_cta_new}\n\n{cta or '(空返回)'}", encoding="utf-8")
+                except Exception:
+                    pass
         except Exception as _exc11:  # noqa: BLE001
             logger.warning("[book] ep%d CTA 追加 pass 异常: %s", ep.ep_index, _exc11)
     _dedup_trig = [i for i in _fx_base if any(k in i for k in ("系列句", "复读段", "车轱辘话", "贯穿人物"))]
@@ -1450,6 +1466,12 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
             else:
                 logger.warning("[book] ep%d 去重 pass 未过 (剩%d/%d, 新增%s), 人闸留意",
                                ep.ep_index, len(_dd_left), len(_dedup_trig), _dd_new)
+                try:  # 1018 C5: 未过也留档 (R7)
+                    (_gen_dir / "05g_dedup_rejected.txt").write_text(
+                        f"未过原因: 剩{len(_dd_left)}/{len(_dedup_trig)}, 新增={_dd_new}\n\n{fix or '(空返回)'}",
+                        encoding="utf-8")
+                except Exception:
+                    pass
         except Exception as _exc12:  # noqa: BLE001
             logger.warning("[book] ep%d 去重 pass 异常: %s", ep.ep_index, _exc12)
 
@@ -1504,6 +1526,12 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
             else:
                 logger.warning("[book] ep%d 压缩pass 未过 (字数仍出带=%s, 新病族=%s), 人闸留意",
                                ep.ep_index, _cpr_over_left, _cpr_new)
+                try:  # 1018 C5: 未过也留档 (R7)
+                    (_gen_dir / "05b_compressed_rejected.txt").write_text(
+                        f"未过原因: 字数仍出带={_cpr_over_left}, 新病族={_cpr_new}\n\n{comp or '(空返回)'}",
+                        encoding="utf-8")
+                except Exception:
+                    pass
         except Exception as _exc7:
             logger.warning("[book] ep%d 压缩pass 异常: %s", ep.ep_index, _exc7)
 
