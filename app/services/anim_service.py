@@ -1375,6 +1375,11 @@ def update_text_layer(book_ref: str, ep: int, sid: str, entries: list[dict] | No
                 t0, t1 = 0.0, 0.0
             # 0917 P1 修复: 花字 kind 不再塌缩 — hero_number 等合法 kind 原样保留
             # (装配层 hero_number/impact/logo_note 降维进字幕高亮, kind 决定动效与角色)
+            # 1019 字幕轨同闸: 人工花字口与生稿口同标准 (LLM 松抖音严, 出片文本必过)
+            from app.services.compliance import substitute_text as _sub_text
+            text, _hits = _sub_text(text)
+            if _hits:
+                logger.info("[anim] 字幕轨限流词替换 ✓ %s: %s", sid, "/".join(_hits[:6]))
             kind = str(e.get("kind") or "caption")
             cleaned.append({"kind": kind if kind in _kinds else "caption",
                             "text": text, "t_start": round(t0, 2), "t_end": round(t1, 2)})

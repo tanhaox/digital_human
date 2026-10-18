@@ -72,6 +72,14 @@ def build_redline_prompt(categories: list[str] | None = None) -> str:
         repl = cat.get("replace", "")
         lines.append(f"- 禁{cat.get('label', k)}: {ban}（→ {repl}）")
     lines.append("- 全篇用'个人感受+参考建议'的温和表达, 禁绝对化/医疗承诺/迷信/金融收益/站外引流。")
+    # 1019: 平台名缓冲词+暴力词书面化 (源头减量辅助 — 出口有 substitute_text 确定性主闸,
+    # 这里只是让 LLM 少吐, 减少替换痕迹和日志噪音, 不担安全责任)
+    subs = load_common_rules().get("substitutes") or {}
+    plat = subs.get("platform") or {}
+    if plat:
+        rows = "/".join(f"{k}={v}" for k, v in list(plat.items())[:6])
+        lines.append(f"- 平台名一律写缓冲词 ({rows}…); 暴力词书面化: 死=离世/杀=行凶/尸体=遗体/"
+                     "自杀=轻生/毒品=违禁药物 — 口播字幕直接上抖音, 尺度按公开传播从严。")
     return "\n".join(lines)
 
 
@@ -82,6 +90,58 @@ def check_text(text: str, categories: list[str] | None = None) -> list[str]:
     banned = _all_banned(categories)
     hits = [w for w in banned if w and w in text]
     return hits
+
+
+_subs_table_cache: dict | None = None
+
+
+def _subs_tables() -> tuple[dict, dict, dict, list]:
+    """替换表四元组 (platform, phrase, single, protect) — compliance_common.json substitutes."""
+    global _subs_table_cache
+    if _subs_table_cache is None:
+        subs = load_common_rules().get("substitutes") or {}
+        _subs_table_cache = (
+            {str(k): str(v) for k, v in (subs.get("platform") or {}).items()},
+            {str(k): str(v) for k, v in (subs.get("violence_phrase") or {}).items()},
+            {str(k): str(v) for k, v in (subs.get("single") or {}).items()},
+            [str(w) for w in (subs.get("protect") or []) if w],
+        )
+    return _subs_table_cache
+
+
+def substitute_text(text: str) -> tuple[str, list[str]]:
+    """字幕限流词主闸 (1019 用户令: LLM 比抖音松, 出口确定性替换是唯一安全边界).
+
+    三段式防误伤: protect 整词占位 → 平台/组合词按长度降序替换 (杀死 先于 杀) →
+    剩余孤立单字万金油替换 → 还原 protect。返回 (替换后文本, 命中词表)。
+    上游凭命中表记日志, 不阻断。
+    """
+    if not text:
+        return text, []
+    platform, phrase, single, protect = _subs_tables()
+    if not (platform or phrase or single):
+        return text, []
+    hits: list[str] = []
+    out = text
+    # ① protect 占位 — / 私有区字符不会出现在正常文本 (血压/心血/死板 等整词安全)
+    for i, w in enumerate(protect):
+        if w in out:
+            out = out.replace(w, f"{i}")
+    # ② 长词优先 — 今日头条 先于 头条系残留, 杀死 先于 杀
+    for table in (platform, phrase):
+        for bad in sorted(table, key=len, reverse=True):
+            if bad in out:
+                hits.append(bad)
+                out = out.replace(bad, table[bad])
+    # ③ 孤立单字万金油 (protect 已占位, 剩余即真孤立 — 如 反杀/染血)
+    for bad, good in single.items():
+        if bad in out:
+            hits.append(bad)
+            out = out.replace(bad, good)
+    # ④ 还原 protect (未占位的 token 不存在, replace 无操作)
+    for i, w in enumerate(protect):
+        out = out.replace(f"{i}", w)
+    return out, list(dict.fromkeys(hits))
 
 
 def build_check_prompt(categories: list[str] | None = None) -> str:

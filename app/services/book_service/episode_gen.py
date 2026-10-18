@@ -1942,6 +1942,15 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
             tail = tail[: m.start()].rstrip()
         out = tail + "\n" + _ending
 
+    # 1019 字幕限流词主闸 (用户令: LLM 一对一比抖音公开传播松, 出口确定性替换是
+    # 唯一安全边界): 平台名缓冲词+暴力词书面化, 命中静默替换+日志; 与操控→借用
+    # 同款确定性编辑层位, 且在终检 snapshot 之前 — 校验与落库所见即替换后稿。
+    from app.services.compliance import substitute_text as _sub_text
+    out, _sub_hits = _sub_text(out)
+    if _sub_hits:
+        logger.info("[book] ep%d 限流词替换 ✓ %d类: %s", ep.ep_index, len(_sub_hits),
+                    "/".join(_sub_hits[:8]))
+
     # 三项自检 (记录, 不阻塞)
     checks: dict[str, Any] = {}
     # 0929 终稿复检 (修预存显示bug): 首稿 issues 在重试/压缩/注入/卫生/幽默各 pass
