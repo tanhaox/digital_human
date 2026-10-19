@@ -81,6 +81,15 @@
   .tag{font-family:var(--mono);font-size:.7rem;color:var(--gold-strong);background:var(--panel2);border:1px solid var(--line);
     border-radius:3px;padding:.1rem .45rem}
 
+  /* LLM 润色变体芯片 (1020 第二波): 点击填入对应框, 选中态金框 */
+  .vars{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.35rem}
+  .vars .hint{font-family:var(--mono);font-size:.64rem;color:var(--faint);align-self:center}
+  .vars .v{font-family:var(--sans);font-size:.76rem;color:var(--text);background:var(--panel2);
+    border:1px solid var(--line);border-radius:3px;padding:.25rem .55rem;cursor:pointer;
+    line-height:1.5;text-align:left;max-width:100%}
+  .vars .v:hover{border-color:var(--gold)}
+  .vars .v.on{border-color:var(--gold);color:var(--gold-strong)}
+
   button{font-family:var(--sans);font-size:.84rem;letter-spacing:.04em;border-radius:4px;padding:.5rem 1rem;cursor:pointer;
     transition:background .15s,border-color .15s,transform .08s}
   button:active{transform:translateY(1px)}
@@ -132,11 +141,14 @@ function render() {
       <div class="card a">
         <div class="sec"><span class="no">01</span><span class="t">发布文案</span><span class="spacer"></span>
           <span class="flow-chip ${d.copy ? 'flow-ok' : 'flow-warn'}">${d.copy ? '已调取' : '未调取 · 先做这步'}</span>
-          <button class="btn-line" style="margin:0 0 0 .7rem;padding:.32rem .8rem;font-size:.78rem" onclick="genCopy()" id="btn-copy">一键调取文案</button></div>
+          <button class="btn-line" style="margin:0 0 0 .7rem;padding:.32rem .8rem;font-size:.78rem" onclick="genCopy()" id="btn-copy">一键调取文案</button>
+          <button class="btn-line" style="margin:0 0 0 .4rem;padding:.32rem .8rem;font-size:.78rem" onclick="genPolish()" id="btn-polish">✨ LLM 润色</button></div>
         <label>标题 <span class="cnt" id="c-title"></span></label>
         <textarea id="f-title" rows="2">${esc(d.copy?.title || '')}</textarea>
+        <div id="var-title" class="vars"></div>
         <label>视频简介 <span class="cnt" id="c-desc"></span></label>
         <textarea id="f-desc" rows="4">${esc(d.copy?.desc || '')}</textarea>
+        <div id="var-desc" class="vars"></div>
         <label>热点标签 <span class="cnt">固定五件套 · 全集一致 · 抖音上限 5 个</span></label>
         <input id="f-tags" value="${esc((d.copy?.tags || []).join(' '))}">
         <div id="tagbox"></div>
@@ -167,6 +179,10 @@ function render() {
       </div>
     </div>`;
   syncCounts(); syncTags();
+  if (DATA.polish) {  // render() 重建后回放上次润色变体 (选中态不回放)
+    renderVars('var-title', 'f-title', DATA.polish.titles || []);
+    renderVars('var-desc', 'f-desc', DATA.polish.descs || []);
+  }
 }
 
 /* 计数 + 标签芯片实时同步 (委托在 #app 上, render 重建后依然有效) */
@@ -234,6 +250,35 @@ async function genCovers() {
     if (f) f.value = sub;  // render() 重建后回填刚用的红字
   } catch (e) { alert('封面生成失败: ' + e.message); }
   setBtn('btn-cover', '生成封面 · 横 + 竖', false);
+}
+
+/* LLM 润色 (1020 第二波): 变体芯片点选填入, 人工终审, 不落库 */
+async function genPolish() {
+  setBtn('btn-polish', '润色中…', true);
+  try {
+    const r = await fetch(API, {method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({action: 'polish'})});
+    const j = await r.json();
+    if (!r.ok) throw new Error(j.detail || r.status);
+    DATA.polish = j;
+    renderVars('var-title', 'f-title', j.titles || []);
+    renderVars('var-desc', 'f-desc', j.descs || []);
+  } catch (e) { alert('润色失败: ' + e.message); }
+  setBtn('btn-polish', '✨ LLM 润色', false);
+}
+function renderVars(boxId, fieldId, items) {
+  const box = document.getElementById(boxId);
+  if (!box) return;
+  box.innerHTML = items.length
+    ? '<span class="hint">LLM 变体 · 点击填入</span>' +
+      items.map((t, i) => `<button class="v" data-i="${i}" onclick="useVar('${boxId}','${fieldId}',this)">${esc(t)}</button>`).join('')
+    : '';
+}
+function useVar(boxId, fieldId, el) {
+  const f = document.getElementById(fieldId);
+  if (f) { f.value = el.textContent; if (fieldId === 'f-title' || fieldId === 'f-desc') syncCounts(); }
+  document.querySelectorAll('#' + boxId + ' .v').forEach(v => v.classList.remove('on'));
+  el.classList.add('on');
 }
 
 function img(url, tip) { return `<img src="${url}" title="${tip} · 点击放大" onclick="zoomCover(this.src)" alt="${tip}">`; }

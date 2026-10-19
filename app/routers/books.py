@@ -1675,7 +1675,7 @@ def delete_book(book_id: str, db: Session = Depends(get_db)):
 
 
 class PublishCardBody(BaseModel):
-    action: str = "copy"  # copy=调取三件套; covers=模板封面(横+竖)
+    action: str = "copy"  # copy=调取三件套; covers=模板封面(横+竖); polish=LLM润色变体
     sub: str | None = None    # covers: 封面红字钩子 (页面编辑框传回)
 
 
@@ -1781,6 +1781,68 @@ def publish_card_gen(book_id: str, n: int, body: PublishCardBody,
                          "main_title": b.book_title,
                          "subtitle": str(subtitle)[:26]}}
         return out
+
+    if body.action == "polish":
+        # 1020 用户令 (两波拍板·第二波): LLM 润色 opt-in — 程序稿为底, 只出
+        # title/desc 变体供人工挑; 不落库, 零 LLM 仍是默认链路。产物必过
+        # 确定性出口闸 (限流词替换 + 违禁整条弃) — LLM 比抖音松, 闸是主防线,
+        # 与生稿同观念; 变体只改写素材内容, 禁新增事实/品牌。
+        from app.services.book_service.creation_common import _llm
+        from app.services.compliance import (build_redline_prompt, check_text,
+                                             substitute_text)
+        from app.services.llm_service import _parse_json
+
+        _l1 = ((b.input_json or {}).get("目标读者画像") or {})
+        _l1v = str(_l1.get("value") or "") if _l1.get("tier") != "persona" else ""
+        _pc = rm.get("_publish_copy") or {}
+        _sys = (
+            "你是抖音书评号的资深运营, 给一条拆书口播视频写发布标题与简介变体。\n"
+            "铁律:\n"
+            "1. 只改写素材里的内容, 禁止新增人名/数字/案例/书外事实; 禁止品牌名。\n"
+            "2. 标题≤24字, 必须含对比或反转结构, 不用书名号, 不喊口号不夸张。\n"
+            "3. 简介≤110字, 讲一个带小反转的痛点场景或故事, 不重复标题, 结尾自然收。\n"
+            + build_redline_prompt() +
+            '\n只输出 JSON: {"titles": ["…","…","…"], "descs": ["…","…","…"]}'
+        )
+        _user = (f"书: {b.book_title}\n本集主题: {rm.get('主题') or ep.title}\n"
+                 f"黄金三秒钩子: {rm.get('黄金三秒钩子') or ''}\n"
+                 f"本集秘籍: {rm.get('本集秘籍') or ''}\n"
+                 f"目标读者: {_l1v[:120]}\n"
+                 f"讲稿开场:\n{(ep.script_text or '')[:1200]}\n\n"
+                 f"程序版标题 (参考底稿, 可超越): {_pc.get('title') or '(未生成)'}\n"
+                 f"程序版简介 (参考底稿, 可超越): {_pc.get('desc') or '(未生成)'}")
+        _raw = _llm().chat(_sys, _user, temperature=0.7, max_tokens=1200,
+                           tag="pubcard:polish")
+        _data = _parse_json(_raw) or {}
+        out_var: dict[str, list[str]] = {}
+        for _field, _cap in (("titles", 24), ("descs", 110)):
+            _kept: list[str] = []
+            for _t in _data.get(_field) or []:
+                _t = str(_t).strip()
+                if not _t or len(_t) > _cap or _t in _kept:
+                    continue
+                _t, _ = substitute_text(_t)  # 限流词确定性替换 (静默, 稿件同款)
+                if check_text(_t):           # 违禁命中 → 整条弃
+                    logger.warning("[publish-card] ep%d 润色变体违禁弃: %.30s",
+                                   n, _t)
+                    continue
+                if _field == "descs":        # 互动尾与程序版统一 (评论引导风格)
+                    _t = _t.rstrip()
+                    # LLM 自带互动尾 (ep2 两实锤: 「评论区聊聊你的时间账」/
+                    # 「…只是面子过不去。评论区」) — 取尾窗内**最靠前**命中切净
+                    # (max 取「聊聊」位只切 2 字会残留「评论区」再拼 = 双尾)
+                    _cuts = [c for c in (_t.rfind("评论区"), _t.rfind("聊聊"))
+                             if c >= max(len(_t) - 12, 0)]  # 地板0: rfind未命中=-1
+                    if _cuts and min(_cuts) > 0:             # 会在短串混进 cuts
+                        _t = _t[: min(_cuts)].rstrip("，。；、 ")
+                    _t += "评论区聊聊。"
+                _kept.append(_t)
+            out_var[_field] = _kept[:3]
+        if not out_var["titles"] and not out_var["descs"]:
+            raise HTTPException(422, "润色变体全数未过闸或解析失败 — 稍后重试")
+        logger.info("[publish-card] ep%d LLM 润色: titles×%d descs×%d",
+                    n, len(out_var["titles"]), len(out_var["descs"]))
+        return out_var
 
     # ── 三件套程序调取 (零 LLM): 全部字段来自大纲/讲稿原文 ──────────────
     import re as _re
