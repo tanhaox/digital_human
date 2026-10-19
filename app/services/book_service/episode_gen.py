@@ -482,16 +482,18 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
             _hook_extra += f"本集赌注层级(开场结尾按此写): {_stake}\n"
         if _datanail:
             _hook_extra += f"本集数据钉(正文中真实引用): {_datanail}\n"
-        # 行动册预告 (0914 动态): 步=工具序号 (工具集 ep2=第一步), 册=末集 — 集数随书
+        # 行动册预告 (0914 动态; 1019 B4b 钦定化: 旧注入明令写"X步转型的第X步"与
+        # B1 钦定令正面打架 — R3 实锤 计数混用主源头): 册=末集, 集数随书, 词随钦定
+        _sw = _series_word or f"{_cn(_tool_n)}件工具"
         _booklet_line = (
-            f"'这是{_cn(_tool_n)}步转型的第{_cn(ep.ep_index - 1)}步, "
-            f"完整行动册在第{_total_eps}集等你'(第{_total_eps}集兑现交棒)") if _is_tool_ep else (
-            f"'这{_total_eps}集一集一件工具, 完整行动册在第{_total_eps}集装订'")
+            f"'这是{_sw}里的第{_cn(ep.ep_index - 1)}件, 整套{_sw}的行动清单"
+            f"统一放在第{_total_eps}集行动册等你'(第{_total_eps}集兑现交棒; "
+            "本集首现即带自解释半句)") if _is_tool_ep else (
+            f"'这{_total_eps}集一集交付一件, 完整行动册在第{_total_eps}集装订'")
         _hook_extra += ("结尾行动册预告: " + _booklet_line + "; "
-                        f"回顾段拼图位**前埋**'{_cn(_tool_n)}步转型'概念 — "
-                        f"用'{_cn(_tool_n)}步转型, 这是第X件工具'式 "
-                        "(校验只认'X步转型的第X步'原句, 此式不撞); 总结段才用原句 — "
-                        f"0930 点评: 250s 才首次出现'{_cn(_tool_n)}步转型'观众会疑惑; "
+                        f"回顾段拼图位**前埋**'{_sw}'概念 — 首现即自解释; "
+                        "总结段呼应但换说法, 禁与回顾段同句 (复读段闸执法); "
+                        f"0930 点评: 250s 才首次出现'{_sw}'观众会疑惑; "
                         "互动问=评论钩站队优先 (给可对线立场, 最好是本集要反驳的那个; "
                         "进阶=两派对立式'很多人说X/还有人说Y/你站哪边', 两派须真实存在禁稻草人; "
                         "或低门槛晒经历'报个名'式; 总结段只放一个问主推站队钩, "
@@ -2068,7 +2070,7 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
         checks["ep1_guide_hits"] = f"{sum(1 for e2 in _guide_eps if e2.title[:4] in out)}/{len(_guide_eps)}"
     # 1019 B2 收官集预告残留兜底 (确定性删行已跑, 残留=变体形态, 记录级)
     if _is_laotan and ep.ep_index >= _total_eps and _total_eps > 1:
-        if re.search(r"下[一]?集[预要聊说讲]|下期[预要]", out):
+        if re.search(r"下[一]?集[预要聊说讲]|下期[预要]", re.sub(r"【[^】]*】", "", out)):
             checks["finale_tease_left"] = True
     if coverage and coverages:
         flat = [c for cs in coverages for c in cs]
