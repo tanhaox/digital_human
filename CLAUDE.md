@@ -50,7 +50,7 @@
 
 ## 七、关键上下文
 
-- pytest 基线：`pytest tests/ -m "not real_api"` → **6 failed / 298 passed / 5 deselected**（1019 夜Ⅲ/Ⅳ 双限流词闸+锚变奏+8段结构, +33 测: 限流9+画面0+变奏7+容错6+裁锚4+8段7）。
+- pytest 基线：`pytest tests/ -m "not real_api"` → **6 failed / 306 passed / 5 deselected**（1019 夜Ⅲ~Ⅴ 限流词闸+锚变奏+8段结构+听感三件套, +41 测）。
   已知失败项（历史债，与本轮重构无关）：
   - test_module_map ×3（AssertionError×2 / IndexError）
   - test_tts_chunk_semantic ×2
