@@ -2059,6 +2059,9 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
     issues += _story_dup_issues(book, ep, out)
     # 1019 升格: coverage 自报知识点模糊查重 — 故事库 fail-open 条目 (主体只剩大卫/律师
     # 类通用名) 的确定性兜底 (梅斯特被解雇/遗嘱律师 ×3 集实锤)
+    # 1019 修序: coverage 先落再查 — 旧序赋值在查重后, 本集新清单从不参战
+    # (收官集回收费五件工具=重灾区, R4 后置刷新才暴露真提示 ×2)
+    ep.coverage_json = coverage
     issues += _coverage_dup_issues(book, ep)
     ok = not issues
     # 1019 清账: 删 theme_in_script/links_prev 死检查 — 总纲"主题"字段实为集标题,
@@ -2084,7 +2087,6 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
 
     ep.script_text = out
     ep.module_json = modules or None
-    ep.coverage_json = coverage
     ep.status = "draft"
     ep.script_generated_at = _now()  # 成稿时间 (0912): 测试期分辨各集版本
     # 0912: 新稿基于当前总纲 → 清 stale 标记 (rerun-outline 时打的旧总纲稿警示)
