@@ -1801,22 +1801,68 @@ def publish_card_gen(book_id: str, n: int, body: PublishCardBody,
                 break
         return out.rstrip("，。；、 ") or t[:limit]
 
-    def _cover_sub_from(rm: dict, ep_title: str = "") -> str:
+    def _cover_sub_from(rm: dict, ep_title: str = "",
+                        title: str = "") -> str:
         """红字正源 (1018e 升级): 钩子破折号后段 > 主题破折号后段 > 主题子句收口.
-        旧版只吃主题 = 说明性标签无钩力 (用户令); 后段剥「秘密是」类壳词与引号."""
+        旧版只吃主题 = 说明性标签无钩力 (用户令); 后段剥「秘密是」类壳词与引号.
+        1020 一料一位升级: 标题新规则可吃掉钩子后段 (ep6「就是赌博」) — 后段与
+        标题归一化重叠即跳源, 顺位降级, 永不标题红字复读."""
+        _tbl = str.maketrans("", "", " \t'‘’\"“”.,，。;；:：!！?？-—…·()（）[]【】")
+        _t_ref = str(title or "").translate(_tbl)
+
+        def _dup(tail: str) -> bool:
+            _n = tail.translate(_tbl)
+            return bool(_t_ref) and (_n in _t_ref or _t_ref in _n)
+
         for src in (str(rm.get("黄金三秒钩子") or ""), str(rm.get("主题") or "")):
             if "——" in src:
                 tail = _re.sub(r"^(秘密是|答案是|其实是|其实就是|那就是)", "",
                                src.split("——")[-1].strip())
                 tail = tail.strip(" \'‘’\"“”。.，").strip()
-                if tail:
+                if tail and not _dup(tail):
                     return _clause_fit(tail, 20)
         theme = str(rm.get("主题") or "")
-        return _clause_fit(theme, 20) or _clause_fit(ep_title, 20)
+        _fb = _clause_fit(theme, 20)
+        if _fb and not _dup(_fb):
+            return _fb
+        return _clause_fit(ep_title, 20)
 
     def _first_sentence(text: str, limit: int = 24) -> str:
         t = _re.split(r"[。！？!?]", str(text or "").strip())[0].strip("，,；;、 ")
         return _clause_fit(t, limit)
+
+    _TWIST = ("其实", "而是", "不是", "才", "唯独", "却", "反而", "就是", "才是")
+
+    def _title_from(hook: str) -> str:
+        """标题正源 (1020 修因): 钩子首句四级取句 — 4/7 集断头实锤 (ep3 更留了
+        被否定半句=语义反向), 根因=贪心装句无「对比/反转」概念且 —— 不算边界.
+        ①首句整句 ≤24 直取 ②对比配平: 相邻两段 A+B, B 含转折词且 A+B ≤24
+        (ep2「战略，其实在做客服」/ep3「不重要，才重要」) ③单段优选: 含转折词
+        的最长单段 ≤24 (ep6「没有替代方案的决策就是赌博」) ④贪心装句 (原版)."""
+        first = _re.split(r"[。！？!?]", str(hook or "").strip())[0].strip()
+        if not first:
+            return ""
+        segs = [s for s in _re.split(r"(?<=[，。；：])|(?<=——)", first) if s.strip()]
+
+        def _core(s: str) -> str:  # 段芯: 剥尾标点/破折号
+            return s.strip("，。；：、 ——")
+
+        if len(first) <= 24:
+            return _core(first)
+        # ② 对比配平: A(铺垫)+B(转折) 相邻段拼, 保留逗号连接
+        for i in range(len(segs) - 1):
+            a, b = _core(segs[i]), _core(segs[i + 1])
+            if b and any(w in b for w in _TWIST) and len(a) + len(b) + 1 <= 24:
+                return f"{a}，{b}"
+        # ③ 单段优选: 含转折词的最长单段 (断言/教训句 > 铺垫句)
+        _cand = [_core(s) for s in segs
+                 if _core(s) and any(w in _core(s) for w in _TWIST)]
+        if _cand:
+            _pick = max(_cand, key=len)
+            if len(_pick) <= 24:
+                return _pick
+        # ④ 贪心装句 (原版行为兜底)
+        return _clause_fit(first, 24)
 
     def _opening_desc(script_text: str, hook: str = "", title: str = "",
                       limit: int = 122) -> str:
@@ -1831,21 +1877,30 @@ def publish_card_gen(book_id: str, n: int, body: PublishCardBody,
             ln = raw.strip()
             if not ln:
                 continue
-            if ln.startswith("【"):
+            if ln.startswith("【") or ln.startswith(("打字卡", "字幕卡")):
                 if started:
                     break  # 已收正文, 下一段标记即开场块边界
-                continue  # 头部标记行 (同段或独占段) 跳过
+                continue  # 头部标记行 (同段或独占段) 跳过; 1020 补制作标记行
+                # (ep1 实锤「打字卡：」是字幕指令非口播, 混进简介)
             if "《" in ln or "作者" in ln or "译者" in ln \
                     or ln.endswith(("——", "：", ":")):
                 continue
             started = True
             out_lines.append(ln)
         # 1018e 去重 (一料一位): 钩子句已当标题, 红字吃后段 — 简介剔除与之
-        # 重叠的行 (归一化前缀匹配) 且限 3 行, 三处不再互为复读机
+        # 重叠的行 (归一化前缀匹配), 三处不再互为复读机; 1020 限 3→4 行且
+        # 剥「为什么说」类问句壳 (新标题=对比句后, ep2 首行问句壳版成复读机)
+        # + payoff 保留: ep2 实锤贪心 3 行全耗在铺垫, 断在「各占一份」—
+        # 反转句 (「结果三类工作…」) 恰在第 4 行, 4 行上限内自然收束反转
         _tbl = str.maketrans("", "", " \t'‘’\"“”.,，。;；:：!！?？-—…·()（）[]【】")
         _ref = str(hook or "").translate(_tbl) + "|" + str(title or "").translate(_tbl)
-        out_lines = [ln for ln in out_lines
-                     if not (ln.translate(_tbl)[:10] and ln.translate(_tbl)[:10] in _ref)][:3]
+
+        def _dup_win(ln: str) -> bool:  # 1020: 8字窗包含 — 一字之差变体逃过
+            # 前缀匹配 (ep1 实锤「想不出/说不出」一字差 = 标题复读)
+            _n = _re.sub(r"^(为什么说|为什么|所以说|所以)[，,]?", "", ln).translate(_tbl)
+            return any(_n[i:i + 8] in _ref for i in range(0, max(len(_n) - 7, 1)))
+
+        out_lines = [ln for ln in out_lines if not _dup_win(ln)][:4]
         out = ""
         for ln in out_lines:
             if len(out) + len(ln) > limit - 6:  # 留互动尾空间
@@ -1854,11 +1909,11 @@ def publish_card_gen(book_id: str, n: int, body: PublishCardBody,
         out = out.rstrip("，；、 ")
         return (out + "评论区聊聊。") if out else ""
 
-    # 标题 = 黄金三秒钩子首句 (≤24字即成品; 超长按子句收口, 回退本集标题)
-    title = _first_sentence(rm.get("黄金三秒钩子") or "") or \
+    # 标题 = 钩子四级取句 (1020 修因, 见 _title_from; 回退本集标题首句)
+    title = _title_from(rm.get("黄金三秒钩子") or "") or \
         _first_sentence(ep.title)
     # 红字 = 主题破折号后段, 子句收口不截词 (covers 兜底同源 _cover_sub_from)
-    cover_sub = _cover_sub_from(rm, ep.title)
+    cover_sub = _cover_sub_from(rm, ep.title, title=title)
     # 简介 = 讲稿开场块直出
     desc = _opening_desc(ep.script_text, hook=str(rm.get("黄金三秒钩子") or ""),
                          title=title)
@@ -1888,6 +1943,31 @@ def publish_card_gen(book_id: str, n: int, body: PublishCardBody,
         if len(_c) >= 8:
             _q = _c if _c.endswith(("？", "?")) else _c + "？"
             break
+    if not _q:  # ①' 全场裸问句 (1020 修因): ep2 实锤最佳问句「你昨天下午三点，
+        # 在干什么？」不含 评论区/自查/留言 键词被漏, 落到通用兜底 — 放宽为收
+        # 全场独立问句: 剥「诊断第N问」类前缀, 6~20 字, 含「你」优先 (互动感),
+        # 与标题/钩子归一化重叠即弃 (问句壳版=标题复读)
+        _tbl2 = str.maketrans("", "", " \t'‘’\"“”.,，。;；:：!！?？-—…·()（）[]【】")
+        _ref2 = str(rm.get("黄金三秒钩子") or "").translate(_tbl2) + \
+            "|" + str(title or "").translate(_tbl2)
+        _cands: list[str] = []
+        for ln in str(ep.script_text or "").split("\n"):
+            ln = ln.strip()
+            if not ln or ln.startswith("【") or ("？" not in ln and "?" not in ln):
+                continue
+            _c = _re.sub(r"^(诊断第?[一二三四五六七八九十百\d]+问[：:]?|"
+                         r"第[一二三四五六七八九十百\d]+问[：:]?|"
+                         r"上集我们问[：:]?|上集问[：:]?|我们问[：:]?|"
+                         r"先?自查[：:]?|请问|你猜)", "",
+                         _re.split("(?<=[？?])", ln)[0]).strip("，,、 ：:")
+            if not (6 <= len(_c) <= 20) or "⟦" in ln or "⟧" in ln:
+                continue
+            _n = _c.translate(_tbl2)
+            if _n[:10] and _n[:10] in _ref2:
+                continue  # 标题/钩子复读
+            _cands.append(_c if _c.endswith(("？", "?")) else _c + "？")
+        _you = [c for c in _cands if "你" in c]
+        _q = (_you or _cands)[0] if (_you or _cands) else ""
     if not _q:  # ② 自查句 (。结尾也收, ep4 实锤)
         for ln in _lines:
             if "自查" not in ln:
