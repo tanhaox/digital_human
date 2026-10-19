@@ -118,3 +118,24 @@ def test_resolve_series_word_pin_and_detect():
     assert resolve_series_word(b) == "五件工具"
     # 两无 → None (回退现行为)
     assert resolve_series_word(NS(input_json={}, episodes=[])) is None
+
+
+# ── 1019 B3: 复读段 8-gram 标定 (14 份实稿回放: ≤7字金句/锚母题误报清零, 真重复保留) ──
+
+def test_repeat_motif_quote_not_flagged():
+    """合法金句母题 (6字含引号, 全稿作对比轴复读) ≠ 复读段."""
+    from app.services.book_service.creation_common import validate_script
+    s = ("开场先立轴：他把“我会什么”挂在嘴边，十年没挪窝。")
+    s += "中间讲透贡献。别再问“我会什么”，改成问“我解决什么”，路就宽了。"
+    s += "结尾收轴：从“我会什么”到“我解决什么”，就这一步，也是唯一的一步。"
+    ok, issues = validate_script(s + "。" * 0, 600, "测试书")
+    assert not any("复读段" in i for i in issues)
+
+
+def test_repeat_true_7char_still_flagged():
+    """真重复 (≥7 连续字跨句再现) 仍报."""
+    from app.services.book_service.creation_common import validate_script
+    s = "第一段先把结论放这儿：连续五六个小时初稿才能出来，别不信。"
+    s += "第二段补证据：连续五六个小时初稿才能出来，这是硬门槛。"
+    ok, issues = validate_script(s, 600, "测试书")
+    assert any("复读段" in i for i in issues)

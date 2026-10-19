@@ -549,16 +549,20 @@ def validate_script(text: str, target: float, book_title: str = "",
         _seen.append((s, bg))
     if _dup_examples:
         issues.append("车轱辘话: 以下判断说了两遍, 删旧保新只留一说 — " + "; ".join(_dup_examples[:3]))
-    # 6-gram 共现检 (0912 CTA撞衫实锤): 任意两句共享 ≥6 连续字 = 复读
-    # (转给一个正在死磕/电影是相亲 类; 比句级 bigram 重叠更稳)
+    # 8-gram 共现检 (0912 CTA撞衫实铮; 1019 B3 标定: 14 份实稿回放 52→14 — ①6→8:
+    # 金句/锚母题 ≤7字含引号全误报, 金句复读+同锚变奏是设计特性(A6); ②剥引号再扫:
+    # 引号+标点垫窗 ("我解决什么"，=8字) 让母题在任何固定阈值漏网, 剥后母题≤7字自然消,
+    # 整句真重复与 CTA撞衫原型 "转给一个正在死磕"=8字 仍全抓):
+    # 任意两句共享 ≥8 连续非引号字 = 复读; 比句级 bigram 重叠更稳
     # 0913 修: 书名滑窗白名单 — 书名合法提及2次, 其 6字滑窗碎片 (BO的内容战…)
     # 曾各算一次"多处出现"三连误报 (ep2-5 实稿句级近重复实为 0, A/B/C 参数对照证清白)
     _title = re.sub(r"[《》\s]", "", book_title or "")
     _gram: dict[str, int] = {}
     _gram_dups: set[str] = set()
-    for si, s in enumerate(sents):
-        for k in range(len(s) - 5):
-            g = s[k:k + 6]
+    for si, s0 in enumerate(sents):
+        s = s0.replace("“", "").replace("”", "")  # 剥引号: 直引锚/金句母题复读合法
+        for k in range(len(s) - 7):
+            g = s[k:k + 8]
             # 剥书名号再比对 — 「《HBO的内」这类带《前缀的滑窗也是书名碎片
             if _title and re.sub(r"[《》]", "", g) in _title:
                 continue
