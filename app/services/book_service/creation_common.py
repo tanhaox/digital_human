@@ -408,6 +408,55 @@ def section_flow_issues(text: str, book_title: str = "",
     return issues
 
 
+# 1019 纯听听感 (用户令: 抖音精选纯听用户 — 随机切入无字幕, 豆包诊断 ep2 实锤
+# 系列黑话+学术词卡新听众): 框架计数词两族 + 自解释标记 + 术语表。
+# 正则收紧 (真稿实测: 裸"X步"误吃"进一步/往前一步"): 族A 只认 步转型/第X步/分X步
+_FRAME_FAM_A = re.compile(r"[一二三四五六七八九十\d]\s*步转型|第[一二三四五六七八九十\d]\s*步|分[一二三四五六七八九十\d]\s*步")
+_FRAME_FAM_B = re.compile(r"[一二三四五六七八九十\d]\s*件工具|第[一二三四五六七八九十\d]\s*件工具")
+_EXPLAIN_MARKS = ("一共", "总共", "指的是", "也就是", "说白了", "分别是", "整个系列")
+
+
+def _listen_feel_issues(text: str) -> list[str]:
+    """纯听听感三查 (1019): 框架词首现自解释 / 计数体系混用 / 术语残留 — 提示级不阻断."""
+    out: list[str] = []
+    t = text or ""
+    fam_a = _FRAME_FAM_A.findall(t)
+    fam_b = _FRAME_FAM_B.findall(t)
+    # ② 计数体系混用: 两套框架同稿 → 纯听听众构建两套框架
+    if fam_a and fam_b:
+        out.append(f"计数体系混用: 「{fam_a[0]}」×{len(fam_a)} 与 「{fam_b[0]}」×{len(fam_b)} "
+                   "同稿并存 — 全书单选一套 (五步转型 或 五件工具)")
+    # ① 框架词首现自解释: 首个框架词所在句+前一句窗口内无解释标记 → 报
+    first = None
+    for m in (_FRAME_FAM_A.search(t), _FRAME_FAM_B.search(t)):
+        if m and (first is None or m.start() < first.start()):
+            first = m
+    if first is not None:
+        win = t[:first.start()].rstrip()
+        # 窗口 = 前一句 + 首现所在句 (句末符切)
+        sents = re.split(r"(?<=[。！？\n])", win)
+        lead = "".join(sents[-2:]) if sents else ""
+        rest = t[first.start():]
+        cur_sent = re.split(r"[。！？\n]", rest, maxsplit=1)[0]
+        window = lead + cur_sent
+        if not any(k in window for k in _EXPLAIN_MARKS):
+            out.append(f"框架词首现无自解释: 「{first.group(0)}」首现句±前一句无解释标记 "
+                       "(一共/总共/指的是/也就是…) — 精选页随机听众没听过前集, "
+                       "补半句口语解释 ('管理者提升效能一共五步转型'式)")
+    # ③ 术语残留: 机械表命中 (出口闸应已替, 残留=闸漏) + rewrite_only 命中 (源头没避开)
+    try:
+        from app.services.compliance import load_listen_terms
+        lt = load_listen_terms()
+        _term_hits = [w for w in (lt.get("terms") or {}) if w in t]
+        _rw_hits = [w for w in (lt.get("rewrite_only") or []) if w in t]
+        if _term_hits or _rw_hits:
+            out.append("听感术语残留: " + "/".join(_term_hits + _rw_hits)
+                       + " — 说人话 (config/listen_terms.json)")
+    except Exception:  # noqa: BLE001 — 词库坏不炸校验
+        pass
+    return out
+
+
 def validate_script(text: str, target: float, book_title: str = "",
                     *, require_cta: bool = False, finale: bool = False,
                     ) -> tuple[bool, list[str]]:
@@ -496,6 +545,8 @@ def validate_script(text: str, target: float, book_title: str = "",
     if _jargon_hits:
         issues.append("内部黑话渗稿: " + "/".join(_jargon_hits)
                       + " — 管线词说人话 ('判定钉'→'就问一句: 不做会有什么后果'式直给)")
+    # 1019 纯听听感三查 (精选页随机听众): 框架词自解释/计数混用/术语残留
+    issues += _listen_feel_issues(text or "")
     # 1018 用户令: 评论引导禁贬收藏 — "收藏夹吃灰"式梗以"存而不用"为晒点, 讽刺收藏
     # 行为=降收藏率, 与互动链 (收藏>评论>点赞) 相悖 (ep2 回顾段实锤)
     _deval = re.search(r"收藏夹?吃灰|存了[^。！？\n]{0,10}(才翻|没看|不看|没用|没翻)", text or "")

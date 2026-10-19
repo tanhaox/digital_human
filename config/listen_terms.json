@@ -1,0 +1,14 @@
+{
+  "_meta": {
+    "version": "1.0",
+    "date": "2026-10-19",
+    "purpose": "纯听听感术语表 (1019 用户令: 抖音精选纯听用户 — 随机切入/无字幕/无画面, 名词卡壳即断链; 豆包诊断 ep2 实锤: 系列黑话+学术词卡新听众)。terms=高置信机械替换 (无语境歧义, 出口确定性替换); rewrite_only=需语境改写 (仅宪法源头规避+校验报警, 不机械替)。置信门槛从高: 宁少勿噪, 观察期按校验日志扩表。",
+    "usage": "宪法注入 (config/laotan-book.txt 纯听听感铁律) + 出口替换 (compliance.listen_substitute, 与限流词闸同位双闸) + 校验残留报警 (creation_common._listen_feel_issues)"
+  },
+  "terms": {
+    "路径依赖": "思路固化"
+  },
+  "rewrite_only": [
+    "战略级聚焦"
+  ]
+}

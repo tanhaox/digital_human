@@ -1945,11 +1945,15 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
     # 1019 字幕限流词主闸 (用户令: LLM 一对一比抖音公开传播松, 出口确定性替换是
     # 唯一安全边界): 平台名缓冲词+暴力词书面化, 命中静默替换+日志; 与操控→借用
     # 同款确定性编辑层位, 且在终检 snapshot 之前 — 校验与落库所见即替换后稿。
-    from app.services.compliance import substitute_text as _sub_text
+    from app.services.compliance import substitute_text as _sub_text, listen_substitute
     out, _sub_hits = _sub_text(out)
     if _sub_hits:
         logger.info("[book] ep%d 限流词替换 ✓ %d类: %s", ep.ep_index, len(_sub_hits),
                     "/".join(_sub_hits[:8]))
+    # 1019 纯听听感闸 (精选页纯听用户令): 高置信术语机械替换, 同位双闸
+    out, _lt_hits = listen_substitute(out)
+    if _lt_hits:
+        logger.info("[book] ep%d 听感术语替换 ✓ %s", ep.ep_index, "/".join(_lt_hits))
 
     # 三项自检 (记录, 不阻塞)
     checks: dict[str, Any] = {}

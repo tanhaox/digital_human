@@ -22,10 +22,47 @@ logger = logging.getLogger(__name__)
 
 _COMMON_PATH = Path(__file__).resolve().parents[2] / "config" / "compliance_common.json"
 _VISUAL_PATH = Path(__file__).resolve().parents[2] / "config" / "compliance_visual.json"
+_LISTEN_PATH = Path(__file__).resolve().parents[2] / "config" / "listen_terms.json"
 
 _cache: dict | None = None
 _visual_cache: list[str] | None = None
 _subs_cache: dict[str, str] | None = None
+_listen_cache: dict | None = None
+
+
+def load_listen_terms() -> dict:
+    """读 config/listen_terms.json (带缓存, fail-open 空表).
+
+    1019 用户令 (抖音精选纯听用户): terms=机械替换表, rewrite_only=仅报警表。
+    """
+    global _listen_cache
+    if _listen_cache is None:
+        try:
+            _listen_cache = json.loads(_LISTEN_PATH.read_text(encoding="utf-8"))
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("[compliance] 听感术语表加载失败: %s", exc)
+            _listen_cache = {}
+    return _listen_cache
+
+
+def listen_substitute(text: str) -> tuple[str, list[str]]:
+    """纯听听感术语出口闸 (1019): 高置信术语机械替换 — 与限流词主闸同位双闸.
+
+    只替 terms 表 (无语境歧义); rewrite_only 表不替 (语境改写交给宪法源头+校验报警)。
+    返回 (替换后文本, 命中词表); 上游凭命中表记日志, 不阻断。
+    """
+    if not text:
+        return text, []
+    terms = load_listen_terms().get("terms") or {}
+    if not terms:
+        return text, []
+    hits = [w for w in terms if w in text]
+    if not hits:
+        return text, []
+    out = text
+    for w in sorted(hits, key=len, reverse=True):
+        out = out.replace(w, terms[w])
+    return out, hits
 
 
 def load_common_rules() -> dict:
