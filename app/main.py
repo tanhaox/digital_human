@@ -62,6 +62,14 @@ async def lifespan(app: FastAPI):
     set_config(cfg)
     _config = cfg
     init_db(_config.app.database_url)
+    try:  # 1019 B1: 启动即冻结码版本 — uvicorn 无 reload, 改码须重启 (半旧产线事故防线)
+        import subprocess as _sp
+        _sha = _sp.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True,
+                       text=True, cwd=str(Path(__file__).resolve().parents[1])).stdout.strip()
+        if _sha:
+            logger.info("[lifespan] code version: git %s (启动即冻结, 改码须重启)", _sha)
+    except Exception:
+        pass
     # 注册 event loop 给 director_events 跨线程安全调度
     import asyncio
 

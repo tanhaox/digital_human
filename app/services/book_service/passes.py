@@ -86,6 +86,7 @@ def fig_quota_issues(text: str, figure: str) -> list[str]:
 def snapshot(text: str, *, target: float, book_title: str, require_cta: bool = False,
              ep_index: int = 0, flow_check: bool = False, figure: str = "",
              verbatim_paras: list[str] | None = None, hook_ref: str = "",
+             series_word: str = "",
              include: tuple[str, ...] = ("validate", "flow", "brand")) -> dict[str, list[str]]:
     """一次校验快照 (可组合部分)。pass 闸比对都吃快照, 禁各 pass 零散重调。
 
@@ -100,7 +101,8 @@ def snapshot(text: str, *, target: float, book_title: str, require_cta: bool = F
     snap: dict[str, list[str]] = {}
     if "validate" in include:
         snap["validate"] = list(validate_script(text, target, book_title=book_title,
-                                                require_cta=require_cta)[1])
+                                                require_cta=require_cta,
+                                                series_word=series_word or None)[1])
     if "flow" in include:
         snap["flow"] = list(section_flow_issues(text, book_title=book_title,
                                                 ep_index=ep_index, flow_check=flow_check))

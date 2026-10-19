@@ -414,35 +414,58 @@ def section_flow_issues(text: str, book_title: str = "",
 _FRAME_FAM_A = re.compile(r"[一二三四五六七八九十\d]\s*步转型|第[一二三四五六七八九十\d]\s*步|分[一二三四五六七八九十\d]\s*步")
 _FRAME_FAM_B = re.compile(r"[一二三四五六七八九十\d]\s*件工具|第[一二三四五六七八九十\d]\s*件工具")
 _EXPLAIN_MARKS = ("一共", "总共", "指的是", "也就是", "说白了", "分别是", "整个系列")
+# 1019 B1: 句内点名式标记 (窗口级"叫"太宽 — "别人叫你干啥"误过; 只认首现句内的
+# 叫/拆成/分成。豆包修补句"五件工具, 今天讲第一件, 叫时间诊断"不含旧窗口标记,
+# 好解释被误拦实锤)
+_SENT_MARKS = ("叫", "拆成", "分成")
 
 
-def _listen_feel_issues(text: str) -> list[str]:
-    """纯听听感三查 (1019): 框架词首现自解释 / 计数体系混用 / 术语残留 — 提示级不阻断."""
+def _listen_feel_issues(text: str, series_word: str | None = None) -> list[str]:
+    """纯听听感三查 (1019): 框架词首现自解释 / 计数体系执法 / 术语残留 — 提示级不阻断.
+
+    1019 B1 定桩升级: series_word 钦定后 — (1)其他族系列词全称(X步转型/X件工具)出现
+    即报"非钦定"; (2)首现自解释逐族各查 (旧版只查全局首现, 「第一步」遮蔽「五步转型」
+    实锤); (3)标记表补句内 叫/拆成/分成 点名式。"""
     out: list[str] = []
     t = text or ""
     fam_a = _FRAME_FAM_A.findall(t)
     fam_b = _FRAME_FAM_B.findall(t)
-    # ② 计数体系混用: 两套框架同稿 → 纯听听众构建两套框架
+    # (a) 计数执法: 钦定后其他族系列词全称即报 (第X步/分X步 泛型计数不在此列 —
+    # 工具内部步骤合法; 与钦定族并存仍走下面混用闸)
+    if series_word:
+        _noun_a = re.search(r"[一二三四五六七八九十\d]\s*步转型", t)
+        _noun_b = re.search(r"[一二三四五六七八九十\d]\s*件工具", t)
+        if "件工具" in series_word and _noun_a:
+            out.append(f"非钦定框架词: 「{_noun_a.group(0)}」— 本书钦定「{series_word}」, "
+                       "全稿统一'第X件工具'式, 其他系列计数词禁用")
+        elif "步转型" in series_word and _noun_b:
+            out.append(f"非钦定框架词: 「{_noun_b.group(0)}」— 本书钦定「{series_word}」, "
+                       "全稿统一'第X步'式, 其他系列计数词禁用")
     if fam_a and fam_b:
+        _hint = (f"本书钦定「{series_word}」, 其他族词全删" if series_word
+                 else "全书单选一套 (五步转型 或 五件工具)")
         out.append(f"计数体系混用: 「{fam_a[0]}」×{len(fam_a)} 与 「{fam_b[0]}」×{len(fam_b)} "
-                   "同稿并存 — 全书单选一套 (五步转型 或 五件工具)")
-    # ① 框架词首现自解释: 首个框架词所在句+前一句窗口内无解释标记 → 报
-    first = None
-    for m in (_FRAME_FAM_A.search(t), _FRAME_FAM_B.search(t)):
-        if m and (first is None or m.start() < first.start()):
-            first = m
-    if first is not None:
-        win = t[:first.start()].rstrip()
+                   f"同稿并存 — {_hint}")
+    # (b) 框架词首现自解释: 逐族各查 (钦定后只查钦定族 — 被禁族该删不该解释)
+    fams: list[tuple[str, "re.Pattern"]]= []
+    if fam_b and (not series_word or "件工具" in series_word):
+        fams.append((fam_b[0], _FRAME_FAM_B))
+    if fam_a and (not series_word or "步转型" in series_word):
+        fams.append((fam_a[0], _FRAME_FAM_A))
+    for _sample, _pat in fams:
+        m = _pat.search(t)
+        win = t[:m.start()].rstrip()
         # 窗口 = 前一句 + 首现所在句 (句末符切)
         sents = re.split(r"(?<=[。！？\n])", win)
         lead = "".join(sents[-2:]) if sents else ""
-        rest = t[first.start():]
+        rest = t[m.start():]
         cur_sent = re.split(r"[。！？\n]", rest, maxsplit=1)[0]
         window = lead + cur_sent
-        if not any(k in window for k in _EXPLAIN_MARKS):
-            out.append(f"框架词首现无自解释: 「{first.group(0)}」首现句±前一句无解释标记 "
-                       "(一共/总共/指的是/也就是…) — 精选页随机听众没听过前集, "
-                       "补半句口语解释 ('管理者提升效能一共五步转型'式)")
+        if not (any(k in window for k in _EXPLAIN_MARKS)
+                or any(k in cur_sent for k in _SENT_MARKS)):
+            out.append(f"框架词首现无自解释: 「{m.group(0)}」首现句±前一句无解释标记 "
+                       "(一共/总共/叫/拆成…) — 精选页随机听众没听过前集, "
+                       "补半句口语解释 ('管理者提升效能一共五件工具'式)")
     # ③ 术语残留: 机械表命中 (出口闸应已替, 残留=闸漏) + rewrite_only 命中 (源头没避开)
     try:
         from app.services.compliance import load_listen_terms
@@ -457,8 +480,29 @@ def _listen_feel_issues(text: str) -> list[str]:
     return out
 
 
+def resolve_series_word(book) -> str | None:
+    """系列框架词解析 (1019 B1): 灵魂三问钦定 > 总纲族词多数检测 > None.
+
+    检测兜底: 各集 roadmap(title/承上/启下) 两族词计数取多数 — 老书不补数据也自洽;
+    None 时检查回退两族并存口径 (现行为), prompt 回退'单选一套'令。"""
+    _soul = (getattr(book, "input_json", None) or {}).get("灵魂三问")
+    if isinstance(_soul, dict):
+        _w = str(_soul.get("系列框架词") or "").strip()
+        if _w:
+            return _w
+    fa = fb = 0
+    for e in (getattr(book, "episodes", None) or []):
+        blob = str(getattr(e, "roadmap_json", None) or {}) + str(getattr(e, "title", None) or "")
+        fa += len(_FRAME_FAM_A.findall(blob))
+        fb += len(_FRAME_FAM_B.findall(blob))
+    if fa or fb:
+        return "五步转型" if fa > fb else "五件工具"
+    return None
+
+
 def validate_script(text: str, target: float, book_title: str = "",
                     *, require_cta: bool = False, finale: bool = False,
+                    series_word: str | None = None,
                     ) -> tuple[bool, list[str]]:
     """硬校验: 字数按目标时长换算 + 六标签完整 + 末段终点≈目标±10%.
 
@@ -546,7 +590,7 @@ def validate_script(text: str, target: float, book_title: str = "",
         issues.append("内部黑话渗稿: " + "/".join(_jargon_hits)
                       + " — 管线词说人话 ('判定钉'→'就问一句: 不做会有什么后果'式直给)")
     # 1019 纯听听感三查 (精选页随机听众): 框架词自解释/计数混用/术语残留
-    issues += _listen_feel_issues(text or "")
+    issues += _listen_feel_issues(text or "", series_word=series_word)
     # 1018 用户令: 评论引导禁贬收藏 — "收藏夹吃灰"式梗以"存而不用"为晒点, 讽刺收藏
     # 行为=降收藏率, 与互动链 (收藏>评论>点赞) 相悖 (ep2 回顾段实锤)
     _deval = re.search(r"收藏夹?吃灰|存了[^。！？\n]{0,10}(才翻|没看|不看|没用|没翻)", text or "")

@@ -67,3 +67,54 @@ def test_rewrite_only_not_substituted_but_flagged():
 def test_clean_text_no_issues():
     assert _listen_feel_issues("记录在前，判断在后。先看清时间去了哪。") == []
     assert listen_substitute("干净的口播。") == ("干净的口播。", [])
+
+
+# ── 1019 B1 定桩升级: 钦定执法 / 逐族首现不遮蔽 / 句内点名标记 ──
+
+def test_pinned_banned_series_noun_flagged():
+    """钦定五件工具后, '五步转型'全称出现 → 非钦定."""
+    s = "管理者提升效能一共五件工具，今天讲第一件工具。\n后来又提了一句五步转型。"
+    issues = _listen_feel_issues(s, series_word="五件工具")
+    assert any("非钦定框架词" in i for i in issues)
+
+
+def test_pinned_canonical_with_explain_passes():
+    s = "《卓》里管理者提升效能一共五件工具，今天讲第一件工具。"
+    issues = _listen_feel_issues(s, series_word="五件工具")
+    assert not any(("框架词首现" in i or "非钦定" in i or "混用" in i) for i in issues)
+
+
+def test_pinned_generic_step_counter_not_banned():
+    """工具内部'第一步/分三步'泛型计数 ≠ 非钦定 (只有族全称被禁)."""
+    s = "一共五件工具。第二件工具填法分三步：先辨明，再定边界。"
+    issues = _listen_feel_issues(s, series_word="五件工具")
+    assert not any("非钦定框架词" in i for i in issues)
+
+
+def test_per_family_no_masking():
+    """旧版只查全局首现: 「第一步」遮蔽「五步转型」; 新版逐族各查 → 各报一条."""
+    s = "想升级做事成效，第一件工具先出手。\n五步转型，讲透它。"
+    issues = _listen_feel_issues(s)
+    assert len([i for i in issues if "框架词首现无自解释" in i]) == 2
+
+
+def test_sent_mark_jia_naming_passes():
+    """豆包修补句式: 首现句内 '叫时间诊断' 点名 → 过 (旧窗口标记全不命中)."""
+    s = "《卓》里管理者提升效能的五件工具，今天讲第一件，叫时间诊断。"
+    issues = _listen_feel_issues(s, series_word="五件工具")
+    assert not any("框架词首现无自解释" in i for i in issues)
+
+
+def test_resolve_series_word_pin_and_detect():
+    from types import SimpleNamespace as NS
+    from app.services.book_service.creation_common import resolve_series_word
+    # 钦定优先
+    assert resolve_series_word(NS(input_json={"灵魂三问": {"系列框架词": "五件工具"}},
+                                  episodes=[])) == "五件工具"
+    # 无钦定 → 总纲族词多数 (roadmap 里件工具多 → 检测为五件工具)
+    b = NS(input_json={"灵魂三问": {}}, episodes=[
+        NS(roadmap_json={"承上": "上一件工具: 时间诊断", "启下": "下一件工具"}, title="t"),
+        NS(roadmap_json={"承上": "回顾上集", "启下": "预告"}, title="u")])
+    assert resolve_series_word(b) == "五件工具"
+    # 两无 → None (回退现行为)
+    assert resolve_series_word(NS(input_json={}, episodes=[])) is None

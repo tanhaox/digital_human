@@ -1469,8 +1469,9 @@ def edit_episode(book_id: str, n: int, body: EpisodeEdit, db: Session = Depends(
             _p = db.query(Persona).filter(Persona.id == _pid).first() if _pid else None
             _laotan = bool(_p and "laotan" in (_p.prompt_template or ""))
             _hook_ref = str((ep.roadmap_json or {}).get("黄金三秒钩子") or "") if ep.ep_index > 1 else ""
+            from app.services.book_service.creation_common import resolve_series_word as _rsw
             _snap = _passes.snapshot(
-                ep.script_text, target=ep.target_duration_sec,
+                ep.script_text, target=ep.target_duration_sec, series_word=_rsw(ep.book) or "",
                 book_title=ep.book.book_title,
                 require_cta=(_laotan and not (ep.ep_index >= _total and _total > 1)),
                 ep_index=ep.ep_index, flow_check=(1 < ep.ep_index < _total),

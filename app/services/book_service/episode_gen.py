@@ -41,6 +41,7 @@ from app.services.book_service.creation_common import (
 from app.services.book_service.creation_steps import _l0_facing
 from app.services.book_service.distiller import load_book_rules
 from app.services.llm_service import _load_prompt_template
+from app.services.book_service.creation_common import resolve_series_word
 from app.services.prompt_guard import TRUST_DECL, wrap_source
 
 logger = logging.getLogger(__name__)
@@ -351,6 +352,12 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
         logger.warning("[book] config/%s.txt 缺失或过短, 回退内置兜底基底", _persona_tpl)
         base = fallback_base(_persona_tpl)
     _is_laotan = "laotan-book" in _persona_tpl
+    # 1019 B1 系列名词定桩 (豆包两轮诊断: 3-6集"五步转型×6-9"与"第X件工具"同稿混用):
+    # 灵魂三问钦定 > 总纲族词多数检测 > 人设默认件工具 — 模板"单选"改"钦定",
+    # 检查端其他族系列词即报 (creation_common._listen_feel_issues)
+    _series_word = resolve_series_word(book) or ("五件工具" if _is_laotan else None)
+    if _series_word:
+        base = base.replace("【系列框架词】", _series_word)
     # 附加指令的人设差异化片段 (静=女性成长场景 / 老谭=职场认知场景)
     if _is_laotan:
         _hint_plain = ("7. 专业概念口播必须翻译成大白话，用职场晋升/带团队/跳槽决策/饭局"
@@ -1413,7 +1420,7 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
             _concept_issues.append(f"件序错写: 「{_m.group(0)}」应为 第{_cn(_want_n)}件/步 "
                                    f"(件序=集数-1: 第{ep.ep_index}集=第{_want_n}件工具; 回顾段与总结段口径统一)")
             break
-    ok, issues = validate_script(out, ep.target_duration_sec, book_title=book.book_title,
+    ok, issues = validate_script(out, ep.target_duration_sec, book_title=book.book_title, series_word=_series_word,
                                  require_cta=_req_cta)
     # 六拍模块总线 (0917 架构令): 标记解析不足 6 段 = 结构不合规, 进打回链自动重试
     from .module_map import parse_modules
@@ -1481,7 +1488,7 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
             _rm2 = dict(ep.roadmap_json or {})
             _rm2["打字卡"] = _card2
             ep.roadmap_json = _rm2
-        out2_ok, issues2 = validate_script(retry, ep.target_duration_sec, book_title=book.book_title,
+        out2_ok, issues2 = validate_script(retry, ep.target_duration_sec, book_title=book.book_title, series_word=_series_word,
                                            require_cta=_req_cta)
         # 0926 硬核层: 中国品牌闸在重试稿同规 (ep2 实锤: 品牌在重试轮进了、其它校验
         # 未全过回退首稿时被丢弃 → 终稿零品牌)
@@ -1586,7 +1593,8 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
     # 而单掷重试常修不完 — 定向替换非全文重写, 品牌注入 pass 同架构 (只动病灶句)
     if _is_tool_ep:
         _hyg = [i for i in validate_script(out, ep.target_duration_sec,
-                                           book_title=book.book_title, require_cta=_req_cta)[1]
+                                           book_title=book.book_title, require_cta=_req_cta,
+                                           series_word=_series_word)[1]
                 if "归因句堆叠" in i or "内部黑话渗稿" in i]
         if _hyg:
             try:
@@ -1610,7 +1618,8 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
                         "待修问题:\n" + "\n".join(_hyg) + f"\n\n稿件:\n{out}", model="pro", temperature=0.3, tag="epgen:hygiene")
                 fix = (fix or "").strip()
                 _hyg2 = [i for i in validate_script(fix, ep.target_duration_sec,
-                                                    book_title=book.book_title, require_cta=_req_cta)[1]
+                                                    book_title=book.book_title, require_cta=_req_cta,
+                                                    series_word=_series_word)[1]
                          if "归因句堆叠" in i or "内部黑话渗稿" in i]
                 if fix and not _hyg2 and abs(len(fix) - len(out)) <= 80 \
                         and not _zh_brand_issues(fix, book.book_title):
@@ -1636,6 +1645,7 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
     # 0930 快照 (passes.py): CTA+去重共享 pre-CTA 基线 (压测实锤 — 各自重算会漂)
     _fx_base = passes_mod.snap_issues(passes_mod.snapshot(
         out, target=ep.target_duration_sec, book_title=book.book_title, require_cta=_req_cta,
+        series_word=_series_word or "",
         ep_index=ep.ep_index, flow_check=_is_tool_ep, figure=_figure,
         include=("validate", "flow", "fig")))
     if _is_laotan and any("缺转发CTA" in i or "缺收藏CTA" in i for i in _fx_base):
@@ -1668,7 +1678,7 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
             cta = (cta or "").strip()
             _cta_after = passes_mod.snap_issues(passes_mod.snapshot(
                 cta, target=ep.target_duration_sec, book_title=book.book_title,
-                require_cta=_req_cta, include=("validate",)))
+                require_cta=_req_cta, series_word=_series_word or "", include=("validate",)))
             _cta_new = passes_mod.family_new(_cta_after, _fx_base)
             if (cta and not any("缺转发CTA" in i or "缺收藏CTA" in i for i in _cta_after)
                     and not _cta_new and 0 <= len(cta) - len(out) <= 130):
@@ -1699,7 +1709,7 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
                 out,
                 "你是口播稿去重编辑。只修列出的问题, 禁改其它任何句子、禁动段落标签、"
                 "禁动⟦⟧原话: ①系列句出现2次 → 总结段保留行动册预告原句, 回顾段那处改成"
-                "'第X件工具'式说法; ②复读段/车轱辘话 → 优先把重复的两句合并成一句更满的; "
+                "钦定框架词说法; ②复读段/车轱辘话 → 优先把重复的两句合并成一句更满的; "
                 "整段级重复 (同一信息两遍介绍) → 整删其中一处, 重复信息跨⟦⟧锁段与非锁段时"
                 "只删/改**非锁段**那处 (锁段一字不动); ③贯穿人物出场超额 → 合并到职能配额: "
                 "钩子只留反差结论两三句, 完整故事只在中段讲一次, 拆解三改成拿工具"
@@ -1711,7 +1721,7 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
                 fix = _llm().chat(
                     "你是口播稿去重编辑。只修列出的问题, 禁改其它任何句子、禁动段落标签、"
                     "禁动⟦⟧原话: ①系列句出现2次 → 总结段保留行动册预告原句, 回顾段那处改成"
-                    "'第X件工具'式说法; ②复读段/车轱辘话 → 优先合并成一句更满的; 整段级重复"
+                    "钦定框架词说法; ②复读段/车轱辘话 → 优先合并成一句更满的; 整段级重复"
                     "→ 整删非锁段那处 (⟦⟧锁段一字不动); ③贯穿人物出场超额 → 合并到职能配额: "
                     "钩子只留反差结论两三句, 完整故事只在中段讲一次, 拆解三改成拿工具"
                     "拿工具量化 (维度/刻度/判定, 禁重述故事), 总结只留身份重述一句。"
@@ -1721,7 +1731,8 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
             fix = (fix or "").strip()
             _dd_after = passes_mod.snap_issues(passes_mod.snapshot(
                 fix, target=ep.target_duration_sec, book_title=book.book_title,
-                require_cta=_req_cta, ep_index=ep.ep_index, flow_check=_is_tool_ep,
+                require_cta=_req_cta, series_word=_series_word or "",
+                ep_index=ep.ep_index, flow_check=_is_tool_ep,
                 figure=_figure, include=("validate", "flow", "fig")))
             _dd_left = [i for i in _dd_after if any(k in i for k in ("系列句", "复读段", "车轱辘话", "贯穿人物"))]
             _dd_new = passes_mod.family_new(_dd_after, _fx_base)
@@ -1758,7 +1769,8 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
     # (require_cta=False — CTA 缺失归 CTA pass 管, 压缩只删不加不背别家的闸)。
     _cpr_base = passes_mod.snap_issues(passes_mod.snapshot(
         out, target=ep.target_duration_sec, book_title=book.book_title,
-        require_cta=False, ep_index=ep.ep_index, flow_check=_is_tool_ep, figure=_figure,
+        require_cta=False, series_word=_series_word or "",
+        ep_index=ep.ep_index, flow_check=_is_tool_ep, figure=_figure,
         include=("validate", "flow", "fig")))
     _cpr_wc = next((i for i in _cpr_base if i.startswith("字数")), "")
     if ("超出" in _cpr_wc or "超硬线" in _cpr_wc):
@@ -1785,7 +1797,8 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
             comp = (comp or "").strip()
             _cpr_after = passes_mod.snap_issues(passes_mod.snapshot(
                 comp, target=ep.target_duration_sec, book_title=book.book_title,
-                require_cta=False, ep_index=ep.ep_index, flow_check=_is_tool_ep, figure=_figure,
+                require_cta=False, series_word=_series_word or "",
+                ep_index=ep.ep_index, flow_check=_is_tool_ep, figure=_figure,
                 include=("validate", "flow", "fig")))
             _cpr_new = passes_mod.family_new(_cpr_after, _cpr_base)
             _cpr_over_left = any(("超出" in i or "超硬线" in i) for i in _cpr_after if i.startswith("字数"))
@@ -1837,7 +1850,8 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
                 # 0930 快照+共享闸判据 (passes.py): 幽默基线不含 fig (人物配额归
                 # 去重 pass 管 — 压测实锤语义差异); 病族/字数带助手见 passes 文档
                 _hs = dict(target=ep.target_duration_sec, book_title=book.book_title,
-                           require_cta=_req_cta, ep_index=ep.ep_index, flow_check=_is_tool_ep)
+                           require_cta=_req_cta, series_word=_series_word or "",
+                           ep_index=ep.ep_index, flow_check=_is_tool_ep)
                 _b_snap = passes_mod.snapshot(out, include=("validate", "flow"), **_hs)
                 _h_snap = passes_mod.snapshot(hum, include=("validate", "flow"), **_hs)
                 _b_iss = passes_mod.snap_issues(_b_snap)
@@ -1965,6 +1979,7 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
     # 检查, 人闸问题单漏报 (ep1 终稿实犯"fd段被改写"但 _issues 不显示)。
     _fin = passes_mod.snapshot(
         out, target=ep.target_duration_sec, book_title=book.book_title, require_cta=_req_cta,
+        series_word=_series_word or "",
         ep_index=ep.ep_index, flow_check=_is_tool_ep, figure=_figure,
         verbatim_paras=_fd_open_paras, hook_ref=_hook_ref,
         include=("validate", "flow", "fig", "opening", "hook") + (("brand",) if _is_tool_ep else ()))
