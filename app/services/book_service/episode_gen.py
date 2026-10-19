@@ -219,9 +219,13 @@ def _coverage_dup_issues(book: BookProject, ep: Episode) -> list[str]:
         cov = [str(c) for c in (ep.coverage_json or [])]
         if not cov:
             return out
+        # 1019 方向性修: 收官集 coverage = 工具集案例的派生回收 (并集), 不作冲突源 —
+        # 否则工具集重生成必撞收官集被阻断 (ep2 vs ep7 实锤); 收官集自身查重不受影响
+        _n_eps = len(book.episodes) or 6
         sib = {e2.ep_index: [str(c) for c in (e2.coverage_json or [])]
                for e2 in book.episodes
-               if e2.ep_index != ep.ep_index and (e2.coverage_json or [])}
+               if e2.ep_index != ep.ep_index and e2.ep_index < _n_eps
+               and (e2.coverage_json or [])}
         if not sib:
             return out
         concepts = [str(c) for e2 in book.episodes
@@ -286,9 +290,11 @@ def _story_dup_issues(book: BookProject, ep: Episode, script: str) -> list[str]:
     total = len(book.episodes) or 6
     out: list[str] = []
     try:
+        # 1019 方向性修: 同 coverage — 收官集点名式回收不作冲突源
         sib = {e2.ep_index: (e2.script_text or "")
                for e2 in book.episodes
-               if e2.ep_index != ep.ep_index and (e2.script_text or "")}
+               if e2.ep_index != ep.ep_index and e2.ep_index < total
+               and (e2.script_text or "")}
         if not sib or not script:
             return out
         lib = load_section(book.book_title, "故事库")
