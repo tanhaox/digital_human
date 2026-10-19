@@ -13,7 +13,7 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
-from app.models import BookProject, Episode
+from app.models import BookProject, Episode, Script
 from app.models.base import _now
 from app.services.book_service import passes as passes_mod
 from app.services.book_service.creation_common import (
@@ -1976,15 +1976,13 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
     # 类通用名) 的确定性兜底 (梅斯特被解雇/遗嘱律师 ×3 集实锤)
     issues += _coverage_dup_issues(book, ep)
     ok = not issues
-    theme = (ep.roadmap_json or {}).get("主题", "")
-    checks["theme_in_script"] = bool(theme) and theme[:8] in out
+    # 1019 清账: 删 theme_in_script/links_prev 死检查 — 总纲"主题"字段实为集标题,
+    # 标题前8字逐字进稿恒 false (7集14项全 false 实锤), 人闸自检 tooltip 纯噪音;
+    # 主题贴合/承接上集已由北斗星 issues + 模块总线(回顾+引入段)执法。
     # 1018 C4c 记录级 (集型任务卡 ep1 项): 系列导览命中 — 后续集标题头4字在稿率
     if ep.ep_index == 1:
         _guide_eps = [e2 for e2 in book.episodes if e2.ep_index > 1 and (e2.title or "").strip()]
         checks["ep1_guide_hits"] = f"{sum(1 for e2 in _guide_eps if e2.title[:4] in out)}/{len(_guide_eps)}"
-    if prev:
-        prev_theme = (prev.roadmap_json or {}).get("主题", "")
-        checks["links_prev"] = bool(prev_theme) and prev_theme[:8] in out
     if coverage and coverages:
         flat = [c for cs in coverages for c in cs]
         dup = [c for c in coverage if c in flat]
@@ -2077,14 +2075,35 @@ def confirm_episode(db: Session, ep: Episode) -> Episode:
     return ep
 
 
-# ── 级联重跑: 重跑 N 作废 N..6 ───────────────────────────────────
+# ── 级联重跑: 重跑 N 作废 N..末集 ───────────────────────────────────
 def rerun_cascade(db: Session, book: BookProject, ep_index: int) -> BookProject:
+    """作废 N..末集: 清稿 + 连产线链接一起作废.
+
+    1019 清账: 只清稿不清 script_id 时, produce 命中 _existing already 分支把
+    旧 Script 冒充新稿产物; module/bs1/导演链接同源旧稿, 留着误导消费端。
+    旧 Script 级联删 (segments/audio_jobs/audio_files 随删, 磁盘 wav 留底 —
+    同 produce force 语义); roadmap 旧稿问题单快照 (_issues/_checks) 随稿作废,
+    重生成时三点齐查重落。
+    """
     for e in book.episodes:
         if e.ep_index >= ep_index:
+            if e.script_id:
+                old = db.get(Script, e.script_id)
+                if old:
+                    db.delete(old)
             e.status = "pending"
             e.script_text = None
             e.script_generated_at = None
             e.coverage_json = []
+            e.script_id = None
+            e.module_json = None
+            e.director_job_id = None
+            e.bs1_pages_json = None
+            rm = dict(e.roadmap_json or {})
+            if "_issues" in rm or "_checks" in rm:
+                rm.pop("_issues", None)
+                rm.pop("_checks", None)
+                e.roadmap_json = rm
     book.status = "writing"
     db.commit()
     return book
