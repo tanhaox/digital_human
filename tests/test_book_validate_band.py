@@ -92,10 +92,10 @@ def test_validate_in_band_clean():
 
 
 def test_validate_under_envelope_floor():
-    """1300 字破包络下限 1434 (最快语速下不足 4:30) → "不足" issue。"""
+    """1019 用户令② (时长松绑): 1300 字破包络下限 → 不再报 (表达优先,
+    完播阈值不约束; >4:30 平台门归人闸自查)。"""
     issues = validate_script(_script(1300), 300)[1]
-    wc = [i for i in issues if i.startswith("字数")]
-    assert len(wc) == 1 and "不足" in wc[0]
+    assert not [i for i in issues if i.startswith("字数")]
 
 
 # ── word_band_ok: 距带比较用新带 ──

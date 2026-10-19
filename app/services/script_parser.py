@@ -216,6 +216,14 @@ def clean_episode_script(script_text: str) -> tuple[str, list[str]]:
         # 打字卡行 (0912 ep1 收益承诺开局): 剪辑层专用文案, 无口播 — 不进 TTS
         if line.strip().startswith("打字卡：") or line.strip().startswith("打字卡:"):
             continue
+        # 口播停顿标记 (1019 豆包修订稿约定): 👉/（停顿）前缀 = 镜头表达注释,
+        # 行内其余文字仍是口播 — 剥前缀留内容 ("👉（停顿）这一问最难"式混合行),
+        # 纯标记行整行跳过; 同打字卡同层, 存稿可见不进 TTS
+        _paused = re.sub(r"^👉?\s*（停顿）[:：]?\s*", "", line.strip())
+        if _paused != line.strip():
+            if _paused:
+                kept.append(_paused)
+            continue
         kept.append(line)
 
     # 六段校验: 齐全 / 有序 / 无重复 (0917 段名规范化后比对, 空格变体不再误报)
