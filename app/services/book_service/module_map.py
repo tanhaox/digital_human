@@ -21,9 +21,16 @@ import re
 MODULE_LABEL_RE = re.compile(
     r"【\s*(?:\d+\s*-\s*\d+\s*秒\s*[｜|]\s*)?([^】｜|]+?)\s*(?:[｜|]\s*([^】]+?))?\s*】")
 
-# 拆书六段名 (规范形, 与 script_parser._BOOK_LABELS 对齐; 匹配时去空白)
+# 拆书段名 (规范形, 与 script_parser._BOOK_LABELS 对齐; 匹配时去空白)。
+# 1019 用户令 8 段真相 (1019 结构审计定案): 工具集 = 8 段 (书里怎么说的 0926
+# 硬核层插入), 头尾集无书里段; 尾集无预告 → 末段单「总结」。
+# 「总结+下期预告」是文稿标签合写形 (LLM 生成稳定), parse_modules 解析后
+# 按预告锚行 (件序铁律同款) 拆成「总结」+「下期预告」两模块。
 BOOK_MODULE_NAMES = ["钩子", "回顾+引入", "核心概念拆解（一）", "核心概念拆解（二）",
-                     "核心概念拆解（三）", "总结+下期预告"]
+                     "书里怎么说的", "核心概念拆解（三）", "总结", "下期预告"]
+
+# 预告段起头锚 (1018 C4c 件序铁律同款 pattern — 已在产线验证)
+_NEXT_EP_RE = re.compile(r"^\s*(下一集|下集|下期)")
 
 # 标签行/打字卡行不属任何模块正文 (与 clean_episode_script 剥离口径一致)
 _NON_SPEECH_PREFIXES = ("打字卡：", "打字卡:")
@@ -61,16 +68,22 @@ def _canon_name(name: str) -> str | None:
     """段名 → 标准段名 (别名归一); 非标准返回 None (不入模块表).
 
     ep5 实锤变体「总结+下集预告」(下集≠下期) — 前缀归一收纳;
-    「双评论钩子」startsWith 检验不误入 (钩子段必须以钩子开头)。"""
+    「双评论钩子」startsWith 检验不误入 (钩子段必须以钩子开头)。
+    1019: 「总结+下期预告」合名 = 中间态 (parse 后按预告锚拆两模块);
+    裸「下期预告/下集预告」标签 = 终态直入 (未来生稿直接写两标签时零拆分)。"""
     n = norm_name(name)
     if n.startswith("钩子"):
         return "钩子"
     if n.startswith("回顾"):
         return "回顾+引入"
+    if n.startswith("书里怎么说"):
+        return "书里怎么说的"
+    if n.startswith("下期预告") or n.startswith("下集预告"):
+        return "下期预告"
     if n.startswith("核心概念拆解"):  # 一/二/三各自保留 (多段拆解由书定)
         return n
     if n.startswith("总结"):
-        return "总结+下期预告"
+        return "总结+下期预告"  # 中间态 — _split_summary 拆
     return None
 
 
@@ -89,35 +102,62 @@ def parse_modules(script_text: str) -> list[dict]:
     cur_name: str | None = None
     cur_label: str = ""
     cur_tail: str | None = None
+    cur_lines: list[str] = []  # 1019: 合名段拆分用 (仅总结段收集)
     for line in (script_text or "").splitlines():
         m = MODULE_LABEL_RE.fullmatch(line.strip())
         if m:
             if cur_name is not None:
                 modules.append({"idx": len(modules), "name": cur_name,
-                                "tail": cur_tail or "", "label": cur_label})
+                                "tail": cur_tail or "", "label": cur_label,
+                                **({"_lines": cur_lines} if cur_lines else {})})
             name_raw, label = m.group(1), (m.group(2) or "").strip().lstrip("｜|").strip()
             canon = _canon_name(name_raw)
             if canon:
                 cur_name = canon
                 cur_label = label
+                cur_lines = cur_lines if canon == "总结+下期预告" else []
             else:  # 非标准段名标签: 终止当前段 (后续行不属任何语音模块)
                 cur_name = None
                 cur_label = ""
+                cur_lines = []
             cur_tail = None
             continue
         if _is_non_speech(line):
             continue
         if line.strip():
             cur_tail = _last_sentence(line)
+            if cur_name == "总结+下期预告":
+                cur_lines.append(line.strip())
     if cur_name is not None:
         modules.append({"idx": len(modules), "name": cur_name, "tail": cur_tail or "",
-                        "label": cur_label})
+                        "label": cur_label,
+                        **({"_lines": cur_lines} if cur_lines else {})})
+    # 1019 用户令 (8 段真相): 「总结+下期预告」按预告锚行拆两模块 —
+    # 锚 = 件序铁律同款 (下一集/下集/下期起头); 尾集无预告句 → 单「总结」。
+    # 拆开的两段各得独立模块身份: TTS 模块墙/切场/立意才分得开。
+    out: list[dict] = []
+    for mod in modules:
+        _lines = mod.pop("_lines", None)
+        if mod["name"] == "总结+下期预告" and _lines:
+            k = next((i for i, ln in enumerate(_lines) if _NEXT_EP_RE.match(ln)), -1)
+            if k > 0:
+                head, tail = _lines[:k], _lines[k:]
+                out.append({"idx": 0, "name": "总结",
+                            "tail": _last_sentence(head[-1]), "label": mod["label"]})
+                out.append({"idx": 0, "name": "下期预告",
+                            "tail": _last_sentence(tail[-1]), "label": mod["label"]})
+                continue
+            mod["name"] = "总结"  # 尾集形态 (无预告句)
+        out.append(mod)
+    modules = out
     # 空模块 tail 继承前一模块 (定位时并到同一行)
     prev = ""
     for mod in modules:
         if not mod["tail"]:
             mod["tail"] = prev
         prev = mod["tail"]
+    for i, mod in enumerate(modules):
+        mod["idx"] = i
     return modules
 
 

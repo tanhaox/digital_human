@@ -50,7 +50,9 @@ def test_label_forms():
 def test_archive_parses_four_modules():
     mods = parse_modules(ARCHIVE)
     names = [m["name"] for m in mods]
-    assert names == ["钩子", "核心概念拆解（一）", "核心概念拆解（二）", "总结+下期预告"]
+    # 1019 8段结构: 无独立预告起头行的总结段 = 单「总结」模块
+    # (存档的"咱们下一集，见。"是品牌句尾巴非预告钩, 不触发拆分)
+    assert names == ["钩子", "核心概念拆解（一）", "核心概念拆解（二）", "总结"]
     assert mods[1]["label"] == "撞墙测试" and mods[2]["label"] == "动作"
     assert mods[0]["tail"] == "我是老谭，读一本书，多一个硬本事。"
     # 0918: 锚=模块末句 (耐 TTS 短句合并) — 总结末句"咱们下一集，见。"
@@ -78,7 +80,7 @@ def test_ep3_tail_note_label_excluded():
     text = ("【0-28 秒｜钩子】\n钩子句。\n【233-300 秒｜总结 + 下期预告】\n总结句。\n"
             "【双评论钩子】\n评论钩子是口播句。")
     mods = parse_modules(text)
-    assert [m["name"] for m in mods] == ["钩子", "总结+下期预告"]
+    assert [m["name"] for m in mods] == ["钩子", "总结"]  # 1019: 无预告锚行 → 单「总结」
     cleaned, _ = clean_episode_script(text)
     assert "双评论钩子" not in cleaned
     assert "钩子句。" in cleaned and "总结句。" in cleaned
