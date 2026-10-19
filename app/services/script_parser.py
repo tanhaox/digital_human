@@ -18,9 +18,17 @@ _SENTENCE_DELIMS = "。！？；"
 # 含【双评论钩子】等非标准名 (此前带时间版不认 → 会进 TTS 被念出)。
 _LABEL_RE = re.compile(
     r"【\s*(?:\d+\s*-\s*\d+\s*秒\s*[｜|]\s*)?([^】｜|]+?)\s*(?:[｜|]\s*[^】]+?)?\s*】")
-# 拆书段名 (与 module_map.BOOK_MODULE_NAMES 对齐; 1019 8段真相: 书里怎么说的准入 + 总结/下期预告拆分)
+# 拆书段名 (与 module_map.BOOK_MODULE_NAMES 对齐; 1019 8段真相: 书里怎么说的准入
+# + 尾段引导锚拆分 1019-B)。本表 = 生稿标签写法词表 (合写形, 完整性校验用);
+# 拆分形 (总结/引导+下期预告) 是 parse_modules 运行时产物, 不写在稿上。
 _BOOK_LABELS = ["钩子", "回顾+引入", "核心概念拆解（一）", "核心概念拆解（二）",
-                "书里怎么说的", "核心概念拆解（三）", "总结", "下期预告"]
+                "书里怎么说的", "核心概念拆解（三）", "总结+下期预告"]
+# 尾段槽位等价族 (1019-B): 合写标签 (生稿现行) 与未来直写的拆分标签同占尾段
+# 一槽 — 完整性校验按槽位比对, 两种写法都不误报 (旧表按拆分形比对, 合写稿
+# 每次进产线都报 "缺少时间标签段" 假警)。
+_TAIL_SLOT = "总结+下期预告"
+_TAIL_SLOT_ALIASES = {"总结", "总结+下集预告", "下期预告", "下集预告",
+                      "引导+下期预告", "引导+下集预告", "引导评论"}
 
 # 句子有效字数下限: 低于此值的短句 (如 "您好。" "哎哟！") 合并进相邻句,
 # 避免产生 <2s 的碎音频/碎镜头 (中文口播约 4-5 字/秒)
@@ -226,8 +234,10 @@ def clean_episode_script(script_text: str) -> tuple[str, list[str]]:
             continue
         kept.append(line)
 
-    # 六段校验: 齐全 / 有序 / 无重复 (0917 段名规范化后比对, 空格变体不再误报)
+    # 六段校验: 齐全 / 有序 / 无重复 (0917 段名规范化后比对, 空格变体不再误报;
+    # 1019-B: 尾段标签先归一到槽位再比对 — 合写/拆分两写法同槽)
     _norm_labels = [re.sub(r"\s+", "", n) for n in _BOOK_LABELS]
+    found = [_TAIL_SLOT if n in _TAIL_SLOT_ALIASES else n for n in found]
     if not found:
         issues.append("缺少六段时间标签 (结构异常, 建议重新生成)")
     else:
@@ -266,10 +276,21 @@ def parse_script(
         sentences.extend(_split_sentences(line))
 
     # Remove exact duplicates
+    # 1019-B 品牌仪式句豁免: 落款身份句 段中自报家门+结尾落款 是设计内双现
+    # (卓有ep2 实锤: 结尾身份句被 dedup 删 → 收尾不发声 + A8 尾段瘦身)。
+    # is_brand_text 与 TTS 品牌卡同一判定源 (lazy import: 本模块不硬依赖
+    # anim 线, 判定源不可用 = 不豁免, 回退旧行为)。
+    def _brand_exempt(s: str) -> bool:
+        try:
+            from app.services.anim_pipeline.shots import is_brand_text, norm_for_match
+            return is_brand_text(norm_for_match(s))
+        except Exception:  # noqa: BLE001 — 判定源不可用 = 保守去重
+            return False
+
     seen: set[str] = set()
     unique_sentences: list[str] = []
     for s in sentences:
-        if s in seen:
+        if s in seen and not _brand_exempt(s):
             continue
         seen.add(s)
         unique_sentences.append(s)

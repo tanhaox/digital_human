@@ -1601,13 +1601,15 @@ def produce(book_id: str, n: int, body: ProduceRequest | None = None,
         logger.warning("[book] 第%d集 清洗告警: %s", n, "; ".join(clean_issues))
 
     # 六拍模块总线 (0917): 结构真相源 = ep.module_json (tail 锚, 任意文本形态重定位).
-    # 旧集缺表时从正文标签现解析回填; 墙(模块末行号)不落库 — 派生值, 由 TTS 入口
-    # 在当刻行序列 (Segment 拼接) 上现定位, 免行号口径漂移。
+    # 墙(模块末行号)不落库 — 派生值, 由 TTS 入口在当刻行序列 (Segment 拼接) 上现定位,
+    # 免行号口径漂移。
+    # 1019-B: 模块表是 script_text 的派生值 — 每次进产线重解析覆盖 (拆分锚升级后
+    # 旧表自动自愈, 不冻结在旧规则墙位); 稿件无标记解析空 → 保留旧表兜底。
     from app.services.book_service import module_map
-    _mods = ep.module_json or module_map.parse_modules(ep.script_text or "")
-    if _mods and not ep.module_json:
+    _mods = module_map.parse_modules(ep.script_text or "")
+    if _mods:
         ep.module_json = _mods
-    if not _mods:
+    elif not ep.module_json:
         clean_issues.append("无六拍模块表 (TTS 模块墙/切场将退化为字数贪心)")
 
     script = Script(

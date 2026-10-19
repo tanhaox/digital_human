@@ -25,12 +25,28 @@ MODULE_LABEL_RE = re.compile(
 # 1019 用户令 8 段真相 (1019 结构审计定案): 工具集 = 8 段 (书里怎么说的 0926
 # 硬核层插入), 头尾集无书里段; 尾集无预告 → 末段单「总结」。
 # 「总结+下期预告」是文稿标签合写形 (LLM 生成稳定), parse_modules 解析后
-# 按预告锚行 (件序铁律同款) 拆成「总结」+「下期预告」两模块。
+# 按尾段引导锚拆成「总结」+「引导+下期预告」两模块 (1019-B 用户令: 拆分锚从
+# 预告锚前移到引导评论起头 — 真总结独占 A7, 互动站队/CTA/预告归 A8, 站队问
+# 本身就是 A8 天平意象的主料); 收官集无预告行 → 尾段拆名退「引导评论」。
 BOOK_MODULE_NAMES = ["钩子", "回顾+引入", "核心概念拆解（一）", "核心概念拆解（二）",
-                     "书里怎么说的", "核心概念拆解（三）", "总结", "下期预告"]
+                     "书里怎么说的", "核心概念拆解（三）", "总结", "引导+下期预告",
+                     "引导评论"]
 
-# 预告段起头锚 (1018 C4c 件序铁律同款 pattern — 已在产线验证)
+# 预告起头锚 (1018 C4c 件序铁律同款 pattern — 已在产线验证)
 _NEXT_EP_RE = re.compile(r"^\s*(下一集|下集|下期)")
+
+# 尾段引导起头锚 (1019-B): 词族现场核自卓有/定位/顾问三书全部尾段 —
+#   ①互动起头: 很多人说… (卓有ep1/2/4/5) / 有件事想问你 (卓有ep3)
+#   ②站队问 (contains): "很多人说X…你站哪边？" 常与①同行, 兜异形起头
+#   ③CTA (contains): CTA 行首常带话头 "这套问话，转给…" (卓有ep6 无互动问靠它兜底)
+#   ④预告起头 (旧锚降为后备): 无互动/CTA 的尾段仍可拆 (顾问ep1 形态)
+# 最早命中定墙。
+_TAIL_LEAD_RES = (
+    re.compile(r"^\s*(很多人说|有人说|大家说|有件事想问你)"),
+    re.compile(r"你站哪边|你选哪边"),
+    re.compile(r"转给|转发|评论区|留言区"),
+    _NEXT_EP_RE,
+)
 
 # 标签行/打字卡行不属任何模块正文 (与 clean_episode_script 剥离口径一致)
 _NON_SPEECH_PREFIXES = ("打字卡：", "打字卡:")
@@ -69,8 +85,9 @@ def _canon_name(name: str) -> str | None:
 
     ep5 实锤变体「总结+下集预告」(下集≠下期) — 前缀归一收纳;
     「双评论钩子」startsWith 检验不误入 (钩子段必须以钩子开头)。
-    1019: 「总结+下期预告」合名 = 中间态 (parse 后按预告锚拆两模块);
-    裸「下期预告/下集预告」标签 = 终态直入 (未来生稿直接写两标签时零拆分)。"""
+    1019: 「总结+下期预告」合名 = 中间态 (parse 后按尾段引导锚拆两模块);
+    裸「引导+下期预告/下期预告」标签 = 终态直入 (未来生稿直接写两标签时零拆分)。
+    """
     n = norm_name(name)
     if n.startswith("钩子"):
         return "钩子"
@@ -78,12 +95,16 @@ def _canon_name(name: str) -> str | None:
         return "回顾+引入"
     if n.startswith("书里怎么说"):
         return "书里怎么说的"
+    if n.startswith("引导+下期预告") or n.startswith("引导+下集预告"):
+        return "引导+下期预告"
     if n.startswith("下期预告") or n.startswith("下集预告"):
-        return "下期预告"
+        return "引导+下期预告"  # 旧裸标签同槽收纳 (A8 槽位唯一名)
+    if n.startswith("引导评论"):
+        return "引导评论"
     if n.startswith("核心概念拆解"):  # 一/二/三各自保留 (多段拆解由书定)
         return n
     if n.startswith("总结"):
-        return "总结+下期预告"  # 中间态 — _split_summary 拆
+        return "总结+下期预告"  # 中间态 — 引导锚拆
     return None
 
 
@@ -132,22 +153,28 @@ def parse_modules(script_text: str) -> list[dict]:
         modules.append({"idx": len(modules), "name": cur_name, "tail": cur_tail or "",
                         "label": cur_label,
                         **({"_lines": cur_lines} if cur_lines else {})})
-    # 1019 用户令 (8 段真相): 「总结+下期预告」按预告锚行拆两模块 —
-    # 锚 = 件序铁律同款 (下一集/下集/下期起头); 尾集无预告句 → 单「总结」。
-    # 拆开的两段各得独立模块身份: TTS 模块墙/切场/立意才分得开。
+    # 1019 用户令 (8 段真相): 尾段按引导起头锚拆两模块 (1019-B 前移) —
+    # 真总结 (口诀/行动/补丁) 独占 A7; 互动/CTA/预告料/预告/落款归 A8。
+    # 尾集无锚行 → 单「总结」。拆开的两段各得独立模块身份: TTS 模块墙/切场/
+    # 立意才分得开。
     out: list[dict] = []
     for mod in modules:
         _lines = mod.pop("_lines", None)
         if mod["name"] == "总结+下期预告" and _lines:
-            k = next((i for i, ln in enumerate(_lines) if _NEXT_EP_RE.match(ln)), -1)
+            k = next((i for i, ln in enumerate(_lines)
+                      if any(r.search(ln) for r in _TAIL_LEAD_RES)), -1)
             if k > 0:
                 head, tail = _lines[:k], _lines[k:]
+                # 拆名按内容定形: 尾段带预告行 → 引导+下期预告; 纯引导
+                # (收官集删预告后只剩互动/CTA) → 引导评论
+                name2 = ("引导+下期预告"
+                         if any(_NEXT_EP_RE.match(ln) for ln in tail) else "引导评论")
                 out.append({"idx": 0, "name": "总结",
                             "tail": _last_sentence(head[-1]), "label": mod["label"]})
-                out.append({"idx": 0, "name": "下期预告",
+                out.append({"idx": 0, "name": name2,
                             "tail": _last_sentence(tail[-1]), "label": mod["label"]})
                 continue
-            mod["name"] = "总结"  # 尾集形态 (无预告句)
+            mod["name"] = "总结"  # 尾集形态 (无锚行)
         out.append(mod)
     modules = out
     # 空模块 tail 继承前一模块 (定位时并到同一行)
