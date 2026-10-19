@@ -62,6 +62,46 @@ _MAX_PROMPT = 300  # Krea2 容量红线 (200-280 字 + 余量, 超长先裁道�
 _SIZE_ORDER = ["ELS", "LS", "MLS", "MS", "MCU", "CU", "ECU"]
 _MICRO_DIR = ("左", "右", "后", "侧")  # 插值镜微位加方位 (确定性变奏, 与法层去重同池)
 
+# 1019 锚变奏 (A6 13 镜同锚实锤): 概念域 fallback 的共享世界锚 + 场级光效
+# 让 K2 出图几乎一致 — 景别词权重被长锚稀释, ·左/·右尾缀是字符级差异。
+# 两轴确定性变奏 (零 LLM, 同输入同输出, 不破坏场连续性 — 锚照旧全量保留):
+# ① 机位/构图语轮转 (镜头语言, 不与 angle 冲突); ② 锚分句聚焦轮换 (本镜聚焦)。
+_CAM_VARIANTS = (
+    "前景虚化物框住主体",
+    "浅景深主体清晰背景融为光斑",
+    "长焦压缩空间远近贴近",
+    "广角贴近边缘纵深拉伸",
+    "越肩机位视线引向画面深处",
+    "贴地低机位地面纹理作前景",
+    "侧后方四十五度机位",
+    "主体落在黄金分割点",
+    "对角线构图路径贯穿画面",
+    "框架式构图门洞枝干圈住主体",
+    "镜头缓缓推近",
+    "镜头横移跟随",
+)
+
+
+def _anchor_focus(anchor: str, seq: int) -> str:
+    """锚分句聚焦 (确定性轮换): 取锚第 (seq-1)%n 分句作本镜焦点强调."""
+    import re as _re
+    clauses = [c.strip(" 、") for c in _re.split(r"[，,、]", str(anchor or "")) if c.strip()]
+    if len(clauses) < 2:
+        return ""
+    return clauses[(seq - 1) % len(clauses)]
+
+
+def _scene_seq_map(doc: dict[str, Any]) -> dict[str, int]:
+    """场内时间序 (t_start 排名) — 锚变奏轮转基准; 首镜(0)立锚不动."""
+    out: dict[str, int] = {}
+    by_arc: dict[str, list] = {}
+    for s in doc.get("shots") or []:
+        by_arc.setdefault(str(s.get("arc_id") or ""), []).append(s)
+    for arc, ss in by_arc.items():
+        for i, s in enumerate(sorted(ss, key=lambda x: float(x.get("t_start") or 0))):
+            out[str(s.get("shot_id"))] = i
+    return out
+
 
 def _expand_fa_shots(fa_shots: list[dict], n_doc: int) -> list[dict]:
     """法层 F 镜 → doc N 镜的确定性展开 (1008 电影感修).
@@ -288,6 +328,7 @@ def _quota_person_inject(doc: dict[str, Any], ss: dict[str, Any], bible: dict[st
     except Exception:  # noqa: BLE001
         _tc = 0.0
     n = 0
+    _seq = _scene_seq_map(doc)  # 1019: 锚变奏场内序 (注入镜重掷同款变奏口径)
     for a, arc_shots in sorted(by_arc.items()):
         # 计数口径与终产闸同尺: 品牌卡 + 占位镜豁免 (不进分子也不进分母)
         eff = [s for s in arc_shots
@@ -336,7 +377,8 @@ def _quota_person_inject(doc: dict[str, Any], ss: dict[str, Any], bible: dict[st
             fa_shot, fa_scene = pair
             wp = arc_world.get(str(s.get("arc_id") or ""), "")
             prompt = assemble_k2_prompt(s, fa_shot, fa_scene, bible,
-                                        world_phrase=wp, person_inject=True)
+                                        world_phrase=wp, person_inject=True,
+                                        scene_seq=_seq.get(str(s.get("shot_id")), 0))
             s["image_prompt_zh"] = prompt
             s["keyframe_zh"] = prompt
             s.pop("_kf_missing", None)
@@ -348,7 +390,8 @@ def _quota_person_inject(doc: dict[str, Any], ss: dict[str, Any], bible: dict[st
 def assemble_k2_prompt(shot: dict[str, Any], fa_shot: dict[str, Any],
                        fa_scene: dict[str, Any], bible: dict[str, Any],
                        world_phrase: str = "",
-                       person_inject: bool = False) -> str:
+                       person_inject: bool = False,
+                       scene_seq: int = 0) -> str:
     """确定性组装 K2 画面句 — 零 LLM.
 
     次序 = 已验证的 Krea2 权重结构: 景别角度 → 场空间·微位 → 光影 → 环境 →
@@ -356,7 +399,10 @@ def assemble_k2_prompt(shot: dict[str, Any], fa_shot: dict[str, Any],
     1008 电影感: 场空间锚 + 微位每镜换 — 空间连续, 镜头语言变奏。
     1009 拆书导演模型: 按主体寄存器选模板 — metaphor/contrast/recap 锚**概念世界**
     (world_phrase, 无实景无人物look无灯具); case/pain/cite 锚实景走原链。
-    寄存器由规层 registers.assign_registers 钉标; 旧镜无 register 退原链 (宽进)。"""
+    寄存器由规层 registers.assign_registers 钉标; 旧镜无 register 退原链 (宽进)。
+    1019 锚变奏: scene_seq=场内时间序 — 概念域首镜立锚, 后续镜机位语+锚分句
+    聚焦确定性轮转 (同锚 13 镜出图几乎一致实锤); 实景域有 position/action
+    天然变奏不在此列。"""
     slots = shot.get("creative_slots") or {}
     blocking = fa_shot.get("blocking") or {}
     light = fa_scene.get("lighting") or {}
@@ -382,9 +428,15 @@ def assemble_k2_prompt(shot: dict[str, Any], fa_shot: dict[str, Any],
         # 概念域: 概念世界是主体, 隐喻过程是动作 — 无实景location/人物look/道具注入
         # (道具在概念世界里已是隐喻形态, world 映射短语自带; 双注入=域混杂)
         parts: list[str] = [f"{size}，{angle}"]
+        if scene_seq > 0:  # 1019: 首镜立锚, 后续镜机位变奏
+            parts.append(_CAM_VARIANTS[scene_seq % len(_CAM_VARIANTS)])
         anchor = world_phrase or location  # 无世界注册时退法层location (宽进)
         if anchor:
             parts.append(anchor + (f"·{micro}" if micro else ""))
+            if scene_seq > 0:  # 1019: 锚分句聚焦轮换 (锚全量保留, 保场连续)
+                _foc = _anchor_focus(anchor, scene_seq)
+                if _foc:
+                    parts.append(f"本镜聚焦: {_foc}")
         if register == "contrast":
             parts.append("左右同屏对比构图")
         lp = _light_phrase(light)
@@ -574,6 +626,7 @@ def assemble_episode(doc: dict[str, Any], ss: dict[str, Any], bible: dict[str, A
     from .registers import world_visual
     arc_world = {str(a.get("arc_id") or ""): world_visual(doc, str(a.get("visual_world") or ""))
                  for a in doc.get("arcs") or []}
+    _seq = _scene_seq_map(doc)  # 1019: 锚变奏场内序 (doc 顺序非时间序, 按 t_start 排名)
     n = 0
     n_default = 0
     for shot in doc.get("shots") or []:
@@ -601,7 +654,8 @@ def assemble_episode(doc: dict[str, Any], ss: dict[str, Any], bible: dict[str, A
             shot.pop("slots_source", None)
         fa_shot, fa_scene = pair
         wp = arc_world.get(str(shot.get("arc_id") or ""), "")
-        prompt = assemble_k2_prompt(shot, fa_shot, fa_scene, bible, world_phrase=wp)
+        prompt = assemble_k2_prompt(shot, fa_shot, fa_scene, bible, world_phrase=wp,
+                                    scene_seq=_seq.get(sid, 0))
         # 1017 W6 军规闸: 器层产出同过统一执法 (长度+脸向, ruleset 单一源)
         from . import ruleset as _rs
         from . import k2 as _k2
