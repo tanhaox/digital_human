@@ -260,18 +260,25 @@ def render_covers(slots: dict, out_dir: Path) -> dict[str, Path]:
                 page.set_content(page_html, wait_until="networkidle")
                 # 0921 红字保两行 (用户实锤 3 行): 字号公式按理论字宽算, 真实
                 # 字体宽度略超即换行 — 浏览器内实测行数, 超两行降号到装下为止
+                # 1020 书名保单行 (用户实锤 ep2 竖图折行): 同病同方 — 实测
+                # 「卓有成效的管理者」公式 102px 真实渲染超 980 盒, 99px 才单行;
+                # 粒度 1px (实测仅超 3px, 微降即回), 下限 44 = _t_fit 地板
                 page.evaluate("""() => {
-                    const el = document.querySelector('.sub-title');
-                    if (!el) return;
-                    const fits = () => {
-                        const lh = parseFloat(getComputedStyle(el).lineHeight) || 1;
-                        return Math.round(el.clientHeight / lh) <= 2;
+                    const fit1 = (sel, maxLines, floor) => {
+                        const el = document.querySelector(sel);
+                        if (!el) return;
+                        const fits = () => {
+                            const lh = parseFloat(getComputedStyle(el).lineHeight) || 1;
+                            return Math.round(el.clientHeight / lh) <= maxLines;
+                        };
+                        let fs = parseInt(getComputedStyle(el).fontSize);
+                        for (let i = 0; i < 80 && !fits() && fs > floor; i++) {
+                            fs -= 1;
+                            el.style.fontSize = fs + 'px';
+                        }
                     };
-                    let fs = parseInt(getComputedStyle(el).fontSize);
-                    for (let i = 0; i < 40 && !fits() && fs > 56; i++) {
-                        fs -= 3;
-                        el.style.fontSize = fs + 'px';
-                    }
+                    fit1('.main-title', 1, 44);   // 书名永不折行
+                    fit1('.sub-title', 2, 56);    // 红字至多两行
                 }""")
                 page.wait_for_timeout(500)
                 out = out_dir / f"cover_{kind}.png"
