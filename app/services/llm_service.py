@@ -606,6 +606,9 @@ def _parse_json(text: str) -> Any:
 
     B08 (2026-10-16) 自 book_service/creation_common 迁入 — anim_pipeline 与
     book_service 双方共用的中立底层 (creation_common 侧 re-export 保持旧入口)。
+    1019 容错 (卓书 ep6 A6 两实锤: Extra data char 15626/24848): LLM 在完整
+    合法 JSON 后追加第二个 JSON/总结文字 → json.loads 报 Extra data 把首个
+    JSON 整段连坐。降级 raw_decode 只取首个完整值, 尾部垃圾丢弃 (记 warning)。
     """
     t = (text or "").strip()
     t = re.sub(r"^```(?:json)?", "", t)
@@ -613,4 +616,14 @@ def _parse_json(text: str) -> Any:
     m = re.search(r"[\[{]", t)
     if m and not t.startswith(("{", "[")):
         t = t[m.start():]
-    return json.loads(t)
+    try:
+        return json.loads(t)
+    except json.JSONDecodeError as exc:
+        if "Extra data" in str(exc) or exc.msg == "Extra data":
+            try:
+                obj, _end = json.JSONDecoder().raw_decode(t)
+                logger.warning("[llm] JSON 尾部多余数据已丢弃 (首对象保留): %s", exc)
+                return obj
+            except json.JSONDecodeError:
+                pass
+        raise

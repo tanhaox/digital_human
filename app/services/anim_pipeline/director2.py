@@ -293,7 +293,7 @@ DIRECTOR_SYS = """你是顶级动画短片的导演 (Motion Director)。你的�
 — 金在: "弱小"不用台词讲, 用比例讲 — 九成空旷 vs 一点灯光。
 
 ## 输出格式
-严格 JSON (场 arc → 组 group(每场一组) → 镜 shot):
+严格 JSON (场 arc → 组 group(每场一组) → 镜 shot)。**1019 铁律: 以 { 开头以 } 结尾, JSON 结束后禁止追加任何文字/第二个 JSON/总结 — 违者整段解析失败**:
 {
   "ep_summary": "一句话本集画面策略",
   "arcs": [
@@ -484,7 +484,8 @@ DIRECTOR_SYS_STRUCT = """你是顶级动画短片的导演 (Motion Director)。�
 
 ## 输出格式
 严格 JSON (场 arc → 组 group(每场一组) → 镜 shot)。**逐镜只给结构字段 —
-keyframe_zh/keyframe_en/motion_zh/motion_en 四字段已退役, 输出会被丢弃**:
+keyframe_zh/keyframe_en/motion_zh/motion_en 四字段已退役, 输出会被丢弃**。
+**1019 铁律: JSON 结束后禁止追加任何文字/第二个 JSON/总结 — 违者整段解析失败**:
 {
   "ep_summary": "一句话本集画面策略",
   "arcs": [
@@ -2524,6 +2525,26 @@ def plan_scene(book_id: str, book_title: str, ep: int, arc_id: str,
                           max_tokens=_plan_tokens(mode, _n_slots), tag="plan_scene")
     data = _parse_json(raw) or {}
     groups = data.get("groups") or []
+    if not groups:
+        # 1019 宽松提取 (ep6 A6 第2把实锤: 合法 JSON 但 LLM 把 groups 包了一层):
+        # 递归找首个含 groups 的 dict, arcs 同裹带回; 找不到才报不可解析。
+        def _dig_groups(o: Any, depth: int = 0) -> tuple[list, list]:
+            if depth > 3 or not isinstance(o, dict):
+                return [], []
+            gs = o.get("groups") or []
+            if isinstance(gs, list) and gs:
+                return gs, o.get("arcs") or []
+            for v in o.values():
+                g2, a2 = _dig_groups(v, depth + 1)
+                if g2:
+                    return g2, a2
+            return [], []
+        _gs, _arcs = _dig_groups(data)
+        if _gs:
+            logger.warning("[plan_scene] 顶层无 groups, 嵌套提取救回 %d 组 (包装层丢弃)",
+                           len(_gs))
+            groups, data = _gs, {**data, "groups": _gs,
+                                 **({"arcs": _arcs} if _arcs else {})}
     if not groups:
         raise ValueError("导演产出不可解析 (无 groups)")
     for g in groups:
