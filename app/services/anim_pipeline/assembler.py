@@ -91,6 +91,13 @@ def _anchor_focus(anchor: str, seq: int) -> str:
     return clauses[(seq - 1) % len(clauses)]
 
 
+def _anchor_head(anchor: str) -> str:
+    """锚首句 (场景定位句) — 特写族尾注用 (1019 B: 特写不带全景环境)."""
+    import re as _re
+    cs = [c.strip(" 、") for c in _re.split(r"[，,、]", str(anchor or "")) if c.strip()]
+    return cs[0] if cs else ""
+
+
 def _scene_seq_map(doc: dict[str, Any]) -> dict[str, int]:
     """场内时间序 (t_start 排名) — 锚变奏轮转基准; 首镜(0)立锚不动."""
     out: dict[str, int] = {}
@@ -428,13 +435,18 @@ def assemble_k2_prompt(shot: dict[str, Any], fa_shot: dict[str, Any],
         # 概念域: 概念世界是主体, 隐喻过程是动作 — 无实景location/人物look/道具注入
         # (道具在概念世界里已是隐喻形态, world 映射短语自带; 双注入=域混杂)
         parts: list[str] = [f"{size}，{angle}"]
+        anchor = world_phrase or location  # 无世界注册时退法层location (宽进)
+        _foc = _anchor_focus(anchor, scene_seq) if scene_seq > 0 else ""
+        # 1019 B 特写族裁锚 (用户令 A+B): CU/ECU 带全景锚 = 特写被远景内容稀释,
+        # K2 每镜都画全景 (构图同质根因) — 聚焦句升画面主体, 全锚降级为尾注场景定位
+        _cu = str(fa_shot.get("size") or "").strip().upper() in ("CU", "ECU")
         if scene_seq > 0:  # 1019: 首镜立锚, 后续镜机位变奏
             parts.append(_CAM_VARIANTS[scene_seq % len(_CAM_VARIANTS)])
-        anchor = world_phrase or location  # 无世界注册时退法层location (宽进)
         if anchor:
-            parts.append(anchor + (f"·{micro}" if micro else ""))
-            if scene_seq > 0:  # 1019: 锚分句聚焦轮换 (锚全量保留, 保场连续)
-                _foc = _anchor_focus(anchor, scene_seq)
+            if _cu and _foc:
+                parts.append(f"画面主体: {_foc}")
+            else:
+                parts.append(anchor + (f"·{micro}" if micro else ""))
                 if _foc:
                     parts.append(f"本镜聚焦: {_foc}")
         if register == "contrast":
@@ -442,6 +454,10 @@ def assemble_k2_prompt(shot: dict[str, Any], fa_shot: dict[str, Any],
         lp = _light_phrase(light)
         if lp:
             parts.append(lp)
+        if _cu and anchor:
+            _head = _anchor_head(anchor)
+            if _head:
+                parts.append(f"（场景: {_head}）")
         if detail:
             parts.append(detail)
         # 1013 配额刚性 (用户拍板): 欠额场概念镜注入替身互动子句 — 位置在 detail

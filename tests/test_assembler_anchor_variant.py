@@ -74,3 +74,34 @@ def test_contrast_keeps_split_composition():
     p = assemble_k2_prompt(_shot(2, register="contrast"), _FA_SHOT, _FA_SCENE, {},
                            world_phrase=ANCHOR, scene_seq=2)
     assert "左右同屏对比构图" in p and "本镜聚焦" in p
+
+
+# ── 1019 B 特写族裁锚: CU/ECU 聚焦句升主体, 全锚降级尾注 ──
+
+def _fa(size: str) -> dict:
+    return {"size": size, "angle": "eye_level", "blocking": {"micro_position": "岔口全貌"}}
+
+
+def test_cu_shot_subject_is_focus_clause():
+    p = assemble_k2_prompt(_shot(2), _fa("CU"), _FA_SCENE, {}, world_phrase=ANCHOR, scene_seq=2)
+    assert "画面主体: 一条被砍断" in p
+    assert "本镜聚焦" not in p          # 特写族不走聚焦句形态
+    assert "（场景: 老谭站在山径岔口）" in p  # 锚降级为首句尾注
+    assert f"{ANCHOR}·" not in p         # 全锚不再作主体前置
+
+
+def test_ecu_shot_same_treatment():
+    p = assemble_k2_prompt(_shot(3), _fa("ECU"), _FA_SCENE, {}, world_phrase=ANCHOR, scene_seq=3)
+    assert "画面主体: 一条通向有门的光顶" in p
+
+
+def test_medium_shot_keeps_full_anchor():
+    """MS/MCU 不在特写族 — 保持全锚+聚焦 (中景本就该有环境)."""
+    p = assemble_k2_prompt(_shot(2), _fa("MCU"), _FA_SCENE, {}, world_phrase=ANCHOR, scene_seq=2)
+    assert ANCHOR in p and "本镜聚焦" in p and "画面主体" not in p
+
+
+def test_cu_contrast_keeps_split():
+    p = assemble_k2_prompt(_shot(2, register="contrast"), _fa("CU"), _FA_SCENE, {},
+                           world_phrase=ANCHOR, scene_seq=2)
+    assert "左右同屏对比构图" in p and "画面主体" in p
