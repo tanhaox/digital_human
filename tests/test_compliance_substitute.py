@@ -65,3 +65,36 @@ def test_empty_and_clean_text_passthrough():
 def test_hits_deduped():
     _, hits = substitute_text("死了一次又一次, 死了三回")
     assert hits == ["死了"]
+
+
+# ── 1019 B2: 搭配表升级 (豆包 ep6 "方案离世在哪儿"病句实锤) + 黑话/名词出口闸 ──
+
+def test_violence_collocation_not_mangled():
+    """孤立单字万金油不得误伤合法搭配: 死规矩/死在/写死了 各配自然说法."""
+    out, hits = substitute_text("我不设死规矩。方案死在哪儿？计划全写死了。")
+    assert "离世" not in out
+    assert "铁规矩" in out and "折在" in out and "白写了" in out
+    assert set(hits) >= {"死规矩", "死在", "写死了"}
+
+
+def test_violence_single_still_works():
+    """搭配之外的孤立'死'仍走万金油 (安全边界不回退)."""
+    out, hits = substitute_text("他死了。")  # 死了 本就在 phrase 表 → hits 记短语
+    assert "离世" in out and "死了" in hits
+
+
+def test_jargon_substitute_pipeline_words():
+    from app.services.compliance import jargon_substitute
+    out, hits = jargon_substitute("闲话层说一句：独立交付。微行动：翻记录。下集预告：明天见。")
+    assert "闲话层" not in out and "微行动" not in out and "下集预告" not in out
+    assert out.startswith("独立交付。") and "马上能做的一步：翻记录" in out and "下一集，明天见" in out
+    assert len(hits) >= 3
+
+
+def test_series_noun_substitute_swap_and_generic_kept():
+    from app.services.compliance import series_noun_substitute
+    out, n = series_noun_substitute("这是五步转型的第1步，也是这件工具。", "五件工具")
+    assert "五件工具" in out and "五步转型" not in out and "第1步" in out and n == 1
+    # 无钦定 → 不动
+    out2, n2 = series_noun_substitute("五步转型讲透了。", None)
+    assert out2 == "五步转型讲透了。" and n2 == 0

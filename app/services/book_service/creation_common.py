@@ -584,7 +584,7 @@ def validate_script(text: str, target: float, book_title: str = "",
     # 0928 内部黑话扫描: 管线词禁入播稿 (判定钉/反馈钉实锤渗稿) — 说人话
     # 1001 补: 评论钩/微行动 (ep5 "评论钩留给你：" 被念出来实锤 — 注入层术语
     # 被模型当台词回写); 行动册/口诀是观众面词汇不禁
-    _jargon_re = re.compile(r"判定钉|反馈钉|铁证钉|证据钉|金句钉|指向陈述|收口句式|论证骨架|案例库|料仓|评论钩|微行动|下集留个悬念|下集预告")
+    _jargon_re = re.compile(r"判定钉|反馈钉|铁证钉|证据钉|金句钉|指向陈述|收口句式|论证骨架|案例库|料仓|评论钩|微行动|闲话层|下集留个悬念|下集预告")
     _jargon_hits = sorted(set(_jargon_re.findall(text or "")))
     if _jargon_hits:
         issues.append("内部黑话渗稿: " + "/".join(_jargon_hits)

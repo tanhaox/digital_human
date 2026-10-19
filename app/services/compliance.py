@@ -65,6 +65,49 @@ def listen_substitute(text: str) -> tuple[str, list[str]]:
     return out, hits
 
 
+_JARGON_SUBS: tuple[tuple[str, str], ...] = (
+    # 1019 B2: 注入层术语被模型回写进台词 (ep7 "下集预告/微行动"、ep3 "闲话层说一句"
+    # 双实锤) — 确定性改写为观众话; 检查端 (creation_common._jargon_re) 仍是残留兜底
+    ("闲话层说一句：", ""),
+    ("闲话层说一句:", ""),
+    ("闲话层", "插一句"),
+    ("微行动：", "马上能做的一步："),
+    ("微行动:", "马上能做的一步："),
+    ("微行动", "小事一件"),
+    ("下集预告：", "下一集，"),
+    ("下集预告:", "下一集，"),
+)
+
+
+def jargon_substitute(text: str) -> tuple[str, list[str]]:
+    """管线黑话出口闸 (1019 B2): 只报不修的补位 — 卫生 pass 在 CTA/幽默之前跑,
+    后注入的黑话它够不着; 本闸同位限流/听感闸, 终稿快照前执法。"""
+    if not text:
+        return text, []
+    hits = [bad for bad, _ in _JARGON_SUBS if bad in text]
+    if not hits:
+        return text, []
+    out = text
+    for bad, good in _JARGON_SUBS:
+        out = out.replace(bad, good)
+    return out, hits
+
+
+def series_noun_substitute(text: str, series_word: str | None) -> tuple[str, int]:
+    """非钦定系列名词出口闸 (1019 B2): prompt 钦定只减量不根除 (ep2 冒烟: LLM 仍写
+    五步转型×2) — 族全称确定性替换兜底; 泛型"第X步/分X步"不动 (工具内部步骤合法)。"""
+    if not text or not series_word:
+        return text, 0
+    import re as _re
+    if "件工具" in series_word:
+        out, n = _re.subn(r"([一二三四五六七八九十\d])\s*步转型", r"\1件工具", text)
+    elif "步转型" in series_word:
+        out, n = _re.subn(r"([一二三四五六七八九十\d])\s*件工具", r"\1步转型", text)
+    else:
+        return text, 0
+    return out, n
+
+
 def load_common_rules() -> dict:
     """读 config/compliance_common.json (带缓存)."""
     global _cache

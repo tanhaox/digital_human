@@ -1959,6 +1959,7 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
     # 1019 字幕限流词主闸 (用户令: LLM 一对一比抖音公开传播松, 出口确定性替换是
     # 唯一安全边界): 平台名缓冲词+暴力词书面化, 命中静默替换+日志; 与操控→借用
     # 同款确定性编辑层位, 且在终检 snapshot 之前 — 校验与落库所见即替换后稿。
+    from app.services.compliance import jargon_substitute, series_noun_substitute
     from app.services.compliance import substitute_text as _sub_text, listen_substitute
     out, _sub_hits = _sub_text(out)
     if _sub_hits:
@@ -1968,6 +1969,73 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
     out, _lt_hits = listen_substitute(out)
     if _lt_hits:
         logger.info("[book] ep%d 听感术语替换 ✓ %s", ep.ep_index, "/".join(_lt_hits))
+    # 1019 B2 非钦定名词出口闸 (ep2 冒烟: prompt 钦定后 LLM 仍写五步转型×2 — 减量
+    # 不根除, 确定性替换兜底; 泛型第X步不动, 工具内部步骤合法)
+    out, _nn = series_noun_substitute(out, _series_word)
+    if _nn:
+        logger.info("[book] ep%d 非钦定名词替换 ✓ ×%d", ep.ep_index, _nn)
+    # 1019 B2 黑话出口闸 (ep7 "下集预告/微行动"渗稿: 检查只报不修 + 卫生pass够不着后注入)
+    out, _jg_hits = jargon_substitute(out)
+    if _jg_hits:
+        logger.info("[book] ep%d 黑话出口替换 ✓ %s", ep.ep_index, "/".join(_jg_hits))
+    # 1019 B2 收官集删下集预告 (豆包: 大结局留预告=观众等续集, 预期偏差): 尾段预告行整删
+    if _is_laotan and ep.ep_index >= _total_eps and _total_eps > 1:
+        _lbls2 = list(re.finditer(r"【[^】]*】\s*\n", out))
+        if _lbls2:
+            _lines2 = out[_lbls2[-1].end():].split("\n")
+            _keep2 = [l for l in _lines2 if not l.strip().startswith(("下一集", "下集", "下期"))]
+            if len(_keep2) != len(_lines2):
+                out = out[:_lbls2[-1].end()] + "\n".join(_keep2)
+                logger.info("[book] ep%d 收官集: 下集预告行已删", ep.ep_index)
+
+    # 1019 B2 终局带闸 (ep1 R2 实锤: 身份/结尾注入在压缩pass之后加字, 2041>2024 落库
+    # 无复检) — 编辑层全部换稿完成后出包络再压一搏, 落带或距带更近才收, 否则人闸
+    _wc_base = passes_mod.snap_issues(passes_mod.snapshot(
+        out, target=ep.target_duration_sec, book_title=book.book_title, require_cta=False,
+        series_word=_series_word or "", include=("validate", "flow")))
+    _wc_cur = next((i for i in _wc_base if i.startswith("字数")), "")
+    if "超出" in _wc_cur or "超硬线" in _wc_cur:
+        try:
+            _wb8 = word_band(float(ep.target_duration_sec or 300))
+            _tgt8 = (_wb8[0] + _wb8[1]) // 2
+            _tcomp = (_llm().edit_patch(
+                out,
+                "你是口播稿压缩师。只删不改, 按可牺牲度从高到低删 (六层裁决序链底向上): "
+                "人设修饰(口头禅/自指) → 案例次要细节(保主案例骨架) → 趣味修饰/连接词; "
+                "禁删: 黄金三秒钩子断言、转发/收藏CTA、讲解骨架、⟦⟧原话、段落标签、数字锚。"
+                f"把稿压到 ≤{_tgt8}字 (编辑层注入超带)。删行用空串或整行压缩, 禁新增任何内容。",
+                "", model="pro", max_tokens=3000, tag="epgen:compress_final") or "").strip()
+            if not _tcomp or _tcomp == out:
+                _tcomp = (_llm().chat(
+                    "你是口播稿压缩师。只删不改, 按可牺牲度从高到低删: 人设修饰 → 案例次要细节 → "
+                    "趣味修饰/连接词; 禁删: 钩子断言、转发/收藏CTA、讲解骨架、⟦⟧原话、段落标签、数字锚。"
+                    f"把稿压到 ≤{_tgt8}字 (编辑层注入超带)。直接输出压缩后全稿。",
+                    out, model="pro", temperature=0.3, tag="epgen:compress_final") or "").strip()
+            _tc_iss = passes_mod.snap_issues(passes_mod.snapshot(
+                _tcomp, target=ep.target_duration_sec, book_title=book.book_title,
+                require_cta=False, series_word=_series_word or "", include=("validate", "flow")))
+            _tc_new = passes_mod.family_new(_tc_iss, _wc_base)
+            _tc_in = (not any(i.startswith("字数") for i in _tc_iss)
+                      or passes_mod.word_band_ok(_tc_iss, _wc_base, ep.target_duration_sec))
+            if _tcomp and _tc_in and not _tc_new and not _scan_occult_quotes(_tcomp):
+                out = _tcomp
+                logger.info("[book] ep%d 终局压缩 ✓ (编辑层注入超带已收回)", ep.ep_index)
+                try:
+                    (_gen_dir / "06f_terminal_compress.txt").write_text(out, encoding="utf-8")
+                except Exception:
+                    pass
+            else:
+                logger.warning("[book] ep%d 终局压缩未过 (仍超带=%s, 新病族=%s), 人闸留意",
+                               ep.ep_index,
+                               next((i for i in _tc_iss if i.startswith("字数") and ("超出" in i or "超硬线" in i)), "否"),
+                               _tc_new)
+                try:
+                    (_gen_dir / "06f_terminal_compress_rejected.txt").write_text(
+                        f"未过原因: 仍超带/新病族={_tc_new}\n\n{_tcomp or '(空返回)'}", encoding="utf-8")
+                except Exception:
+                    pass
+        except Exception as _exc13:  # noqa: BLE001
+            logger.warning("[book] ep%d 终局压缩异常: %s", ep.ep_index, _exc13)
 
     # 三项自检 (记录, 不阻塞)
     checks: dict[str, Any] = {}
@@ -1998,6 +2066,10 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
     if ep.ep_index == 1:
         _guide_eps = [e2 for e2 in book.episodes if e2.ep_index > 1 and (e2.title or "").strip()]
         checks["ep1_guide_hits"] = f"{sum(1 for e2 in _guide_eps if e2.title[:4] in out)}/{len(_guide_eps)}"
+    # 1019 B2 收官集预告残留兜底 (确定性删行已跑, 残留=变体形态, 记录级)
+    if _is_laotan and ep.ep_index >= _total_eps and _total_eps > 1:
+        if re.search(r"下[一]?集[预要聊说讲]|下期[预要]", out):
+            checks["finale_tease_left"] = True
     if coverage and coverages:
         flat = [c for cs in coverages for c in cs]
         dup = [c for c in coverage if c in flat]
