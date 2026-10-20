@@ -224,8 +224,9 @@ DIRECTOR_SYS = """你是顶级动画短片的导演 (Motion Director)。你的�
 再摆首帧; 首帧是动画的舞台和起点, 不是一张独立海报。
 1. keyframe_zh/en — 首帧（第1层）：具象场景 + 全灭字 + 视角锁死 + 自然语言完整句
    （含明确镜头词与光线描述）
-2. motion_zh/en — 动画层（第2层）+ 文字出场（第3层）：背景里什么在动 + 轻微运镜 +
-   关键词动效事件（什么字、何时浮现、多大、什么效果）
+2. motion_zh/en — 动画层（第2层）: 背景里什么在动 + 主体动作过程 + 轻微运镜;
+   **散文永不描述文字** (1021 与 WRITER_SYS 对齐 — 事件字走 h3_text_event 字段,
+   图内字走 in_image_text, 花字走 text_layer)
 3. text_layer — 后期字幕/补充文字（中文长句、上字幕明确年份等, 带节奏 t_start/t_end）
 
 ## 七条铁律（违反任何一条=废稿）
@@ -321,7 +322,7 @@ DIRECTOR_SYS = """你是顶级动画短片的导演 (Motion Director)。你的�
           "narration": "该镜对应的口播片段（原句或句段）",
           "keyframe_zh": "首帧（中文自然语言完整句: 具象场景+机位+光线+色调; 全灭字; 视角锁死）",
           "keyframe_en": "English keyframe description, same composition, no text",
-          "motion_zh": "动画层: 背景什么在动 + 轻微运镜 + 文字出场事件（什么字何时怎么浮出）",
+          "motion_zh": "动画层: 背景什么在动 + 主体动作过程 + 轻微运镜 (散文永不描述文字, 事件字走 h3_text_event)",
           "motion_en": "English: ambient object motion + slight camera + text appearance events (H3 renders short text)",
           "camera": "空拍|平视|低角度|俯瞰|特写|缓推|固定",
           "text_layer": [{"kind":"hero_number","text":"365户","t_start":0.5,"t_end":2.0}]
@@ -2171,7 +2172,7 @@ def plan_shot(book_id: str, book_title: str, ep: int, shot_id: str,
             + _gate_fb
             + "【圣经】" + bible_block + chr(10)
             + "【输出】严格 JSON 单对象: {\"keyframe_zh\": \"首帧(具象+灭字+视角锁死+信息完备)\", "
-              "\"keyframe_en\": \"English, no text\", \"motion_zh\": \"动画层+文字事件(一镜一事)\", "
+              "\"keyframe_en\": \"English, no text\", \"motion_zh\": \"动画层(一镜一事, 散文永不描述文字, 事件字走 h3_text_event)\", "
               "\"motion_en\": \"English ambient + at most ONE text event\", \"camera\": \"...\", "
               "\"text_layer\": [{\"kind\":\"hero_number|caption|...\",\"text\":\"..\",\"t_start\":0.5,\"t_end\":2.0}]}")
     logger.info("[plan-shot] %s 单镜重规划中… (槽 %.1f-%.1fs 钉死, LLM 30-60s)", shot_id, t0, t1)
@@ -2193,7 +2194,7 @@ def plan_shot(book_id: str, book_title: str, ep: int, shot_id: str,
         "keyframe_zh": kf_zh,
         "keyframe_en": str(d.get("keyframe_en") or "").strip(),
         "image_prompt_zh": kf_zh,
-        "motion_zh": str(d.get("motion_zh") or "")[:300],
+        "motion_zh": str(d.get("motion_zh") or "")[:600],  # 1021 帽 300→600: motion 升权动态设计定稿
         "camera": d.get("camera") or s.get("camera") or "固定",
         # 1014 修: 同场合并口 — text_layer 字符串条目归一化 (t.get 下游全线炸)
         "text_layer": [{"text": str(x)} if isinstance(x, str) else x
@@ -2944,7 +2945,7 @@ def _build_doc(book_id: str, book_title: str, ep: int, ep_title: str,
                 "group_id": gid,
                 "label": (arc.get("narrative") or "")[:60],
                 "camera": raw.get("camera") or g_camera,
-                "motion_zh": str(raw.get("motion_zh") or g.get("motion_zh") or "")[:300],
+                "motion_zh": str(raw.get("motion_zh") or g.get("motion_zh") or "")[:600],
                 "page_type": "B",
                 "t_start": round(t0, 2), "t_end": round(t1, 2),
                 "narration": str(raw.get("narration") or ""),
@@ -3004,7 +3005,7 @@ def _build_doc(book_id: str, book_title: str, ep: int, ep_title: str,
             "narration": str(g.get("narration") or "")[:300],
             "camera": g_camera,
             "keyframe_zh": g_kf,
-            "motion_zh": str(g.get("motion_zh") or "")[:300],
+            "motion_zh": str(g.get("motion_zh") or "")[:600],
             "shot_ids": g_shot_ids,
         })
     if shots_out and not sid_offset:  # 单场拼接模式不做 C 标记 (拼接方全局重施)
@@ -3416,7 +3417,7 @@ def redesign_split_clones(doc: dict[str, Any], bible: dict[str, Any] | None = No
                 "keyframe_zh": kf_zh,
                 "keyframe_en": str(r.get("keyframe_en") or "").strip(),
                 "image_prompt_zh": kf_zh,
-                "motion_zh": str(r.get("motion_zh") or "")[:300],
+                "motion_zh": str(r.get("motion_zh") or "")[:600],
                 "camera": r.get("camera") or k.get("camera") or "固定",
                 "anim": {
                     "duration_s": gen,
@@ -3791,7 +3792,7 @@ def consistency_review(doc: dict[str, Any], bible: dict[str, Any] | None = None)
             "keyframe_en": kf_en,
             "image_prompt_zh": kf,
             "camera": p.get("camera") or s.get("camera") or "固定",
-            "motion_zh": str(p.get("motion_zh") or s.get("motion_zh") or "")[:300],
+            "motion_zh": str(p.get("motion_zh") or s.get("motion_zh") or "")[:600],
             "seed": shots_mod.new_seed(),
             "h3_seed": shots_mod.new_seed(),
             "status": "planned",

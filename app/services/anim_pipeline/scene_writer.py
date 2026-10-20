@@ -29,6 +29,10 @@ logger = logging.getLogger(__name__)
 _TEXT_CARRIER_RE = re.compile(r"写着|字样|字迹|写满|刻着|刻字")
 # 1021 公共别名: erase 触发的提示词嫌疑判定 (名词+动词) 同源引用, 改词表只改这里
 TEXT_CARRIER_VERB_RE = _TEXT_CARRIER_RE
+# 1021 幻影实体词表 (s21 "画面外一匹马摆尾" 实锤): motion 提及而画面句缺席的动物 = 脱锚;
+# 绑量词/上下文防误伤 (裸"马"会命中"马上/罗马/马克思"), 首版窄表, 命中率观察后再扩
+_PHANTOM_RE = re.compile(r"一匹|一(头|只|条)?(牛|羊|狗|猫|鸟|鱼|鹰|鹤|鹿|狼|虎|象|猴|兔|蛇|"
+                         r"蝴蝶|蜻蜓)|远处.{0,6}(马|狗|鸟|牛)")
 
 # 1015 H 修复① (ep4 A1 二次replan实锤: 「桶身贴米白空白标签」名词措辞零命中出口闸
 # → 白标签孤儿): 载体名词表补动词措辞之外的名词盲区。公共名单单源化 — k2.py
@@ -39,7 +43,8 @@ TEXT_CARRIER_NOUN_RE = re.compile(r"标签|便签|白板|牌匾|匾额|招牌|�
 # (s15 铁证「字体为复古手写体带发光持续1.5秒后淡出」= text_layer 事件被整段复制进动作句,
 #  文字内容截丢; s26 预测命中) — motion 散文永不描述文字, 文字只准走三路由字段。
 _MOTION_TEXT_RE = re.compile(r"字体|手写体|衬线|书法体|发光效果|淡出|浮现.{0,6}[字数]|大字|字样|"
-                             r"上屏|字幕|[「『\"“'][^」』\"”']{1,4}[」』\"”'].{0,8}(浮|现|停)")
+                             r"上屏|字幕|[「『\"“'][^」』\"”']{1,4}[」』\"”'].{0,8}(浮|现|停)|"
+                             r"文字事件|浮出.{0,16}[「『\"“']")
 
 # 1015 动画先行律: 画面句是 t=0 起点帧 — 终态词禁入 (s11「横梁向右倾斜定格」vs 动作
 # 「右盘持续下沉」结构性矛盾实锤, H3 只能重排)。
@@ -56,6 +61,8 @@ WRITER_SYS = """你是顶级动画短片的导演兼电影摄影师 (Writer-Dire
 ## 动画先行设计律 (1015 架构令 — 最高设计法, 违反即废稿)
 每镜的**设计顺序是先动画后首帧**:
 1. 先设计整镜动画: 谁从哪到哪、几点几秒发生什么、文字事件(若有)的**确切文字/出现秒数/落点位置**。
+   动态设计就是 motion_zh 的草稿 — 先把过程写透 (谁对什么做了什么、因果怎么推进), 再定格;
+   motion_zh 不是画面句的配件, 是这镜叙事的一半。
 2. 画面句 = 该动画的 **t=0 起点帧**: 人物在动作**起点位置**(从左走到中→首帧人在左); 动画将用到的
    道具**全部初始在场**; 表情/姿态是动作前一刻; **禁终态定格**(「定格/完成态/已倾斜停住」类词禁入画面句)。
    **脸向必写 (1017 无脸根治, 词面以 ruleset.FACE_WORDS 为准)**: 人物镜画面句必须明写
@@ -91,9 +98,10 @@ WRITER_SYS = """你是顶级动画短片的导演兼电影摄影师 (Writer-Dire
 1. 五件套缺一不可：keyframe_zh / keyframe_en / motion_zh / motion_en / text_layer (无字镜给 [])。
 2. 锚定链：keyframe_en 必须是 keyframe_zh 的**同构图英文版**（同一批实体、同一构图、同一光线），
    系统会把 opening_desc 逐字取 keyframe_en —— 两层讲两个世界 = 废稿。
-3. motion_zh 只允许动画 keyframe_zh 里**已有的实体**（画面里没有的东西永不出现），
-   并给出秒级事件（"第1.0秒…"）；motion_en 是它的英文同源版，**每镜必填**
-   (英文环境微动 + at most ONE text event)，漏填任一镜 = 整场废稿。
+3. motion_zh 只允许动画 keyframe_zh 里**已有的实体**（画面里没有的东西永不出现 —
+   含动物/器物, "画面外一匹马摆尾"型幻影实体=废稿），主体写**动作过程**（谁从哪到哪/
+   什么因果在发生）优先于氛围描述，并给出秒级事件（"第1.0秒…"）；motion_en 是它的
+   英文同源版，**每镜必填** (英文环境微动 + at most ONE text event)，漏填任一镜 = 整场废稿。
 4. 每镜 200-250 字中文画面句：景别角度开头，然后是空间、光线现象（禁色温/补光比等术语）、
    主体（人物带造型括注）、动作、可画细节。散文，不是参数表。
 5. 人物多样性：同一场里出现的人物在姿态/景别/构图上必须各异；人物统一=书级冻结 —
@@ -108,7 +116,7 @@ WRITER_SYS = """你是顶级动画短片的导演兼电影摄影师 (Writer-Dire
    世界中行动**（概念物件是舞台，人物在台上做事/挣扎/顿悟）— MTV手法只约束
    讲述人如歌手般克制出镜，绝不意味着概念场无人；讲述人不当万金油填空镜。
 7. 槽位表是时间的事实：只填画面，禁增删并镜、禁输出 t_start/t_end/narration/refs。
-8. 每镜首拍 1s 内有可见动作或光效；一镜一事；文字事件至多一个、≤2个汉字。
+8. 每镜首拍 1s 内有可见动作或光效；一镜一事；文字事件至多一个、≤4字 (与三路由同口径)。
    每镜设计**一个特效高光时刻**写进 motion（光效爆发/碎片崩落/金色流动/齿轮咬合
    发光/规模揭示…惊艳但不越 H3 物理锁：主体先到位、特效后触发、禁大面积重绘）；
    前 30 秒（特区）特效密度加倍 — 静帧有戏 + 动起来惊艳，缺一半就是没看头。
@@ -173,7 +181,7 @@ def writer_blocks(arc: dict[str, Any], zones: list[str],
     blocks.append(
         "\n【输出契约 (单写者制, 优先于一切旧格式)】groups[].shots[] 每镜必须含: "
         "\"keyframe_zh\" (200-250字中文散文画面句), \"keyframe_en\" (同构图英文, no text), "
-        "\"motion_zh\" (动画层+秒级事件, 只动画面句已有实体), \"motion_en\" (English ambient "
+        "\"motion_zh\" (动态设计定稿: 主体动作过程+环境动态+秒级事件, 只动画面句已有实体, 禁添画面外动物/器物), \"motion_en\" (English ambient "
         "+ at most ONE text event), \"text_layer\" (无字镜给 []), "
         "\"in_image_text\" (必填: K2图内字, ≤4行字符串数组, 无字镜给 []; 画面句含"
         "标签/便签/白板/牌匾/招牌/标语/横幅/铭牌/海报/屏幕等载体时必须申报文字内容"
@@ -204,6 +212,21 @@ def _scene_zone(doc: dict[str, Any], arc: dict[str, Any], shots: list[dict[str, 
     if "author_cite" in regs:
         zones.append("cite")
     return zones
+
+
+def _strip_motion_text_clauses(mz: str) -> tuple[str, int]:
+    """泄字子句确定性剥除 (1021: 出口闸只拦不剥 = 0920 军规同坑 — 剥得掉的别驱动重写).
+
+    按标点切句, 整段删除命中 _MOTION_TEXT_RE 的子句; 返回 (新串, 删数)。"""
+    parts = re.split(r"([，。；,;])", mz)
+    kept: list[str] = []
+    dropped = 0
+    for p in parts:
+        if p and not re.fullmatch(r"[，。；,;]", p) and _MOTION_TEXT_RE.search(p):
+            dropped += 1
+            continue
+        kept.append(p)
+    return "".join(kept), dropped
 
 
 def writer_failures(doc: dict[str, Any], arc_id: str) -> list[str]:
@@ -263,20 +286,45 @@ def writer_failures(doc: dict[str, Any], arc_id: str) -> list[str]:
             fails.append(f"{sid} 已申报 in_image_text 但画面句载体非空白 (黑字/手写体等) — "
                          "载体改写「空白标签/空白牌面」, 文字由系统二段合成")
         # 1015 H3 战役: motion 散文禁文字 (花字/事件字规格只准走三路由字段)
+        # 1021 修: 先剥后拦 (只拦不剥 = 0920 军规同坑, ep7 两连败主因之一) —
+        # 命中子句确定性删除, 剥净即过; 剥不净才 fail 驱动重写
         if mz and _MOTION_TEXT_RE.search(mz):
-            fails.append(f"{sid} motion_zh 泄漏文字描述 ({_MOTION_TEXT_RE.search(mz).group(0)}) — "
-                         "H3事件字走 h3_text_event 字段, K2图内字走 in_image_text, 花字走 text_layer; "
-                         "动作句删掉全部文字/字体/发光/淡出描述")
+            mz2, _dropped = _strip_motion_text_clauses(mz)
+            if _MOTION_TEXT_RE.search(mz2):
+                fails.append(f"{sid} motion_zh 泄漏文字描述 ({_MOTION_TEXT_RE.search(mz2).group(0)}) — "
+                             "H3事件字走 h3_text_event 字段, K2图内字走 in_image_text, 花字走 text_layer; "
+                             "动作句删掉全部文字/字体/发光/淡出描述")
+            elif _dropped:
+                s["motion_zh"] = mz2
+                logger.info("[writer-gate] %s motion 泄字子句确定性剥除 ×%d (免重写)", sid, _dropped)
+        # 1021 实体锚定 (s21 幻影马实锤): motion 提及的动物类实体画面句必须在场
+        if mz and zh:
+            _in_mz = {m.group(0) for m in _PHANTOM_RE.finditer(mz)}
+            _in_zh = {m.group(0) for m in _PHANTOM_RE.finditer(zh)}
+            _phan = sorted(_in_mz - _in_zh)
+            if _phan:
+                fails.append(f"{sid} motion 幻影实体 {'/'.join(_phan)} — 画面句无此实体, "
+                             "motion 只动画面句已有实体 (删该实体描述或画面句补入该实体)")
         # 1015 动画先行: 画面句禁终态定格 (它必须是 t=0 起点帧)
         if zh and _ENDSTATE_RE.search(zh):
             fails.append(f"{sid} 画面句含终态词 ({_ENDSTATE_RE.search(zh).group(0)}) — "
                          "画面句=动画 t0 起点帧, 改写为动作前一刻的初始状态")
         # 1015 文字路由配对: H3 事件字 → 画面句必须留白预留落区
+        # 1021 修: 确定性自动补 (ep7 两连败主因之二; 器层 _ensure 注入的事件字触发
+        # 法层假失败 = 闸序坑同治) — 补句过闸, 仅长度临界时才交 LLM 重写
         _ev = s.get("h3_text_event")
         if isinstance(_ev, dict) and _ev.get("text"):
             if not _RESERVE_RE.search(zh or "") and not _RESERVE_RE.search(en or ""):
-                fails.append(f"{sid} h3_text_event 已申报但画面句无留白预留描述 — "
-                             f"在落点({_ev.get('zone') or '事件区'})写「留出干净空背景」类描述")
+                _zone = str(_ev.get("zone") or "事件区").strip()
+                if len(zh) < 300:  # 320 字帽留余量
+                    s["keyframe_zh"] = zh + f"（{_zone}留出干净空背景）"
+                    if en:
+                        s["keyframe_en"] = en + " clean empty background reserved for floating text"
+                    logger.info("[writer-gate] %s 画面句确定性补留白预留 (落点: %s)",
+                                sid, _zone[:20])
+                else:
+                    fails.append(f"{sid} h3_text_event 已申报但画面句无留白预留描述 (且长度临界) — "
+                                 f"在落点({_zone})写「留出干净空背景」类描述")
         cur = {norm_text_layer(t.get("text")) for t in (s.get("text_layer") or []) if t.get("text")}
         dup = prev_texts & cur
         if dup:
@@ -393,4 +441,14 @@ def _fallback_scene(book_id: str, book_title: str, ep: int, arc_id: str,
     for s in doc.get("shots") or []:
         if str(s.get("arc_id") or "").lower() == str(arc_id).lower():
             s["writer_source"] = "fallback"
+    # 1021 fallback 同闸 (s21 幻影马/文字泄散文实锤: 降级产物此前零闸裸奔) —
+    # 过 writer_failures: 确定性修复 (泄字剥/留白补) 照做; 剩余 fails 标红挂镜
+    # 交人检, 不阻断 (fallback 无重试网, 硬拒=死路)
+    _fw_fails = writer_failures(doc, arc_id)
+    if _fw_fails:
+        for s in doc.get("shots") or []:
+            if str(s.get("arc_id") or "").lower() == str(arc_id).lower():
+                s["_wf_warns"] = _fw_fails[:8]
+        logger.warning("[writer] 场 %s fallback 产物闸标红 %d 处 (交人检, 不阻断): %s",
+                       arc_id.upper(), len(_fw_fails), "; ".join(_fw_fails[:3]))
     return doc

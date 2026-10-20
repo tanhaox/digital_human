@@ -542,7 +542,7 @@ def _motion_zh_from_slots(shot: dict[str, Any], fa_shot: dict[str, Any],
     if atmo:
         out += f"环境微动与氛围：{atmo}。"
     out += "运镜固定，仅允许极轻微推近，无横移跟拍。"
-    return out[:400]
+    return out[:600]
 
 
 def assemble_h3_anim(shot: dict[str, Any], fa_shot: dict[str, Any],

@@ -110,3 +110,4 @@ data/*.bak-*
 *.dmp
 # 防未来：任意层临时文件
 **/*.tmp
+data/pipeline_backup_*.db
