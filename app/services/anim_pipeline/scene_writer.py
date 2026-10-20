@@ -29,10 +29,12 @@ logger = logging.getLogger(__name__)
 _TEXT_CARRIER_RE = re.compile(r"写着|字样|字迹|写满|刻着|刻字")
 # 1021 公共别名: erase 触发的提示词嫌疑判定 (名词+动词) 同源引用, 改词表只改这里
 TEXT_CARRIER_VERB_RE = _TEXT_CARRIER_RE
-# 1021 幻影实体词表 (s21 "画面外一匹马摆尾" 实锤): motion 提及而画面句缺席的动物 = 脱锚;
-# 绑量词/上下文防误伤 (裸"马"会命中"马上/罗马/马克思"), 首版窄表, 命中率观察后再扩
-_PHANTOM_RE = re.compile(r"一匹|一(头|只|条)?(牛|羊|狗|猫|鸟|鱼|鹰|鹤|鹿|狼|虎|象|猴|兔|蛇|"
-                         r"蝴蝶|蜻蜓)|远处.{0,6}(马|狗|鸟|牛)")
+# 1021 幻影实体闸 (s21 "画面外一匹马摆尾" 实锤) — **系统级量词法** (三令: 禁个性级
+# 动物枚举): 具体量词后的 1-2 字名词 = 候选实体, motion 提及而画面句缺席 (子串)
+# 即脱锚; 中文子串包含天然消化同义词 (车⊂汽车), 高危同义/泛指族 (路/道/门/窗/手/人)
+# 入豁免表; 抽象量词 (个/点/丝/次/声/阵) 不在量词表自动不收
+_PHANTOM_Q_RE = re.compile(r"一(匹|头|只|条|辆|艘|台|棵|座|块|张|把|件|群|盏|面)([一-龥]{1,2})")
+_PHANTOM_EXEMPT = {"路", "道", "门", "窗", "手", "人"}
 
 # 1015 H 修复① (ep4 A1 二次replan实锤: 「桶身贴米白空白标签」名词措辞零命中出口闸
 # → 白标签孤儿): 载体名词表补动词措辞之外的名词盲区。公共名单单源化 — k2.py
@@ -297,13 +299,21 @@ def writer_failures(doc: dict[str, Any], arc_id: str) -> list[str]:
             elif _dropped:
                 s["motion_zh"] = mz2
                 logger.info("[writer-gate] %s motion 泄字子句确定性剥除 ×%d (免重写)", sid, _dropped)
-        # 1021 实体锚定 (s21 幻影马实锤): motion 提及的动物类实体画面句必须在场
+        # 1021 实体锚定 (s21 幻影马实锤, 系统级量词法): motion 提及的量词实体
+        # 画面句必须在场 — 判序三级放宽: 全词 → 剥尾助词 → 首字子串 (车⊂汽车);
+        # 首字放宽的已知漏报面 (画面句恰含同首字) 由 ID-123 观察补
         if mz and zh:
-            _in_mz = {m.group(0) for m in _PHANTOM_RE.finditer(mz)}
-            _in_zh = {m.group(0) for m in _PHANTOM_RE.finditer(zh)}
-            _phan = sorted(_in_mz - _in_zh)
+            _tail = "的了着在地向从"
+            _phan: set[str] = set()
+            for _, n in _PHANTOM_Q_RE.findall(mz):
+                w = n.rstrip(_tail) or n
+                if any(e in w for e in _PHANTOM_EXEMPT):  # 豁免词 ∈ 捕获词 (人群⊂人)
+                    continue
+                if n in zh or w in zh or n[0] in zh:      # 三级放宽: 全词/剥尾/首字
+                    continue
+                _phan.add(w)
             if _phan:
-                fails.append(f"{sid} motion 幻影实体 {'/'.join(_phan)} — 画面句无此实体, "
+                fails.append(f"{sid} motion 幻影实体 {'/'.join(sorted(_phan))} — 画面句无此实体, "
                              "motion 只动画面句已有实体 (删该实体描述或画面句补入该实体)")
         # 1015 动画先行: 画面句禁终态定格 (它必须是 t=0 起点帧)
         if zh and _ENDSTATE_RE.search(zh):
