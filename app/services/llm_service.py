@@ -87,6 +87,7 @@ class LLMService:
     _FALLBACK_STATUS = {401, 403, 404, 408, 429, 500, 502, 503, 504}
     # 0915 熔断: 厂商失败后 5 分钟内跳过 (deepseek 队列过载时单调用可拖 900s)
     _BREAKER_SEC = 300.0
+    _QUOTA_BREAKER_SEC = 1800.0  # 1021: 429 配额体 (5h/周耗尽) 长冷却
 
     def __init__(self, cfg, fallback=None):
         """fallback 可传单个 provider 或列表 (0915: kimi → deepseek → qwen 三级链)."""
@@ -151,6 +152,9 @@ class LLMService:
         0915 熔断器: 厂商失败 (含 900s 队列错误体) 后 _BREAKER_SEC 内直接跳过 —
         deepseek 过载时客户端超时拦不住服务端保活连接 (实测拖满 900s),
         不熔断则每次调用都要白等一轮才轮到下一家。
+        1021 修: _provider_down 存**到期时间戳** (旧版存失败时刻+作差, 与
+        get_llm_service 每次 new 实例叠加 = 熔断器从未跨调用生效); 429 配额体
+        (5h/周用量耗尽) 按 _QUOTA_BREAKER_SEC 30min 长冷却, 冷却末自动试探。
         非流式额外校验 body: 200 + {"error":...} 错误体 (deepseek 队列超时形态)
         也算厂商级失败, 标记熔断并换下一家。
         1009 P0: 返回值附带 served cfg (usage 日志要知道谁实际服务了).
@@ -165,9 +169,10 @@ class LLMService:
         now = time.time()
         last_exc: Exception | None = None
         for idx, cfg in enumerate(providers):
-            if now - self._provider_down.get(idx, 0) < self._BREAKER_SEC:
-                logger.warning("[llm] provider#%d %s 熔断中 (最近失败 %.0fs 内), 跳过",
-                               idx, cfg.base_url, self._BREAKER_SEC)
+            if now < self._provider_down.get(idx, 0):
+                logger.warning("[llm] provider#%d %s 熔断中 (剩 %.0fs), 跳过",
+                               idx, cfg.base_url,
+                               self._provider_down.get(idx, 0) - now)
                 continue
             body = dict(payload)
             body["model"] = self._resolve_model_for(cfg, payload.get("model"))
@@ -182,28 +187,34 @@ class LLMService:
                                              stream=stream, timeout=timeout)
             except (*self._RETRYABLE, requests.ReadTimeout) as exc:
                 last_exc = exc
-                self._provider_down[idx] = time.time()
+                self._provider_down[idx] = time.time() + self._BREAKER_SEC
                 logger.warning("[llm] provider#%d %s 连接失败/读超时: %s → 换下一厂商",
                                idx, cfg.base_url, exc)
                 continue
             if resp.status_code in self._FALLBACK_STATUS:
                 last_exc = requests.HTTPError(f"HTTP {resp.status_code}", response=resp)
-                self._provider_down[idx] = time.time()
-                logger.warning("[llm] provider#%d %s HTTP %s → 换下一厂商",
-                               idx, cfg.base_url, resp.status_code)
+                # 1021 配额长冷却: 429+配额体 (5h/周用量耗尽) 是窗口级事件,
+                # 300s 熔断等于每 5min 白撞一次 — 配额体按 30min 熔, 冷却末试探
+                down_for = self._BREAKER_SEC
+                if resp.status_code == 429 and re.search(
+                        r"quota|usage limit|exceeded_current", resp.text, re.I):
+                    down_for = self._QUOTA_BREAKER_SEC
+                self._provider_down[idx] = time.time() + down_for
+                logger.warning("[llm] provider#%d %s HTTP %s → 换下一厂商 (熔断 %.0fs)",
+                               idx, cfg.base_url, resp.status_code, down_for)
                 continue
             if not stream:  # 200 + 错误体也当厂商失败 (deepseek 900s 队列超时形态)
                 try:
                     data = resp.json()
                 except ValueError:
-                    self._provider_down[idx] = time.time()
+                    self._provider_down[idx] = time.time() + self._BREAKER_SEC
                     last_exc = RuntimeError("非 JSON 响应体")
                     logger.warning("[llm] provider#%d %s 非 JSON 体 → 换下一厂商",
                                    idx, cfg.base_url)
                     continue
                 if "choices" not in data:
                     err = (data.get("error") or {}).get("message") or str(data)[:200]
-                    self._provider_down[idx] = time.time()
+                    self._provider_down[idx] = time.time() + self._BREAKER_SEC
                     last_exc = RuntimeError(f"错误体: {err}")
                     logger.warning("[llm] provider#%d %s 200+错误体 → 换下一厂商: %s",
                                    idx, cfg.base_url, err[:120])
@@ -579,6 +590,9 @@ class LLMService:
         return full_text
 
 
+_SVC_CACHE: dict[tuple, "LLMService"] = {}
+
+
 def get_llm_service() -> LLMService:
     """全系统统一 LLM 入口。
 
@@ -587,6 +601,8 @@ def get_llm_service() -> LLMService:
     W8 当时只退了 anim_pipeline/llm.py 管线链, 本通用链漏改 → plan_scene 等
     仍兜到 token-plan qwen3.8-max (ep5 分镜实锤)。本地 qwen36 保底只挂管线链
     (通用链调用方多且杂, 拉 35B 与 ComfyUI 抢卡代价大, 不挂)。
+    1021 修: 实例缓存 (按 cfg 指纹) — 0915 熔断器状态在实例上, 每次 new 等于
+    没有熔断 (ep7 实锤 kimi 429 每调用重撞); 改 api_key/base_url 指纹才换实例。
     """
     from ..config import get_config
 
@@ -594,11 +610,21 @@ def get_llm_service() -> LLMService:
     fallbacks = []
     if cfg.deepseek.api_key:
         fallbacks.append(cfg.deepseek)
+
+    def _fp(p) -> tuple:
+        return (str(p.base_url), str(p.api_key)[-8:] if p.api_key else "")
+
+    key = (_fp(cfg.kimi), tuple(_fp(f) for f in fallbacks))
+    if key in _SVC_CACHE:
+        return _SVC_CACHE[key]
     if cfg.kimi.api_key:
-        return LLMService(cfg.kimi, fallback=fallbacks)
-    if fallbacks:
-        return LLMService(fallbacks[0])
-    return LLMService(cfg.deepseek)
+        svc = LLMService(cfg.kimi, fallback=fallbacks)
+    elif fallbacks:
+        svc = LLMService(fallbacks[0])
+    else:
+        svc = LLMService(cfg.deepseek)
+    _SVC_CACHE[key] = svc
+    return svc
 
 
 def _parse_json(text: str) -> Any:

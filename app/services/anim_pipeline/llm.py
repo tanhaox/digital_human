@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 
 import httpx
 
@@ -19,6 +20,25 @@ logger = logging.getLogger(__name__)
 _TIMEOUT = 300.0
 # 400 不换厂商 (参数问题换厂商也修不了), 其余连接失败/401/403/404/408/429/5xx 换
 _SWITCH_STATUS = {401, 403, 404, 408, 429, 500, 502, 503, 504}
+
+# 1021 配额熔断 (ep7 实锤: kimi 5h/周配额 429, 每镜先撞一次主再切兜底刷屏) —
+# 429 + 配额体 (quota/usage limit/exceeded_current) 按 provider 记进程级冷却
+# 30min, 期内直走兜底链; 冷却末自动试探 (又 429 再熔 30min) — 5h/周窗口都覆盖。
+_QUOTA_COOLDOWN = 1800.0
+_QUOTA_DOWN: dict[str, float] = {}
+_QUOTA_SKIP = "primary 配额熔断中"  # 哨兵前缀: 熔断跳过不刷 warning (检测处已打)
+
+
+def _is_quota_429(status: int, text: str) -> bool:
+    return status == 429 and bool(
+        re.search(r"quota|usage limit|exceeded_current", text, re.I))
+
+
+def _note_quota_429(base_url: str, status: int, text: str) -> None:
+    if _is_quota_429(status, text):
+        _QUOTA_DOWN[base_url] = time.time() + _QUOTA_COOLDOWN
+        logger.warning("[llm] %s 配额耗尽 → 熔断 %.0fmin (期内直走兜底链)",
+                       base_url, _QUOTA_COOLDOWN / 60)
 
 
 def _chat_once(base_url: str, api_key: str, model: str, system: str, user: str, max_tokens: int) -> str:
@@ -41,6 +61,7 @@ def _chat_once(base_url: str, api_key: str, model: str, system: str, user: str, 
             json=payload,
         )
     if r.status_code >= 400:
+        _note_quota_429(base_url, r.status_code, r.text)
         raise RuntimeError(f"LLM HTTP {r.status_code} ({base_url}): {r.text[:300]}")
     content = (r.json().get("choices") or [{}])[0].get("message", {}).get("content")
     if not content:
@@ -82,12 +103,15 @@ def chat_json(llm: LLMConfig, system: str, user: str) -> dict:
         try:
             if not key:
                 raise RuntimeError(f"缺少 {llm.api_key_env}")
+            if time.time() < _QUOTA_DOWN.get(llm.base_url, 0):
+                raise RuntimeError(_QUOTA_SKIP)
             if skip_primary:
                 raise RuntimeError("上轮 primary 输出截断, 本轮直取兜底链")
             raw = _chat_once(llm.base_url, key, llm.model, system, user, primary_max)
             provider = llm.base_url
         except (httpx.HTTPError, RuntimeError) as exc:
-            logger.warning("[llm] kimi 失败切兜底: %s", exc)
+            if not str(exc).startswith(_QUOTA_SKIP):
+                logger.warning("[llm] kimi 失败切兜底: %s", exc)
             if fb_key:
                 try:
                     raw = _chat_once(llm.fallback_base_url, fb_key, llm.fallback_model,
