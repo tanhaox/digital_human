@@ -2106,3 +2106,13 @@ laotan-tech 加【科技版专属约束】（高于通用规则）：
 - **动机/背景**: ep7 全链对账发现申报 0; git 考证"每场 0-2 镜"口径自 init 从未落宪法, writer 全走"不画载体"分支 (34cfb57 回正 → 0eafa43 升格 1-2)。
 - **涉及模块**: app/services/anim_pipeline/scene_writer.py (WRITER_SYS 10d / writer_failures)
 - **备注**: 只影响新写的场 (新集/重规划), 存量已定稿集不自动长出申报; 若 prompt 修不动申报率再议出口闸升级硬卡。
+
+### ID-123：【动画】motion 升权后三指标观察 — writer 存活率 / 动态充实 / 幻影命中
+
+- **状态**: pending
+- **优先级**: P1
+- **提出时间**: 2026-10-21
+- **描述**: motion 升权合并案 (a8da929) 落地后观察下 2-3 集: ①**writer 存活率** — ep7 实况 12% (44/50 fallback, 两连败死于文字三路由协调: 载体申报姿势/留白忘写/泄字), 修因后 (泄字确定性剥除+留白自动补) 预期显著回升, 目标 >60%; 达不到 → 继续拆失败原因分布; ②**动态充实** — motion_zh 均长/过程动词密度 (writer vs fallback 对比), 敷衍率 = B 案复活触发器 1 观测值; ③**幻影实体闸** — _PHANTOM_RE 命中分布与误伤 (首版动物窄表, 按命中扩表)。
+- **动机/背景**: 1021 二令 motion 升权 (修地位不拆房子, B 案弃用); 探索发现存活率 12% 是第一矛盾, 动态充实 fail 闸因此降级为观察指标。
+- **涉及模块**: app/services/anim_pipeline/scene_writer.py (出口闸/fallback 同闸)
+- **备注**: 观测脚本可直接复用日志 grep ([writer] 场 X 出口闸/fallback 闸标红) + doc 统计; 触发器三则见 docs/design/动态先行派生架构-设计方案v0.md §v1。
