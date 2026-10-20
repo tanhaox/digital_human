@@ -27,6 +27,8 @@ logger = logging.getLogger(__name__)
 # 成错字): 文字载体动词表 — writer 出口闸逼二段式 (空白载体+in_image_text) 或去文字物件。
 # 1015 补: 刻着/刻字 (ep4 s45/s46 fallback 装配句「透镜刻黑字'找没毛病的'」形态)。
 _TEXT_CARRIER_RE = re.compile(r"写着|字样|字迹|写满|刻着|刻字")
+# 1021 公共别名: erase 触发的提示词嫌疑判定 (名词+动词) 同源引用, 改词表只改这里
+TEXT_CARRIER_VERB_RE = _TEXT_CARRIER_RE
 
 # 1015 H 修复① (ep4 A1 二次replan实锤: 「桶身贴米白空白标签」名词措辞零命中出口闸
 # → 白标签孤儿): 载体名词表补动词措辞之外的名词盲区。公共名单单源化 — k2.py

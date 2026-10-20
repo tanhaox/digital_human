@@ -172,7 +172,13 @@ def run_erase_pass(shot: dict[str, Any], doc: dict[str, Any], base_image: Path) 
 
 
 def batch_erase_pass(doc: dict[str, Any], only: set[str] | None = None) -> int:
-    """对「有文字污染且未申报二段式」的 img_done 镜批量抹除 (幂等: text_erased 跳过)。"""
+    """对「有文字污染且未申报二段式」的 img_done 镜批量抹除 (幂等: text_erased 跳过).
+
+    1021 用户令: 触发 = 图上实抓 ∪ 提示词嫌疑 — ①实抓 (text_suspect/文字类
+    gate_rejects, 出口闸 VLM 伪字+OCR 真字每镜必扫) ②提示词嫌疑 (画面句含文字
+    载体名词/涂写动词且未申报 — 生图前空白素面指令压不住 ep4 实锤, 实抓有
+    假阴性, 嫌疑镜主动抹; ep7 s05/s07 漏网模式根治)。"""
+    from .scene_writer import TEXT_CARRIER_NOUN_RE, TEXT_CARRIER_VERB_RE
     from .shots import ep_dir as _ep_dir
     n = 0
     for shot in doc.get("shots") or []:
@@ -180,10 +186,14 @@ def batch_erase_pass(doc: dict[str, Any], only: set[str] | None = None) -> int:
             continue
         if only is not None and str(shot.get("shot_id")) not in only:
             continue
-        # 文字污染信号: text_suspect (OCR 两连拒保留) 或 文字类 gate_rejects ≥1
+        # 文字污染信号: ①实抓 ②提示词嫌疑 (未申报镜)
         _txt = sum(1 for r in (shot.get("gate_rejects") or [])
                    if not r.get("hard") and "文字" in str(r.get("reason") or ""))
-        if not (shot.get("text_suspect") or _txt >= 1):
+        _kf = str(shot.get("keyframe_zh") or "")
+        _sus = bool(shot.get("text_suspect") or _txt >= 1
+                    or TEXT_CARRIER_NOUN_RE.search(_kf)
+                    or TEXT_CARRIER_VERB_RE.search(_kf))
+        if not _sus:
             continue
         img = _ep_dir(doc["book_title"], int(doc.get("ep") or 0)) / str(shot.get("image_file"))
         if img.exists() and run_erase_pass(shot, doc, img):
