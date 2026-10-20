@@ -1676,48 +1676,29 @@ def save_concept(book_title: str, ep: int, payload: dict[str, Any]) -> dict[str,
     return {"touched": touched}
 
 
-def reroll_concept(book_id: str, book_title: str, ep: int, arc_id: str,
-                    direction: str = "") -> dict[str, Any]:
-    """单场立意重掷 (0918 立意人闸闭环): 只重出该场隐喻, 其余场不动.
-
-    LLM 输入 = 该场口播窗 + 全场隐喻板 (撞车防线) + 受众锚 + 用户改判方向
-    ("不喜欢"的理由当指令); 产出回写骨架 arcs + 立意.md 同步重写。"""
-    from app.config import load_config, set_config
-    set_config(load_config())
+def _reroll_concept_llm(arcs: list[dict], arc: dict, scene_text: str,
+                        wl_lines: list[str], aud_block: str,
+                        banned: list[str], direction: str = "") -> dict[str, Any]:
+    """单场立意重掷的 LLM 段 (1021 抽出, 一把尺): reroll_concept (人闸手点) 与
+    plan_arcs 轮换自修共用 — 同一 prompt 同一合并规则; 落盘/审计归调用方。"""
     from app.services.llm_service import get_llm_service as _llm, _parse_json
-    doc = shots_mod.load_doc(book_title, ep)
-    arcs = doc.get("arcs") or []
-    idx = next((i for i, a in enumerate(arcs) if str(a.get("arc_id")).lower()
-                == str(arc_id).strip().lower()), None)
-    if idx is None:
-        raise SystemExit(f"场不存在: {arc_id}")
-    arc = arcs[idx]
     tc = float(load().brand_card.opening_sec)
     a0, a1 = float(arc["t_start"]) - tc, float(arc["t_end"]) - tc
-
-    # 该场口播 (从 groups 取 narration — 骨架占位组携带)
-    g = next((x for x in (doc.get("groups") or [])
-              if str(x.get("arc_id")).lower() == str(arc_id).lower()), {})
-    scene_text = str(g.get("narration") or "")[:1200]
     board = "\n".join(
         f"- {a['arc_id']}: 世界「{a.get('visual_world') or '未定'}」"
         f" | {str(a.get('metaphor_core') or a.get('visual_metaphor') or '')[:80]}"
         for a in arcs if a["arc_id"] != arc["arc_id"])
-    wl_lines = [str(w) for w in (doc.get("world_library") or [])]
     wl_block = ("\n【全书视觉世界库 (新世界优先从这里选, 也可新增)】\n"
                 + "\n".join(f"- {w}" for w in wl_lines) + "\n") if wl_lines else ""
-    _aud = _audience_block(*_audience_rows(book_id))
-    banned = [str(x) for x in (arc.get("banned_motifs") or [])]
-    banned.append(str(arc.get("metaphor_core") or arc.get("visual_metaphor") or "旧隐喻"))
     ask = ("【单场立意重掷 — 只重出这一场的隐喻 (结构化多维度), 其余场不动】\n"
            f"场: {arc['arc_id']} 窗口 {a0:.1f}-{a1:.1f}s (音频轴)\n"
-           f"本场口播:\n{scene_text}\n\n"
+           f"本场口播:\n{scene_text[:1200]}\n\n"
            f"【禁用意象 (历史否决, 核心意象禁止复用)】\n" + "\n".join(f"- {b[:90]}" for b in banned) + "\n\n"
            + (f"【用户改判方向 (必须遵守)】\n{direction}\n\n" if direction else "")
            + wl_block
            + _CARRIER_LAW
            + f"【其余场隐喻板 (新隐喻禁撞车; 视觉世界禁与相邻场相同 — 轮换宪法)】\n{board}\n"
-           + _aud
+           + aud_block
            + "\n【输出】严格 JSON: {\"narrative\": \"一句话这场讲什么\", "
              "\"metaphor_core\": \"核心映射 A=B (一句话)\", "
              "\"metaphor_mappings\": [\"x=y\", \"x=y\"], "
@@ -1730,16 +1711,43 @@ def reroll_concept(book_id: str, book_title: str, ep: int, arc_id: str,
     core = str(data.get("metaphor_core") or "").strip()
     if not core:
         raise SystemExit("重掷产出无核心映射 — 再点一次即可 (零 GPU)")
-    arcs[idx] = {**arc,
-                 "narrative": str(data.get("narrative") or arc.get("narrative") or ""),
-                 "metaphor_core": core,
-                 "metaphor_mappings": [str(m) for m in (data.get("metaphor_mappings") or []) if str(m).strip()],
-                 "carrier_lines": [str(c) for c in (data.get("carrier_lines") or []) if str(c).strip()],
-                 "visual_motifs": [str(v) for v in (data.get("visual_motifs") or []) if str(v).strip()],
-                 "visual_world": str(data.get("visual_world") or arc.get("visual_world") or "").strip()[:40],
-                 "motion": str(data.get("motion") or arc.get("motion") or ""),
-                 "banned_motifs": banned}
-    arcs[idx]["visual_metaphor"] = _project_visual_metaphor(arcs[idx])
+    merged = {**arc,
+              "narrative": str(data.get("narrative") or arc.get("narrative") or ""),
+              "metaphor_core": core,
+              "metaphor_mappings": [str(m) for m in (data.get("metaphor_mappings") or []) if str(m).strip()],
+              "carrier_lines": [str(c) for c in (data.get("carrier_lines") or []) if str(c).strip()],
+              "visual_motifs": [str(v) for v in (data.get("visual_motifs") or []) if str(v).strip()],
+              "visual_world": str(data.get("visual_world") or arc.get("visual_world") or "").strip()[:40],
+              "motion": str(data.get("motion") or arc.get("motion") or ""),
+              "banned_motifs": banned}
+    merged["visual_metaphor"] = _project_visual_metaphor(merged)
+    return merged
+
+
+def reroll_concept(book_id: str, book_title: str, ep: int, arc_id: str,
+                    direction: str = "") -> dict[str, Any]:
+    """单场立意重掷 (0918 立意人闸闭环): 只重出该场隐喻, 其余场不动.
+
+    LLM 输入 = 该场口播窗 + 全场隐喻板 (撞车防线) + 受众锚 + 用户改判方向
+    ("不喜欢"的理由当指令); 产出回写骨架 arcs + 立意.md 同步重写。"""
+    from app.config import load_config, set_config
+    set_config(load_config())
+    doc = shots_mod.load_doc(book_title, ep)
+    arcs = doc.get("arcs") or []
+    idx = next((i for i, a in enumerate(arcs) if str(a.get("arc_id")).lower()
+                == str(arc_id).strip().lower()), None)
+    if idx is None:
+        raise SystemExit(f"场不存在: {arc_id}")
+    arc = arcs[idx]
+    # 该场口播 (从 groups 取 narration — 骨架占位组携带)
+    g = next((x for x in (doc.get("groups") or [])
+              if str(x.get("arc_id")).lower() == str(arc_id).lower()), {})
+    banned = [str(x) for x in (arc.get("banned_motifs") or [])]
+    banned.append(str(arc.get("metaphor_core") or arc.get("visual_metaphor") or "旧隐喻"))
+    arcs[idx] = _reroll_concept_llm(
+        arcs, arc, str(g.get("narration") or ""),
+        [str(w) for w in (doc.get("world_library") or [])],
+        _audience_block(*_audience_rows(book_id)), banned, direction)
     # 1013 一把尺: 重掷后重算审计 — 单场换世界可能消/生相邻警告, 旧快照不再残留
     doc["_concept_warnings"] = _audit_concept(arcs)
     shots_mod.save(doc)
@@ -1976,8 +1984,40 @@ def plan_arcs(book_id: str, book_title: str, ep: int, ep_title: str,
         "groups": groups,
         "shots": [],
     }
+    # 1021 轮换自修 (用户令, ep7 实锤 A1/A2+A6/A7 双撞): prompt 已注入宪法仍概率
+    # 违反 → 相邻场同世界时自动重掷后场一次 (LLM 减量后的第二道减量); 重掷失败/
+    # 仍撞 → 警告照旧留人闸, 不炸规划。顺扫修链: 修完的世界即成下一对的比较基;
+    # 撞谁重掷谁的后场 (前场多为钩子/主打世界合法位); 整集自修上限 3 次
+    # (拍板: 多一档 LLM 调用可接受)。
+    _fix_left = 3
+    for _i in range(1, len(arcs)):
+        if _fix_left <= 0:
+            break
+        _w_now = str(arcs[_i].get("visual_world") or "").strip()
+        _w_prev = str(arcs[_i - 1].get("visual_world") or "").strip()
+        if not (_w_now and _w_now == _w_prev):
+            continue
+        _arc = arcs[_i]
+        _g = next((x for x in groups if str(x.get("arc_id") or "").lower()
+                   == str(_arc.get("arc_id") or "").lower()), {})
+        _banned = [str(_arc.get("metaphor_core") or _arc.get("visual_metaphor") or "旧隐喻")]
+        _dir = (f"轮换宪法违规: 本场视觉世界「{_w_now}」与相邻场 "
+                f"{arcs[_i - 1]['arc_id']} 相同 — 必须换到互不相干的其他视觉世界, "
+                "本场隐喻/母题/运动全部在新世界内重造")
+        try:
+            arcs[_i] = _reroll_concept_llm(
+                arcs, _arc, str(_g.get("narration") or ""),
+                doc.get("world_library") or [], _aud_block, _banned, _dir)
+            _fix_left -= 1
+            logger.info("[plan-arcs] 轮换自修 ✓ %s 世界撞 %s「%s」→ 重掷「%s」",
+                        _arc.get("arc_id"), arcs[_i - 1]["arc_id"], _w_now,
+                        arcs[_i].get("visual_world") or "?")
+        except (SystemExit, Exception) as exc:  # noqa: BLE001 — 自修失败留人闸
+            logger.warning("[plan-arcs] 轮换自修 %s 失败 (警告留人闸): %s",
+                           _arc.get("arc_id"), exc)
     # 立意审计 (0917 隐喻查重 + 0926 世界轮换): 一把尺 _audit_concept — 与
-    # save_concept/reroll_concept 共用 (1013 抽出, 旧内联版三路各自为政)
+    # save_concept/reroll_concept 共用 (1013 抽出; 1021 起在轮换自修后算,
+    # 人闸看到的是自修后终态)
     concept_warns: list[str] = _audit_concept(arcs)
     # 1013 修: 无条件写 — 旧版 `if concept_warns:` 只写不清, 空结果时旧警告残留
     doc["_concept_warnings"] = concept_warns
