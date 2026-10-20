@@ -54,8 +54,18 @@ _TPL = """# 镜头数据
 _STATIC_RE = re.compile(r"stays still|nothing moves|no object moves", re.I)
 
 
+# 1021 用户令: 图真锚撤 — 读图锚 (1328px 过本地 VLM) 慢且要与 ComfyUI 抢大卡,
+# ep7 全集 VLM 不可用退画面句锚照样每镜 ✓3-4拍, 实况证明退路质量够用;
+# 再小的图和纯文字比都大 → 恒走画面句锚。翻回 True 即恢复读图锚。
+_VLM_ANCHOR = False
+
+
 def _frozen_desc(img_path: Path, vlm_ok: list[bool]) -> str:
-    """VLM 看图取冻结瞬间 (一次失败即熔断退画面句, 免批内反复等超时)."""
+    """VLM 看图取冻结瞬间 (一次失败即熔断退画面句, 免批内反复等超时).
+
+    1021 起 _VLM_ANCHOR=False 恒退画面句锚 (用户令, 见上方开关注释)。"""
+    if not _VLM_ANCHOR:
+        return ""
     if not vlm_ok or not vlm_ok[0]:
         return ""
     try:
