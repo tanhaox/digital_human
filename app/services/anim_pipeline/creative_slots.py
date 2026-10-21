@@ -55,6 +55,9 @@ _CREATIVE_SYS = """你是画面描述师。根据口播段落和已定的镜头�
 6. 现代感军规 (1010 ID-079): 人物/物件锚定当代职场 — 现代服饰单品+概念物件现代
    转译, 禁古装前现代意象 (作者镜除外)
 
+本场立意隐喻 (1021 修, 骨牌实锤 — 槽值动作/细节必须落在这个隐喻世界, 覆盖
+任何旧概念空间语义): {metaphor}
+
 口播段落: {narration}
 
 输出严格 JSON: {{"action": "...", "scene_detail": "...", "atmosphere": "..."}}"""
@@ -187,13 +190,28 @@ def _props_zh(props_visible: list, bible: dict[str, Any] | None) -> str:
     return ", ".join(out)[:30]
 
 
+def _doc_world(doc: dict[str, Any], arc_id: str) -> tuple[str, str]:
+    """doc 立意是 SSOT (1021 修, 骨牌实锤): 场空间/隐喻优先取 doc arcs —
+    法层 location 是立意的下游快照, 改立意后法层未重生时, 旧概念世界
+    (多米诺骨牌阵) 会把槽值钉死在已废弃的隐喻里。返回 (visual_world, 隐喻)."""
+    arc = next((a for a in doc.get("arcs") or []
+                if str(a.get("arc_id")) == arc_id), None)
+    if not arc:
+        return "", ""
+    return (str(arc.get("visual_world") or "").strip(),
+            str(arc.get("metaphor_core") or arc.get("visual_metaphor") or "").strip())
+
+
 def _batch_user_block(arc_targets: list[dict], pairs: dict, arc_last: str,
                       register_hint: dict[str, tuple[str, str]],
-                      bible: dict[str, Any] | None = None) -> str:
-    """一场 → 批量 user 数据块 (逐镜参数全在此, system 保持全集恒定)."""
+                      bible: dict[str, Any] | None = None,
+                      doc: dict[str, Any] | None = None) -> str:
+    """一场 → 批量 user 数据块 (逐镜参数全在此, system 保持全集恒定).
+    1021 修: 场空间 doc 立意优先 (法层旧 location 退位兜底), 并带本场隐喻行."""
     first = pairs.get(str(arc_targets[0].get("shot_id")))
     fa_scene = (first or (None, {}))[1]
-    location = str(fa_scene.get("location") or "未定")[:12]
+    dw, dm = _doc_world(doc or {}, str(arc_targets[0].get("arc_id") or ""))
+    location = (dw or str(fa_scene.get("location") or "未定"))[:12]
     try:
         light = str((fa_scene.get("lighting") or {}).get("mood")
                     or fa_scene.get("lighting") or "")[:20]
@@ -210,7 +228,11 @@ def _batch_user_block(arc_targets: list[dict], pairs: dict, arc_last: str,
             f"- {shot.get('shot_id')} | {reg_label} | {fa_shot.get('size', 'MS')}/{fa_shot.get('angle', 'eye_level')}"
             f" | 微位:{str(_blk.get('micro_position') or '场内')[:10]} | 道具: {props}"
             f" | 口播: {str(shot.get('narration') or '')[:90]}")
-    return (f"【场数据】场空间: {location} | 光影: {light}\n"
+    _head = (f"【场数据】场空间: {location} | 光影: {light}")
+    if dm:  # 1021 修: 本场隐喻行 — 槽值动作/细节必须落在最新隐喻世界
+        _head += (f"\n【本场立意隐喻 (doc 人闸最新版, 覆盖表内任何旧空间语义): "
+                  f"{dm[:80]}】")
+    return (_head + "\n"
             f"【承接起点 (首镜的输入)】{arc_last or '(本场首镜)'}\n"
             f"【逐镜填空 (按序, 每镜 action 承接你写的前一镜; 行内寄存器决定 action 语义)】\n"
             + "\n".join(rows))
@@ -283,7 +305,7 @@ def fill_creative_slots(doc: dict[str, Any], shooting_script: dict[str, Any],
     for arc_id, arc_targets in by_arc.items():
         user = _batch_user_block(arc_targets, pairs,
                                  arc_last_action.get(arc_id, ""), register_hint,
-                                 bible=bible or doc.get("bible"))
+                                 bible=bible or doc.get("bible"), doc=doc)
         rows_n = len(arc_targets)
         max_tok = max(600, rows_n * 150)
         tag = f"creative_batch:{model}"
@@ -368,6 +390,8 @@ def _fill_serial(doc: dict[str, Any], pairs: dict, sids: set[str],
         _chain = _cont.get("eyeline_chain") or []
         reg_task, action_task, action_rule = _reg_block(
             str(shot.get("register") or ""), str(shot.get("reg_ref") or ""))
+        # 1021 修 (骨牌实锤): 场空间 doc 立意优先 + 隐喻行 (与批量路径同口径)
+        _dw, _dm = _doc_world(doc, str(shot.get("arc_id") or ""))
         prompt = _CREATIVE_SYS.format(
             size=fa_shot.get("size", "MS"),
             angle=fa_shot.get("angle", "eye_level"),
@@ -377,7 +401,8 @@ def _fill_serial(doc: dict[str, Any], pairs: dict, sids: set[str],
             reg_task=reg_task,
             action_task=action_task,
             action_rule=action_rule,
-            location=str(fa_scene.get("location") or "未定")[:12],
+            location=(_dw or str(fa_scene.get("location") or "未定"))[:12],
+            metaphor=_dm[:80] or "无 (按场空间叙事)",
             micro_position=str(_blocking.get("micro_position") or "场内")[:10],
             props=_props_zh(fa_shot.get("props_visible") or [], bible),
             prev_action=arc_last_action.get(str(shot.get("arc_id") or ""), "本场首镜"),

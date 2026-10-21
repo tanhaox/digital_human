@@ -207,6 +207,80 @@ def generate(book_id: str, book_title: str, ep: int) -> dict[str, Any]:
     return result
 
 
+def regen_scene(book_title: str, ep: int, arc_id: str) -> dict[str, Any] | None:
+    """单场法层重生 (1021 用户令, 骨牌实锤根修): 改立意后🔁重规划本场, 旧法层
+    概念世界 (location/微位/creative_hint) 会钉死创意槽与组装锚 — "会议室两态
+    对照·骨牌阵"混血即此。本函数只重出该场 scene (吃最新 doc 立意), 其余场
+    原样保留, 备份后 merge 落盘。无 ss / 无该场 → 原样返回 (调用方不炸主链)."""
+    from app.config import load_config, set_config
+    set_config(load_config())
+    from app.services.llm_service import get_llm_service as _llm, _parse_json
+
+    ss = load(book_title, ep)
+    if not ss or not (ss.get("scenes") or []):
+        logger.warning("[fa-regen] 无现有法层, 跳过 (整集生成走规划链)")
+        return ss
+    doc = shots_mod.load_doc(book_title, ep)
+    arc = next((a for a in doc.get("arcs") or []
+                if str(a.get("arc_id")) == arc_id), None)
+    scenes = ss.get("scenes") or []
+    old_idx = next((i for i, sc in enumerate(scenes)
+                    if str(sc.get("arc_id")) == arc_id), None)
+    if not arc or old_idx is None:
+        logger.warning("[fa-regen] %s 场对不上 (doc/法层), 法层不动", arc_id.upper())
+        return ss
+
+    bible_path = shots_mod.anim_output_root() / "_资产" / f"圣经_{book_title}.json"
+    bible = (json.loads(bible_path.read_text(encoding="utf-8"))
+             if bible_path.exists() else {})
+    dao_summary = _summarize_dao(bible, ep)
+    from .registers import arc_register_mix, world_map
+    wm = world_map(doc)
+    concept_block = "\n".join(f"  {k}: {v[:50]}" for k, v in wm.items()) or "  (无注册表 — 全走实景)"
+    metaphor = str(arc.get("metaphor_core") or arc.get("visual_metaphor") or "")[:200]
+    narr = " / ".join(str(s.get("narration") or "") for s in doc.get("shots") or []
+                      if str(s.get("arc_id") or "") == arc_id)[:1500]
+    neigh = " | ".join(f"{sc.get('arc_id')}={str(sc.get('location'))[:10]}"
+                       for i, sc in enumerate(scenes) if abs(i - old_idx) == 1)
+    user = f"""世界规则摘要:
+{dao_summary}
+
+概念世界注册表 (概念场的 location 从这里选, 世界名+视觉体系):
+{concept_block}
+
+本场最新立意 (人闸已改判, 镜头语言必须服从它 — 旧概念世界的意象全部作废):
+  {arc_id.upper()} [{arc.get('t_start', '?')}-{arc.get('t_end', '?')}s] 句型分布[{arc_register_mix(arc)}] 概念世界={arc.get('visual_world', '未定')}
+  隐喻: {metaphor}
+  叙事: {str(arc.get('narrative', ''))[:120]}
+  本场口播: {narr}
+
+相邻场 (location 与它们区分开, 空间不撞车):
+  {neigh or '(无)'}
+
+只重出 {arc_id.upper()} 这一场的镜头语言 — 微位与 creative_hint 必须落在最新
+立意的概念世界里, 禁沿用旧概念世界的任何意象。"""
+
+    logger.info("[fa-regen] %s 场法层重生中… (LLM 30-60s)", arc_id.upper())
+    raw = _llm().chat(_SHOOTING_SYS, user, model="pro", temperature=0.3, tag="fa_regen")
+    data = _parse_json(str(raw)) or {}
+    new_scenes = data.get("scenes") or []
+    if not new_scenes:
+        logger.warning("[fa-regen] %s 重生产出不可解析, 退旧场", arc_id.upper())
+        return ss
+    scene = new_scenes[0]
+    _sanitize_scenes([scene])
+    scene["arc_id"] = arc_id  # 对齐 (LLM 偶发幻觉 id)
+    import shutil
+    p = shooting_script_path(book_title, ep)
+    bak = p.with_name(f"shooting_script.json.bak_regen_{time.strftime('%Y%m%d_%H%M%S')}")
+    shutil.copy2(p, bak)
+    scenes[old_idx] = scene
+    save(book_title, ep, ss)
+    logger.info("[fa-regen] %s 法层重生 ✓ (location=%s, 旧版备份 %s)",
+                arc_id.upper(), str(scene.get("location"))[:20], bak.name)
+    return ss
+
+
 def _summarize_dao(bible: dict, ep: int = 0) -> str:
     """道文档 → 法层输入摘要 (只提取镜头语言相关的字段, 减少注意力负载)."""
     parts = []

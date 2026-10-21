@@ -862,6 +862,13 @@ def replan_scene(book_ref: str, ep: int, arc_id: str) -> Path:
         from app.services.anim_pipeline.shooting_script import load as load_ss
         ss = load_ss(book_title, ep)
         if ss:
+            # 1021 修 (骨牌实锤): 改立意后 replan, 旧法层概念世界 (多米诺骨牌阵)
+            # 钉死创意槽与组装锚 — 该场法层先重生吃最新 doc 立意, 失败退旧场不炸
+            try:
+                from app.services.anim_pipeline.shooting_script import regen_scene
+                ss = regen_scene(book_title, ep, arc_id) or ss
+            except Exception as exc:  # noqa: BLE001 — 法层重生失败不拦主链
+                logger.warning("[replan] %s 法层重生失败 (退旧场): %s", arc_id.upper(), exc)
             # 1009 寄存器: 全doc未钉镜一次补齐 (零LLM幂等) — 他场旧镜无钉标时
             # 器层会退实景原链, 主体围栏失效 (ep2 15镜实锤); 本场新镜自然包含
             assign_registers(doc, bible)
