@@ -857,9 +857,9 @@ def replan_scene(book_ref: str, ep: int, arc_id: str) -> Path:
         # 第1轮 writer 16/16 过闸, 外层"人物配额/引号"两条 writer 闸外口径打死 →
         # 第2轮 fallback 0/16 覆盖落盘; 带病 writer 优于整场模板句, 剩余问题人检)
         if attempt == 1:
-            _best_doc = doc
+            _best_doc = doc  # attempt1 异常时 doc=None (批8热修: None 防御, 比较跳过)
             _best_problems = list(problems)
-        else:
+        elif _best_doc is not None:
             def _wcount(_d):
                 return sum(1 for s in _d.get("shots") or []
                            if str(s.get("arc_id") or "").lower() == arc_id.lower()
