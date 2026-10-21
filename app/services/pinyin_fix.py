@@ -103,6 +103,43 @@ def scan_pinyin_hits(text: str) -> list[str]:
     return seen
 
 
+def add_candidate(word: str, marked: str, context: str, source: str = "") -> bool:
+    """注音候选沉淀 (1022 用户令: 沉淀≠生效): 人工注音只落 candidates 区,
+    不进 rules 直写 — 当场连续成词≠恒定读法, 直接全局生效有误伤风险
+    (且孤立单字旧版不收, 素材蒸发)。待 LLM 审核通道对照 contexts 判定
+    读法恒定性后经 add_rule 写入真正词表。
+
+    同词同音重复 → 计数+补上下文 (≤3 条, 供 LLM 对照); 同词异音各记
+    (LLM 判语境依赖)。rules 段读取方 (_rules) 不受 candidates 影响。
+    """
+    import time as _time
+    if not word or not marked:
+        return False
+    try:
+        data = json.loads(_MAP_PATH.read_text(encoding="utf-8"))
+        cands = data.setdefault("candidates", [])
+        now = _time.strftime("%Y-%m-%d %H:%M")
+        for c in cands:
+            if c.get("word") == word and c.get("marked") == marked:
+                c["count"] = int(c.get("count", 1)) + 1
+                if context and len(c.get("contexts") or []) < 3:
+                    c.setdefault("contexts", []).append(context)
+                c["last_ts"] = now
+                break
+        else:
+            cands.append({
+                "word": word, "marked": marked, "count": 1,
+                "contexts": [context] if context else [],
+                "first_ts": now, "last_ts": now, "source": source,
+            })
+        _MAP_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        logger.info("[pinyin_fix] 候选沉淀: %s → %s", word, marked)
+        return True
+    except Exception:
+        logger.warning("[pinyin_fix] 候选写入失败: %s", _MAP_PATH, exc_info=True)
+        return False
+
+
 _YEAR_RE = re.compile(r"(?<![\d])(19|20)(\d{2})(?![\d])")
 _CN_D = {"0": "零", "1": "一", "2": "二", "3": "三", "4": "四",
          "5": "五", "6": "六", "7": "七", "8": "八", "9": "九"}

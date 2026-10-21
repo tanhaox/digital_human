@@ -2116,3 +2116,14 @@ laotan-tech 加【科技版专属约束】（高于通用规则）：
 - **动机/背景**: 1021 二令 motion 升权 (修地位不拆房子, B 案弃用); 探索发现存活率 12% 是第一矛盾, 动态充实 fail 闸因此降级为观察指标。
 - **涉及模块**: app/services/anim_pipeline/scene_writer.py (出口闸/fallback 同闸)
 - **备注**: 观测脚本可直接复用日志 grep ([writer] 场 X 出口闸/fallback 闸标红) + doc 统计; 触发器三则见 docs/design/动态先行派生架构-设计方案v0.md §v1。
+
+### ID-124：【音频】注音候选 LLM 审核入表通道
+
+- **状态**: pending
+- **优先级**: P2
+- **提出时间**: 2026-10-22
+- **开发周期**: 待定
+- **描述**: reroll 注音已改为全量落候选区（config/tts_pinyin_map.json `candidates` 段, 1022 用户令"沉淀≠生效"）, 需 LLM 审核通道消费: 接入产线文字链 LLM（kimi）时, 对候选逐条对照 contexts 上下文判定读法恒定性 — 恒定则经 `pinyin_fix.add_rule` 写入 rules 正式词表（需过 1011 加词纪律: 子串误伤反例审查/保护词排序/拼音须在 pinyin.vocab/重启生效）, 语境依赖则丢弃或降级为提示。
+- **动机/背景**: 旧版连续≥2字注音直写词表全局生效, 当场连续≠恒定读法有误伤风险; 单字不收素材蒸发。候选已带上下文快照 (≤3条) 与计数, 供 LLM 对照。
+- **涉及模块**: app/services/pinyin_fix.py（add_candidate 已就位）、config/tts_pinyin_map.json、文字链 LLM 接入点（待定）
+- **备注**: 存量 rules 276 条为旧机制直写, 保留不动; 审核通道上线前 candidates 只增不消费。

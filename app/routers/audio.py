@@ -1096,32 +1096,43 @@ def reroll_line(file_id: str, payload: dict | None = None, db: Session = Depends
         except Exception as exc:  # noqa: BLE001  # 改字同步失败已 rollback+warning
             db.rollback()
             logger.warning("[reroll] 改字同步失败: %s", exc)
-    # 自动沉淀 (0912 用户令: 注音确定→先加字典→重跑 一条龙): 注音字符在原稿中
-    # 连续成词 (≥2字) → 词表热增 (免重启即时生效); 孤立单字不进词表 (词级恒定原则)
-    dict_added = None
+    # 注音候选沉淀 (1022 用户令: 沉淀≠生效 — 旧版连续≥2字直写 rules 全局生效,
+    # 当场连续≠恒定读法有误伤风险, 且孤立单字不收素材蒸发): 全部注音 (连续段+
+    # 孤立单字) 落 candidates 区带上下文快照, 待 LLM 审核通道对照语境判定后经
+    # add_rule 写入真正词表 (通道挂 backlog)。
+    candidates_added: list[str] = []
     if _ann_map and ok:
         try:
+            from app.services.pinyin_fix import add_candidate
+
+            def _sentence_of(text: str, word: str) -> str:
+                k = text.find(word)
+                if k < 0:
+                    return ""
+                L = max(text.rfind(c, 0, k) for c in "。！？\n") + 1
+                ends = [p for p in (text.find(c, k + len(word)) for c in "。！？\n") if p >= 0]
+                R = min(ends) if ends else len(text)
+                return text[L:R][:60]
+
             _plain = _plain_chunk
-            _best, _i0 = "", -1
             i = 0
             while i < len(_plain):
                 if _plain[i] in _ann_map:
                     j = i
                     while j < len(_plain) and _plain[j] in _ann_map:
                         j += 1
-                    if j - i > len(_best):
-                        _best, _i0 = _plain[i:j], i
+                    _word, _marked = _plain[i:j], "".join(
+                        f"<{c}|{_ann_map[c]}>" for c in _plain[i:j])
+                    if add_candidate(_word, _marked, _sentence_of(_plain, _word),
+                                     source=f"{seg.script_id[:8]}/{af.filename}"):
+                        candidates_added.append(_word)
                     i = j
                 else:
                     i += 1
-            if len(_best) >= 2:
-                from app.services.pinyin_fix import add_rule
-                _marked_word = "".join(f"<{c}|{_ann_map[c]}>" for c in _best)
-                dict_added = _best if add_rule(_best, _marked_word) else None
-        except Exception as exc:  # noqa: BLE001  # 词表沉淀降级(warning 已记)
-            logger.warning("[reroll] 词表沉淀失败: %s", exc)
+        except Exception as exc:  # noqa: BLE001  # 候选沉淀降级(warning 已记)
+            logger.warning("[reroll] 注音候选沉淀失败: %s", exc)
     return {"ok": ok, "file": af.filename, "duration": dur, "verdict": verdict,
-            "dict_added": dict_added, "df": params["duration_factor"]}
+            "candidates_added": candidates_added, "df": params["duration_factor"]}
 
 
 

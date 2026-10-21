@@ -646,8 +646,8 @@ async function rerollAnnotated(fileId, btn) {
   try {
     const r = await api('POST', `/audio/files/${fileId}/reroll`, { annotate });
     const v = r.verdict || {};
-    const dictNote = r.dict_added ? ` | 词表已沉淀「${r.dict_added}」` : '';
-    toast(`${r.file} 注音重roll ✓ ${r.duration}s${dictNote} | 剩余疑点: ${[...(v.diff || [])].join('/') || '无'}`, 'success');
+    const candNote = (r.candidates_added?.length) ? ` | 候选沉淀「${r.candidates_added.join('/')}」待LLM审核` : '';
+    toast(`${r.file} 注音重roll ✓ ${r.duration}s${candNote} | 剩余疑点: ${[...(v.diff || [])].join('/') || '无'}`, 'success');
     await bustVersions(fileId);
     await loadAudioFiles(currentAudioJobId || '');
   } catch (e) {
