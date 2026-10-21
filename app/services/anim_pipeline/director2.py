@@ -3551,36 +3551,10 @@ def validate_doc(doc: dict[str, Any]) -> list[str]:
 
     # 0926 景深配额审计 (ep3 用户判词"困在微观"): 每场 大场景≥⌈n/4⌉、微观≤⌈n/2⌉ —
     # 景别升级条款是散文没人执行 (同日 N 犯), 进确定性闸 + fix_hints 回喂自纠。
-    # 大场景信号: camera 俯瞰/空拍/全景 或 keyframe 具体尺度词; 微观: 特写/桌面级。
-    _BIG_W = tuple(CST.depth_big_words())  # 1013 P0: 景深词表迁宪法
-    def _scale_cls(s) -> str:
-        blob = str(s.get("keyframe_zh") or "") + str(s.get("camera") or "")
-        if str(s.get("camera") or "") in ("俯瞰", "空拍", "平视全景") or any(w in blob for w in _BIG_W):
-            return "大"
-        if "特写" in blob:
-            return "微"
-        return "中"
-    _by_arc: dict[str, list] = {}
-    for _s in shots:
-        _by_arc.setdefault(str(_s.get("arc_id") or ""), []).append(_s)
-    for _a, _ss in sorted(_by_arc.items()):
-        # 1013 夜修: 占位镜豁免 (同人物配额) — _kf_missing 组模板章的 keyframe 是
-        # 场级定调克隆, 景别分布的权威在法层 size (器层头), 在占位符上量景深 =
-        # A4 两连死实锤; 真句镜照常执法。
-        _ss = [x for x in _ss if not x.get("_kf_missing")]
-        if not _ss:
-            continue
-        _n = len(_ss)
-        _nbig = sum(1 for x in _ss if _scale_cls(x) == "大")
-        _nmic = sum(1 for x in _ss if _scale_cls(x) == "微")
-        _need = max(1, -(-_n // 4))
-        if _nbig < _need:
-            _mic_ids = [x["shot_id"] for x in _ss if _scale_cls(x) == "微"][:4]
-            issues.append(f"景深配额: 场{_a} {_n}镜仅{_nbig}镜大场景 (需≥{_need}) — "
-                          f"把{'/'.join(_mic_ids) or '场内中景镜中挑'} 改为大场景构图 "
-                          f"(全景/俯瞰/辽阔环境+主体占比小+参照物显纵深, 禁桌面级特写)")
-        if _nmic > max(2, -(-_n // 2)):
-            issues.append(f"景深配额: 场{_a} 微观/特写镜 {_nmic}/{_n} 超半 — 连排特写必拆, 插大场景或中景")
+    # 1022 批5a 一把尺: 逻辑抽至 final_gate.depth_quota_issues (writer_failures 同源
+    # 调用 — 景深失败前移到 writer 闸, 手术修复点名微镜, 替代 planner 整场强拆)
+    from .final_gate import depth_quota_issues as _dq
+    issues += _dq(doc)
 
     # 1013 人物在场配额 (卓有ep1 A1 实锤: 15镜全档案柜空镜无人 — character_policy
     # "全部人物露脸且有表情"是散文没人执行, 同景深配额先例: 确定性闸 + fix_hints 回喂)。

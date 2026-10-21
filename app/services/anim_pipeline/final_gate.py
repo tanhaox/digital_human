@@ -196,3 +196,48 @@ def validate_final(doc: dict[str, Any], bible: dict[str, Any] | None = None,
     issues += hard
     issues += [f"⚠ {w}" for w in soft]
     return list(dict.fromkeys(issues))
+
+
+def depth_quota_issues(doc: dict[str, Any], arc_id: str | None = None) -> list[str]:
+    """0926 景深配额审计 (1022 批5a 一把尺, 自 director2.validate_doc 抽出):
+    每场 大场景≥⌈n/4⌉、微观≤⌈n/2⌉ — 景别升级条款散文没人执行, 确定性闸执法。
+    arc_id 给定 = 单场口径 (scene_writer.writer_failures 调, 景深失败进 writer 闸
+    由手术修复点名微镜); None = 全场 (director2.validate_doc 调)。
+    大场景信号: camera 俯瞰/空拍/平视全景 或 keyframe 尺度词; 微观: 特写/桌面级。
+    _kf_missing 占位镜豁免 (1013 夜修: 在占位符上量景深 = 架构错层)。"""
+    shots = [s for s in (doc.get("shots") or [])
+             if arc_id is None or str(s.get("arc_id") or "") == str(arc_id)]
+    if not shots:
+        return []
+    _BIG_W = tuple(CST.depth_big_words())  # 1013 P0: 景深词表迁宪法
+    def _scale_cls(s) -> str:
+        blob = str(s.get("keyframe_zh") or "") + str(s.get("camera") or "")
+        if str(s.get("camera") or "") in ("俯瞰", "空拍", "平视全景") or any(w in blob for w in _BIG_W):
+            return "大"
+        if "特写" in blob:
+            return "微"
+        return "中"
+    _by_arc: dict[str, list] = {}
+    for _s in shots:
+        _by_arc.setdefault(str(_s.get("arc_id") or ""), []).append(_s)
+    issues: list[str] = []
+    for _a, _ss in sorted(_by_arc.items()):
+        _ss = [x for x in _ss if not x.get("_kf_missing")]
+        if not _ss:
+            continue
+        _n = len(_ss)
+        _nbig = sum(1 for x in _ss if _scale_cls(x) == "大")
+        _nmic = sum(1 for x in _ss if _scale_cls(x) == "微")
+        _need = max(1, -(-_n // 4))
+        # 1022 批5a: 单场(writer闸)口径 <4 镜跳过大场景下限 — 配额立法防长场
+        # 连排特写, 单镜/双镜过渡场本来就是特写节奏, 强求辽阔环境不合理
+        # (A4 1镜/A6 3镜类); 全场(validate_doc)口径保持原语义不动。
+        _enforce_big = not (arc_id is not None and _n < 4)
+        if _enforce_big and _nbig < _need:
+            _mic_ids = [x["shot_id"] for x in _ss if _scale_cls(x) == "微"][:4]
+            issues.append(f"景深配额: 场{_a} {_n}镜仅{_nbig}镜大场景 (需≥{_need}) — "
+                          f"把{'/'.join(_mic_ids) or '场内中景镜中挑'} 改为大场景构图 "
+                          f"(全景/俯瞰/辽阔环境+主体占比小+参照物显纵深, 禁桌面级特写)")
+        if _nmic > max(2, -(-_n // 2)):
+            issues.append(f"景深配额: 场{_a} 微观/特写镜 {_nmic}/{_n} 超半 — 连排特写必拆, 插大场景或中景")
+    return issues

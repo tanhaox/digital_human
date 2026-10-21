@@ -417,6 +417,14 @@ def writer_failures(doc: dict[str, Any], arc_id: str) -> list[str]:
         if _cur and _cur == _prev_decl:
             fails.append(f"{s.get('shot_id')} 与相邻镜申报文字完全重复 — 换文案或改 []")
         _prev_decl = _cur or None
+    # 1022 批5a: 景深配额前移 writer 闸 (一把尺 final_gate.depth_quota_issues 单场
+    # 口径) — 旧版 writer 过闸后被 planner 景深 force_fallback 整场丢弃 (ep1 A5
+    # 实锤: 16镜3大场景差1镜全灭); 现在景深失败进闸, 手术修复带景深指令重掷微镜
+    try:
+        from .final_gate import depth_quota_issues as _dq
+        fails += _dq(doc, arc_id=str(arc_id))
+    except Exception as exc:  # noqa: BLE001  # 景深前移失败不阻断旧闸
+        logger.debug("[writer] 景深配额前移跳过: %s", exc)
     return fails
 
 
@@ -615,12 +623,16 @@ def _surgical_repair(doc: dict[str, Any], arc_id: str, fails: list[str],
     # 修复后旧 fail 的点名镜被误送去重掷)
     if _fixed_any:
         fails = writer_failures(doc, arc_id)
-    # ② 点名镜手术重掷 (fail 带 "sNN " 前缀的归并到镜)
+    # ② 点名镜手术重掷 (fail 带 "sNN " 前缀的归并到镜; 景深类 fail 的点名镜在
+    # 文案中段 "把 s43/s44 改为…" — 1022 批5a 同样归并, 重掷时 fail 原文即景深指令)
     sid_fails: dict[str, list[str]] = {}
     for f in fails:
         m = re.match(r"(s\d+)\s", f)
         if m:
             sid_fails.setdefault(m.group(1), []).append(f)
+        elif "景深配额" in f:
+            for sid in re.findall(r"(s\d+)", f)[:4]:
+                sid_fails.setdefault(sid, []).append(f)
     for sid, fl in sid_fails.items():
         s = next((x for x in doc.get("shots") or [] if str(x.get("shot_id")) == sid), None)
         if s is None or str(s.get("arc_id") or "").lower() != str(arc_id).lower():
