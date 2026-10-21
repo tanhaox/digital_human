@@ -721,6 +721,10 @@ def _vlm_dirty(png: Path) -> str | None:
 # 抖音审核风险级, 与政治红线同规格 (换seed重掷/绝不落盘)
 _HARD_VIOLATIONS = ("国旗", "国徽", "党徽", "军徽", "警徽", "军装", "警服", "领导人", "地图", "政治人物",
                     "吸烟", "饮酒", "赌博", "暴力血腥", "色情暴露", "毒品", "红旗", "红色横幅")
+# 1021 可豁免硬项白名单: 只收**内容判定类** (叙事正当性争议空间, 如"决策是赌博"
+# 的骨牌/骰子隐喻); 政治红线 (国旗/国徽/党徽/军徽/警徽/军装/警服/领导人/地图/
+# 政治人物) 绝不入豁免 — gate_exempt 写了也不生效
+_EXEMPTABLE_GATES = {"吸烟", "饮酒", "赌博", "暴力血腥", "色情暴露", "毒品", "红旗", "红色横幅"}
 
 # 1014 P4 (s51 实锤): 视觉孪生致死时画面句里没有致死词本身, 判决回流剥词空转
 # 死循环 — 硬词扩带孪生族 (棋盘+地形线条渲出来就是地图; 棋盘/兵棋又会被 VLM
@@ -798,11 +802,22 @@ def render_gated(seed_to_wf, dest: Path, seed: int, label: str, *, retries: int 
     prev = dest.read_bytes() if dest.exists() else None
     hard = False
     reasons: list[str] = []
+    # 1021 镜级豁免闸 (ep7 s65-s68 实锤: 多米诺骨牌阵被 VLM 误判"赌博"硬杀连坐
+    # 删图 — 用户令"别硬拦截"): shot.gate_exempt 声明的**内容判定类**项不算脏;
+    # 政治红线五族+地图锁死不可豁免 (机器白名单, 抖音绝对红线)
+    _ex = ({h for h in (shot.get("gate_exempt") or []) if h in _EXEMPTABLE_GATES}
+           if shot is not None else set())
     for attempt in range(retries + 1):
         wf = seed_to_wf(seed + attempt)
         comfy.run_workflow(wf, dest=dest, timeout_sec=300, label=f"{label}#{attempt}")
         # 0923 修: VLM 永远跑 — OCR 先脏会短路跳过 VLM, 国徽漏检实锤 (红色制服+徽章诱导)
         vbad = _vlm_dirty(dest)
+        if vbad and _ex:
+            _hits = {h for h in _HARD_VIOLATIONS if h in str(vbad)}
+            if _hits and _hits <= _ex:  # 命中项全部已豁免 → 视为干净 (不重掷不删图)
+                logger.info("[gate] %s 豁免命中 %s (gate_exempt, 交人检)", label,
+                            "/".join(sorted(_hits)))
+                vbad = None
         fbad = (_vlm_face_bad(dest) or "") if (face_check and not vbad) else ""
         hard = bool(vbad) and any(h in str(vbad) for h in _HARD_VIOLATIONS)
         if vbad:
