@@ -844,6 +844,25 @@ def replan_scene(book_ref: str, ep: int, arc_id: str) -> Path:
             problems = _arc_hard_issues(doc, bible, arc_id)
         except (SystemExit, ValueError) as exc:
             problems = [str(exc)[:200]]
+        else:
+            # 1022 批8热修2: 劣化比较前置 — attempt2 产物过外层校验时在下方
+            # `if not problems: break` 提前落盘, 旧位置比较永远跑不到 (A7 实锤:
+            # writer 14/14 被合规 fallback 覆盖)。dispatch 正常返回即比较。
+            if attempt == 1:
+                _best_doc = doc
+                _best_problems = list(problems)
+            elif _best_doc is not None:
+                def _wcount(_d):
+                    return sum(1 for s in _d.get("shots") or []
+                               if str(s.get("arc_id") or "").lower() == arc_id.lower()
+                               and s.get("writer_source") == "writer")
+                if _wcount(_best_doc) > _wcount(doc):
+                    logger.warning("[replan] 劣化保护: 第2轮 writer %d 镜 < 第1轮 %d 镜 — "
+                                   "保留第1轮 (剩余问题人检): %s",
+                                   _wcount(doc), _wcount(_best_doc),
+                                   "; ".join(_best_problems[:2]))
+                    doc = _best_doc
+                    problems = []
         if not problems:
             break
         # 0926 修: 与 scorched 同闸 — 花字/scene_tag 风格问题不阻断 (validate_doc 验的是
@@ -853,25 +872,6 @@ def replan_scene(book_ref: str, ep: int, arc_id: str) -> Path:
             logger.warning("[replan] 风格问题不阻断 (人检修): %s", "; ".join(problems[:3]))
             problems = []
             break
-        # 1022 批8: 劣化保护 — 第2轮产物 writer 镜数 < 第1轮时保留第1轮 (A2 实锤:
-        # 第1轮 writer 16/16 过闸, 外层"人物配额/引号"两条 writer 闸外口径打死 →
-        # 第2轮 fallback 0/16 覆盖落盘; 带病 writer 优于整场模板句, 剩余问题人检)
-        if attempt == 1:
-            _best_doc = doc  # attempt1 异常时 doc=None (批8热修: None 防御, 比较跳过)
-            _best_problems = list(problems)
-        elif _best_doc is not None:
-            def _wcount(_d):
-                return sum(1 for s in _d.get("shots") or []
-                           if str(s.get("arc_id") or "").lower() == arc_id.lower()
-                           and s.get("writer_source") == "writer")
-            if _wcount(_best_doc) > _wcount(doc):
-                logger.warning("[replan] 劣化保护: 第2轮 writer %d 镜 < 第1轮 %d 镜 — "
-                               "保留第1轮 (剩余问题人检): %s",
-                               _wcount(doc), _wcount(_best_doc),
-                               "; ".join(_best_problems[:2]))
-                doc = _best_doc
-                problems = []
-                break
         for p in problems:
             logger.error("[replan] 校验不过 (第%d次): %s", attempt, p)
     if problems:
