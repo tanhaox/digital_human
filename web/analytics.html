@@ -214,9 +214,34 @@
     </div>
   </section>
 
-  <!-- ===== 3 总粉丝与每日净增 ===== -->
+  <!-- ===== 3 粉丝画像 ===== -->
+  <section class="sec" id="secPortrait">
+    <div class="sec-head"><span class="no">03</span><h2>粉丝画像 — 年龄 / 兴趣 / 地域 / 设备</h2></div>
+    <div class="card">
+      <h3 id="ptTitle">粉丝画像</h3>
+      <p class="cap" id="capPt">…</p>
+      <div id="cAge" class="chart"></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>粉丝兴趣 Top6</h3>
+      <p class="cap">随拍一档独大 — 与 0929 ep6 观众画像 (随拍36%) 同构。</p>
+      <div id="cInterest" class="chart"></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>地域 / 设备 / 性别 / 活跃度</h3>
+      <div class="tbl-wrap" style="border-top:none">
+        <table style="min-width:560px">
+          <thead><tr><th style="width:90px">维度</th><th class="l">分布 (Top)</th></tr></thead>
+          <tbody id="ptBody"></tbody>
+        </table>
+      </div>
+      <p class="note" id="ptNote">…</p>
+    </div>
+  </section>
+
+  <!-- ===== 4 总粉丝与每日净增 ===== -->
   <section class="sec" id="secCharts">
-    <div class="sec-head"><span class="no">03</span><h2>累计增长与每日波动</h2></div>
+    <div class="sec-head"><span class="no">04</span><h2>累计增长与每日波动</h2></div>
     <div class="card">
       <h3 id="hTotal">总粉丝累计增长</h3>
       <div class="chips" id="etaChips"></div>
@@ -232,7 +257,7 @@
 
   <!-- ===== 4 周度与对比 ===== -->
   <section class="sec" id="secWeekly">
-    <div class="sec-head"><span class="no">04</span><h2>周度趋势与口径对比</h2></div>
+    <div class="sec-head"><span class="no">05</span><h2>周度趋势与口径对比</h2></div>
     <div class="card">
       <h3>周度净增合计</h3>
       <p class="cap" id="capWeek">…</p>
@@ -248,9 +273,9 @@
     </div>
   </section>
 
-  <!-- ===== 5 视频侧 ===== -->
+  <!-- ===== 6 视频侧 ===== -->
   <section class="sec" id="secVideo">
-    <div class="sec-head"><span class="no">05</span><h2>视频侧指标 — 播放 / 漏斗 / 投稿对比</h2></div>
+    <div class="sec-head"><span class="no">06</span><h2>视频侧指标 — 播放 / 漏斗 / 投稿对比</h2></div>
     <div class="card">
       <h3>每日播放量（琥珀 = 发布日）</h3>
       <div class="chips" id="vChips"></div>
@@ -271,9 +296,9 @@
     </div>
   </section>
 
-  <!-- ===== 6 回访相关性 ===== -->
+  <!-- ===== 7 回访相关性 ===== -->
   <section class="sec" id="secScatter">
-    <div class="sec-head"><span class="no">06</span><h2>回访粉丝量与增长相关性</h2></div>
+    <div class="sec-head"><span class="no">07</span><h2>回访粉丝量与增长相关性</h2></div>
     <div class="card">
       <h3>回访粉丝量 × 每日净增</h3>
       <p class="cap" id="capScatter">…</p>
@@ -291,9 +316,9 @@
     </div>
   </section>
 
-  <!-- ===== 7 异常识别 ===== -->
+  <!-- ===== 8 异常识别 ===== -->
   <section class="sec" id="secAnomaly">
-    <div class="sec-head"><span class="no">07</span><h2>异常数据识别与剔除口径</h2></div>
+    <div class="sec-head"><span class="no">08</span><h2>异常数据识别与剔除口径</h2></div>
     <div class="card">
       <h3>识别方法</h3>
       <p class="note" style="margin-top:6px" id="anomalyMethod">…</p>
@@ -307,9 +332,9 @@
     </div>
   </section>
 
-  <!-- ===== 8 建议 ===== -->
+  <!-- ===== 9 建议 ===== -->
   <section class="sec" id="secRecs">
-    <div class="sec-head"><span class="no">08</span><h2>行动建议</h2></div>
+    <div class="sec-head"><span class="no">09</span><h2>行动建议</h2></div>
     <div class="rec">
       <div class="r" id="rec1">…</div>
       <div class="r" id="rec2">…</div>
@@ -318,9 +343,9 @@
     </div>
   </section>
 
-  <!-- ===== 9 全量数据 ===== -->
+  <!-- ===== 10 全量数据 ===== -->
   <section class="sec" id="secDetail">
-    <div class="sec-head"><span class="no">09</span><h2 id="detailTitle">全量明细</h2></div>
+    <div class="sec-head"><span class="no">10</span><h2 id="detailTitle">全量明细</h2></div>
     <details>
       <summary>展开 / 收起原始数据表</summary>
       <div class="tbl-wrap"><div id="dataTable"></div></div>

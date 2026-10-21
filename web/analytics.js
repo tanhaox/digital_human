@@ -30,7 +30,7 @@ function toast(msg) {
 function chart(el) { var ch = echarts.init(byId(el)); charts.push(ch); window.addEventListener("resize", function () { ch.resize(); }); return ch; }
 
 function showEmpty(msg) {
-  ["secFindings", "secEpisodes", "secCharts", "secWeekly", "secVideo", "secScatter", "secAnomaly", "secRecs", "secDetail"].forEach(function (s) { byId(s).style.display = "none"; });
+  ["secFindings", "secEpisodes", "secPortrait", "secCharts", "secWeekly", "secVideo", "secScatter", "secAnomaly", "secRecs", "secDetail"].forEach(function (s) { byId(s).style.display = "none"; });
   byId("emptyState").style.display = "block";
   byId("heroSub").textContent = msg;
 }
@@ -71,7 +71,7 @@ function render(data) {
     "</b>，占总增长 <b>" + fmt1(s.anomaly_net_share_pct) + "%</b>；剔除后日均净增降至 <b>" + fmt2(s.baseline_avg.net) + "</b>（约 <b>" +
     fmt1(s.deltas.net) + "%</b>），常态基线明显更低。";
   byId("f3d").innerHTML = "回访粉丝量与净增<b>同频共振</b>（同日 r≈" + fmt2(s.r_net_revisit) +
-    "；位移 ±1 天 r 均弱 — 先行性未证实，见 §06 检验）。爆款内容同时带动新增与回访。";
+    "；位移 ±1 天 r 均弱 — 先行性未证实，见 §07 检验）。爆款内容同时带动新增与回访。";
   byId("f4d").innerHTML = nonpos + " 共 <b>" + s.nonpos_days.length + " 天净增≤0</b>，需关注发布节奏与选题连续性。";
 
   /* ── 02 集数挂钩 ── */
@@ -108,7 +108,53 @@ function render(data) {
   byId("epNote").innerHTML = "投稿日 ↔ 集数 1:1 对齐（本档 " + eps.length + "/" + v.posts_total +
     "）；10-20 接档 = 卓有成效的管理者 ep1（48h 试验车）。新书接档后补 scripts/seed_episode_links.py 一行重跑。";
 
-  /* ── 03 累计 + 里程碑 + 每日净增 ── */
+  /* ── 03 粉丝画像 ── */
+  var pt = data.portrait && data.portrait[0];
+  if (!pt) {
+    byId("secPortrait").style.display = "none";
+  } else {
+    byId("ptTitle").textContent = "年龄分布（快照 " + pt.date + " · 账号级粉丝）";
+    byId("capPt").textContent = "抖音不提供画像导出 — 本区数据 = 后台截图 → GLM-4.6V 转录 (scripts/seed_fan_portrait.py 入库)";
+    var ages = pt.dims.age || [];
+    var maxAge = Math.max.apply(null, ages.map(function (a) { return a.pct || 0; }));
+    chart("cAge").setOption({
+      grid: grid,
+      tooltip: { trigger: "axis", confine: true, formatter: function (ps) { var a = ages[ps[0].dataIndex]; return a.label + " 岁: <b>" + a.pct + "%</b>" + (a.note ? "（" + a.note + "）" : ""); } },
+      xAxis: { type: "category", data: ages.map(function (a) { return a.label; }), axisLine: { lineStyle: { color: LINE } }, axisTick: { show: false }, axisLabel: Object.assign({}, AXIS_LABEL) },
+      yAxis: { type: "value", axisLabel: Object.assign({}, AXIS_LABEL, { formatter: "{value}%" }), splitLine: { lineStyle: { color: "#F0F1F4" } }, max: 100 },
+      series: [{ type: "bar", data: ages.map(function (a) { return { value: a.pct, itemStyle: { color: a.pct === maxAge ? PRIM : "#6FB7A8", borderRadius: [4, 4, 0, 0] } }; }), barMaxWidth: 48,
+        label: { show: true, position: "top", color: INK, fontWeight: 700, formatter: "{c}%" } }]
+    });
+    var its = (pt.dims.interest || []).slice().sort(function (a, b) { return a.pct - b.pct; });
+    chart("cInterest").setOption({
+      grid: { left: 8, right: 40, top: 12, bottom: 8, containLabel: true },
+      tooltip: { confine: true, formatter: function (p) { var a = its[p.dataIndex]; return a.label + ": <b>" + a.pct + "%</b>" + (a.note ? "（" + a.note + "）" : ""); } },
+      xAxis: { type: "value", axisLabel: Object.assign({}, AXIS_LABEL, { formatter: "{value}%" }), splitLine: { lineStyle: { color: "#F0F1F4" } } },
+      yAxis: { type: "category", data: its.map(function (a) { return a.label; }), axisLine: { lineStyle: { color: LINE } }, axisTick: { show: false }, axisLabel: Object.assign({}, AXIS_LABEL, { fontSize: 12 }) },
+      series: [{ type: "bar", data: its.map(function (a) { return { value: a.pct, itemStyle: { color: AMBER, borderRadius: [0, 4, 4, 0] } }; }), barMaxWidth: 20,
+        label: { show: true, position: "right", color: INK, fontWeight: 600, formatter: "{c}%" } }]
+    });
+    function dimLine(dim, emptyText) {
+      var g = pt.dims[dim];
+      if (!g) return "—";
+      var withNums = g.filter(function (x) { return x.pct != null; });
+      if (!withNums.length) return emptyText || "无数字";
+      return withNums.map(function (x) { return x.label + " " + x.pct + "%"; }).join(" · ");
+    }
+    var mid3to5 = (ages.find(function (a) { return a.label === "31-40"; }) || {}).pct || 0;
+    var mid4to5 = (ages.find(function (a) { return a.label === "41-50"; }) || {}).pct || 0;
+    byId("ptBody").innerHTML =
+      "<tr><td>地域</td><td class=\"l\">" + dimLine("region") + "</td></tr>" +
+      "<tr><td>设备</td><td class=\"l\">" + dimLine("device") + "</td></tr>" +
+      "<tr><td>性别</td><td class=\"l\">" + dimLine("gender", "环形图无数字 (截图不悬停不显示); 视觉男性显著占优 — 0929 单集观众男95% 参照") + "</td></tr>" +
+      "<tr><td>活跃度</td><td class=\"l\">" + dimLine("activity", "环形图无数字; 视觉重度最大 (8折有效粉代理指标, 待悬停截图补真值)") + "</td></tr>" +
+      "<tr><td>热词</td><td class=\"l\">粉丝量未达 1000 暂无热词分析 (后台原文) — 千粉毕业线解锁</td></tr>";
+    byId("ptNote").innerHTML = "跨快照同构核对 (判据① 依据): 随拍 0929 ep6 观众 <b>36%</b> → 1021 全账号粉 <b>35%</b> ✓ 同构; " +
+      "31-50 岁: 0929 单集观众 ≈90% → 本快照全账号粉 <b>" + (mid3to5 + mid4to5) + "%</b> (口径不同仅记录)。 " +
+      "下一份画像快照 (建议 500 粉节点) 再现同构即可触发判据① P1 判定。";
+  }
+
+  /* ── 04 累计 + 里程碑 + 每日净增 ── */
   byId("hTotal").textContent = "总粉丝累计增长（" + s.start_total_fans + " → " + s.end_total_fans + "）";
   byId("etaChips").innerHTML = data.milestones.map(function (m) {
     if (m.done) return '<span class="chip ms done">✓ ' + m.target + "</span>";

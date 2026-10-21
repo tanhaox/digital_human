@@ -190,6 +190,7 @@ def dashboard_payload() -> dict[str, Any]:
             summary["avg"]["net"], str(rows[-1]["date"])),
         "alerts": build_alerts(rows),
         "freshness": freshness(rows),
+        "portrait": fetch_portrait(),
     }
 # ---------- 看板 v2 (1021): 视频侧 / 周内 / 领先性 / 里程碑 / 预警 / 集数挂钩 ----------
 
@@ -364,3 +365,31 @@ def freshness(rows: list[dict]) -> dict[str, Any]:
         "last_date": rows[-1]["date"],
         "last_import": max((r.get("updated_at") or "" for r in rows), default=None),
     }
+
+
+def fetch_portrait() -> list[dict[str, Any]]:
+    """粉丝画像快照 (fan_portrait, 截图→GLM 转录通道; 倒序最新在前)."""
+    if not DB_PATH.exists():
+        return []
+    try:
+        con = sqlite3.connect(f"file:{DB_PATH.as_posix()}?mode=ro", uri=True)
+    except sqlite3.Error:
+        return []
+    try:
+        cur = con.execute(
+            "SELECT snapshot_date, scope, dimension, rank, label, pct, note "
+            "FROM fan_portrait ORDER BY snapshot_date DESC, scope, dimension, rank")
+        cols = [d[0] for d in cur.description]
+        raw = [dict(zip(cols, row)) for row in cur.fetchall()]
+    except sqlite3.OperationalError:
+        return []  # 表未种
+    finally:
+        con.close()
+    # 按 (date, scope) 聚合成快照, dimension 分组
+    snaps: dict[tuple[str, str], dict[str, Any]] = {}
+    for r in raw:
+        key = (r["snapshot_date"], r["scope"])
+        s = snaps.setdefault(key, {"date": r["snapshot_date"], "scope": r["scope"], "dims": {}})
+        s["dims"].setdefault(r["dimension"], []).append(
+            {"rank": r["rank"], "label": r["label"], "pct": r["pct"], "note": r["note"]})
+    return list(snaps.values())
