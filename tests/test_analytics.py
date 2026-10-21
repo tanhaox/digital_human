@@ -172,3 +172,23 @@ def test_episodes_table_joins_video_truth():
     # 无视频 (如 09-27 非正片) → None
     out2 = episodes_table(rows, links, summ, [])
     assert out2[0]["v_views"] is None and out2[0]["fan_new"] == 40
+
+
+def test_factor_window_and_stats():
+    from app.services.analytics_service import factor_stats, in_factor
+    factors = [{"date_from": "2026-10-01", "date_to": "2026-10-03", "label": "国庆",
+                "note": "", "source": "t"}]
+    assert in_factor(factors, "2026-10-02") == "国庆"
+    assert in_factor(factors, "2026-10-04") is None
+    # 窗内无投稿日底流 100, 窗外 200 → -50%; 发布日吸粉 窗内 20 vs 窗外 10
+    rows = [
+        _row("2026-10-01", 1, 1, 1, 0, 0) | {"posts": 0, "views": 100},
+        _row("2026-10-02", 21, 20, 20, 0, 0) | {"posts": 1, "views": 900},
+        _row("2026-10-04", 31, 10, 10, 0, 0) | {"posts": 1, "views": 800},
+        _row("2026-10-05", 32, 2, 2, 0, 0) | {"posts": 0, "views": 200},
+    ]
+    st = factor_stats(rows, factors)[0]
+    assert st["days"] == 2 and st["nopost_views_in"] == 100 and st["nopost_views_out"] == 200
+    assert st["nopost_views_delta_pct"] == -50.0
+    assert st["post_fannew_in"] == 20 and st["post_fannew_out"] == 10
+    assert st["nopost_days"] == [{"date": "2026-10-01", "net": 1}]

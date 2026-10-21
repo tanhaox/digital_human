@@ -72,13 +72,23 @@ function render(data) {
     fmt1(s.deltas.net) + "%</b>），常态基线明显更低。";
   byId("f3d").innerHTML = "回访粉丝量与净增<b>同频共振</b>（同日 r≈" + fmt2(s.r_net_revisit) +
     "；位移 ±1 天 r 均弱 — 先行性未证实，见 §07 检验）。爆款内容同时带动新增与回访。";
-  byId("f4d").innerHTML = nonpos + " 共 <b>" + s.nonpos_days.length + " 天净增≤0</b>，需关注发布节奏与选题连续性。";
+  byId("f4d").innerHTML = nonpos + " 共 <b>" + s.nonpos_days.length + " 天净增≤0</b>，需关注发布节奏与选题连续性。" +
+    (data.factors || []).map(function (f) {
+      return '<br><b>' + f.label + "窗 (" + md(f.date_from) + "~" + md(f.date_to) + ")</b>: 底流 " +
+        f.nopost_views_in + " vs 窗外 " + f.nopost_views_out + " 播/日 (" + f.nopost_views_delta_pct +
+        "%) — 流量萎缩是<b>平台因素非内容问题</b>; 窗内发布日吸粉 " + f.post_fannew_in + " 反高于窗外 " + f.post_fannew_out + "。";
+    }).join("");
 
   /* ── 02 集数挂钩 ── */
   byId("capEps").innerHTML = "口径 = 发布日当天的账号吸粉 (单集真值含长尾, 见 docs/analytics/数据记录/ 各档 md) · 颜色: " +
     Object.keys(SERIES_COLORS).map(function (k) {
       return '<span class="sers" style="background:' + SERIES_COLORS[k] + '"></span>' + k;
     }).join(" ");
+  var fxAreas = (data.factors || []).map(function (f) {
+    return [{ xAxis: f.date_from, itemStyle: { color: "rgba(199,122,34,.07)" }, label: { show: true, formatter: f.label, color: "#8a551a", fontSize: 10, position: "insideTop" } }, { xAxis: f.date_to }];
+  });
+  var fxTag = function (d) { var f = (data.factors || []).filter(function (x) { return d >= x.date_from && d <= x.date_to; })[0]; return f ? '<span class="fx">' + f.label + "</span>" : ""; };
+
   var epFan = function (e) { return e.v_fan_growth != null ? e.v_fan_growth : e.fan_new; }; // 视频真值优先
   chart("cEps").setOption({
     grid: grid,
@@ -116,7 +126,7 @@ function render(data) {
   byId("epBody").innerHTML = eps.map(function (e) {
     var out = e.is_anomaly ? ' class="out"' : "";
     var tip = (e.ep_title || "") + (e.note ? " — " + e.note : "") + (e.publish_time ? " · 档 " + e.publish_time : "");
-    return "<tr" + out + "><td>" + md(e.date) + '</td><td class="l"><span class="sers" style="background:' +
+    return "<tr" + out + "><td>" + md(e.date) + fxTag(e.date) + '</td><td class="l"><span class="sers" style="background:' +
       (SERIES_COLORS[e.series] || GRAY) + '"></span>' + e.series + "</td><td>" + e.ep + "</td><td>" +
       (e.v_genre || "—") + '</td><td class="l" title="' + esc(tip) + '">' + esc(e.ep_title || "—") + "</td><td>" +
       (e.v_views != null ? e.v_views : e.views) + "</td><td>" +
@@ -130,7 +140,8 @@ function render(data) {
   byId("epNote").innerHTML = "投稿日 ↔ 集数 1:1（" + eps.length + "/" + v.posts_total +
     "）；吸粉 = <b>单视频真值</b>(作品列表导出, 括号内为账号日口径), 播放/完播/藏/主页 = 视频真值, 次日12点更新。" +
     "体裁×完播: " + (byId("epTableTitle").getAttribute("data-gen") || "—") +
-    " — 时长-完播负相关链的活数据。09-27 非正片不在作品列表(疑已删); 10-20 接档 = 卓有成效的管理者 ep1(48h 试验车), 新书接档补 seed_episode_links.py 重跑。";
+    " — 时长-完播负相关链的活数据。09-27 非正片不在作品列表(疑已删); 10-20 接档 = 卓有成效的管理者 ep1(48h 试验车), 新书接档补 seed_episode_links.py 重跑。琥珀标签/图内阴影 = 节假日因素窗 (" +
+    (data.factors || []).map(function (f) { return f.label; }).join("、") + "), 弱日归因须先剔除。";
 
   /* ── 03 粉丝画像 ── */
   var pt = data.portrait && data.portrait[0];
@@ -196,7 +207,9 @@ function render(data) {
     yAxis: { type: "value", axisLabel: Object.assign({}, AXIS_LABEL), splitLine: { lineStyle: { color: "#F0F1F4" } } },
     series: [{ type: "line", data: totals, smooth: true, symbol: "none", lineStyle: { width: 3, color: PRIM },
       areaStyle: { color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [{ offset: 0, color: "rgba(14,107,92,.28)" }, { offset: 1, color: "rgba(14,107,92,.02)" }]) },
-      itemStyle: { color: PRIM }, markLine: { symbol: "none", silent: true, data: msLines } }]
+      itemStyle: { color: PRIM },
+      markLine: { symbol: "none", silent: true, data: msLines },
+      markArea: { silent: true, data: fxAreas } }]
   });
   byId("capNet").innerHTML = "琥珀色为识别出的 " + s.anomaly_days.length + " 个高增长异常日（净增 ≥ " +
     s.anomaly_threshold + " = 3×中位数）；红色为负增长日；柱顶标注 = 当日发布集。";
@@ -208,7 +221,8 @@ function render(data) {
     series: [{ type: "bar", data: nets.map(function (val, i) { return { value: val, itemStyle: { color: val >= s.anomaly_threshold ? AMBER : val < 0 ? BAD : "#6FB7A8", borderRadius: val >= s.anomaly_threshold ? [3, 3, 0, 0] : [0, 0, 0, 0] } }; }), barMaxWidth: 16,
       markPoint: { symbol: "circle", symbolSize: 1, label: { show: true, position: "top", color: INK, fontSize: 10, fontWeight: 700 },
         data: eps.filter(function (e) { return anomDates[e.date]; }).map(function (e) { return { coord: [e.date, e.fan_net], name: (SERIES_PREFIX[e.series] || "") + e.ep.replace("ep", "") }; }),
-        labelLayout: { hideOverlap: false } } }]
+        labelLayout: { hideOverlap: false } },
+        markArea: { silent: true, data: fxAreas } }]
   });
 
   /* ── 04 周度 + 口径对比 ── */
@@ -251,7 +265,8 @@ function render(data) {
     series: [{ type: "bar", data: viewsArr.map(function (val, i) { return { value: val, itemStyle: { color: (rows[i].posts || 0) > 0 ? AMBER : "#c3cdd6", borderRadius: [3, 3, 0, 0] } }; }), barMaxWidth: 16,
       markLine: { symbol: "none", silent: true, lineStyle: { color: MUT, type: "dashed" },
         label: { formatter: "日均 " + Math.round(v.views_total / s.days), color: MUT, fontSize: 10 },
-        data: [{ yAxis: Math.round(v.views_total / s.days) }] } }]
+        data: [{ yAxis: Math.round(v.views_total / s.days) }] },
+      markArea: { silent: true, data: fxAreas } }]
   });
   var pg = v.post_group, ng = v.nopost_group;
   byId("pvHeadPost").textContent = "投稿日(" + pg.days + "天)";
@@ -331,7 +346,7 @@ function render(data) {
   var html = "<table><thead><tr>" + head.map(function (h) { return "<th>" + h + "</th>"; }).join("") + "</tr></thead><tbody>";
   rows.forEach(function (r) {
     var out = anomDates[r.date] ? ' class="out"' : "";
-    html += "<tr" + out + "><td>" + md(r.date) + "</td><td>" + (r.posts == null ? "–" : r.posts) + "</td><td>" +
+    html += "<tr" + out + "><td>" + md(r.date) + fxTag(r.date) + "</td><td>" + (r.posts == null ? "–" : r.posts) + "</td><td>" +
       (r.views == null ? "–" : r.views) + "</td><td>" + r.total_fans + "</td><td" +
       (r.fan_net < 0 ? ' class="neg"' : "") + ">" + r.fan_net + "</td><td>" + r.fan_new + "</td><td>" + r.fan_lost + "</td><td>" + r.revisit_fans + "</td></tr>";
   });

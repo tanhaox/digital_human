@@ -181,7 +181,8 @@ def dashboard_payload() -> dict[str, Any]:
         "range": {"from": rows[0]["date"], "to": rows[-1]["date"], "days": len(rows)},
         "rows": rows,
         "summary": summary,
-        "episodes": episodes_table(rows, fetch_episode_links(), summary, fetch_videos()),
+        "episodes": episodes_table(rows, fetch_episode_links(), summary,
+                                    fetch_videos(), fetch_factors()),
         "video": video_summary(rows),
         "weekday": weekday_dist(rows),
         "lag": lag_table(rows),
@@ -192,6 +193,7 @@ def dashboard_payload() -> dict[str, Any]:
         "freshness": freshness(rows),
         "portrait": fetch_portrait(),
         "videos": fetch_videos(),
+        "factors": factor_stats(rows, fetch_factors()),
     }
 # ---------- 看板 v2 (1021): 视频侧 / 周内 / 领先性 / 里程碑 / 预警 / 集数挂钩 ----------
 
@@ -243,7 +245,8 @@ def fetch_videos() -> list[dict[str, Any]]:
 
 
 def episodes_table(rows: list[dict], links: list[dict],
-                   summary: dict, videos: list[dict] | None = None) -> list[dict[str, Any]]:
+                   summary: dict, videos: list[dict] | None = None,
+                   factors: list[dict] | None = None) -> list[dict[str, Any]]:
     """挂钩表: 集数 × 单视频真值 (播放/官方完播/视频吸粉/收藏/主页) × 账号日 (净增/次日尾)."""
     by_date = {r["date"]: r for r in rows}
     vid_by_date = {v["publish_date"]: v for v in (videos or [])}
@@ -265,6 +268,7 @@ def episodes_table(rows: list[dict], links: list[dict],
             "posts": r.get("posts"), "views": r.get("views"),
             "fan_net": r["fan_net"], "fan_new": r["fan_new"], "revisit": r["revisit_fans"],
             "next_net": nxt, "is_anomaly": d in anom,
+            "factor": in_factor(factors or [], d),
             # 单视频真值 (作品列表; 09-27 非正片不在列表 → None)
             "v_title": v.get("title"), "v_genre": v.get("genre"),
             "v_views": v.get("views"), "v_completion": v.get("completion_rate"),
@@ -423,3 +427,56 @@ def fetch_portrait() -> list[dict[str, Any]]:
         s["dims"].setdefault(r["dimension"], []).append(
             {"rank": r["rank"], "label": r["label"], "pct": r["pct"], "note": r["note"]})
     return list(snaps.values())
+
+# ---------- 节假日/平台因素窗 (1021 用户令: 国庆流量萎缩非内容问题) ----------
+
+def fetch_factors() -> list[dict[str, Any]]:
+    if not DB_PATH.exists():
+        return []
+    try:
+        con = sqlite3.connect(f"file:{DB_PATH.as_posix()}?mode=ro", uri=True)
+    except sqlite3.Error:
+        return []
+    try:
+        cur = con.execute(
+            "SELECT date_from, date_to, label, note, source FROM calendar_factors ORDER BY date_from")
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+    except sqlite3.OperationalError:
+        return []  # 表未种
+    finally:
+        con.close()
+
+
+def in_factor(factors: list[dict], d: str) -> str | None:
+    """日期命中的因素窗 label (可多重叠加时取首个)."""
+    for f in factors:
+        if f["date_from"] <= d <= f["date_to"]:
+            return f["label"]
+    return None
+
+
+def factor_stats(rows: list[dict], factors: list[dict]) -> list[dict[str, Any]]:
+    """每个因素窗: 底流(无投稿日播放)与发布日吸粉 窗内/窗外对比 — 平台因素 vs 内容因素的分离器."""
+    out = []
+    for f in factors:
+        win = [r for r in rows if f["date_from"] <= str(r["date"]) <= f["date_to"]]
+        lose = [r for r in rows if not (f["date_from"] <= str(r["date"]) <= f["date_to"])]
+        win_np = [r for r in win if not (r.get("posts") or 0)]
+        lose_np = [r for r in lose if not (r.get("posts") or 0)]
+        win_p = [r for r in win if (r.get("posts") or 0)]
+        lose_p = [r for r in lose if (r.get("posts") or 0)]
+
+        def _avg(g, k):
+            return _r2(sum(x.get(k) or 0 for x in g) / len(g)) if g else None
+
+        np_in, np_out = _avg(win_np, "views"), _avg(lose_np, "views")
+        out.append({
+            **f,
+            "days": len(win),
+            "nopost_days": [{"date": r["date"], "net": r["fan_net"]} for r in win_np],
+            "nopost_views_in": np_in, "nopost_views_out": np_out,
+            "nopost_views_delta_pct": round((np_in - np_out) / np_out * 100, 1) if np_in and np_out else None,
+            "post_fannew_in": _avg(win_p, "fan_new"), "post_fannew_out": _avg(lose_p, "fan_new"),
+        })
+    return out
