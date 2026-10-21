@@ -530,6 +530,19 @@ def _bible_cache_path(book_title: str) -> Path:
     return shots_mod.anim_output_root() / "_资产" / f"圣经_{shots_mod._safe(book_title)}.json"
 
 
+def _domain_line(bible: dict[str, Any]) -> str:
+    """赛道锚行 (1021 用户令): 书的专业赛道/大应用场景 → 分场/分镜的领域宪法.
+
+    书有大应用场景 (如 内容决策/品牌/管理) 但视觉线断链: 分场/分镜只见美术圣经
+    与受众锚, world_library 每集凭口播即兴备货。赛道锚落圣经顶层, 与 era_anchor
+    互补 (时代锚管时空, 赛道锚管领域)。旧经无字段 → 空串不注入, 不触发重掷
+    (同 _bound_style 存量口径, 想补在圣经页手动重掷)。"""
+    wd = str((bible or {}).get("world_domain") or "").strip()
+    if not wd:
+        return ""
+    return f"- 赛道锚: {wd} — 全书隐喻与视觉世界的领域宪法, 世界库备货与画面母题优先在该域选\n"
+
+
 # 1012 书级动画律规格 (用户令: 由 LLM 按全书配方直接起草, 人工只微调; 提高标准版) —
 # 圣经生成 schema 与存量补起草 (draft_motion_style) 共用同一规格
 _MOTION_LAW_SPEC = (
@@ -761,6 +774,12 @@ def load_or_derive_bible(book_id: str, book_title: str, force: bool = False) -> 
         " 时代宪法 — 下游按它执法, 禁含糊 ('现代感' 不算锚, 要具体到单品与年代)。\n"
         " **禁被风格卡反向污染 (1012, 国风卡写进'宫殿混搭'实锤)**: 风格家族只管画法\n"
         " 不管场景 — 宫殿/古装/红灯笼/旗等风格刻板符号, 只在书内容明写时才许入锚。\n"
+        "- world_domain (1021 用户令): **本书赛道锚** — 一句话钉死全书隐喻与视觉世界的\n"
+        "  领域宪法, 从书的题材与核心主张派生 (如 '流媒体内容决策战场: 片场/订阅数据/\n"
+        "  创作者与受众博弈', '品牌营销心智争夺: 货架/广告牌/消费者心智地图')。禁泛化\n"
+        "  ('商业/职场' 不算锚, 要具体到行业与场景物)。分场层世界库备货与每场视觉世界\n"
+        "  优先在该域内选。与 era_anchor 互补 — 时代锚管'何时何地穿什么', 赛道锚管\n"
+        "  '在哪个行业找隐喻'。\n"
         "- negative_keywords (1010 书级美学负通道): **负面关键词** — 英文逗号表 3-8 个, \n"
         "  直进 K2 负面提示词通道 (cfg=2.0)。写'绝不出现'的视觉实体: 本风格最怕的\n"
         "  污染源 (如 plastic shiny skin / 古装误入 / photorealistic; 城市外景书加 \n"
@@ -777,6 +796,7 @@ def load_or_derive_bible(book_id: str, book_title: str, force: bool = False) -> 
         '输出严格 JSON: {"style_prefix": "...", "color_palette": "...", '
         '"texture": "...", "character_policy": "...", "text_graphic": "...", '
         '"mood_keywords": "...", "era_anchor": "一句话时代锚", '
+        '"world_domain": "一句话赛道锚", '
         '"negative_keywords": "英文逗号表 3-8 个", '
         '"motion_style": "一句话动画律", '
         '"identity": {...}, "world": {...}, "lighting": {...}, "color": {...}, '
@@ -1827,7 +1847,8 @@ def plan_arcs(book_id: str, book_title: str, ep: int, ep_title: str,
                        f"- 色彩: {bible.get('color_palette', '')}\n"
                        f"- 质感: {bible.get('texture', '')}\n"
                        f"- 角色策略: {bible.get('character_policy', '')}\n"
-                       f"- 氛围: {bible.get('mood_keywords', '')}\n")
+                       f"- 氛围: {bible.get('mood_keywords', '')}\n"
+                       + _domain_line(bible))
         # 0922 角色锁定卡 (用户令): 服饰+脸+道具关键词串全书带入 — 场景换了观众靠服饰认人;
         # 模型跨镜会漂, 关键词串大体锁形。出场角色在 keyframe_zh 里必须原样携带其 look。
         chars = bible.get("characters") or []
@@ -2069,7 +2090,8 @@ def plan(book_id: str, book_title: str, ep: int, ep_title: str,
                        f"- 色彩: {bible.get('color_palette', '')}\n"
                        f"- 质感: {bible.get('texture', '')}\n"
                        f"- 角色策略: {bible.get('character_policy', '')}\n"
-                       f"- 氛围: {bible.get('mood_keywords', '')}\n")
+                       f"- 氛围: {bible.get('mood_keywords', '')}\n"
+                       + _domain_line(bible))
         # 0923 修 (用户实锤 货不对版): 本站点漏了角色锁定卡 — 规划层 look 串全丢
         chars = bible.get("characters") or []
         if chars:
@@ -2144,6 +2166,9 @@ def plan_shot(book_id: str, book_title: str, ep: int, shot_id: str,
     if bible:
         bible_block = ("- 风格: " + str(bible.get("style_prefix", ""))[:100]
                        + " | 色彩: " + str(bible.get("color_palette", ""))[:80])
+        _wd = str(bible.get("world_domain") or "").strip()  # 1021 赛道锚 (旧经无=不注入)
+        if _wd:
+            bible_block += " | 赛道: " + _wd[:80]
 
         _chars = bible.get("characters") or []
         if _chars:
@@ -2442,7 +2467,8 @@ def plan_scene(book_id: str, book_title: str, ep: int, arc_id: str,
                        f"- 色彩: {bible.get('color_palette', '')}\n"
                        f"- 质感: {bible.get('texture', '')}\n"
                        f"- 角色策略: {bible.get('character_policy', '')}\n"
-                       f"- 氛围: {bible.get('mood_keywords', '')}\n")
+                       f"- 氛围: {bible.get('mood_keywords', '')}\n"
+                       + _domain_line(bible))
         # 0923 修: 单场重规划漏角色锁定卡 — 与全集规划对齐 (货不对版根修, 全站点覆盖)
         chars = bible.get("characters") or []
         if chars:
