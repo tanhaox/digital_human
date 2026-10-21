@@ -5,7 +5,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.services.analytics_service import pearson, summarize, week_buckets
+from app.services.analytics_service import (
+    build_alerts, lag_table, milestone_rows, pearson, summarize,
+    video_summary, week_buckets, weekday_dist,
+)
 
 
 def _row(d, total, net, new=0, lost=0, revisit=0):
@@ -71,3 +74,64 @@ def test_summarize_matches_archive_report_scale():
     s = summarize(rows)
     assert s["median_net"] == 9 and s["anomaly_threshold"] == 27
     assert len(s["anomaly_days"]) == 5
+
+
+# ---------- 看板 v2 ----------
+
+def test_video_summary_post_vs_nopost():
+    rows = [
+        _row("2026-10-01", 10, 10, 10, 0, 0) | {"posts": 1, "views": 1000, "sec5_rate": 0.2, "sec2_bounce": 0.5},
+        _row("2026-10-02", 15, 5, 5, 0, 0) | {"posts": 1, "views": 500, "sec5_rate": 0.4, "sec2_bounce": 0.4},
+        _row("2026-10-03", 16, 1, 1, 0, 0) | {"posts": 0, "views": 100, "sec5_rate": 0.1, "sec2_bounce": 0.6},
+    ]
+    v = video_summary(rows)
+    assert v["posts_total"] == 2
+    assert v["post_group"]["days"] == 2 and v["nopost_group"]["days"] == 1
+    assert v["post_group"]["avg_views"] == 750 and v["nopost_group"]["avg_views"] == 100
+    assert v["post_group"]["avg_fan_new"] == 7.5
+    # 加权完播: (0.2*1000+0.4*500)/1500 = 0.267
+    assert v["post_group"]["sec5_rate"] == 0.27
+    assert v["views_total"] == 1600
+    assert v["fan_efficiency"] == round(16 / 0.16, 2)  # 16粉 / 0.16万播放
+
+
+def test_weekday_dist_counts():
+    # 2026-10-05(一) ~ 10-11(日) 各一天, 净增 1..7
+    rows = [_row(f"2026-10-0{d}", d, d) | {"weekday": d} for d in range(1, 8)]
+    ws = weekday_dist(rows)
+    assert len(ws) == 7 and ws[0]["label"] == "周一" and ws[0]["avg_net"] == 1
+    assert ws[6]["label"] == "周日" and ws[6]["avg_net"] == 7
+
+
+def test_lag_table_perfect_lead():
+    # 构造: 净增[t+1] = 回访[t] (回访领先 1 天) → k=1 时 r=1
+    revs = [3, 1, 4, 1, 5]
+    # net[t] = revs[t-1] (今天的净增 = 昨天的回访) → r(回访[t], 净增[t+1]) = 1
+    nets = [7, 3, 1, 4, 1, 5]
+    rows = [_row(f"2026-10-0{t + 1}", 0, nets[t], revisit=revs[t] if t < 5 else 2) for t in range(6)]
+    lt = {x["lag"]: x["r"] for x in lag_table(rows)}
+    assert lt[1] == 1.0 and lt[0] < 0.9
+
+
+def test_milestone_rows_eta():
+    ms = milestone_rows(end_total=411, base_rate=8.29, full_rate=12.45, last_date="2026-10-20")
+    m500 = ms[0]
+    assert m500["target"] == 500 and m500["remaining"] == 89
+    assert m500["eta_base_days"] == round(89 / 8.29)  # 11
+    assert m500["eta_base_date"] == "2026-10-31"
+    ms2 = milestone_rows(end_total=1300, base_rate=8, full_rate=10, last_date="2026-10-20")
+    assert all(m["done"] for m in ms2)
+
+
+def test_build_alerts_stale_and_stall():
+    from datetime import date
+    rows = [
+        _row("2026-10-01", 10, 10, 10, 0, 0),
+        _row("2026-10-02", 9, -1, 0, 1, 0),
+        _row("2026-10-03", 9, 0, 1, 1, 0),
+    ]
+    a = build_alerts(rows, today=date(2026, 10, 10))
+    kinds = {x["kind"] for x in a}
+    assert kinds == {"stale", "stall"}
+    fresh = [_row("2026-10-10", 5, 5, 5, 0, 1)]
+    assert build_alerts(fresh, today=date(2026, 10, 10)) == []

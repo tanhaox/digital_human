@@ -176,8 +176,191 @@ def dashboard_payload() -> dict[str, Any]:
     rows = fetch_daily()
     if not rows:
         return {"range": None, "rows": [], "summary": None}
+    summary = summarize(rows)
     return {
         "range": {"from": rows[0]["date"], "to": rows[-1]["date"], "days": len(rows)},
         "rows": rows,
-        "summary": summarize(rows),
+        "summary": summary,
+        "episodes": episodes_table(rows, fetch_episode_links(), summary),
+        "video": video_summary(rows),
+        "weekday": weekday_dist(rows),
+        "lag": lag_table(rows),
+        "milestones": milestone_rows(
+            summary["end_total_fans"], summary["baseline_avg"]["net"],
+            summary["avg"]["net"], str(rows[-1]["date"])),
+        "alerts": build_alerts(rows),
+        "freshness": freshness(rows),
+    }
+# ---------- 看板 v2 (1021): 视频侧 / 周内 / 领先性 / 里程碑 / 预警 / 集数挂钩 ----------
+
+# 涨粉阶梯里程碑 (复盘框架 §4.3/§4.4): 1250 = 毕业线 (1000 有效粉 × 8 折)
+MILESTONE_LADDER = (500, 800, 1000, 1250)
+
+_WEEK_LABELS = ("周一", "周二", "周三", "周四", "周五", "周六", "周日")
+
+
+def fetch_episode_links() -> list[dict[str, Any]]:
+    """episode_links 全量 (投稿日↔集数挂钩, scripts/seed_episode_links.py 维护)."""
+    if not DB_PATH.exists():
+        return []
+    try:
+        con = sqlite3.connect(f"file:{DB_PATH.as_posix()}?mode=ro", uri=True)
+    except sqlite3.Error:
+        return []
+    try:
+        cur = con.execute(
+            "SELECT date, series, book_id, book_title, ep_index, ep_title, publish_time, note "
+            "FROM episode_links ORDER BY date")
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+    except sqlite3.OperationalError:
+        return []  # 表未种
+    finally:
+        con.close()
+
+
+def episodes_table(rows: list[dict], links: list[dict],
+                   summary: dict) -> list[dict[str, Any]]:
+    """挂钩表: 每个投稿日的当日账号指标 + 次日尾 (口径=账号日, 单集真值见数据记录 md)."""
+    by_date = {r["date"]: r for r in rows}
+    order = [r["date"] for r in rows]
+    anom = {a["date"] for a in summary["anomaly_days"]}
+    out = []
+    for lk in links:
+        d = lk["date"]
+        r = by_date.get(d)
+        if r is None:
+            continue
+        i = order.index(d)
+        nxt = rows[i + 1]["fan_net"] if i + 1 < len(rows) else None
+        out.append({
+            "date": d, "series": lk["series"],
+            "ep": (f"ep{lk['ep_index']}" if lk["ep_index"] else "非正片"),
+            "ep_title": lk["ep_title"], "publish_time": lk["publish_time"], "note": lk["note"],
+            "posts": r["posts"], "views": r["views"],
+            "fan_net": r["fan_net"], "fan_new": r["fan_new"], "revisit": r["revisit_fans"],
+            "next_net": nxt, "is_anomaly": d in anom,
+        })
+    return out
+
+
+def _wavg(rows: list[dict], field: str, weight: str = "views") -> float | None:
+    tw = sum(r.get(weight) or 0 for r in rows)
+    if not tw:
+        return None
+    return _r2(sum((r.get(field) or 0) * (r.get(weight) or 0) for r in rows) / tw)
+
+
+def video_summary(rows: list[dict]) -> dict[str, Any]:
+    """视频侧: 投稿日 vs 无投稿日 分组 + 全期漏斗与互动."""
+    post = [r for r in rows if (r.get("posts") or 0) > 0]
+    nopost = [r for r in rows if not (r.get("posts") or 0)]
+
+    def grp(g: list[dict]) -> dict[str, Any]:
+        views = sum(r.get("views") or 0 for r in g)
+        return {
+            "days": len(g),
+            "views_total": views,
+            "avg_views": _r2(views / len(g)) if g else 0,
+            "fan_new_total": sum(r.get("fan_new") or 0 for r in g),
+            "avg_fan_new": _r2(sum(r.get("fan_new") or 0 for r in g) / len(g)) if g else 0,
+            "sec5_rate": _wavg(g, "sec5_rate"),
+            "sec2_bounce": _wavg(g, "sec2_bounce"),
+        }
+
+    views_all = sum(r.get("views") or 0 for r in rows)
+    new_all = sum(r.get("fan_new") or 0 for r in rows)
+    return {
+        "post_group": grp(post), "nopost_group": grp(nopost),
+        "posts_total": sum(r.get("posts") or 0 for r in rows),
+        "views_total": views_all,
+        "likes": sum(r.get("likes") or 0 for r in rows),
+        "shares": sum(r.get("shares") or 0 for r in rows),
+        "comments": sum(r.get("comments") or 0 for r in rows),
+        "interactions": sum(r.get("interactions") or 0 for r in rows),
+        "sec5_rate": _wavg(rows, "sec5_rate"), "sec2_bounce": _wavg(rows, "sec2_bounce"),
+        "avg_watch_sec": _wavg(rows, "avg_watch_sec"),
+        "interaction_rate": _r2(sum(r.get("interactions") or 0 for r in rows) / views_all * 100) if views_all else None,
+        # 吸粉效率 = 吸粉 / 播放万次
+        "fan_efficiency": _r2(new_all / (views_all / 10000)) if views_all else None,
+    }
+
+
+def weekday_dist(rows: list[dict]) -> list[dict[str, Any]]:
+    """周内分布: 天数 / 日均播放 / 日均净增 (xlsx 原表同口径)."""
+    out = []
+    for wd in range(1, 8):
+        g = [r for r in rows if (r.get("weekday") or date.fromisoformat(str(r["date"])).isoweekday()) == wd]
+        if not g:
+            continue
+        out.append({
+            "weekday": wd, "label": _WEEK_LABELS[wd - 1], "days": len(g),
+            "avg_views": _r2(sum(r.get("views") or 0 for r in g) / len(g)),
+            "avg_net": _r2(sum(r.get("fan_net") or 0 for r in g) / len(g)),
+            "avg_fan_new": _r2(sum(r.get("fan_new") or 0 for r in g) / len(g)),
+        })
+    return out
+
+
+def lag_table(rows: list[dict], ks: range = range(-2, 3)) -> list[dict[str, Any]]:
+    """回访领先性: r(回访[t], 净增[t+k]) — k>0 = 回访领先净增 k 天."""
+    rev = [float(r.get("revisit_fans") or 0) for r in rows]
+    net = [float(r["fan_net"] or 0) for r in rows]
+    n = len(rows)
+    out = []
+    for k in ks:
+        if k >= 0:
+            xs, ys = rev[: n - k], net[k:]
+        else:
+            xs, ys = rev[-k:], net[: n + k]
+        out.append({"lag": k, "r": _r2(pearson(xs, ys)), "n": len(xs)})
+    return out
+
+
+def milestone_rows(end_total: int, base_rate: float, full_rate: float,
+                   last_date: str) -> list[dict[str, Any]]:
+    """涨粉阶梯 ETA: 常态基线与全量双口径 (基线为主, 全量含爆款上偏)."""
+    d0 = date.fromisoformat(last_date)
+    out = []
+    for target in MILESTONE_LADDER:
+        remaining = target - end_total
+        if remaining <= 0:
+            out.append({"target": target, "done": True})
+            continue
+        row = {"target": target, "done": False, "remaining": remaining}
+        for name, rate in (("base", base_rate), ("full", full_rate)):
+            days = remaining / rate if rate > 0 else None
+            row[f"eta_{name}_days"] = round(days) if days is not None else None
+            row[f"eta_{name}_date"] = (
+                (d0 + timedelta(days=round(days))).isoformat() if days is not None else None)
+        out.append(row)
+    return out
+
+
+def build_alerts(rows: list[dict], today: date | None = None) -> list[dict[str, str]]:
+    """预警条: 数据停更 / 连续失速 (干预机制触发线 ≥2 天净增≤0)."""
+    today = today or date.today()
+    alerts: list[dict[str, str]] = []
+    last = date.fromisoformat(str(rows[-1]["date"]))
+    stale = (today - last).days
+    if stale > 3:
+        alerts.append({"level": "warn", "kind": "stale",
+                       "text": f"数据停在 {last:%m-%d}, 已 {stale} 天 — 该从抖音后台导出新表入库了"})
+    streak = 0
+    for r in reversed(rows):
+        if (r.get("fan_net") or 0) <= 0:
+            streak += 1
+        else:
+            break
+    if streak >= 2:
+        tail = [str(r["date"])[5:] for r in rows[-streak:]]
+        alerts.append({"level": "bad", "kind": "stall",
+                       "text": f"连续 {streak} 天净增≤0 ({('、'.join(tail))}) — 干预机制触发: 调整发布频率/选题"})
+    return alerts
+
+
+def freshness(rows: list[dict]) -> dict[str, Any]:
+    return {
+        "last_date": rows[-1]["date"],
+        "last_import": max((r.get("updated_at") or "" for r in rows), default=None),
     }
