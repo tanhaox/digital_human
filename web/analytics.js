@@ -79,34 +79,58 @@ function render(data) {
     Object.keys(SERIES_COLORS).map(function (k) {
       return '<span class="sers" style="background:' + SERIES_COLORS[k] + '"></span>' + k;
     }).join(" ");
+  var epFan = function (e) { return e.v_fan_growth != null ? e.v_fan_growth : e.fan_new; }; // 视频真值优先
   chart("cEps").setOption({
     grid: grid,
     tooltip: { confine: true, formatter: function (p) {
       var e = eps[p.dataIndex];
-      return e.date + " · " + e.series + " " + e.ep + "<br>" + esc(e.ep_title || "非正片") +
-        "<br>当日: 播放 " + e.views + " · 净增 " + e.fan_net + " · 吸粉 <b>" + e.fan_new + "</b>" +
-        (e.next_net != null ? "<br>次日尾: 净增 " + e.next_net : "");
+      var lines = [e.date + " · " + e.series + " " + e.ep + (e.v_genre ? " · " + e.v_genre : ""), esc(e.ep_title || "非正片")];
+      if (e.v_views != null) {
+        lines.push("视频真值: 播放 " + e.v_views + " · 官方完播 " + pct1(e.v_completion) +
+          " · 吸粉 <b>" + e.v_fan_growth + "</b> · 藏 " + e.v_collects + " · 主页 " + e.v_profile_visits);
+      } else {
+        lines.push("作品列表无此条 (09-27 非正片)");
+      }
+      lines.push("账号日: 播放 " + e.views + " · 净增 " + e.fan_net + " · 吸粉 " + e.fan_new +
+        (e.next_net != null ? " · 次日尾 " + e.next_net : ""));
+      return lines.join("<br>");
     } },
     xAxis: { type: "category", data: eps.map(function (e) {
       return (SERIES_PREFIX[e.series] || "?") + (e.ep === "非正片" ? "" : e.ep.replace("ep", ""));
     }), axisLine: { lineStyle: { color: LINE } }, axisTick: { show: false }, axisLabel: Object.assign({}, AXIS_LABEL) },
     yAxis: { type: "value", axisLabel: Object.assign({}, AXIS_LABEL), splitLine: { lineStyle: { color: "#F0F1F4" } } },
     series: [{ type: "bar", data: eps.map(function (e) {
-      return { value: e.fan_new, itemStyle: { color: SERIES_COLORS[e.series] || GRAY, borderRadius: [3, 3, 0, 0] } };
+      return { value: epFan(e), itemStyle: { color: SERIES_COLORS[e.series] || GRAY, borderRadius: [3, 3, 0, 0] } };
     }), barMaxWidth: 22,
       label: { show: true, position: "top", color: INK, fontSize: 10, fontWeight: 600 } }]
   });
-  byId("epTableTitle").textContent = "挂钩明细（" + eps.length + " 个投稿日）";
+  // 体裁×完播 汇总 (时长-完播负相关链, 数据记录1005 §七 的活数据版)
+  var gen = {};
+  data.videos.forEach(function (v) { (gen[v.genre] = gen[v.genre] || []).push(v.completion_rate); });
+  var genTxt = Object.keys(gen).map(function (g) {
+    var arr = gen[g], avg = arr.reduce(function (a, b) { return a + b; }, 0) / arr.length;
+    return g + " ×" + arr.length + " (均完播 " + pct1(avg) + ")";
+  }).join(" · ");
+  byId("epTableTitle").setAttribute("data-gen", genTxt);
+  byId("epTableTitle").textContent = "挂钩明细（" + eps.length + " 个投稿日 × 单视频真值）";
   byId("epBody").innerHTML = eps.map(function (e) {
     var out = e.is_anomaly ? ' class="out"' : "";
+    var tip = (e.ep_title || "") + (e.note ? " — " + e.note : "") + (e.publish_time ? " · 档 " + e.publish_time : "");
     return "<tr" + out + "><td>" + md(e.date) + '</td><td class="l"><span class="sers" style="background:' +
-      (SERIES_COLORS[e.series] || GRAY) + '"></span>' + e.series + "</td><td>" + e.ep + '</td><td class="l" title="' +
-      esc(e.ep_title || "") + '">' + esc(e.ep_title || "—") + "</td><td>" + (e.publish_time || "—") + "</td><td>" +
-      e.views + "</td><td" + (e.fan_net < 0 ? ' class="neg"' : "") + ">" + e.fan_net + "</td><td>" + e.fan_new +
-      "</td><td>" + (e.next_net == null ? "—" : e.next_net) + '</td><td class="l">' + esc(e.note || "") + "</td></tr>";
+      (SERIES_COLORS[e.series] || GRAY) + '"></span>' + e.series + "</td><td>" + e.ep + "</td><td>" +
+      (e.v_genre || "—") + '</td><td class="l" title="' + esc(tip) + '">' + esc(e.ep_title || "—") + "</td><td>" +
+      (e.v_views != null ? e.v_views : e.views) + "</td><td>" +
+      (e.v_completion != null ? pct1(e.v_completion) : "—") + "</td><td><b>" + epFan(e) + "</b>" +
+      (e.v_fan_growth != null && e.fan_new !== e.v_fan_growth ? ' <span class="eta">(' + e.fan_new + ")</span>" : "") +
+      "</td><td>" + (e.v_collects != null ? e.v_collects : "—") + "</td><td>" +
+      (e.v_profile_visits != null ? e.v_profile_visits : "—") + "</td><td" +
+      (e.fan_net < 0 ? ' class="neg"' : "") + ">" + e.fan_net + "</td><td>" +
+      (e.next_net == null ? "—" : e.next_net) + "</td></tr>";
   }).join("");
-  byId("epNote").innerHTML = "投稿日 ↔ 集数 1:1 对齐（本档 " + eps.length + "/" + v.posts_total +
-    "）；10-20 接档 = 卓有成效的管理者 ep1（48h 试验车）。新书接档后补 scripts/seed_episode_links.py 一行重跑。";
+  byId("epNote").innerHTML = "投稿日 ↔ 集数 1:1（" + eps.length + "/" + v.posts_total +
+    "）；吸粉 = <b>单视频真值</b>(作品列表导出, 括号内为账号日口径), 播放/完播/藏/主页 = 视频真值, 次日12点更新。" +
+    "体裁×完播: " + (byId("epTableTitle").getAttribute("data-gen") || "—") +
+    " — 时长-完播负相关链的活数据。09-27 非正片不在作品列表(疑已删); 10-20 接档 = 卓有成效的管理者 ep1(48h 试验车), 新书接档补 seed_episode_links.py 重跑。";
 
   /* ── 03 粉丝画像 ── */
   var pt = data.portrait && data.portrait[0];

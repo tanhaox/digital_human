@@ -181,7 +181,7 @@ def dashboard_payload() -> dict[str, Any]:
         "range": {"from": rows[0]["date"], "to": rows[-1]["date"], "days": len(rows)},
         "rows": rows,
         "summary": summary,
-        "episodes": episodes_table(rows, fetch_episode_links(), summary),
+        "episodes": episodes_table(rows, fetch_episode_links(), summary, fetch_videos()),
         "video": video_summary(rows),
         "weekday": weekday_dist(rows),
         "lag": lag_table(rows),
@@ -191,6 +191,7 @@ def dashboard_payload() -> dict[str, Any]:
         "alerts": build_alerts(rows),
         "freshness": freshness(rows),
         "portrait": fetch_portrait(),
+        "videos": fetch_videos(),
     }
 # ---------- 看板 v2 (1021): 视频侧 / 周内 / 领先性 / 里程碑 / 预警 / 集数挂钩 ----------
 
@@ -220,10 +221,32 @@ def fetch_episode_links() -> list[dict[str, Any]]:
         con.close()
 
 
+def fetch_videos() -> list[dict[str, Any]]:
+    """单视频真值 (douyin_videos, 作品列表导出; 次日12点更新昨日)."""
+    if not DB_PATH.exists():
+        return []
+    try:
+        con = sqlite3.connect(f"file:{DB_PATH.as_posix()}?mode=ro", uri=True)
+    except sqlite3.Error:
+        return []
+    try:
+        cur = con.execute(
+            "SELECT publish_date, publish_time, title, genre, views, completion_rate, "
+            "sec5_rate, avg_watch_sec, likes, shares, comments, collects, profile_visits, fan_growth "
+            "FROM douyin_videos ORDER BY publish_date")
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+    except sqlite3.OperationalError:
+        return []  # 表未导
+    finally:
+        con.close()
+
+
 def episodes_table(rows: list[dict], links: list[dict],
-                   summary: dict) -> list[dict[str, Any]]:
-    """挂钩表: 每个投稿日的当日账号指标 + 次日尾 (口径=账号日, 单集真值见数据记录 md)."""
+                   summary: dict, videos: list[dict] | None = None) -> list[dict[str, Any]]:
+    """挂钩表: 集数 × 单视频真值 (播放/官方完播/视频吸粉/收藏/主页) × 账号日 (净增/次日尾)."""
     by_date = {r["date"]: r for r in rows}
+    vid_by_date = {v["publish_date"]: v for v in (videos or [])}
     order = [r["date"] for r in rows]
     anom = {a["date"] for a in summary["anomaly_days"]}
     out = []
@@ -234,13 +257,20 @@ def episodes_table(rows: list[dict], links: list[dict],
             continue
         i = order.index(d)
         nxt = rows[i + 1]["fan_net"] if i + 1 < len(rows) else None
+        v = vid_by_date.get(d) or {}
         out.append({
             "date": d, "series": lk["series"],
             "ep": (f"ep{lk['ep_index']}" if lk["ep_index"] else "非正片"),
             "ep_title": lk["ep_title"], "publish_time": lk["publish_time"], "note": lk["note"],
-            "posts": r["posts"], "views": r["views"],
+            "posts": r.get("posts"), "views": r.get("views"),
             "fan_net": r["fan_net"], "fan_new": r["fan_new"], "revisit": r["revisit_fans"],
             "next_net": nxt, "is_anomaly": d in anom,
+            # 单视频真值 (作品列表; 09-27 非正片不在列表 → None)
+            "v_title": v.get("title"), "v_genre": v.get("genre"),
+            "v_views": v.get("views"), "v_completion": v.get("completion_rate"),
+            "v_watch_sec": v.get("avg_watch_sec"),
+            "v_fan_growth": v.get("fan_growth"), "v_collects": v.get("collects"),
+            "v_profile_visits": v.get("profile_visits"),
         })
     return out
 

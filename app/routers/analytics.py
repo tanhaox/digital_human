@@ -11,7 +11,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 
-from ..services.analytics_import import import_xlsx
+from ..services.analytics_import import import_any
 from ..services.analytics_service import dashboard_payload
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ def daily():
 
 @router.post("/import")
 async def import_upload(file: UploadFile = File(...)):
-    """上传数据表现 xlsx → 按日 upsert → 返回导入报告 (页面刷新即见新数据)."""
+    """上传《数据表现》(账号日) 或《作品列表导出》(单视频真值) xlsx → 自动判别入库."""
     suffix = Path(file.filename or "").suffix.lower()
     if suffix not in (".xlsx", ".xlsm"):
         raise HTTPException(400, f"仅支持 xlsx, 收到: {file.filename!r}")
@@ -35,7 +35,7 @@ async def import_upload(file: UploadFile = File(...)):
         tmp.write(await file.read())
         tmp_path = Path(tmp.name)
     try:
-        report = import_xlsx(tmp_path, source_name=file.filename)
+        report = import_any(tmp_path, source_name=file.filename)
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc
     except Exception as exc:  # openpyxl 解析失败等

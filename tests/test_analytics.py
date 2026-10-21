@@ -135,3 +135,40 @@ def test_build_alerts_stale_and_stall():
     assert kinds == {"stale", "stall"}
     fresh = [_row("2026-10-10", 5, 5, 5, 0, 1)]
     assert build_alerts(fresh, today=date(2026, 10, 10)) == []
+
+
+def test_import_num_coercion_and_detect(tmp_path):
+    import openpyxl
+    from app.services.analytics_import import _num, detect_kind
+
+    assert _num("2847") == 2847 and _num("0.005727") == 0.005727
+    assert _num(None) is None and _num("") is None and _num(12) == 12
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.append(["作品名称", "发布时间", "播放量"])
+    ws.append(["t", "2026-10-20 20:00:00", "2847"])
+    f1 = tmp_path / "v.xlsx"; wb.save(f1)
+    assert detect_kind(f1) == "videos"
+
+    wb2 = openpyxl.Workbook()
+    ws2 = wb2.active
+    ws2.append(["日期", "星期", "投稿量"])
+    f2 = tmp_path / "d.xlsx"; wb2.save(f2)
+    assert detect_kind(f2) == "daily"
+
+
+def test_episodes_table_joins_video_truth():
+    from app.services.analytics_service import episodes_table
+    rows = [_row("2026-10-20", 411, 38, 40, 2, 9)]
+    links = [{"date": "2026-10-20", "series": "卓有成效的管理者", "book_id": None,
+              "book_title": "x", "ep_index": 1, "ep_title": "T", "publish_time": "20:00", "note": ""}]
+    summ = {"anomaly_days": [{"date": "2026-10-20"}]}
+    vids = [{"publish_date": "2026-10-20", "views": 2847, "completion_rate": 0.0057,
+             "fan_growth": 39, "collects": 20, "profile_visits": 35, "genre": "3-5min视频"}]
+    out = episodes_table(rows, links, summ, vids)
+    assert out[0]["v_views"] == 2847 and out[0]["v_fan_growth"] == 39
+    assert out[0]["fan_new"] == 40 and out[0]["v_genre"] == "3-5min视频"
+    # 无视频 (如 09-27 非正片) → None
+    out2 = episodes_table(rows, links, summ, [])
+    assert out2[0]["v_views"] is None and out2[0]["fan_new"] == 40
