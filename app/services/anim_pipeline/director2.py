@@ -2133,6 +2133,17 @@ def plan(book_id: str, book_title: str, ep: int, ep_title: str,
     return doc
 
 
+def _norm_iit(v) -> list:
+    """in_image_text 归一 (1022 批7): list 照收 / 裸字符串收单元素 (LLM 偶发
+    "空白灯塔" 裸串, 旧版 for x in 字符串 = 逐字拆开 ['空','白','灯','塔'] 实锤)
+    / 其他空。产出: 非空字符串列表, ≤4 行。"""
+    if isinstance(v, str):
+        v = [v]
+    elif not isinstance(v, list):
+        return []
+    return [str(x).strip() for x in v if str(x).strip()][:4]
+
+
 def plan_shot(book_id: str, book_title: str, ep: int, shot_id: str,
               manifest: dict, bible: dict) -> dict[str, Any]:
     """单镜重规划 (0915 用户令: 一镜设计坏了, 不想整场陪葬).
@@ -2226,8 +2237,8 @@ def plan_shot(book_id: str, book_title: str, ep: int, shot_id: str,
                        for x in (d.get("text_layer") or [])
                        if isinstance(x, (str, dict))],
         # 1015 修: 同上场合并口 — in_image_text 申报必须存活 (二段式断链根因)
-        "in_image_text": [str(x).strip() for x in (d.get("in_image_text") or [])
-                          if str(x).strip()][:4],
+        # 1022 批7: 类型防御 _norm_iit — LLM 裸字符串申报 ("空白灯塔") 旧版逐字拆开
+        "in_image_text": _norm_iit(d.get("in_image_text")),
         "h3_text_event": ({k: v for k, v in (d.get("h3_text_event") or {}).items()
                           if k in ("text", "at_s", "zone")}
                          if isinstance(d.get("h3_text_event"), dict) else {}),
@@ -3018,8 +3029,8 @@ def _build_doc(book_id: str, book_title: str, ep: int, ep_title: str,
                 # 1015 修 (用户问二段式断链): 合并口此前根本不带 in_image_text —
                 # writer 按 §10b 申报了也被丢 → text_pass 永不触发 + 出口闸误拦申报
                 # 路线 (唯一过闸剩"删文字物件")。归一化 ≤4 行 (契约同源)
-                "in_image_text": [str(x).strip() for x in (raw.get("in_image_text") or [])
-                                  if str(x).strip()][:4],
+                # 1022 批7: 类型防御 _norm_iit (同 2229 口, s132 拆字实锤)
+                "in_image_text": _norm_iit(raw.get("in_image_text")),
                 # 1015 动画先行: H3 事件字结构化透传 (文字三路由之一)
                 "h3_text_event": ({k: v for k, v in (raw.get("h3_text_event") or {}).items()
                                   if k in ("text", "at_s", "zone")}

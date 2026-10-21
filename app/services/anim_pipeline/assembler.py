@@ -688,6 +688,12 @@ def assemble_episode(doc: dict[str, Any], ss: dict[str, Any], bible: dict[str, A
         # 装配后终审 (person_quota_issues) 把真画面句当占位豁免
         shot.pop("_kf_missing", None)
         shot["anim"] = assemble_h3_anim(shot, fa_shot, fa_scene, bible, world_phrase=wp)
+        # 1022 批7: 组装后自愈回填 — 外层 assemble 二次组装会把 _fallback_scene
+        # 批4 的回填再次清空 (A1 keyframe_en 0/8 实锤); 在 anim 生成后本层回填,
+        # 所有路径一次修净 (writer 镜在循环开头已豁免, 不受影响)
+        _en = str((shot.get("anim") or {}).get("opening_desc") or "").strip()
+        if _en:
+            shot["keyframe_en"] = _en
         # 1008 P8: 法层参数钉在镜上 (页面每镜卡片灰标签: ELS·鸟瞰·窗光)
         # 1008 电影感: location (场空间) + micro (微位) 一并钉标
         # 1009 寄存器: register/reg_ref 一并钉标 (页面灰标签 + 校验层消费)

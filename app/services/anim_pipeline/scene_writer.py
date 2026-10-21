@@ -406,6 +406,15 @@ def writer_failures(doc: dict[str, Any], arc_id: str) -> list[str]:
     if _decl < 1:
         fails.append(f"{arc_id.upper()} 整场零申报 in_image_text — 宪法10d: 每场 1-2 镜"
                      "空白载体+申报 (标题/概念/金句上画), 重写补申报")
+    # 1022 批7: 申报内容闸 — LLM 把载体名当申报文字 (s108 '空白门牌'/s132 '空白
+    # 灯塔' 实锤): 申报的是要上画的金句文字, 载体本身应写「空白XX」在画面句里
+    for s in shots:
+        for x in (s.get("in_image_text") or []):
+            _x = str(x).strip()
+            if _x.startswith("空白") and any(
+                    w in _x for w in ("牌", "板", "签", "匾", "幕", "布", "塔", "门", "栏")):
+                fails.append(f"{s.get('shot_id')} 申报内容「{_x}」是载体名不是金句 — "
+                             "申报要上画的文字 (标题/概念/金句 ≤4行), 载体写成「空白XX」放画面句")
     # 1022 修 (A8 实锤 4/4 镜申报+3 镜重复同两行字): 密度上限 + 相邻重复
     if _decl > 3:
         fails.append(f"{arc_id.upper()} 图内字密度超标 ({_decl}镜申报, 宪法10d 每场1-2镜) — "
@@ -480,6 +489,18 @@ def dispatch_scene(book_id: str, book_title: str, ep: int, arc_id: str,
                 logger.info("[writer] 场 %s ✓ 单写者五件套 (第%d把)", arc_id.upper(), attempt)
                 return doc
             _prior, _pfails, hints = doc, fails, fails
+            if attempt == 2:
+                # 1022 批7: 第2把重掷仍败 → 对第2把 doc 再手术一次 (最后一道网,
+                # 手点轮实锤: 第1把异常 _prior=None 时术前手术跳过, 第2把只剩
+                # s102 一处漏标却直接 fallback 整场丢弃)
+                _fixed2 = _surgical_repair(doc, arc_id, fails, book_id, book_title,
+                                           ep, manifest, bible)
+                if _fixed2 is not None and not writer_failures(_fixed2, arc_id):
+                    for s in _fixed2.get("shots") or []:
+                        if str(s.get("arc_id") or "").lower() == str(arc_id).lower():
+                            s["writer_source"] = "writer"
+                    logger.info("[writer] 场 %s ✓ 第2把重掷后手术过闸", arc_id.upper())
+                    return _fixed2
             logger.warning("[writer] 场 %s 出口闸 %d 处 (第%d把): %s",
                            arc_id.upper(), len(fails), attempt, "; ".join(fails[:4]))
         except (SystemExit, ValueError) as exc:
@@ -574,8 +595,8 @@ def _reroll_shot_writer(doc: dict[str, Any], s: dict[str, Any], bible: dict,
         "text_layer": [{"text": str(x)} if isinstance(x, str) else x
                        for x in (d.get("text_layer") or [])
                        if isinstance(x, (str, dict))],
-        "in_image_text": [str(x).strip() for x in (d.get("in_image_text") or [])
-                          if str(x).strip()][:4],
+        # 1022 批7: 类型防御 (裸字符串申报拆字, s132 实锤) — 复用 director2._norm_iit
+        "in_image_text": director2._norm_iit(d.get("in_image_text")),
         "anim": {
             "duration_s": gen,
             "opening_desc": str(d.get("keyframe_en") or kf_zh),
