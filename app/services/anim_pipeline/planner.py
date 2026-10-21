@@ -823,6 +823,16 @@ def replan_scene(book_ref: str, ep: int, arc_id: str) -> Path:
     audio = anim_draft.fetch_episode_audio(book_id, ep)
     manifest = _audio_manifest(audio)
 
+    # 1021 修V2 (骨牌案三犯根因): 法层重生必须**先行** — dispatch 的 fallback 链
+    # 内部填创意槽吃 load_ss 快照 (scene_writer._fallback_scene), 重生放 dispatch
+    # 之后 = 槽已按旧微位 (第一张骨牌/骨牌阵) 填好, 外层 fill 幂等跳过, 骨牌槽
+    # + 新微位混血装配 (s74-s78 实锤)。失败退旧法层不炸主链。
+    try:
+        from app.services.anim_pipeline.shooting_script import regen_scene
+        regen_scene(book_title, ep, arc_id)
+    except Exception as exc:  # noqa: BLE001 — 法层重生失败不拦主链
+        logger.warning("[replan] %s 法层重生失败 (退旧法层): %s", arc_id.upper(), exc)
+
     doc = None
     problems: list[str] = []
     for attempt in (1, 2):
@@ -862,13 +872,7 @@ def replan_scene(book_ref: str, ep: int, arc_id: str) -> Path:
         from app.services.anim_pipeline.shooting_script import load as load_ss
         ss = load_ss(book_title, ep)
         if ss:
-            # 1021 修 (骨牌实锤): 改立意后 replan, 旧法层概念世界 (多米诺骨牌阵)
-            # 钉死创意槽与组装锚 — 该场法层先重生吃最新 doc 立意, 失败退旧场不炸
-            try:
-                from app.services.anim_pipeline.shooting_script import regen_scene
-                ss = regen_scene(book_title, ep, arc_id) or ss
-            except Exception as exc:  # noqa: BLE001 — 法层重生失败不拦主链
-                logger.warning("[replan] %s 法层重生失败 (退旧场): %s", arc_id.upper(), exc)
+            # (法层重生已前置到 dispatch 前 — fallback 链内部填槽吃的就是新法层)
             # 1009 寄存器: 全doc未钉镜一次补齐 (零LLM幂等) — 他场旧镜无钉标时
             # 器层会退实景原链, 主体围栏失效 (ep2 15镜实锤); 本场新镜自然包含
             assign_registers(doc, bible)
