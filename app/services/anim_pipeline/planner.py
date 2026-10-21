@@ -872,6 +872,18 @@ def replan_scene(book_ref: str, ep: int, arc_id: str) -> Path:
             logger.warning("[replan] 风格问题不阻断 (人检修): %s", "; ".join(problems[:3]))
             problems = []
             break
+        # 1022 批9: 劣化前置判 — 第1轮 writer 存活且剩余 problems 全为口径类
+        # (人物配额/引号/大字, 已并入 writer 闸且手术已试未净) → 保留人检不掷第2轮
+        # (A5/A7 实锤: 第2轮全套白掷后被劣化保护丢弃)
+        if attempt == 1 and any(
+                str(s2.get("arc_id") or "").lower() == arc_id.lower()
+                and s2.get("writer_source") == "writer"
+                for s2 in (doc.get("shots") or [])):
+            if all(("人物配额" in p or "引号" in p or "大字" in p) for p in _structural):
+                logger.warning("[replan] 前置判: 第1轮 writer 存活, 剩余全口径类 (手术已试) — "
+                               "保留人检, 免掷第2轮: %s", "; ".join(_structural[:2]))
+                problems = []
+                break
         for p in problems:
             logger.error("[replan] 校验不过 (第%d次): %s", attempt, p)
     if problems:

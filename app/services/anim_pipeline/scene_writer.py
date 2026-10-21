@@ -434,6 +434,27 @@ def writer_failures(doc: dict[str, Any], arc_id: str) -> list[str]:
         fails += _dq(doc, arc_id=str(arc_id))
     except Exception as exc:  # noqa: BLE001  # 景深前移失败不阻断旧闸
         logger.debug("[writer] 景深配额前移跳过: %s", exc)
+    # 1022 批9: 外层口径并入 (A8 两轮 writer 全被外层"人物配额/引号"打死落不了盘
+    # + A5/A7 过闸打回白掷整轮实锤 — 口径前移进闸, 手术点名可修, 消灭"过闸再打回")
+    try:
+        _qre = re.compile(r"[「『\"“']([^」』\"”']{1,10})[」』\"”']")
+        for s in shots:
+            if s.get("brand_card") or s.get("in_image_text"):
+                continue
+            zh = str(s.get("keyframe_zh") or "")
+            if _qre.search(zh):
+                fails.append(f"{s.get('shot_id')} 画面句含引号文本未申报 in_image_text "
+                             "(二段化只认显式申报, 见 10b/10c)")
+            if "大字" in zh:
+                fails.append(f"{s.get('shot_id')} 画面句含'大字'字面未申报 in_image_text")
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[writer] 引号/大字闸跳过: %s", exc)
+    try:
+        from .final_gate import zone_quota_issues as _zq
+        _key = f"场{arc_id}"
+        fails += [x for x in _zq(doc) if _key in x]
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("[writer] 人物配额闸跳过: %s", exc)
     return fails
 
 
@@ -639,6 +660,7 @@ def _surgical_repair(doc: dict[str, Any], arc_id: str, fails: list[str],
         return None
     _fixed_any = False
     _n_prev = len(fails)
+    _spent = 0  # 1022 批9: 手术预算帽 ≤6 镜/场 (跨轮共享) — 防长场多 fail 叠罗汉
     for _round in range(2):
         # ① 确定性修复 (零 LLM)
         if any("零申报" in f for f in fails):
@@ -673,6 +695,9 @@ def _surgical_repair(doc: dict[str, Any], arc_id: str, fails: list[str],
                 for sid in re.findall(r"(s\d+)", f)[:4]:
                     sid_fails.setdefault(sid, []).append(f)
         for sid, fl in sid_fails.items():
+            if _spent >= 6:
+                logger.info("[writer] 手术预算帽 6 镜已用尽, 剩余 fail 交上层")
+                break
             s = next((x for x in doc.get("shots") or [] if str(x.get("shot_id")) == sid), None)
             if s is None or str(s.get("arc_id") or "").lower() != str(arc_id).lower():
                 continue
@@ -680,6 +705,7 @@ def _surgical_repair(doc: dict[str, Any], arc_id: str, fails: list[str],
                 logger.warning("[writer] 手术重掷 %s 解析失败 → 回退整场重掷", sid)
                 return None
             _fixed_any = True
+            _spent += 1
         # ②后重诊断: 决定是否进第二轮 (有进步且有剩余才续)
         fails = writer_failures(doc, arc_id)
         if not fails or len(fails) >= _n_prev:
