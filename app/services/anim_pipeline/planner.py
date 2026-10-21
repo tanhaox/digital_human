@@ -853,6 +853,25 @@ def replan_scene(book_ref: str, ep: int, arc_id: str) -> Path:
             logger.warning("[replan] 风格问题不阻断 (人检修): %s", "; ".join(problems[:3]))
             problems = []
             break
+        # 1022 批8: 劣化保护 — 第2轮产物 writer 镜数 < 第1轮时保留第1轮 (A2 实锤:
+        # 第1轮 writer 16/16 过闸, 外层"人物配额/引号"两条 writer 闸外口径打死 →
+        # 第2轮 fallback 0/16 覆盖落盘; 带病 writer 优于整场模板句, 剩余问题人检)
+        if attempt == 1:
+            _best_doc = doc
+            _best_problems = list(problems)
+        else:
+            def _wcount(_d):
+                return sum(1 for s in _d.get("shots") or []
+                           if str(s.get("arc_id") or "").lower() == arc_id.lower()
+                           and s.get("writer_source") == "writer")
+            if _wcount(_best_doc) > _wcount(doc):
+                logger.warning("[replan] 劣化保护: 第2轮 writer %d 镜 < 第1轮 %d 镜 — "
+                               "保留第1轮 (剩余问题人检): %s",
+                               _wcount(doc), _wcount(_best_doc),
+                               "; ".join(_best_problems[:2]))
+                doc = _best_doc
+                problems = []
+                break
         for p in problems:
             logger.error("[replan] 校验不过 (第%d次): %s", attempt, p)
     if problems:

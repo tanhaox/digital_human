@@ -477,6 +477,9 @@ def dispatch_scene(book_id: str, book_title: str, ep: int, arc_id: str,
                     return _fixed
                 logger.warning("[writer] 场 %s 手术修复后剩 %d 处 → 整场重掷兜底",
                                arc_id.upper(), len(_rfails))
+                # 1022 批8: 半修 doc 接力 (A1 实锤: 修 4/7 后成果被丢弃) — 重掷的
+                # prior_doc 看得见已修状态, 解析异常时也是兜底手术的输入
+                _prior, _pfails = _fixed, _rfails
         try:
             doc = director2.plan_scene(book_id, book_title, ep, arc_id, manifest, bible,
                                        fix_hints=hints or None, mode="writer",
@@ -504,6 +507,17 @@ def dispatch_scene(book_id: str, book_title: str, ep: int, arc_id: str,
             logger.warning("[writer] 场 %s 出口闸 %d 处 (第%d把): %s",
                            arc_id.upper(), len(fails), attempt, "; ".join(fails[:4]))
         except (SystemExit, ValueError) as exc:
+            # 1022 批8: 解析异常兜底手术 — 第2把解析死 (A1 "无 groups" 实锤) 时,
+            # 对半修 _prior (术前手术成果已接力) 再手术一道, 过闸即返
+            if attempt == 2 and _prior is not None and _pfails:
+                _fx = _surgical_repair(_prior, arc_id, _pfails, book_id, book_title,
+                                       ep, manifest, bible)
+                if _fx is not None and not writer_failures(_fx, arc_id):
+                    for s in _fx.get("shots") or []:
+                        if str(s.get("arc_id") or "").lower() == str(arc_id).lower():
+                            s["writer_source"] = "writer"
+                    logger.info("[writer] 场 %s ✓ 解析异常后手术兜底过闸", arc_id.upper())
+                    return _fx
             hints = [str(exc)[:200]]
             logger.warning("[writer] 场 %s 失败 (第%d把): %s", arc_id.upper(), attempt, hints[0])
         except Exception as exc:  # noqa: BLE001 — 网络/瞬时同享重试网
@@ -617,51 +631,61 @@ def _surgical_repair(doc: dict[str, Any], arc_id: str, fails: list[str],
                      manifest: dict, bible: dict) -> dict[str, Any] | None:
     """第2把手术式修复 (1022 批3): ①确定性修复优先 (零申报→补申报/相邻重复→
     置[]/超密度→保首镜) ②点名镜手术重掷 ③全程不调 plan_scene (整场重掷兜底在
-    调用方)。返回修复后 doc; 手术重掷解析失败返回 None。"""
+    调用方)。返回修复后 doc; 手术重掷解析失败返回 None。
+    1022 批8: 双轮循环 — 一轮修不净 (A1 实锤 7→剩3) 且有进步时再修一轮。"""
     arc_shots = [s for s in (doc.get("shots") or [])
                  if str(s.get("arc_id") or "").lower() == str(arc_id).lower()]
     if not arc_shots:
         return None
-    # ① 确定性修复 (零 LLM)
     _fixed_any = False
-    if any("零申报" in f for f in fails):
-        _fixed_any |= _ensure_scene_declaration(doc, arc_id)
-    if any("密度超标" in f for f in fails):
-        _decl = [s for s in arc_shots if s.get("in_image_text") and not s.get("brand_card")]
-        for s in _decl[3:]:
-            s["in_image_text"] = []
-        _fixed_any = True
-    if any("申报文字完全重复" in f for f in fails):
-        _prev_decl = None
-        for s in sorted(arc_shots, key=lambda x: float(x["t_start"])):
-            _cur = tuple(sorted(str(x).strip() for x in (s.get("in_image_text") or [])
-                                if str(x).strip()))
-            if _cur and _cur == _prev_decl:
+    _n_prev = len(fails)
+    for _round in range(2):
+        # ① 确定性修复 (零 LLM)
+        if any("零申报" in f for f in fails):
+            _fixed_any |= _ensure_scene_declaration(doc, arc_id)
+        if any("密度超标" in f for f in fails):
+            _decl = [s for s in arc_shots if s.get("in_image_text") and not s.get("brand_card")]
+            for s in _decl[3:]:
                 s["in_image_text"] = []
-                _fixed_any = True
-            _prev_decl = _cur or None
-    # ①后重诊断: 已被确定性修复消掉的 fail 不再触发 LLM 重掷 (冒烟实锤: 重复类
-    # 修复后旧 fail 的点名镜被误送去重掷)
-    if _fixed_any:
+            _fixed_any = True
+        if any("申报文字完全重复" in f for f in fails):
+            _prev_decl = None
+            for s in sorted(arc_shots, key=lambda x: float(x["t_start"])):
+                _cur = tuple(sorted(str(x).strip() for x in (s.get("in_image_text") or [])
+                                    if str(x).strip()))
+                if _cur and _cur == _prev_decl:
+                    s["in_image_text"] = []
+                    _fixed_any = True
+                _prev_decl = _cur or None
+        # ①后重诊断: 已被确定性修复消掉的 fail 不再触发 LLM 重掷 (冒烟实锤)
+        if _fixed_any:
+            fails = writer_failures(doc, arc_id)
+        if not fails:
+            break
+        # ② 点名镜手术重掷 (fail 带 "sNN " 前缀归并; 景深类点名镜在文案中段,
+        # 1022 批5a 同样归并, 重掷时 fail 原文即景深指令)
+        sid_fails: dict[str, list[str]] = {}
+        for f in fails:
+            m = re.match(r"(s\d+)\s", f)
+            if m:
+                sid_fails.setdefault(m.group(1), []).append(f)
+            elif "景深配额" in f:
+                for sid in re.findall(r"(s\d+)", f)[:4]:
+                    sid_fails.setdefault(sid, []).append(f)
+        for sid, fl in sid_fails.items():
+            s = next((x for x in doc.get("shots") or [] if str(x.get("shot_id")) == sid), None)
+            if s is None or str(s.get("arc_id") or "").lower() != str(arc_id).lower():
+                continue
+            if not _reroll_shot_writer(doc, s, bible, fl):
+                logger.warning("[writer] 手术重掷 %s 解析失败 → 回退整场重掷", sid)
+                return None
+            _fixed_any = True
+        # ②后重诊断: 决定是否进第二轮 (有进步且有剩余才续)
         fails = writer_failures(doc, arc_id)
-    # ② 点名镜手术重掷 (fail 带 "sNN " 前缀的归并到镜; 景深类 fail 的点名镜在
-    # 文案中段 "把 s43/s44 改为…" — 1022 批5a 同样归并, 重掷时 fail 原文即景深指令)
-    sid_fails: dict[str, list[str]] = {}
-    for f in fails:
-        m = re.match(r"(s\d+)\s", f)
-        if m:
-            sid_fails.setdefault(m.group(1), []).append(f)
-        elif "景深配额" in f:
-            for sid in re.findall(r"(s\d+)", f)[:4]:
-                sid_fails.setdefault(sid, []).append(f)
-    for sid, fl in sid_fails.items():
-        s = next((x for x in doc.get("shots") or [] if str(x.get("shot_id")) == sid), None)
-        if s is None or str(s.get("arc_id") or "").lower() != str(arc_id).lower():
-            continue
-        if not _reroll_shot_writer(doc, s, bible, fl):
-            logger.warning("[writer] 手术重掷 %s 解析失败 → 回退整场重掷", sid)
-            return None
-        _fixed_any = True
+        if not fails or len(fails) >= _n_prev:
+            break
+        _n_prev = len(fails)
+        logger.info("[writer] 手术第2轮 (剩 %d 处有进步, 续修)", len(fails))
     return doc if _fixed_any else None
 
 
