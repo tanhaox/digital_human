@@ -6,7 +6,7 @@
 <title>账号分析 · 粉丝全量指标 — 数字人口播流水线</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230E6B5C'/%3E%3Ctext x='16' y='22' font-size='17' font-family='sans-serif' fill='white' text-anchor='middle' font-weight='700'%3E粉%3C/text%3E%3C/svg%3E">
 <link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Serif+SC:wght@600;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap">
-<script src="https://fastly.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<script src="/web/vendor/echarts.min.js"></script>
 <style>
   /* ── 站点导航 (与 /web 各页一致, 深色顶栏) ── */
   nav{position:sticky;top:0;z-index:100;background:rgba(10,14,26,.85);
@@ -33,8 +33,24 @@
     font-family:'Noto Sans SC','PingFang SC','Microsoft YaHei',system-ui,sans-serif;
     line-height:1.6;-webkit-font-smoothing:antialiased}
   .wrap{max-width:1080px;margin:0 auto;padding:0 20px 72px}
+  /* ── 工具条 + 预警 ── */
+  .toolbar{display:flex;gap:10px;justify-content:flex-end;align-items:center;
+    max-width:1080px;margin:14px auto 0;padding:0 20px;flex-wrap:wrap}
+  .btn{border:1px solid var(--primary);background:var(--primary);color:#fff;border-radius:8px;
+    padding:7px 14px;font-size:13px;cursor:pointer;font-family:inherit}
+  .btn:hover{opacity:.9}
+  .btn.ghost{background:transparent;color:var(--primary)}
+  #toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);z-index:200;
+    background:var(--ink);color:#fff;border-radius:10px;padding:10px 18px;font-size:13px;
+    box-shadow:0 8px 24px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .25s}
+  #toast.show{opacity:1}
+  .alerts{max-width:1080px;margin:10px auto 0;padding:0 20px;display:grid;gap:8px}
+  .alert{border-radius:10px;padding:10px 14px;font-size:13.5px;border:1px solid}
+  .alert.warn{background:var(--amber-soft);border-color:#ecd3ab;color:#8a551a}
+  .alert.bad{background:var(--bad-soft);border-color:#e8c4bb;color:#8f3d2e}
+  /* ── hero / KPI ── */
   .hero{background:linear-gradient(150deg,#12363c 0%,#0E6B5C 62%,#157d6b 100%);
-    color:#fff;padding:46px 20px 30px;position:relative;overflow:hidden}
+    color:#fff;padding:46px 20px 30px;position:relative;overflow:hidden;margin-top:10px}
   .hero::after{content:"";position:absolute;right:-60px;top:-60px;width:260px;height:260px;
     border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.12),transparent 70%)}
   .hero .tag{display:inline-block;font-size:12px;letter-spacing:.14em;opacity:.85;
@@ -42,6 +58,7 @@
   .hero h1{font-family:'Noto Serif SC',serif;font-weight:900;font-size:clamp(24px,5vw,38px);
     margin:0 0 6px;line-height:1.25}
   .hero p.sub{margin:0;opacity:.92;font-size:14px;max-width:72ch}
+  .hero p.fresh{margin:4px 0 0;opacity:.7;font-size:12px}
   .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:26px 0 0}
   .kpi{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);
     border-radius:14px;padding:14px 16px;backdrop-filter:blur(2px)}
@@ -49,6 +66,7 @@
   .kpi .v small{font-size:14px;font-weight:600;opacity:.9}
   .kpi .l{font-size:12px;opacity:.82;margin-top:2px}
   .kpi.hl{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.28)}
+  /* ── 章节 ── */
   .sec{margin-top:34px}
   .sec-head{display:flex;align-items:baseline;gap:10px;border-bottom:2px solid var(--ink);padding-bottom:8px;margin-bottom:16px}
   .sec-head .no{font-family:'Noto Serif SC',serif;font-weight:900;font-size:15px;color:var(--primary)}
@@ -59,6 +77,13 @@
   .card .cap{font-size:12.5px;color:var(--muted);margin-bottom:6px}
   .chart{width:100%;height:300px}
   .chart.tall{height:340px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 4px}
+  .chip{background:var(--surface);border:1px solid var(--line);border-radius:999px;
+    padding:4px 12px;font-size:12.5px;color:var(--ink)}
+  .chip b{color:var(--primary)}
+  .chip.ms{background:var(--primary-soft);border-color:#cfe0db}
+  .chip.ms.done{background:#eef3f0;color:var(--muted)}
+  .eta{font-size:11.5px;color:var(--muted)}
   .cmp{display:grid;grid-template-columns:1fr;gap:10px}
   .cmp .row{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:8px;align-items:center;
     border-bottom:1px solid var(--line);padding:10px 2px;font-size:13.5px}
@@ -94,6 +119,8 @@
   thead th{background:var(--primary-soft);color:var(--primary);font-weight:700;position:sticky;top:0}
   tr.out td{background:var(--amber-soft)}
   td.neg{color:var(--bad)}
+  td.l{text-align:left;max-width:260px;overflow:hidden;text-overflow:ellipsis}
+  .sers{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:0}
   .note{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.7}
   .note b{color:var(--ink)}
   footer{margin-top:40px;text-align:center;color:var(--muted);font-size:12px}
@@ -126,11 +153,19 @@
   <a href="/docs" target="_blank">API Docs</a>
 </nav>
 
+<div class="toolbar">
+  <button class="btn ghost" id="btnCopyMd">复制复盘摘要</button>
+  <button class="btn" id="btnImport">导入数据表现 xlsx</button>
+  <input type="file" id="fileInput" accept=".xlsx,.xlsm" style="display:none">
+</div>
+<div class="alerts" id="alerts"></div>
+
 <div class="hero">
   <div class="wrap" style="padding-bottom:0">
     <span class="tag">抖音账号 · 粉丝增长分析</span>
     <h1>粉丝全量指标分析报告</h1>
     <p class="sub" id="heroSub">加载中…</p>
+    <p class="fresh" id="fresh"></p>
     <div class="kpis">
       <div class="kpi"><div class="v" id="kTotal">–</div><div class="l">期末总粉丝</div></div>
       <div class="kpi"><div class="v" id="kNet">–</div><div class="l">日均净增（全量）</div></div>
@@ -144,7 +179,7 @@
 
   <div class="card" id="emptyState">
     <h3>暂无数据</h3>
-    <p class="note">数据库 data/analytics.db 尚无数据。导入最新《数据表现》导出后刷新本页：<br>
+    <p class="note">数据库 data/analytics.db 尚无数据。点上方「导入数据表现 xlsx」上传导出文件, 或 CLI:<br>
       <b>python scripts/import_douyin_metrics.py 数据表现_合并分析.xlsx</b></p>
   </div>
 
@@ -154,17 +189,38 @@
     <div class="find">
       <div class="f"><div class="ft">增长质量好，留存强</div><div class="fd" id="f1d">…</div></div>
       <div class="f warn"><div class="ft">增长高度依赖少数爆款日</div><div class="fd" id="f2d">…</div></div>
-      <div class="f"><div class="ft">回访是触达质量的先行信号</div><div class="fd" id="f3d">…</div></div>
+      <div class="f"><div class="ft">回访是触达质量的同频信号</div><div class="fd" id="f3d">…</div></div>
       <div class="f bad"><div class="ft">存在阶段性失速与负增长</div><div class="fd" id="f4d">…</div></div>
     </div>
   </section>
 
-  <!-- ===== 2 总粉丝与每日净增 ===== -->
+  <!-- ===== 2 集数挂钩 ===== -->
+  <section class="sec" id="secEpisodes">
+    <div class="sec-head"><span class="no">02</span><h2>集数挂钩 — 投稿日 ↔ 系统集数</h2></div>
+    <div class="card">
+      <h3>各集发布日吸粉</h3>
+      <p class="cap" id="capEps">口径 = 发布日当天的账号吸粉 (单集真值含长尾, 见 docs/analytics/数据记录/ 各档 md)</p>
+      <div id="cEps" class="chart tall"></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3 id="epTableTitle">挂钩明细</h3>
+      <div class="tbl-wrap" style="border-top:none">
+        <table>
+          <thead><tr><th>日期</th><th>系列</th><th>集</th><th class="l">集标题</th><th>档</th><th>当日播放</th><th>当日净增</th><th>吸粉</th><th>次日尾</th><th class="l">备注</th></tr></thead>
+          <tbody id="epBody"></tbody>
+        </table>
+      </div>
+      <p class="note" id="epNote">…</p>
+    </div>
+  </section>
+
+  <!-- ===== 3 总粉丝与每日净增 ===== -->
   <section class="sec" id="secCharts">
-    <div class="sec-head"><span class="no">02</span><h2>累计增长与每日波动</h2></div>
+    <div class="sec-head"><span class="no">03</span><h2>累计增长与每日波动</h2></div>
     <div class="card">
       <h3 id="hTotal">总粉丝累计增长</h3>
-      <p class="cap">折线为累计总粉丝量，随每日净增持续爬升，增长呈明显的脉冲式特征。</p>
+      <div class="chips" id="etaChips"></div>
+      <p class="cap">虚线 = 涨粉阶梯里程碑 (500/800/1000/1250 毕业线); ETA 按常态基线与全量双口径。</p>
       <div id="cTotal" class="chart tall"></div>
     </div>
     <div class="card" style="margin-top:16px">
@@ -174,9 +230,9 @@
     </div>
   </section>
 
-  <!-- ===== 3 周度与对比 ===== -->
+  <!-- ===== 4 周度与对比 ===== -->
   <section class="sec" id="secWeekly">
-    <div class="sec-head"><span class="no">03</span><h2>周度趋势与口径对比</h2></div>
+    <div class="sec-head"><span class="no">04</span><h2>周度趋势与口径对比</h2></div>
     <div class="card">
       <h3>周度净增合计</h3>
       <p class="cap" id="capWeek">…</p>
@@ -192,25 +248,58 @@
     </div>
   </section>
 
-  <!-- ===== 4 回访相关性 ===== -->
+  <!-- ===== 5 视频侧 ===== -->
+  <section class="sec" id="secVideo">
+    <div class="sec-head"><span class="no">05</span><h2>视频侧指标 — 播放 / 漏斗 / 投稿对比</h2></div>
+    <div class="card">
+      <h3>每日播放量（琥珀 = 发布日）</h3>
+      <div class="chips" id="vChips"></div>
+      <div id="cViews" class="chart tall"></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>投稿日 vs 无投稿日</h3>
+      <div class="cmp">
+        <div class="row head"><span>指标</span><span class="r-d" id="pvHeadPost">投稿日</span><span class="r-d" id="pvHeadNo">无投稿日</span><span class="r-p">倍率</span></div>
+        <div id="pvBody"></div>
+      </div>
+      <p class="note" id="pvNote">…</p>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>周内分布（日均净增）</h3>
+      <p class="cap" id="capWeekday">受发布日排期影响 (双日更落点固定), 不能直接读成"周几发更好"。</p>
+      <div id="cWeekday" class="chart"></div>
+    </div>
+  </section>
+
+  <!-- ===== 6 回访相关性 ===== -->
   <section class="sec" id="secScatter">
-    <div class="sec-head"><span class="no">04</span><h2>回访粉丝量与增长相关性</h2></div>
+    <div class="sec-head"><span class="no">06</span><h2>回访粉丝量与增长相关性</h2></div>
     <div class="card">
       <h3>回访粉丝量 × 每日净增</h3>
       <p class="cap" id="capScatter">…</p>
       <div id="cScatter" class="chart"></div>
     </div>
+    <div class="card" style="margin-top:16px">
+      <h3>领先 / 滞后检验（r 随时间位移 k）</h3>
+      <div class="tbl-wrap" style="border-top:none">
+        <table style="min-width:420px">
+          <thead><tr><th>位移 k</th><th>口径</th><th>r</th><th>样本 n</th></tr></thead>
+          <tbody id="lagBody"></tbody>
+        </table>
+      </div>
+      <p class="note" id="lagNote">…</p>
+    </div>
   </section>
 
-  <!-- ===== 5 异常识别 ===== -->
+  <!-- ===== 7 异常识别 ===== -->
   <section class="sec" id="secAnomaly">
-    <div class="sec-head"><span class="no">05</span><h2>异常数据识别与剔除口径</h2></div>
+    <div class="sec-head"><span class="no">07</span><h2>异常数据识别与剔除口径</h2></div>
     <div class="card">
       <h3>识别方法</h3>
       <p class="note" style="margin-top:6px" id="anomalyMethod">…</p>
       <div class="tbl-wrap" style="margin-top:12px">
       <table>
-        <thead><tr><th>日期</th><th>粉丝净增</th><th>吸粉量</th><th>脱粉量</th><th>回访粉丝量</th><th>判定</th></tr></thead>
+        <thead><tr><th>日期</th><th>粉丝净增</th><th>吸粉量</th><th>脱粉量</th><th>回访粉丝量</th><th>判定</th><th class="l">挂钩</th></tr></thead>
         <tbody id="anomalyBody"></tbody>
       </table>
       </div>
@@ -218,9 +307,9 @@
     </div>
   </section>
 
-  <!-- ===== 6 建议 ===== -->
+  <!-- ===== 8 建议 ===== -->
   <section class="sec" id="secRecs">
-    <div class="sec-head"><span class="no">06</span><h2>行动建议</h2></div>
+    <div class="sec-head"><span class="no">08</span><h2>行动建议</h2></div>
     <div class="rec">
       <div class="r" id="rec1">…</div>
       <div class="r" id="rec2">…</div>
@@ -229,9 +318,9 @@
     </div>
   </section>
 
-  <!-- ===== 7 全量数据 ===== -->
+  <!-- ===== 9 全量数据 ===== -->
   <section class="sec" id="secDetail">
-    <div class="sec-head"><span class="no">07</span><h2 id="detailTitle">全量明细</h2></div>
+    <div class="sec-head"><span class="no">09</span><h2 id="detailTitle">全量明细</h2></div>
     <details>
       <summary>展开 / 收起原始数据表</summary>
       <div class="tbl-wrap"><div id="dataTable"></div></div>
@@ -239,8 +328,9 @@
     <p class="note" id="sourceNote">…</p>
   </section>
 
-  <footer>数据源 data/analytics.db · 更新: python scripts/import_douyin_metrics.py &lt;数据表现导出.xlsx&gt; · 口径与归档报告一致 (docs/analytics/数据记录/)</footer>
+  <footer>数据源 data/analytics.db · 更新: 页面上传或 python scripts/import_douyin_metrics.py &lt;数据表现导出.xlsx&gt; · 集数挂钩: scripts/seed_episode_links.py · 口径与归档报告一致 (docs/analytics/数据记录/)</footer>
 </div>
+<div id="toast"></div>
 <script src="/web/analytics.js"></script>
 </body>
 </html>
