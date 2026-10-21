@@ -10,8 +10,8 @@ var AXIS_LABEL = { color: "#6B7482", fontSize: 11 };
 var grid = { left: 8, right: 12, top: 36, bottom: 8, containLabel: true };
 var charts = [];
 
-var SERIES_COLORS = { "HBO的内容战略": PRIM, "定位": BLUE, "值得信赖的顾问": VIOLET, "非正片": GRAY };
-var SERIES_PREFIX = { "HBO的内容战略": "H", "定位": "定", "值得信赖的顾问": "顾", "非正片": "非" };
+var SERIES_COLORS = { "HBO的内容战略": PRIM, "定位": BLUE, "卓有成效的管理者": VIOLET, "非正片": GRAY };
+var SERIES_PREFIX = { "HBO的内容战略": "H", "定位": "定", "卓有成效的管理者": "卓", "非正片": "非" };
 
 function fmt2(x) { return Number(x).toFixed(2); }
 function fmt1(x) { return Number(x).toFixed(1); }
@@ -106,7 +106,7 @@ function render(data) {
       "</td><td>" + (e.next_net == null ? "—" : e.next_net) + '</td><td class="l">' + esc(e.note || "") + "</td></tr>";
   }).join("");
   byId("epNote").innerHTML = "投稿日 ↔ 集数 1:1 对齐（本档 " + eps.length + "/" + v.posts_total +
-    "）；10-20 接档 = 值得信赖的顾问 ep1 系推断（7 集 draft 10-18 齐），如有误改 scripts/seed_episode_links.py 重跑。";
+    "）；10-20 接档 = 卓有成效的管理者 ep1（48h 试验车）。新书接档后补 scripts/seed_episode_links.py 一行重跑。";
 
   /* ── 03 累计 + 里程碑 + 每日净增 ── */
   byId("hTotal").textContent = "总粉丝累计增长（" + s.start_total_fans + " → " + s.end_total_fans + "）";
