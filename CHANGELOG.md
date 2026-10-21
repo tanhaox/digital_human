@@ -4,6 +4,20 @@
 > 2026-07 ~ 2026-09 历史条目已归档至 `docs/changelog/`（见下方切片索引），
 > 历史条目零改动，docs/... 路径以项目根为基准。
 
+## 2026-10-21(二)｜根目录整理归档 (3 commits)
+
+### 做了什么
+仓库根目录杂物清理，docs/ 结构健康不动:
+**批1** 根目录 55 项临时产物 (.tmp_fix* 调试脚本 ×14 / _gpu·_shot·_review 等杂项 ×28 / logs_web_restart·uvicorn·web_restart 日志残留 ×8 / CHANGELOG.md.bak·.gitignore.bak ×2 / 其他 ×3) 归档至 `scripts/archive/_2026-10_root_cleanup/` (19 项 git 跟踪走 git mv, 移不删);
+**批2** 根目录 director.py / planning.py 实锤为 0808 director 拆包残留旧副本 (全仓 import 引用 0 处, 现行版本在 app/ 内在位) 同目录归档, 观察期 ≥1 周不删 (10-28 后可并入 B03 真删拍板);
+**批4** __pycache__ / _cudnn_tmp / .pytest_cache / .ruff_cache 走 send2trash (build/cache 红线例外条款)。
+启动入口 bat / _ref_* 挂账项不碰 (10-23 后 B03 拍板)。
+### 验证
+6 个移动 py 逐个 ast.parse 通过; git status 仅本批 rename + 1 条既有改动; 3 commit 独立可回滚 (ff1dcda / 9f7231a / 26b3320)。
+### 遗留
+⚠️ 目录 Windows 所有者非当前账户 (缺 WRITE_DAC, ACL 诊断报告 .tmp/acl-repair/), 待原所有者 icacls 授权。
+案卷: docs/improvements/已完成-20261021-根目录整理.md
+
 ## 2026-10-20(一)｜发布卡提取修因两波 + 封面书名单行 (3 commits)
 
 ### 做了什么
