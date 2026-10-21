@@ -660,6 +660,18 @@ def _fallback_scene(book_id: str, book_title: str, ep: int, arc_id: str,
     for s in doc.get("shots") or []:
         if str(s.get("arc_id") or "").lower() == str(arc_id).lower():
             s["writer_source"] = "fallback"
+    # 1022 批4: fallback 断供修复 — ① keyframe_en 回填 (assembler:683 写死空串,
+    # 而 writer 镜语义 = opening_desc 逐字取 keyframe_en; anim.opening_desc 本就
+    # 有英文骨架 → 回填后数据自洽, 灭 ~90% 红标) ② 确定性补申报 (宪法10d 全链
+    # 零生成点 → 70% 镜零申报断供; _ensure_scene_declaration 批3 已定义)
+    for s in doc.get("shots") or []:
+        if str(s.get("arc_id") or "").lower() != str(arc_id).lower():
+            continue
+        if not str(s.get("keyframe_en") or "").strip():
+            _en = str((s.get("anim") or {}).get("opening_desc") or "").strip()
+            if _en:
+                s["keyframe_en"] = _en
+    _ensure_scene_declaration(doc, arc_id)
     # 1021 fallback 同闸 (s21 幻影马/文字泄散文实锤: 降级产物此前零闸裸奔) —
     # 过 writer_failures: 确定性修复 (泄字剥/留白补) 照做; 剩余 fails 标红挂镜
     # 交人检, 不阻断 (fallback 无重试网, 硬拒=死路)

@@ -71,6 +71,8 @@ function badgesHtml(s) {
     s.redo_review ? bd('bd-r', 'R', '重做待复查: 此镜刚被列队重做 — 点播放看过后消除 (✅过审/打回也消)') : '',
     // 1013 P0: 单写者降级可见性 — writer 两败退现行链 (器层模板产物, 人检)
     s.writer_source === 'fallback' ? bd('bd-r', 'FB', 'fallback: 单写者两把均败, 本场退现行器层链 (模板句质量, 可🔁重掷)') : '',
+    // 1022 批4: fallback 产物闸红标前端可见 (旧版 _wf_warns 只写不读, 沉日志)
+    s._wf_warns?.length ? bd('bd-r', '⚠' + s._wf_warns.length, 'fallback 产物闸标红 (交人检): ' + esc(s._wf_warns.join('; '))) : '',
     s.camera ? bd('bd-cam', esc(s.camera), '运镜') : '',
     bd('', esc(s.page_type || '')),
     `<span class="badge st-${esc(s.status)}">${STNAME[s.status] || esc(s.status)}</span>`,
