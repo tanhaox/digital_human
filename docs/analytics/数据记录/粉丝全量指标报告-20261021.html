@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN" style="margin:0;padding:0;">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>抖音粉丝全量指标分析报告</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230E6B5C'/%3E%3Ctext x='16' y='22' font-size='17' font-family='sans-serif' fill='white' text-anchor='middle' font-weight='700'%3E粉%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Serif+SC:wght@600;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<script src="https://fastly.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+  :root{
+    --bg:#F4F5F7; --surface:#FFFFFF; --ink:#17202E; --muted:#6B7482;
+    --line:#E4E7EC; --primary:#0E6B5C; --primary-soft:#E6F1EE;
+    --amber:#C77A22; --amber-soft:#FBF1E0; --bad:#B4533F; --bad-soft:#F8E8E4;
+    --good:#2E7D5B; --shadow:0 1px 2px rgba(23,32,46,.05),0 6px 18px rgba(23,32,46,.05);
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:'Noto Sans SC','PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+    line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px 72px}
+  /* ===== Hero ===== */
+  .hero{background:linear-gradient(150deg,#12363c 0%,#0E6B5C 62%,#157d6b 100%);
+    color:#fff;padding:46px 20px 30px;position:relative;overflow:hidden}
+  .hero::after{content:"";position:absolute;right:-60px;top:-60px;width:260px;height:260px;
+    border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.12),transparent 70%)}
+  .hero .tag{display:inline-block;font-size:12px;letter-spacing:.14em;opacity:.85;
+    border:1px solid rgba(255,255,255,.4);padding:3px 12px;border-radius:999px;margin-bottom:16px}
+  .hero h1{font-family:'Noto Serif SC',serif;font-weight:900;font-size:clamp(24px,5vw,38px);
+    margin:0 0 6px;line-height:1.25}
+  .hero p.sub{margin:0;opacity:.92;font-size:14px;max-width:60ch}
+  .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:26px 0 0}
+  .kpi{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);
+    border-radius:14px;padding:14px 16px;backdrop-filter:blur(2px)}
+  .kpi .v{font-family:'Noto Serif SC',serif;font-weight:900;font-size:26px;line-height:1.1;font-variant-numeric:tabular-nums}
+  .kpi .v small{font-size:14px;font-weight:600;opacity:.9}
+  .kpi .l{font-size:12px;opacity:.82;margin-top:2px}
+  .kpi.hl{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.28)}
+  /* ===== Sections ===== */
+  .sec{margin-top:34px}
+  .sec-head{display:flex;align-items:baseline;gap:10px;border-bottom:2px solid var(--ink);padding-bottom:8px;margin-bottom:16px}
+  .sec-head .no{font-family:'Noto Serif SC',serif;font-weight:900;font-size:15px;color:var(--primary)}
+  .sec-head h2{font-family:'Noto Serif SC',serif;font-weight:700;font-size:20px;margin:0}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    box-shadow:var(--shadow);padding:18px 18px 8px}
+  .card h3{font-size:15px;margin:0 0 2px}
+  .card .cap{font-size:12.5px;color:var(--muted);margin-bottom:6px}
+  .chart{width:100%;height:300px}
+  .chart.tall{height:340px}
+  /* ===== KPI compare ===== */
+  .cmp{display:grid;grid-template-columns:1fr;gap:10px}
+  .cmp .row{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:8px;align-items:center;
+    border-bottom:1px solid var(--line);padding:10px 2px;font-size:13.5px}
+  .cmp .row:last-child{border-bottom:none}
+  .cmp .head{font-weight:700;color:var(--muted);font-size:12.5px;border-bottom:1px solid var(--ink)!important}
+  .cmp .r-n{font-weight:600}
+  .cmp .r-c{font-weight:700;color:var(--primary);text-align:right;font-variant-numeric:tabular-nums}
+  .cmp .r-d{text-align:right;font-variant-numeric:tabular-nums}
+  .cmp .r-p{text-align:right;font-weight:700;color:var(--bad)}
+  /* ===== findings ===== */
+  .find{display:grid;grid-template-columns:1fr;gap:12px}
+  .f{border:1px solid var(--line);border-left:4px solid var(--primary);border-radius:10px;
+    background:var(--surface);padding:14px 16px;box-shadow:var(--shadow)}
+  .f .ft{font-family:'Noto Serif SC',serif;font-weight:700;font-size:15px;margin-bottom:4px}
+  .f .fd{font-size:13.5px;color:#333d4c}
+  .f .fd b{color:var(--primary)}
+  .f.warn{border-left-color:var(--amber)}
+  .f.warn .ft{color:var(--amber)}
+  .f.bad{border-left-color:var(--bad)}
+  .f.bad .ft{color:var(--bad)}
+  .rec{display:grid;grid-template-columns:1fr;gap:12px;margin-top:16px}
+  .rec .r{background:var(--primary-soft);border:1px solid #cfe0db;border-radius:10px;padding:12px 15px;font-size:13.5px}
+  .rec .r b{color:var(--primary)}
+  .rec .r .tag{display:inline-block;background:var(--primary);color:#fff;border-radius:5px;
+    font-size:11px;padding:1px 7px;margin-right:7px;vertical-align:1px}
+  /* ===== data table ===== */
+  details{border:1px solid var(--line);border-radius:12px;background:var(--surface);box-shadow:var(--shadow);overflow:hidden}
+  details summary{cursor:pointer;padding:14px 18px;font-weight:700;font-size:14px;list-style:none}
+  details summary::before{content:"▸ ";color:var(--primary)}
+  details[open] summary::before{content:"▾ "}
+  .tbl-wrap{overflow-x:auto;border-top:1px solid var(--line)}
+  table{border-collapse:collapse;width:100%;min-width:640px;font-size:12.5px;font-variant-numeric:tabular-nums}
+  th,td{padding:7px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  thead th{background:var(--primary-soft);color:var(--primary);font-weight:700;position:sticky;top:0}
+  tr.out td{background:var(--amber-soft)}
+  td.neg{color:var(--bad)}
+  .note{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.7}
+  .note b{color:var(--ink)}
+  footer{margin-top:40px;text-align:center;color:var(--muted);font-size:12px}
+  @media (min-width:768px){
+    .hero{padding:56px 20px 40px}
+    .kpis{grid-template-columns:repeat(4,1fr)}
+    .find{grid-template-columns:1fr 1fr}
+    .cmp{grid-template-columns:1fr}
+    .chart{height:320px}
+    .chart.tall{height:360px}
+  }
+</style>
+</head>
+<body>
+<div class="hero">
+  <div class="wrap" style="padding-bottom:0">
+    <span class="tag">抖音账号 · 粉丝增长分析</span>
+    <h1>粉丝全量指标分析报告</h1>
+    <p class="sub">数据范围 2026-09-18 ～ 2026-10-20（33 天）· 已对异常高增长日识别并剔除 · 总粉丝从 1 增长至 411</p>
+    <div class="kpis">
+      <div class="kpi"><div class="v">411<small> 人</small></div><div class="l">期末总粉丝</div></div>
+      <div class="kpi"><div class="v">12.45<small> /日</small></div><div class="l">日均净增（全量）</div></div>
+      <div class="kpi hl"><div class="v">8.29<small> /日</small></div><div class="l">日均净增（剔除异常后）</div></div>
+      <div class="kpi"><div class="v">3.75<small>%</small></div><div class="l">累计脱粉 / 吸粉</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- ===== 1 核心结论 ===== -->
+  <section class="sec">
+    <div class="sec-head"><span class="no">01</span><h2>核心结论</h2></div>
+    <div class="find">
+      <div class="f"><div class="ft">增长质量好，留存强</div>
+        <div class="fd">33 天累计吸粉 <b>427</b>、累计脱粉仅 <b>16</b>，脱粉/吸粉 <b>3.75%</b>；日均净增 <b>12.45</b>，期末总粉丝 <b>411</b>。</div></div>
+      <div class="f warn"><div class="ft">增长高度依赖少数爆款日</div>
+        <div class="fd">5 个高增长异常日合计净增 <b>179</b>，占总增长 <b>43.6%</b>；剔除后日均净增降至 <b>8.29</b>（约 <b>-33%</b>），常态基线明显更低。</div></div>
+      <div class="f"><div class="ft">回访是触达质量的先行信号</div>
+        <div class="fd">回访粉丝量与净增强正相关（<b>r≈0.89</b>），爆款内容同时带动新增与回访，回访异动往往领先净增。</div></div>
+      <div class="f bad"><div class="ft">存在阶段性失速与负增长</div>
+        <div class="fd">09-22(0)、09-27(-1)、10-11(-1)、10-17(-1) 共 <b>4 天净增≤0</b>，需关注发布节奏与选题连续性。</div></div>
+    </div>
+  </section>
+
+  <!-- ===== 2 总粉丝与每日净增 ===== -->
+  <section class="sec">
+    <div class="sec-head"><span class="no">02</span><h2>累计增长与每日波动</h2></div>
+    <div class="card">
+      <h3>总粉丝累计增长（1 → 411）</h3>
+      <p class="cap">折线为累计总粉丝量，随每日净增持续爬升，增长呈明显的脉冲式特征。</p>
+      <div id="cTotal" class="chart tall"></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>每日粉丝净增（含异常日标注）</h3>
+      <p class="cap">琥珀色为识别出的 5 个高增长异常日（净增 ≥ 27 = 3×中位数）；红色为负增长日。</p>
+      <div id="cNet" class="chart tall"></div>
+    </div>
+  </section>
+
+  <!-- ===== 3 周度与对比 ===== -->
+  <section class="sec">
+    <div class="sec-head"><span class="no">03</span><h2>周度趋势与口径对比</h2></div>
+    <div class="card">
+      <h3>周度净增合计</h3>
+      <p class="cap">第 40 周（09-28～10-04，含 10-04 峰值）净增 145 为全期最高，之后热度脉冲式回落。</p>
+      <div id="cWeek" class="chart"></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>全量 vs 剔除异常后（常态基线）</h3>
+      <div class="cmp">
+        <div class="row head"><span>指标</span><span class="r-d">全量(33天)</span><span class="r-d">剔除异常(28天)</span><span class="r-p">变化</span></div>
+        <div class="row"><span class="r-n">日均净增</span><span class="r-d">12.45</span><span class="r-c">8.29</span><span class="r-p">-33.4%</span></div>
+        <div class="row"><span class="r-n">日均吸粉</span><span class="r-d">12.94</span><span class="r-c">8.79</span><span class="r-p">-32.1%</span></div>
+        <div class="row"><span class="r-n">日均回访</span><span class="r-d">3.64</span><span class="r-c">2.18</span><span class="r-p">-40.1%</span></div>
+        <div class="row"><span class="r-n">日均脱粉</span><span class="r-d">0.48</span><span class="r-c">0.50</span><span class="r-p">+4.2%</span></div>
+      </div>
+      <p class="note">异常日合计贡献净增 <b>179</b>（43.6%）、吸粉 <b>181</b>（42.4%）。剔除后 <b>28 天累计净增 232</b>，日均 <b>8.29</b>，可作为日常内容增长的稳健预期。</p>
+    </div>
+  </section>
+
+  <!-- ===== 4 回访相关性 ===== -->
+  <section class="sec">
+    <div class="sec-head"><span class="no">04</span><h2>回访粉丝量与增长相关性</h2></div>
+    <div class="card">
+      <h3>回访粉丝量 × 每日净增</h3>
+      <p class="cap">Pearson 相关 r≈0.89（与吸粉量 r≈0.89）：触达好 → 回访高 → 净增高，三者同频共振。</p>
+      <div id="cScatter" class="chart"></div>
+    </div>
+  </section>
+
+  <!-- ===== 5 异常识别 ===== -->
+  <section class="sec">
+    <div class="sec-head"><span class="no">05</span><h2>异常数据识别与剔除口径</h2></div>
+    <div class="card">
+      <h3>识别方法</h3>
+      <p class="note" style="margin-top:6px">先做数据质量校验：两份导出文件逐日核对「净增 = 吸粉 − 脱粉」「总粉丝 = 上日 + 净增」，<b>33 天全部一致，无数据质量错误</b>。随后对每日粉丝净增做分布诊断：分布右偏、由少数爆款日驱动，故以<b>净增 ≥ 3×中位数（中位数=9，阈值=27）</b>判定为高增长异常日并剔除。</p>
+      <div class="tbl-wrap" style="margin-top:12px">
+      <table>
+        <thead><tr><th>日期</th><th>粉丝净增</th><th>吸粉量</th><th>脱粉量</th><th>回访粉丝量</th><th>判定</th></tr></thead>
+        <tbody>
+          <tr><td>09-30</td><td>30</td><td>30</td><td>0</td><td>12</td><td>高增长异常</td></tr>
+          <tr><td>10-04</td><td>42</td><td>42</td><td>0</td><td>12</td><td>高增长异常（峰值）</td></tr>
+          <tr><td>10-06</td><td>31</td><td>31</td><td>0</td><td>15</td><td>高增长异常</td></tr>
+          <tr><td>10-18</td><td>38</td><td>38</td><td>0</td><td>11</td><td>高增长异常</td></tr>
+          <tr><td>10-20</td><td>38</td><td>40</td><td>2</td><td>9</td><td>高增长异常</td></tr>
+        </tbody>
+      </table>
+      </div>
+      <p class="note">5 个异常日合计净增 <b>179</b>、占 33 天总净增 <b>43.6%</b>。剔除后使用 <b>28 天有效数据</b>计算常态基线（日均净增 8.29）。</p>
+    </div>
+  </section>
+
+  <!-- ===== 6 建议 ===== -->
+  <section class="sec">
+    <div class="sec-head"><span class="no">06</span><h2>行动建议</h2></div>
+    <div class="rec">
+      <div class="r"><span class="tag">基线</span><b>以 8～10 人/日作为常态增长预期</b>。剔除爆款日后日均净增 8.29，据此做内容排期与目标设定，避免被个别爆款日拉高预期、产生数据焦虑。</div>
+      <div class="r"><span class="tag">复制</span><b>把爆款日打法沉淀为可复用 SOP</b>。复盘 10-04(42)、10-18/10-20(38) 的选题、发布时间、话题与封面，提升非爆款日的常态基线。</div>
+      <div class="r"><span class="tag">先行</span><b>盯住回访粉丝量作为早期预警</b>。回访与净增 r≈0.89，回访异动往往领先净增，可作为内容触达质量的先行指标。</div>
+      <div class="r"><span class="tag">干预</span><b>建立净增≤0 日的干预机制</b>。连续 2 天及以上净增≤0 时，及时调整发布频率或选题方向，避免账号进入失速区间。</div>
+    </div>
+  </section>
+
+  <!-- ===== 7 全量数据 ===== -->
+  <section class="sec">
+    <div class="sec-head"><span class="no">07</span><h2>全量明细（33 天）</h2></div>
+    <details>
+      <summary>展开 / 收起原始数据表</summary>
+      <div class="tbl-wrap"><div id="dataTable"></div></div>
+    </details>
+    <p class="note">本报告由用户上传的两份《数据表现_粉丝全量指标》导出合并（重叠日期逐日一致）后计算；所有指标均可在上表核验。</p>
+  </section>
+
+  <footer>豆包办公 · 数据表现分析 · 生成于 2026-10-21</footer>
+</div>
+
+<script>
+const RAW = [
+["2026-09-18",1,1,1,0,0],["2026-09-19",5,4,5,1,1],["2026-09-20",9,4,4,0,0],
+["2026-09-21",20,11,11,0,3],["2026-09-22",20,0,1,1,0],["2026-09-23",26,6,7,1,1],
+["2026-09-24",35,9,9,0,1],["2026-09-25",38,3,3,0,1],["2026-09-26",62,24,24,0,5],
+["2026-09-27",61,-1,0,1,0],["2026-09-28",83,22,22,0,2],["2026-09-29",95,12,12,0,2],
+["2026-09-30",125,30,30,0,12],["2026-10-01",128,3,3,0,0],["2026-10-02",149,21,21,0,5],
+["2026-10-03",164,15,17,2,3],["2026-10-04",206,42,42,0,12],["2026-10-05",208,2,2,0,1],
+["2026-10-06",239,31,31,0,15],["2026-10-07",246,7,8,1,4],["2026-10-08",265,19,19,0,4],
+["2026-10-09",270,5,5,0,3],["2026-10-10",282,12,12,0,5],["2026-10-11",281,-1,0,1,0],
+["2026-10-12",290,9,10,1,1],["2026-10-13",291,1,1,0,0],["2026-10-14",311,20,23,3,8],
+["2026-10-15",320,9,9,0,4],["2026-10-16",335,15,15,0,6],["2026-10-17",334,-1,1,2,0],
+["2026-10-18",372,38,38,0,11],["2026-10-19",373,1,1,0,1],["2026-10-20",411,38,40,2,9]
+];
+const dates=RAW.map(r=>r[0]);
+const totals=RAW.map(r=>r[1]);
+const nets=RAW.map(r=>r[2]);
+const absorb=RAW.map(r=>r[3]);
+const rets=RAW.map(r=>r[5]);
+const THRESH=27, MED=9;
+
+const AXIS_LABEL={color:"#6B7482",fontSize:11};
+const INK="#17202E", PRIM="#0E6B5C", AMBER="#C77A22", BAD="#B4533F", MUT="#6B7482", LINE="#E4E7EC";
+const grid={left:8,right:12,top:36,bottom:8,containLabel:true};
+
+function shortDate(s){return s.slice(5);}
+
+// 1 total
+(function(){
+  const el=document.getElementById("cTotal");
+  const ch=echarts.init(el);
+  ch.setOption({
+    grid:grid,
+    tooltip:{trigger:"axis",confine:true,
+      formatter:function(ps){const i=ps[0].dataIndex;return dates[i]+"<br>总粉丝 <b>"+totals[i]+"</b> 人<br>净增 "+nets[i]+" 人";}},
+    xAxis:{type:"category",data:dates,axisLine:{lineStyle:{color:LINE}},axisTick:{show:false},
+      axisLabel:{...AXIS_LABEL,interval:5,formatter:shortDate}},
+    yAxis:{type:"value",axisLabel:{...AXIS_LABEL,formatter:"{value}"},splitLine:{lineStyle:{color:"#F0F1F4"}}},
+    series:[{type:"line",data:totals,smooth:true,symbol:"none",lineStyle:{width:3,color:PRIM},
+      areaStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:"rgba(14,107,92,.28)"},{offset:1,color:"rgba(14,107,92,.02)"}]),
+      itemStyle:{color:PRIM}}}]
+  });
+  window.addEventListener("resize",()=>ch.resize());
+})();
+
+// 2 net bars with outlier highlight
+(function(){
+  const el=document.getElementById("cNet");
+  const ch=echarts.init(el);
+  ch.setOption({
+    grid:grid,
+    tooltip:{trigger:"axis",confine:true,
+      formatter:function(ps){const i=ps[0].dataIndex;const o=nets[i]>=THRESH?"（高增长异常日）":nets[i]<0?"（负增长）":"";
+        return dates[i]+"<br>净增 <b>"+nets[i]+"</b> 人"+o+"<br>吸粉 "+absorb[i]+" · 脱粉 "+RAW[i][4]+" · 回访 "+rets[i];}},
+    xAxis:{type:"category",data:dates,axisLine:{lineStyle:{color:LINE}},axisTick:{show:false},
+      axisLabel:{...AXIS_LABEL,interval:5,formatter:shortDate}},
+    yAxis:{type:"value",axisLabel:{...AXIS_LABEL},splitLine:{lineStyle:{color:"#F0F1F4"}},axisLine:{show:false}},
+    series:[{type:"bar",data:nets.map(function(v,i){
+      return {value:v,itemStyle:{color: v>=THRESH?AMBER:(v<0?BAD:"#6FB7A8"),
+        borderRadius:v>=THRESH?[3,3,0,0]:[0,0,0,0]}};}),
+      barMaxWidth:16}]
+  });
+  window.addEventListener("resize",()=>ch.resize());
+})();
+
+// 3 weekly
+(function(){
+  const el=document.getElementById("cWeek");
+  const ch=echarts.init(el);
+  const weeks=[{n:"09-18~09-20",v:9},{n:"09-21~09-27",v:52},{n:"09-28~10-04",v:145},
+    {n:"10-05~10-11",v:75},{n:"10-12~10-18",v:91},{n:"10-19~10-20",v:39}];
+  ch.setOption({
+    grid:grid,
+    tooltip:{trigger:"axis",confine:true,formatter:function(ps){return ps[0].name+"<br>净增 <b>"+ps[0].value+"</b> 人";}},
+    xAxis:{type:"category",data:weeks.map(w=>w.n),axisLine:{lineStyle:{color:LINE}},axisTick:{show:false},axisLabel:{...AXIS_LABEL}},
+    yAxis:{type:"value",axisLabel:{...AXIS_LABEL},splitLine:{lineStyle:{color:"#F0F1F4"}}},
+    series:[{type:"bar",data:weeks.map(w=>w.v),barMaxWidth:44,
+      itemStyle:{color:function(p){return p.dataIndex===2?PRIM:"#6FB7A8"},borderRadius:[4,4,0,0]},
+      label:{show:true,position:"top",color:INK,fontWeight:700,fontSize:12}}]
+  });
+  window.addEventListener("resize",()=>ch.resize());
+})();
+
+// 4 scatter return vs net
+(function(){
+  const el=document.getElementById("cScatter");
+  const ch=echarts.init(el);
+  const pts=nets.map(function(v,i){return [v,rets[i]];});
+  ch.setOption({
+    grid:grid,
+    tooltip:{confine:true,formatter:function(p){const i=p.dataIndex;
+      return dates[i]+"<br>净增 "+nets[i]+" 人 · 回访 "+rets[i]+" 人次";}},
+    xAxis:{type:"value",name:"每日净增(人)",nameTextStyle:{color:MUT,fontSize:12},
+      axisLabel:{...AXIS_LABEL},splitLine:{lineStyle:{color:"#F0F1F4"}}},
+    yAxis:{type:"value",name:"回访粉丝量(人次)",nameTextStyle:{color:MUT,fontSize:12},
+      axisLabel:{...AXIS_LABEL},splitLine:{lineStyle:{color:"#F0F1F4"}}},
+    series:[{type:"scatter",data:pts,symbolSize:function(v){return 8+Math.min(v[0],42)*0.25;},
+      itemStyle:{color:PRIM,opacity:.8}}]
+  });
+  window.addEventListener("resize",()=>ch.resize());
+})();
+
+// 5 data table
+(function(){
+  const rows=[['日期','总粉丝量','粉丝净增','吸粉量','脱粉量','回访粉丝量']];
+  RAW.forEach(r=>rows.push(r.slice(0,6).map((v,i)=>i===0?v:(v<0?String(v):String(v)))));
+  let html='<table><thead><tr>';
+  rows[0].forEach(h=>html+='<th>'+h+'</th>');
+  html+='</tr></thead><tbody>';
+  for(let i=1;i<rows.length;i++){
+    const r=rows[i]; const net=RAW[i-1][2]; const out=net>=THRESH?' class="out"':'';
+    html+='<tr'+out+'><td>'+r[0].slice(5)+'</td>';
+    for(let j=1;j<r.length;j++){
+      html+='<td'+(net<0&&j===2?' class="neg"':'')+'>'+r[j]+'</td>';
+    }
+    html+='</tr>';
+  }
+  html+='</tbody></table>';
+  document.getElementById("dataTable").innerHTML=html;
+})();
+</script>
+</body>
+</html>

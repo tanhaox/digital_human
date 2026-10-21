@@ -17,6 +17,7 @@ from .config import load_config, set_config
 from .database import init_db
 from .models import AudioJob, DirectorJob, Host, Voice
 from .routers import (
+    analytics,
     anim,
     articles,
     audio,
@@ -427,6 +428,7 @@ def create_app() -> FastAPI:
             await self.app(scope, receive, send_with_csp)
 
     app.add_middleware(AnimRfCspMiddleware)
+    app.include_router(analytics.router)
     app.include_router(articles.router)
     app.include_router(scripts.router)
     app.include_router(audio.router)

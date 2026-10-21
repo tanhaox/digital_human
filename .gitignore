@@ -10,6 +10,7 @@ config/app.yaml
 
 # 数据库文件
 data/pipeline.db
+data/analytics.db
 data/*.bak.*
 data/pipeline.db.pre_voice_cleanup_*.bak
 

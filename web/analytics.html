@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>账号分析 · 粉丝全量指标 — 数字人口播流水线</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230E6B5C'/%3E%3Ctext x='16' y='22' font-size='17' font-family='sans-serif' fill='white' text-anchor='middle' font-weight='700'%3E粉%3C/text%3E%3C/svg%3E">
+<link rel="stylesheet" href="https://miaoda.feishu.cn/fonts/css2?family=Noto+Serif+SC:wght@600;700;900&family=Noto+Sans+SC:wght@400;500;700&display=swap">
+<script src="https://fastly.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+  /* ── 站点导航 (与 /web 各页一致, 深色顶栏) ── */
+  nav{position:sticky;top:0;z-index:100;background:rgba(10,14,26,.85);
+    backdrop-filter:blur(20px) saturate(1.2);border-bottom:1px solid rgba(99,115,146,.18);
+    padding:0 2rem;display:flex;align-items:center;height:56px;
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei","Segoe UI",sans-serif}
+  nav .logo{font-size:1.1rem;font-weight:700;color:#3b82f6;margin-right:2rem}
+  nav .logo span{font-weight:400;opacity:.7}
+  nav a{color:#8892a8;text-decoration:none;font-size:.85rem;padding:.4rem .8rem;border-radius:6px}
+  nav a:hover{color:#e8edf5;background:rgba(255,255,255,.05)}
+  nav a.active{color:#3b82f6;background:rgba(59,130,246,.25)}
+  nav .spacer{flex:1}
+  @media(max-width:900px){nav{padding:0 .6rem;overflow-x:auto}}
+  /* ── 报告样式 (源: 数据记录/粉丝全量指标报告-20261021.html, 浅色) ── */
+  :root{
+    --bg:#F4F5F7; --surface:#FFFFFF; --ink:#17202E; --muted:#6B7482;
+    --line:#E4E7EC; --primary:#0E6B5C; --primary-soft:#E6F1EE;
+    --amber:#C77A22; --amber-soft:#FBF1E0; --bad:#B4533F; --bad-soft:#F8E8E4;
+    --good:#2E7D5B; --shadow:0 1px 2px rgba(23,32,46,.05),0 6px 18px rgba(23,32,46,.05);
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:'Noto Sans SC','PingFang SC','Microsoft YaHei',system-ui,sans-serif;
+    line-height:1.6;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 20px 72px}
+  .hero{background:linear-gradient(150deg,#12363c 0%,#0E6B5C 62%,#157d6b 100%);
+    color:#fff;padding:46px 20px 30px;position:relative;overflow:hidden}
+  .hero::after{content:"";position:absolute;right:-60px;top:-60px;width:260px;height:260px;
+    border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.12),transparent 70%)}
+  .hero .tag{display:inline-block;font-size:12px;letter-spacing:.14em;opacity:.85;
+    border:1px solid rgba(255,255,255,.4);padding:3px 12px;border-radius:999px;margin-bottom:16px}
+  .hero h1{font-family:'Noto Serif SC',serif;font-weight:900;font-size:clamp(24px,5vw,38px);
+    margin:0 0 6px;line-height:1.25}
+  .hero p.sub{margin:0;opacity:.92;font-size:14px;max-width:72ch}
+  .kpis{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin:26px 0 0}
+  .kpi{background:rgba(255,255,255,.10);border:1px solid rgba(255,255,255,.16);
+    border-radius:14px;padding:14px 16px;backdrop-filter:blur(2px)}
+  .kpi .v{font-family:'Noto Serif SC',serif;font-weight:900;font-size:26px;line-height:1.1;font-variant-numeric:tabular-nums}
+  .kpi .v small{font-size:14px;font-weight:600;opacity:.9}
+  .kpi .l{font-size:12px;opacity:.82;margin-top:2px}
+  .kpi.hl{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.28)}
+  .sec{margin-top:34px}
+  .sec-head{display:flex;align-items:baseline;gap:10px;border-bottom:2px solid var(--ink);padding-bottom:8px;margin-bottom:16px}
+  .sec-head .no{font-family:'Noto Serif SC',serif;font-weight:900;font-size:15px;color:var(--primary)}
+  .sec-head h2{font-family:'Noto Serif SC',serif;font-weight:700;font-size:20px;margin:0}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:14px;
+    box-shadow:var(--shadow);padding:18px 18px 8px}
+  .card h3{font-size:15px;margin:0 0 2px}
+  .card .cap{font-size:12.5px;color:var(--muted);margin-bottom:6px}
+  .chart{width:100%;height:300px}
+  .chart.tall{height:340px}
+  .cmp{display:grid;grid-template-columns:1fr;gap:10px}
+  .cmp .row{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:8px;align-items:center;
+    border-bottom:1px solid var(--line);padding:10px 2px;font-size:13.5px}
+  .cmp .row:last-child{border-bottom:none}
+  .cmp .head{font-weight:700;color:var(--muted);font-size:12.5px;border-bottom:1px solid var(--ink)!important}
+  .cmp .r-n{font-weight:600}
+  .cmp .r-c{font-weight:700;color:var(--primary);text-align:right;font-variant-numeric:tabular-nums}
+  .cmp .r-d{text-align:right;font-variant-numeric:tabular-nums}
+  .cmp .r-p{text-align:right;font-weight:700;color:var(--bad)}
+  .find{display:grid;grid-template-columns:1fr;gap:12px}
+  .f{border:1px solid var(--line);border-left:4px solid var(--primary);border-radius:10px;
+    background:var(--surface);padding:14px 16px;box-shadow:var(--shadow)}
+  .f .ft{font-family:'Noto Serif SC',serif;font-weight:700;font-size:15px;margin-bottom:4px}
+  .f .fd{font-size:13.5px;color:#333d4c}
+  .f .fd b{color:var(--primary)}
+  .f.warn{border-left-color:var(--amber)}
+  .f.warn .ft{color:var(--amber)}
+  .f.bad{border-left-color:var(--bad)}
+  .f.bad .ft{color:var(--bad)}
+  .rec{display:grid;grid-template-columns:1fr;gap:12px;margin-top:16px}
+  .rec .r{background:var(--primary-soft);border:1px solid #cfe0db;border-radius:10px;padding:12px 15px;font-size:13.5px}
+  .rec .r b{color:var(--primary)}
+  .rec .r .tag{display:inline-block;background:var(--primary);color:#fff;border-radius:5px;
+    font-size:11px;padding:1px 7px;margin-right:7px;vertical-align:1px}
+  details{border:1px solid var(--line);border-radius:12px;background:var(--surface);box-shadow:var(--shadow);overflow:hidden}
+  details summary{cursor:pointer;padding:14px 18px;font-weight:700;font-size:14px;list-style:none}
+  details summary::before{content:"▸ ";color:var(--primary)}
+  details[open] summary::before{content:"▾ "}
+  .tbl-wrap{overflow-x:auto;border-top:1px solid var(--line)}
+  table{border-collapse:collapse;width:100%;min-width:640px;font-size:12.5px;font-variant-numeric:tabular-nums}
+  th,td{padding:7px 12px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+  th:first-child,td:first-child{text-align:left}
+  thead th{background:var(--primary-soft);color:var(--primary);font-weight:700;position:sticky;top:0}
+  tr.out td{background:var(--amber-soft)}
+  td.neg{color:var(--bad)}
+  .note{font-size:12px;color:var(--muted);margin-top:10px;line-height:1.7}
+  .note b{color:var(--ink)}
+  footer{margin-top:40px;text-align:center;color:var(--muted);font-size:12px}
+  #emptyState{display:none;margin-top:34px}
+  @media (min-width:768px){
+    .hero{padding:56px 20px 40px}
+    .kpis{grid-template-columns:repeat(4,1fr)}
+    .find{grid-template-columns:1fr 1fr}
+    .chart{height:320px}
+    .chart.tall{height:360px}
+  }
+</style>
+</head>
+<body>
+<nav>
+  <div class="logo">Pipeline<span>Studio</span></div>
+  <a href="/web/books.html">拆书</a>
+  <a href="/web/index.html">新闻线索</a>
+  <a href="/web/writing.html">文字加工</a>
+  <a href="/web/audio.html">音频加工</a>
+  <a href="/web/director.html">导演控制台</a>
+  <a href="/web/library.html">视频库</a>
+  <a href="/web/templates.html">模板管理</a>
+  <a href="/web/visual_render.html">视觉渲染</a>
+  <a href="/web/voices.html">音色管理</a>
+  <a href="/web/roles.html">角色管理</a>
+  <a href="/web/personas.html">人物</a>
+  <a href="/web/analytics.html" class="active">账号分析</a>
+  <div class="spacer"></div>
+  <a href="/docs" target="_blank">API Docs</a>
+</nav>
+
+<div class="hero">
+  <div class="wrap" style="padding-bottom:0">
+    <span class="tag">抖音账号 · 粉丝增长分析</span>
+    <h1>粉丝全量指标分析报告</h1>
+    <p class="sub" id="heroSub">加载中…</p>
+    <div class="kpis">
+      <div class="kpi"><div class="v" id="kTotal">–</div><div class="l">期末总粉丝</div></div>
+      <div class="kpi"><div class="v" id="kNet">–</div><div class="l">日均净增（全量）</div></div>
+      <div class="kpi hl"><div class="v" id="kBase">–</div><div class="l">日均净增（剔除异常后）</div></div>
+      <div class="kpi"><div class="v" id="kChurn">–</div><div class="l">累计脱粉 / 吸粉</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <div class="card" id="emptyState">
+    <h3>暂无数据</h3>
+    <p class="note">数据库 data/analytics.db 尚无数据。导入最新《数据表现》导出后刷新本页：<br>
+      <b>python scripts/import_douyin_metrics.py 数据表现_合并分析.xlsx</b></p>
+  </div>
+
+  <!-- ===== 1 核心结论 ===== -->
+  <section class="sec" id="secFindings">
+    <div class="sec-head"><span class="no">01</span><h2>核心结论</h2></div>
+    <div class="find">
+      <div class="f"><div class="ft">增长质量好，留存强</div><div class="fd" id="f1d">…</div></div>
+      <div class="f warn"><div class="ft">增长高度依赖少数爆款日</div><div class="fd" id="f2d">…</div></div>
+      <div class="f"><div class="ft">回访是触达质量的先行信号</div><div class="fd" id="f3d">…</div></div>
+      <div class="f bad"><div class="ft">存在阶段性失速与负增长</div><div class="fd" id="f4d">…</div></div>
+    </div>
+  </section>
+
+  <!-- ===== 2 总粉丝与每日净增 ===== -->
+  <section class="sec" id="secCharts">
+    <div class="sec-head"><span class="no">02</span><h2>累计增长与每日波动</h2></div>
+    <div class="card">
+      <h3 id="hTotal">总粉丝累计增长</h3>
+      <p class="cap">折线为累计总粉丝量，随每日净增持续爬升，增长呈明显的脉冲式特征。</p>
+      <div id="cTotal" class="chart tall"></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>每日粉丝净增（含异常日标注）</h3>
+      <p class="cap" id="capNet">…</p>
+      <div id="cNet" class="chart tall"></div>
+    </div>
+  </section>
+
+  <!-- ===== 3 周度与对比 ===== -->
+  <section class="sec" id="secWeekly">
+    <div class="sec-head"><span class="no">03</span><h2>周度趋势与口径对比</h2></div>
+    <div class="card">
+      <h3>周度净增合计</h3>
+      <p class="cap" id="capWeek">…</p>
+      <div id="cWeek" class="chart"></div>
+    </div>
+    <div class="card" style="margin-top:16px">
+      <h3>全量 vs 剔除异常后（常态基线）</h3>
+      <div class="cmp">
+        <div class="row head"><span>指标</span><span class="r-d" id="cmpHeadFull">全量</span><span class="r-d" id="cmpHeadBase">剔除异常</span><span class="r-p">变化</span></div>
+        <div id="cmpBody"></div>
+      </div>
+      <p class="note" id="cmpNote">…</p>
+    </div>
+  </section>
+
+  <!-- ===== 4 回访相关性 ===== -->
+  <section class="sec" id="secScatter">
+    <div class="sec-head"><span class="no">04</span><h2>回访粉丝量与增长相关性</h2></div>
+    <div class="card">
+      <h3>回访粉丝量 × 每日净增</h3>
+      <p class="cap" id="capScatter">…</p>
+      <div id="cScatter" class="chart"></div>
+    </div>
+  </section>
+
+  <!-- ===== 5 异常识别 ===== -->
+  <section class="sec" id="secAnomaly">
+    <div class="sec-head"><span class="no">05</span><h2>异常数据识别与剔除口径</h2></div>
+    <div class="card">
+      <h3>识别方法</h3>
+      <p class="note" style="margin-top:6px" id="anomalyMethod">…</p>
+      <div class="tbl-wrap" style="margin-top:12px">
+      <table>
+        <thead><tr><th>日期</th><th>粉丝净增</th><th>吸粉量</th><th>脱粉量</th><th>回访粉丝量</th><th>判定</th></tr></thead>
+        <tbody id="anomalyBody"></tbody>
+      </table>
+      </div>
+      <p class="note" id="anomalyNote">…</p>
+    </div>
+  </section>
+
+  <!-- ===== 6 建议 ===== -->
+  <section class="sec" id="secRecs">
+    <div class="sec-head"><span class="no">06</span><h2>行动建议</h2></div>
+    <div class="rec">
+      <div class="r" id="rec1">…</div>
+      <div class="r" id="rec2">…</div>
+      <div class="r" id="rec3">…</div>
+      <div class="r" id="rec4">…</div>
+    </div>
+  </section>
+
+  <!-- ===== 7 全量数据 ===== -->
+  <section class="sec" id="secDetail">
+    <div class="sec-head"><span class="no">07</span><h2 id="detailTitle">全量明细</h2></div>
+    <details>
+      <summary>展开 / 收起原始数据表</summary>
+      <div class="tbl-wrap"><div id="dataTable"></div></div>
+    </details>
+    <p class="note" id="sourceNote">…</p>
+  </section>
+
+  <footer>数据源 data/analytics.db · 更新: python scripts/import_douyin_metrics.py &lt;数据表现导出.xlsx&gt; · 口径与归档报告一致 (docs/analytics/数据记录/)</footer>
+</div>
+<script src="/web/analytics.js"></script>
+</body>
+</html>
