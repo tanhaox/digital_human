@@ -584,9 +584,12 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
                 if not r.get("hard") and "文字" in str(r.get("reason") or "")]
     _carrier_naked = bool(
         not shot.get("in_image_text")
-        and TEXT_CARRIER_NOUN_RE.search(str(shot.get("keyframe_zh") or "")))
+        and (TEXT_CARRIER_NOUN_RE.search(str(shot.get("keyframe_zh") or ""))
+             # 1021 补 (s83 实锤 "做到大字亮起" 无载体物件 — 大字=字面画字指令,
+             # 载体名词表只收物件拦不到, K2 原样画出中文 → 触发同款提示词卫生)
+             or "大字" in str(shot.get("keyframe_zh") or "")))
     if len(_txt_rej) >= 1 or _carrier_naked:
-        _strip_kw = ["写着", "字样", "字迹", "写满", "刻着", "刻字",
+        _strip_kw = ["写着", "字样", "字迹", "写满", "刻着", "刻字", "大字",
                      "标签黑字", "标签金字", "黑字手写体", "金字手写体", "米白标签", "金色标签",
                      "written on", "engraved", "inscription", "lettering"]
         scene_eff, _dropped2 = strip_negative(scene_eff, _strip_kw)

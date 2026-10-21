@@ -3639,6 +3639,11 @@ def validate_doc(doc: dict[str, Any]) -> list[str]:
         if not s.get("in_image_text") and _qre.search(str(s.get("keyframe_zh") or "")):
             issues.append(f"{s['shot_id']} 画面句含引号文本未申报 in_image_text "
                           "(二段化只认显式申报, 见 10b/10c)")
+        # 1021 R3b (s83 实锤 "做到大字亮起" 无引号漏网): 大字=字面画字指令,
+        # 未申报 = 图内字宪法违例 (画字只走空白载体+申报), 同 R3 硬拦
+        if not s.get("in_image_text") and "大字" in str(s.get("keyframe_zh") or ""):
+            issues.append(f"{s['shot_id']} 画面句含'大字'字面未申报 in_image_text "
+                          "(概念名禁物化为大字, 转译徽记/门牌等图形实体, 见 10b/10c)")
     return issues  # 硬校验到此; 文字措辞类走 collect_warnings (R1-R3 丢失类除外)
 
 
@@ -3672,7 +3677,7 @@ def collect_warnings(doc: dict[str, Any]) -> list[str]:
     # 1014 P1 扩容 (ep3 实锤: 中文汉字从不被检出 — s03/s07/s46 带字过闸):
     # ①引号短中文 (可画文本) ②文字载体动词 (写着/字样/字迹/写满)
     _text_pat = re.compile(r"[a-zA-Z]{3,}|\d{3,}|[「『\"“']([^」』\"”']{1,8})[」』\"”']|写着|字样|字迹|写满")
-    _carrier_pat = re.compile(r"写着|字样|字迹|写满")
+    _carrier_pat = re.compile(r"写着|字样|字迹|写满|大字")
     for s in shots:
         kf = _hex_strip.sub("", s.get("keyframe_zh") or "")
         hits = [h for h in _text_pat.findall(kf) if h.lower() not in wl]
