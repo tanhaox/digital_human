@@ -90,29 +90,46 @@ function render(data) {
   var fxTag = function (d) { var f = (data.factors || []).filter(function (x) { return d >= x.date_from && d <= x.date_to; })[0]; return f ? '<span class="fx">' + f.label + "</span>" : ""; };
 
   var epFan = function (e) { return e.v_fan_growth != null ? e.v_fan_growth : e.fan_new; }; // 视频真值优先
+  var epViews = function (e) { return e.v_views != null ? e.v_views : e.views; }; // 视频真值优先, 缺则账号日
   chart("cEps").setOption({
-    grid: grid,
-    tooltip: { confine: true, formatter: function (p) {
-      var e = eps[p.dataIndex];
+    grid: { left: 8, right: 56, top: 42, bottom: 8, containLabel: true },
+    legend: { top: 6, right: 8, itemWidth: 14, itemHeight: 9,
+      data: [{ name: "吸粉(左轴)", icon: "roundRect" }, { name: "播放(右轴)", icon: "circle" }] },
+    tooltip: { trigger: "axis", confine: true, formatter: function (ps) {
+      var e = eps[ps[0].dataIndex];
+      var rate = e.v_views ? (epFan(e) / e.v_views * 100).toFixed(2) : null;
       var lines = [e.date + " · " + e.series + " " + e.ep + (e.v_genre ? " · " + e.v_genre : ""), esc(e.ep_title || "非正片")];
       if (e.v_views != null) {
-        lines.push("视频真值: 播放 " + e.v_views + " · 官方完播 " + pct1(e.v_completion) +
-          " · 吸粉 <b>" + e.v_fan_growth + "</b> · 藏 " + e.v_collects + " · 主页 " + e.v_profile_visits);
+        lines.push("播放 <b>" + e.v_views + "</b> · 完播 " + pct1(e.v_completion) +
+          (rate ? " · <b>吸粉率 " + rate + "%</b>" : ""));
+        lines.push("吸粉 <b>" + epFan(e) + "</b> (视频真值" + (e.fan_new !== e.v_fan_growth ? " / 账号日 " + e.fan_new : "") +
+          ") · 藏 " + e.v_collects + " · 主页 " + e.v_profile_visits);
       } else {
-        lines.push("作品列表无此条 (09-27 非正片)");
+        lines.push("作品列表无此条 (09-27 非正片) · 账号日播放 " + e.views);
       }
-      lines.push("账号日: 播放 " + e.views + " · 净增 " + e.fan_net + " · 吸粉 " + e.fan_new +
-        (e.next_net != null ? " · 次日尾 " + e.next_net : ""));
+      lines.push("账号日: 净增 " + e.fan_net + (e.next_net != null ? " · 次日尾 " + e.next_net : ""));
       return lines.join("<br>");
     } },
     xAxis: { type: "category", data: eps.map(function (e) {
       return (SERIES_PREFIX[e.series] || "?") + (e.ep === "非正片" ? "" : e.ep.replace("ep", ""));
     }), axisLine: { lineStyle: { color: LINE } }, axisTick: { show: false }, axisLabel: Object.assign({}, AXIS_LABEL) },
-    yAxis: { type: "value", axisLabel: Object.assign({}, AXIS_LABEL), splitLine: { lineStyle: { color: "#F0F1F4" } } },
-    series: [{ type: "bar", data: eps.map(function (e) {
-      return { value: epFan(e), itemStyle: { color: SERIES_COLORS[e.series] || GRAY, borderRadius: [3, 3, 0, 0] } };
-    }), barMaxWidth: 22,
-      label: { show: true, position: "top", color: INK, fontSize: 10, fontWeight: 600 } }]
+    yAxis: [
+      { type: "value", name: "吸粉(人)", nameTextStyle: { color: MUT, fontSize: 11 },
+        axisLabel: Object.assign({}, AXIS_LABEL), splitLine: { lineStyle: { color: "#F0F1F4" } } },
+      { type: "value", name: "播放", nameTextStyle: { color: MUT, fontSize: 11 },
+        axisLabel: Object.assign({}, AXIS_LABEL, { formatter: function (x) { return x >= 1000 ? (x / 1000) + "k" : x; } }),
+        splitLine: { show: false } },
+    ],
+    series: [
+      { name: "吸粉(左轴)", type: "bar", data: eps.map(function (e) {
+        return { value: epFan(e), itemStyle: { color: SERIES_COLORS[e.series] || GRAY, borderRadius: [3, 3, 0, 0] } };
+      }), barMaxWidth: 22,
+        label: { show: true, position: "top", color: INK, fontSize: 10, fontWeight: 600 } },
+      { name: "播放(右轴)", type: "line", yAxisIndex: 1, connectNulls: true,
+        data: eps.map(function (e) { return epViews(e); }),
+        symbol: "circle", symbolSize: 7, smooth: false,
+        lineStyle: { width: 2, color: "#3a4657" }, itemStyle: { color: "#3a4657" } },
+    ],
   });
   // 体裁×完播 汇总 (时长-完播负相关链, 数据记录1005 §七 的活数据版)
   var gen = {};
