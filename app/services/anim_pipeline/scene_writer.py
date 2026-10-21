@@ -41,7 +41,10 @@ TEXT_CARRIER_VERB_RE = _TEXT_CARRIER_RE
 # 即脱锚; 中文子串包含天然消化同义词 (车⊂汽车), 高危同义/泛指族 (路/道/门/窗/手/人)
 # 入豁免表; 抽象量词 (个/点/丝/次/声/阵) 不在量词表自动不收
 _PHANTOM_Q_RE = re.compile(r"一(匹|头|只|条|辆|艘|台|棵|座|块|张|把|件|群|盏|面)([一-龥]{1,2})")
-_PHANTOM_EXEMPT = {"路", "道", "门", "窗", "手", "人"}
+_PHANTOM_EXEMPT = {"路", "道", "门", "窗", "手", "人",
+                   # 1022 修 (A9 两把死于"一条缝/一股流"误杀): 光影/气象/缝隙类
+                   # 非实体名词豁免 — 实体动物 (s21 一匹马) 仍在网内
+                   "缝", "流", "光", "影", "雾", "风", "烟", "尘", "云", "痕"}
 
 # 1015 H 修复① (ep4 A1 二次replan实锤: 「桶身贴米白空白标签」名词措辞零命中出口闸
 # → 白标签孤儿): 载体名词表补动词措辞之外的名词盲区。公共名单单源化 — k2.py
@@ -366,12 +369,18 @@ def writer_failures(doc: dict[str, Any], arc_id: str) -> list[str]:
             fails.append(f"{sid} 相邻镜花字重复 '{'/'.join(sorted(dup)[:3])}'")
         prev_texts = cur
     # 场内逐字克隆 (writer 最忌)
+    # 1022 修 (闸分层): 克隆是质量项非合规项 — 10-22 A2/A3 两把死因以克隆族为主,
+    # 杀死本可过的场。同文克隆 ≥3 对 (整场塌方) 才 fail, ≤2 对降 warn 交人检/
+    # 后续 🔁单镜; 构图同源整族降 _clone_warns (与 fallback 红标同待遇)。
     seen: dict[str, str] = {}
+    _dup_pairs = 0
     for s in shots:
         zh = str(s.get("keyframe_zh") or "").strip()
         if zh and not s.get("brand_card"):
             if zh in seen:
-                fails.append(f"{s['shot_id']} 画面句与 {seen[zh]} 逐字克隆 (禁)")
+                _dup_pairs += 1
+                if _dup_pairs >= 3:
+                    fails.append(f"{s['shot_id']} 画面句与 {seen[zh]} 逐字克隆 (≥3对整场塌方)")
             seen[zh] = str(s.get("shot_id"))
     # 1013 构图同源硬闸 (s54/s55 只换景别词实锤): 剥 look 括段后相邻 bigram-Jaccard
     # >0.70 = 换皮克隆 — 只换"平视/空拍"不换主体动作与场面 = 同一镜
@@ -389,14 +398,25 @@ def writer_failures(doc: dict[str, Any], arc_id: str) -> list[str]:
             A, B = _bg(prev[1]), _bg(zh)
             j = len(A & B) / len(A | B) if (A | B) else 0.0
             if j > 0.70:
-                fails.append(f"{s['shot_id']} 与相邻镜 {prev[0]} 构图同源 (剥look后相似{j:.0%}, "
-                             "只换景别词不换主体动作场面=换皮克隆, 重写其一)")
+                s.setdefault("_clone_warns", []).append(
+                    f"与相邻镜 {prev[0]} 构图同源 (剥look后相似{j:.0%}, 只换景别词=换皮克隆)")
         prev = (str(s.get("shot_id")), zh)
     # 1021 用户令 (二令升格): 每场 1-2 镜图内字, 零申报不合法 — 宪法10d 执法
     _decl = sum(1 for s in shots if not s.get("brand_card") and s.get("in_image_text"))
     if _decl < 1:
         fails.append(f"{arc_id.upper()} 整场零申报 in_image_text — 宪法10d: 每场 1-2 镜"
                      "空白载体+申报 (标题/概念/金句上画), 重写补申报")
+    # 1022 修 (A8 实锤 4/4 镜申报+3 镜重复同两行字): 密度上限 + 相邻重复
+    if _decl > 3:
+        fails.append(f"{arc_id.upper()} 图内字密度超标 ({_decl}镜申报, 宪法10d 每场1-2镜) — "
+                     "只保留最贴核心概念的镜, 其余 in_image_text 改 []")
+    _prev_decl = None
+    for s in shots:
+        _cur = tuple(sorted(str(x).strip() for x in (s.get("in_image_text") or [])
+                            if str(x).strip()))
+        if _cur and _cur == _prev_decl:
+            fails.append(f"{s.get('shot_id')} 与相邻镜申报文字完全重复 — 换文案或改 []")
+        _prev_decl = _cur or None
     return fails
 
 
@@ -421,8 +441,25 @@ def dispatch_scene(book_id: str, book_title: str, ep: int, arc_id: str,
         return _fallback_scene(book_id, book_title, ep, arc_id, manifest, bible,
                                fix_hints=fix_hints)
     hints = list(fix_hints or [])
-    _prior = None  # 1022 修: 第1把产物回喂 (批评轮 _old_board 对齐 hint 点名 sid)
+    _prior = None   # 1022 修: 第1把产物回喂 (批评轮 _old_board 对齐 hint 点名 sid)
+    _pfails: list[str] = []
     for attempt in (1, 2):
+        if attempt == 2 and _prior is not None:
+            # 1022 批3: 第2把手术优先 — 确定性修复+点名镜重掷, 免整场重掷重随机
+            # 全场 (旧版整场重掷常引入新错: A1 第2把 1处变4处/A3 克隆反增 实锤)
+            _fixed = _surgical_repair(_prior, arc_id, _pfails, book_id, book_title,
+                                      ep, manifest, bible)
+            if _fixed is not None:
+                _rfails = writer_failures(_fixed, arc_id)
+                if not _rfails:
+                    for s in _fixed.get("shots") or []:
+                        if str(s.get("arc_id") or "").lower() == str(arc_id).lower():
+                            s["writer_source"] = "writer"
+                    logger.info("[writer] 场 %s ✓ 手术修复过闸 (第2把, 免整场重掷)",
+                                arc_id.upper())
+                    return _fixed
+                logger.warning("[writer] 场 %s 手术修复后剩 %d 处 → 整场重掷兜底",
+                               arc_id.upper(), len(_rfails))
         try:
             doc = director2.plan_scene(book_id, book_title, ep, arc_id, manifest, bible,
                                        fix_hints=hints or None, mode="writer",
@@ -434,8 +471,7 @@ def dispatch_scene(book_id: str, book_title: str, ep: int, arc_id: str,
                         s["writer_source"] = "writer"
                 logger.info("[writer] 场 %s ✓ 单写者五件套 (第%d把)", arc_id.upper(), attempt)
                 return doc
-            _prior = doc
-            hints = fails
+            _prior, _pfails, hints = doc, fails, fails
             logger.warning("[writer] 场 %s 出口闸 %d 处 (第%d把): %s",
                            arc_id.upper(), len(fails), attempt, "; ".join(fails[:4]))
         except (SystemExit, ValueError) as exc:
@@ -449,6 +485,151 @@ def dispatch_scene(book_id: str, book_title: str, ep: int, arc_id: str,
     doc = _fallback_scene(book_id, book_title, ep, arc_id, manifest, bible,
                           fix_hints=hints or None)
     return doc
+
+
+def _ensure_scene_declaration(doc: dict[str, Any], arc_id: str) -> bool:
+    """确定性补申报 (1022 批3/批4 共用): 零申报场选 narration 最长非品牌镜,
+    系统自动挂空白载体指令 + 金句申报 (a8da929 确定性修复优先哲学 — 零申报是
+    全链唯一剥不掉补不了的 fail, 由系统补掉)。K2/text_pass/H3 零改动自动接。"""
+    shots = [s for s in (doc.get("shots") or [])
+             if str(s.get("arc_id") or "").lower() == str(arc_id).lower()]
+    if any(s.get("in_image_text") for s in shots if not s.get("brand_card")):
+        return False
+    cand = [s for s in shots if not s.get("brand_card") and str(s.get("narration") or "").strip()]
+    if not cand:
+        return False
+    tgt = max(cand, key=lambda s: len(str(s.get("narration") or "")))
+    narr = str(tgt.get("narration") or "")
+    lines: list[str] = []
+    for seg in re.split(r"[。！？，,.!?]", narr):
+        seg = seg.strip()
+        if 4 <= len(seg) <= 12:
+            lines.append(seg)
+            break
+    if not lines:
+        lines = [str(doc.get("book_title") or "信任")[:12]]
+    tgt["in_image_text"] = lines[:2]
+    zh = str(tgt.get("keyframe_zh") or "")
+    carrier = "，画面一角立一面完全空白的木牌（无任何字迹）"
+    if zh and "空白" not in zh and len(zh) + len(carrier) <= 320:
+        i = zh.rfind("。")
+        tgt["keyframe_zh"] = (zh[:i] + carrier + zh[i:]) if i > 0 else (zh + carrier)
+        tgt["image_prompt_zh"] = tgt["keyframe_zh"]
+    return True
+
+
+def _reroll_shot_writer(doc: dict[str, Any], s: dict[str, Any], bible: dict,
+                        fail_lines: list[str]) -> bool:
+    """点名镜手术重掷 (1022 批3): 钉死槽(t/narration/shot_id), WRITER_SYS 契约,
+    邻镜摘要避克隆 + 该镜 fail 原文 + 申报义务行。成功原地更新 s 并返回 True。"""
+    from . import director2
+    from . import k2 as _k2
+    from . import ruleset as _rs
+    from app.services.llm_service import get_llm_service as _llm, _parse_json
+
+    arc = next((a for a in doc.get("arcs") or []
+                if str(a.get("arc_id", "")) == str(s.get("arc_id"))), {})
+    ordered = sorted(doc.get("shots") or [], key=lambda x: float(x["t_start"]))
+    oi = ordered.index(s)
+    prev_kf = str(ordered[oi - 1].get("keyframe_zh") or "")[:60] if oi > 0 else ""
+    nxt_kf = str(ordered[oi + 1].get("keyframe_zh") or "")[:60] if oi + 1 < len(ordered) else ""
+    bible_block = ""
+    if bible:
+        bible_block = ("- 风格: " + str(bible.get("style_prefix", ""))[:100])
+    user = ("【模式: 单镜手术重掷】这一镜出口闸违规, 只重设计这一镜 (其余镜全部不动)。\n"
+            "【本镜口播 (钉死不改)】" + str(s.get("narration") or "")[:120] + "\n"
+            "【本镜时长】" + f"{float(s['t_end']) - float(s['t_start']):.1f}s\n"
+            + (("[邻镜画面 (构图衔接但显著错开)] 前: " + prev_kf + " / 后: " + nxt_kf + "\n") if (prev_kf or nxt_kf) else "")
+            + "【违规原因 (必须全部根除, 换载体名词规避=同错再犯)】\n- " + "\n- ".join(fail_lines[:3]) + "\n"
+            "【图内字口径】本场须有 1-2 镜空白载体+in_image_text 申报; 载体写「空白XX」;\n"
+            "相邻镜申报文字不得重复; 无字镜 in_image_text=[]。\n"
+            "【圣经】" + bible_block + "\n"
+            "【输出】严格 JSON 单对象: {\"keyframe_zh\"(200-250字), \"keyframe_en\"(同构英文 no text), "
+            "\"motion_zh\", \"motion_en\"(no text events), \"camera\", \"text_layer\"(无字镜[]), "
+            "\"in_image_text\"(载体镜≤4行/无字镜[])}")
+    raw = _llm().chat(WRITER_SYS, user, model="pro", temperature=0.5,
+                      max_tokens=2000, tag="plan_shot_w")
+    d = _parse_json(raw) or {}
+    kf_zh = str(d.get("keyframe_zh") or "").strip()
+    if not kf_zh:
+        return False
+    kf_zh, _fx = _rs.enforce_keyframe(kf_zh, _k2._person_in(kf_zh, str(doc.get("book_title") or "")))
+    span = float(s["t_end"]) - float(s["t_start"])
+    gen = min(span, getattr(director2, "H3_MAX_SPAN", 6.0))
+    motion_en = str(d.get("motion_en") or "").strip() or "gentle ambient motion"
+    s.update({
+        "keyframe_zh": kf_zh,
+        "keyframe_en": str(d.get("keyframe_en") or "").strip(),
+        "image_prompt_zh": kf_zh,
+        "motion_zh": str(d.get("motion_zh") or "")[:600],
+        "camera": d.get("camera") or s.get("camera") or "固定",
+        "text_layer": [{"text": str(x)} if isinstance(x, str) else x
+                       for x in (d.get("text_layer") or [])
+                       if isinstance(x, (str, dict))],
+        "in_image_text": [str(x).strip() for x in (d.get("in_image_text") or [])
+                          if str(x).strip()][:4],
+        "anim": {
+            "duration_s": gen,
+            "opening_desc": str(d.get("keyframe_en") or kf_zh),
+            "physical_lock": "the camera viewpoint, the main structural elements and layout",
+            "screen_exception": "nothing",
+            "beats": [{"t_start": 0, "t_end": gen, "motion": motion_en}],
+            "ending": "the scene holds with gentle ambient light variation",
+        },
+        "status": "planned", "error": None, "reject_note": "",
+    })
+    director2._clamp_motion_events(s)
+    director2._gate_motion_text(s)
+    return True
+
+
+def _surgical_repair(doc: dict[str, Any], arc_id: str, fails: list[str],
+                     book_id: str, book_title: str, ep: int,
+                     manifest: dict, bible: dict) -> dict[str, Any] | None:
+    """第2把手术式修复 (1022 批3): ①确定性修复优先 (零申报→补申报/相邻重复→
+    置[]/超密度→保首镜) ②点名镜手术重掷 ③全程不调 plan_scene (整场重掷兜底在
+    调用方)。返回修复后 doc; 手术重掷解析失败返回 None。"""
+    arc_shots = [s for s in (doc.get("shots") or [])
+                 if str(s.get("arc_id") or "").lower() == str(arc_id).lower()]
+    if not arc_shots:
+        return None
+    # ① 确定性修复 (零 LLM)
+    _fixed_any = False
+    if any("零申报" in f for f in fails):
+        _fixed_any |= _ensure_scene_declaration(doc, arc_id)
+    if any("密度超标" in f for f in fails):
+        _decl = [s for s in arc_shots if s.get("in_image_text") and not s.get("brand_card")]
+        for s in _decl[3:]:
+            s["in_image_text"] = []
+        _fixed_any = True
+    if any("申报文字完全重复" in f for f in fails):
+        _prev_decl = None
+        for s in sorted(arc_shots, key=lambda x: float(x["t_start"])):
+            _cur = tuple(sorted(str(x).strip() for x in (s.get("in_image_text") or [])
+                                if str(x).strip()))
+            if _cur and _cur == _prev_decl:
+                s["in_image_text"] = []
+                _fixed_any = True
+            _prev_decl = _cur or None
+    # ①后重诊断: 已被确定性修复消掉的 fail 不再触发 LLM 重掷 (冒烟实锤: 重复类
+    # 修复后旧 fail 的点名镜被误送去重掷)
+    if _fixed_any:
+        fails = writer_failures(doc, arc_id)
+    # ② 点名镜手术重掷 (fail 带 "sNN " 前缀的归并到镜)
+    sid_fails: dict[str, list[str]] = {}
+    for f in fails:
+        m = re.match(r"(s\d+)\s", f)
+        if m:
+            sid_fails.setdefault(m.group(1), []).append(f)
+    for sid, fl in sid_fails.items():
+        s = next((x for x in doc.get("shots") or [] if str(x.get("shot_id")) == sid), None)
+        if s is None or str(s.get("arc_id") or "").lower() != str(arc_id).lower():
+            continue
+        if not _reroll_shot_writer(doc, s, bible, fl):
+            logger.warning("[writer] 手术重掷 %s 解析失败 → 回退整场重掷", sid)
+            return None
+        _fixed_any = True
+    return doc if _fixed_any else None
 
 
 def _fallback_scene(book_id: str, book_title: str, ep: int, arc_id: str,
