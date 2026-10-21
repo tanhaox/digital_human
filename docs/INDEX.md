@@ -115,6 +115,7 @@
 - [deepseek_v4_model_guide.md](guides/deepseek_v4_model_guide.md) — DeepSeek V4 双模型使用手册
 - [tts_emotion_experiments.md](guides/tts_emotion_experiments.md) — IndexTTS2 音色-情绪实验（**α 定稿值与音色基准坑的权威依据**）
 - [ace_step_music_guide.md](guides/ace_step_music_guide.md) — ACE-Step 1.5 本地音乐生成手册（E盘环境/API提交图/能力边界/format.quality 踩坑）
+- [douyin_monetization_guide.md](guides/douyin_monetization_guide.md) — 抖音平台变现规则总览（2026 版：门槛分层表/渠道明细/数字人直播合规标注/读书号变现路线）
 
 ### teardown/
 - [参考片复刻兵器谱.md](teardown/参考片复刻兵器谱.md) — 参考片拆解结论聚合（证据在 `sandbox/reports/`）
