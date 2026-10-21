@@ -50,7 +50,7 @@
 
 ## 七、关键上下文
 
-- pytest 基线：`pytest tests/ -m "not real_api"` → **6 failed / 329 passed / 5 deselected**（1019 夜Ⅲ~Ⅴ +41 测; 1019-B 尾段引导锚+品牌句豁免 +5 测, 期间案例治理 4 commit +13 测; 1021 账号看板 +5 测）。
+- pytest 基线：`pytest tests/ -m "not real_api"` → **6 failed / 337 passed / 5 deselected**（1019 夜Ⅲ~Ⅴ +41 测; 1019-B 尾段引导锚+品牌句豁免 +5 测, 期间案例治理 4 commit +13 测; 1021~22 账号看板 DB 化 +13 测）。
   已知失败项（历史债，与本轮重构无关）：
   - test_module_map ×3（AssertionError×2 / IndexError）
   - test_tts_chunk_semantic ×2
