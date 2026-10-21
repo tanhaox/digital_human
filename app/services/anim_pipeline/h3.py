@@ -293,24 +293,16 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
     # 1016 修 (ep4 全镜大量乱码中文实锤): 文字政策三分支, 白名单只收真正上屏的字。
     # 旧版无分支扫 beats 动作散文, 每镜枚举 20+ 汉字当 "permitted glyphs, copied
     # stroke-for-stroke" — 对模型是画字邀请函 → 每条视频长满乱码中文。
-    # ①h3_text_event 有字 → TEXT_POLICY + 事件字规格行 (整条视频唯一文字事件)
+    # ①h3_text_event 有字 → ~~TEXT_POLICY 渲字~~ 1021 停渲 (见上注), 同③硬禁字
     # ②in_image_text 有字 → 只许首帧合成字全程冻结, 不邀请新文字
     # ③两者皆无 (ep4 62/62 镜如此) → 整段硬禁字 NO_TEXT_POLICY
     _ev = text_event if isinstance(text_event, dict) else {}
     _ev_text = str(_ev.get("text") or "").strip()
     _iit = [str(x).strip() for x in (in_image_text or []) if str(x).strip()]
-    if _ev_text:
-        lines += [TEXT_POLICY, ""]
-        _at = _ev.get("at_s")
-        _at_txt = f"at {float(_at):.1f}s" if isinstance(_at, (int, float)) else "mid-video"
-        _zone = str(_ev.get("zone") or "").strip() or "blank reserved"
-        lines.append(
-            f"Text event spec: {_at_txt}, in the {_zone} zone of the frame, the exact "
-            f"words 「{_ev_text}」 appear large and bold in the artistic typography "
-            "described above, then hold steady — this is the one and only text "
-            "element of the video.")
-        lines.append("")
-    elif _iit:
+    # 1021 用户令 (ep7 s19 实锤: 图干净视频出字): 事件字停渲 — 视频模型渲中文
+    # = 高乱码率, 镜内字通道整体下线; h3_text_event 字段保留在 doc (后期叠字
+    # 的数据源), 但不再进视频 prompt。有事件字的镜与无字镜同走硬禁字。
+    if _iit:
         lines.append(
             "The ONLY text in this video is the text already composed into Picture 1 ("
             + "".join(f"「{x}」" for x in _iit)
@@ -322,9 +314,10 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
         lines.append(NO_TEXT_POLICY)
         lines.append("")
     # 0919 字级钉死 (s66 实锤: 简体令后仍漂「誰」): 真正上屏的字逐个圈出点名照抄 —
-    # 1016: 来源 = 事件字 + 合成字 (镜级直传); beats 动作散文汉字一律不进白名单
+    # 1016: 来源 = 合成字 (镜级直传); 1021 事件字停渲后不再入白名单 (permitted
+    # glyphs = 画字邀请函); beats 动作散文汉字一律不进白名单
     _cjk: list[str] = []
-    for _src in [_ev_text, *_iit]:
+    for _src in _iit:
         for _ch in _src:
             if "一" <= _ch <= "鿿" and _ch not in _cjk:
                 _cjk.append(_ch)
@@ -343,6 +336,17 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
         "Picture 1 — never rewind the action, never pre-stage a pose or object "
         "that is not already visible in the first frame.")
     lines.append("")
+    # 1021 (ep7 s14 实锤: NO_TEXT_POLICY 压不住"笔+纸"书写先验 — 红笔划记录单
+    # → 模型自动画字/笔画): 书写语义确定性对冲 — beats 含笔/写类词即追加
+    _beat_blob = " ".join(str(b.get("motion") or "") for b in beats)
+    if re.search(r"(?i)\b(pen|pens|pencil|nib|brush(es)?|chalk|marker|writes?|writing|"
+                 r"inscri\w+|signature|handwriting)\b", _beat_blob):
+        lines.append(
+            "Writing counter-rule: any pen, pencil, brush or chalk in the scene "
+            "leaves NO visible marks on any surface — no letters, numbers, words "
+            "or writing-like strokes ever appear, accumulate or grow; every "
+            "surface stays exactly as blank as in Picture 1 for the whole video.")
+        lines.append("")
     for i, b in enumerate(beats):
         motion = _de_traditional(b["motion"].strip())
         ending = _de_traditional((anim.get("ending") or "").strip())

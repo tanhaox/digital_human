@@ -25,6 +25,13 @@ logger = logging.getLogger(__name__)
 
 # 1014 P1 (ep3 批图实锤: s03 白板写满/s07 便签写着'专业技能'/s46 模糊字迹 — K2 全渲
 # 成错字): 文字载体动词表 — writer 出口闸逼二段式 (空白载体+in_image_text) 或去文字物件。
+# 1021 motion_en 英文泄字 (ep7 s14/s19 实锤: 图干净视频出字 — 视频模型把
+# "the words appear" 描述渲成乱码字): 词组→出现动词 关联 / CJK 引号裸现
+_MOTION_EN_TEXT_RE = re.compile(
+    r"(?i)\b(words?|letters?|characters?|glyphs?|text|caption|subtitles?|titles?)\b"
+    r"[^.]{0,60}\b(appears?|fades?|emerges?|pops?|forms?|materiali[sz]e)"
+    r"|[「『][^」』]{0,8}[」』]")
+
 # 1015 补: 刻着/刻字 (ep4 s45/s46 fallback 装配句「透镜刻黑字'找没毛病的'」形态)。
 _TEXT_CARRIER_RE = re.compile(r"写着|字样|字迹|写满|刻着|刻字")
 # 1021 公共别名: erase 触发的提示词嫌疑判定 (名词+动词) 同源引用, 改词表只改这里
@@ -103,7 +110,8 @@ WRITER_SYS = """你是顶级动画短片的导演兼电影摄影师 (Writer-Dire
 3. motion_zh 只允许动画 keyframe_zh 里**已有的实体**（画面里没有的东西永不出现 —
    含动物/器物, "画面外一匹马摆尾"型幻影实体=废稿），主体写**动作过程**（谁从哪到哪/
    什么因果在发生）优先于氛围描述，并给出秒级事件（"第1.0秒…"）；motion_en 是它的
-   英文同源版，**每镜必填** (英文环境微动 + at most ONE text event)，漏填任一镜 = 整场废稿。
+   英文同源版，**每镜必填** (纯英文环境微动, **永不描述文字事件** — 1021 视频模型渲字
+   乱码实锤, 镜内字通道下线, 事件字只进 h3_text_event 字段交后期)，漏填任一镜 = 整场废稿。
 4. 每镜 200-250 字中文画面句：景别角度开头，然后是空间、光线现象（禁色温/补光比等术语）、
    主体（人物带造型括注）、动作、可画细节。散文，不是参数表。
 5. 人物多样性：同一场里出现的人物在姿态/景别/构图上必须各异；人物统一=书级冻结 —
@@ -184,7 +192,7 @@ def writer_blocks(arc: dict[str, Any], zones: list[str],
         "\n【输出契约 (单写者制, 优先于一切旧格式)】groups[].shots[] 每镜必须含: "
         "\"keyframe_zh\" (200-250字中文散文画面句), \"keyframe_en\" (同构图英文, no text), "
         "\"motion_zh\" (动态设计定稿: 主体动作过程+环境动态+秒级事件, 只动画面句已有实体, 禁添画面外动物/器物), \"motion_en\" (English ambient "
-        "+ at most ONE text event), \"text_layer\" (无字镜给 []), "
+        "+ no text events ever), \"text_layer\" (无字镜给 []), "
         "\"in_image_text\" (必填: K2图内字, ≤4行字符串数组, 无字镜给 []; 画面句含"
         "标签/便签/白板/牌匾/招牌/标语/横幅/铭牌/海报/屏幕等载体时必须申报文字内容"
         "并把载体写\"空白\" — 系统二段合成, 漏申报=白标签孤儿废镜); "
@@ -271,6 +279,11 @@ def writer_failures(doc: dict[str, Any], arc_id: str) -> list[str]:
             me = str(b0.get("motion") or "").strip()
         if not me or me.startswith("the scene evolves"):
             fails.append(f"{sid} 缺 motion_en (beats 落占位串)")
+        # 1021 (ep7 s14/s19 实锤 图干净视频出字): motion_en 英文泄字闸 —
+        # "the words X appear" 类=视频模型画字邀请; CJK 引号出现在英文串=泄字
+        if me and _MOTION_EN_TEXT_RE.search(me):
+            fails.append(f"{sid} motion_en 泄漏文字事件 ({_MOTION_EN_TEXT_RE.search(me).group(0)[:40]}) — "
+                         "英文动效永不描述文字 (1021 镜内字通道下线), 事件字只进 h3_text_event 字段")
         if zh and len(zh) < 80:
             fails.append(f"{sid} 画面句过短 ({len(zh)}字 <80, 参数表不是画面)")
         # 1014 P1: 图内文字载体必须走二段式 (空白载体+in_image_text), 禁 K2 直渲汉字
