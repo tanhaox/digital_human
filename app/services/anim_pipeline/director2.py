@@ -2278,7 +2278,8 @@ def _plan_tokens(mode: str, n_shots: int = 0) -> int:
 def plan_scene(book_id: str, book_title: str, ep: int, arc_id: str,
                manifest: dict, bible: dict,
                fix_hints: list[str] | None = None,
-               mode: str = "struct") -> dict[str, Any]:
+               mode: str = "struct",
+               prior_doc: dict | None = None) -> dict[str, Any]:
     """单场重规划 (逐场磨合): 只重生该场的组/镜, 其余场原样拼接保留.
 
     磨合循环 = 本场 规划→K2→H3 反复测. 链路是全集 plan 的单窗版:
@@ -2289,6 +2290,8 @@ def plan_scene(book_id: str, book_title: str, ep: int, arc_id: str,
     mode (1013 P0): "struct"=现行结构版 (宪法禁逐镜keyframe, 术/器下游组装);
     "writer"=单写者版 (scene_writer.WRITER_SYS 五件套一次写全, 宪法分区注入,
     person_rule 让位) — 场窗/槽表/合并基建两模式完全共享。
+    prior_doc (1022 修): 第1把产物回喂 — 批评轮 _old_board 从此取第1把本场镜
+    (sid 与 fix_hints 点名对齐), 旧版恒取盘上退役旧镜致模型未见被批评内容。
     """
     from app.config import load_config, set_config
     set_config(load_config())
@@ -2539,17 +2542,29 @@ def plan_scene(book_id: str, book_title: str, ep: int, arc_id: str,
             + zone_block + scene_block + refs_block)
     if fix_hints:
         # 0926 修: 校验违规回喂 (旧重试网盲掷两把同错 — 花字裸数字连败实锤)
+        # 1022 修: 元指令治换词规避 (A1 实锤: LLM 修掉被点名「标签」却把「牌匾」塞进
+        # 另 3 镜仍不申报 — 它把"这类物件要申报"读成"这个词不行")
         user += ("\n【上轮校验违规 (必须全部修正, 同错再犯=废稿)】\n"
-                 + "\n".join(f"- {h}" for h in fix_hints[:12]) + "\n")
+                 + "\n".join(f"- {h}" for h in fix_hints[:12]) + "\n"
+                 "修正规则: 载体类违规的根因是『物件出现但未申报』 — 修正 = 申报 "
+                 "in_image_text 并把载体写成「空白XX」, 或删除该物件。换一个载体名词"
+                 "(标签→便签/牌匾/白板/屏幕…)而不申报 = 同错再犯 = 废稿。申报义务名词表: "
+                 "标签/便签/白板/牌匾/匾额/招牌/标语/横幅/铭牌/海报/屏幕。\n")
     logger.info("[replan] 场 %s 重规划中… (窗口 %.1f-%.1fs, %d 组退役, LLM 1-2 分钟静默属正常)",
                 arc["arc_id"], t0, t1, len(s_groups))
     # 0917 批评注入 (闭环): 有旧产出 = 看着旧稿改, 不盲重掷 — assistant 携旧场分镜,
     # user 给自动批评 (禁区/克隆/隐喻贯彻) + 重出指令; 无旧产出 (两级化新场) 保持单轮
+    # 1022 修: prior_doc 优先 — 旧版 _old_shots 恒取盘上退役旧镜 (sid 与 fix_hints
+    # 点名的第1把新号错位, 模型从未见过被批评的镜内容 → hint 只能读成"名词不行")
     _old_gids = {g["group_id"] for g in s_groups}
-    _old_shots = [s for s in doc["shots"] if s.get("group_id") in _old_gids]
+    _prior_shots = [s for s in ((prior_doc or {}).get("shots") or [])
+                    if str(s.get("arc_id") or "").lower() == str(arc["arc_id"]).lower()]
+    _old_shots = (_prior_shots
+                  or [s for s in doc["shots"] if s.get("group_id") in _old_gids])
     if _old_shots:
         _old_board = "\n".join(
             f"- {s['shot_id']} [{s.get('camera')}]: {(s.get('keyframe_zh') or '')[:80]}"
+            + (f" | 申报: {s['in_image_text']}" if s.get("in_image_text") else "")
             for s in sorted(_old_shots, key=lambda x: float(x["t_start"])))
         _crit: list[str] = []
         _sub = {"shots": _old_shots, "groups": doc.get("groups") or [], "arcs": doc.get("arcs") or []}
@@ -2572,6 +2587,11 @@ def plan_scene(book_id: str, book_title: str, ep: int, arc_id: str,
         if arc.get("visual_metaphor"):
             _crit.append(f"本场隐喻「{arc['visual_metaphor']}」— 新分镜每一镜都必须是它"
                          "的一个面/一个时刻, 不得跑题到通用画面")
+        if mode == "writer":
+            # 1022 修: 批评轮此前不含申报义务 (注意力最集中的末轮恰不提宪法10d)
+            _crit.append("图内字口径: 每场 1-2 镜主动空白载体+in_image_text 申报"
+                         "(标题/概念/金句上画, ≤4行), 其余镜 in_image_text=[] 或不画载体; "
+                         "相邻镜申报文字不得重复; 载体必须写「空白XX」")
         _crit.append("逐镜自查: 黑名单素材/字面配图/相邻构图重复 — 有则改之")
         # 1014 修: 大场输出预算按槽量缩放 — 旧定额 16000 下 15-16 槽必截断
         _n_slots = len(zone_slots) + len(scene_slots) or max(1, int((a1 - a0) / 5))

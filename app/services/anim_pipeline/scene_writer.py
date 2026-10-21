@@ -133,7 +133,10 @@ WRITER_SYS = """你是顶级动画短片的导演兼电影摄影师 (Writer-Dire
 9. Krea2 渲染容量红线 (管主体不管场景 — 场景满与主体聚焦不矛盾: 满的是纵深, 聚焦的是主角):
    人物=一镜唯一视觉焦点；一主一辅光源；人物≥1/8画面高；
    禁"无数"、禁大场面塞满；可画实体 8-15 个。
-10. 全灭字：画面句里禁任何可读文字/数字/招牌（文字只活在 text_layer）；
+10. 禁直接渲字 (1022 修: 旧口径"文字只活在 text_layer"与 10b-10d 通道自相矛盾 —
+    模型按旧律得"零申报+不画载体"反当合规, 长场全灭实锤): 画面禁止直接画出任何
+    文字/数字/字迹/招牌内容 (K2 渲汉字必错字) — 文字进画面的**唯一通道** = 「空白
+    载体」+ in_image_text 申报 (见 10b-10d); 不上画的信息走 text_layer。
     建筑服饰为日常民用样式。禁英文混入中文画面句；keyframe_en 为纯英文无文字。
     10b. 图内文字载体一律二段式 (1014 ep3 实锤: 「写满术语的白板/写着'专业技能'的
     便签」全被 K2 渲成错字): 白板/便签/标签/匾额/卡片上有字 = 图内文字 — 画面句必须
@@ -189,7 +192,8 @@ def writer_blocks(arc: dict[str, Any], zones: list[str],
         "无此条款): 本场每 4 镜至少 1 镜为大场景构图 (大全景/俯瞰/辽阔环境, 主体占比小+"
         "参照物显纵深), 禁全场连排特写/中景 — 概念蒙太奇也要拉开景深节奏, 违规整场重掷。\n")
     blocks.append(
-        "\n【输出契约 (单写者制, 优先于一切旧格式)】groups[].shots[] 每镜必须含: "
+        "\n【输出契约 (单写者制, 优先于一切旧格式)】每镜动笔先定 in_image_text: 本场挑 1-2 镜"
+        "用空白载体上画 (标题/概念/金句), 其余镜给 [] 或不画载体。groups[].shots[] 每镜必须含: "
         "\"keyframe_zh\" (200-250字中文散文画面句), \"keyframe_en\" (同构图英文, no text), "
         "\"motion_zh\" (动态设计定稿: 主体动作过程+环境动态+秒级事件, 只动画面句已有实体, 禁添画面外动物/器物), \"motion_en\" (English ambient "
         "+ no text events ever), \"text_layer\" (无字镜给 []), "
@@ -198,7 +202,15 @@ def writer_blocks(arc: dict[str, Any], zones: list[str],
         "并把载体写\"空白\" — 系统二段合成, 漏申报=白标签孤儿废镜); "
         "可选 \"h3_text_event\" (H3事件字: {\"text\":\"≤4字\",\"at_s\":秒,\"zone\":\"落点\"}, 画面句须在落点写留白预留); "
         "camera/scene_tag 照旧。"
-        "系统将 opening_desc 逐字取 keyframe_en — 中英两句必须同构。\n")
+        "系统将 opening_desc 逐字取 keyframe_en — 中英两句必须同构。\n"
+        "【示例镜 (格式精确模仿; 1022 修: 此前全契约零申报正例, 模型学不会申报的根因之一)】\n"
+        "载体镜: {\"keyframe_zh\": \"平视中景, 讲台右侧立一面完全空白的白板 (无任何字迹), 讲师"
+        "侧身指向白板, 台下人物抬眼…\", \"keyframe_en\": \"eye-level medium shot, a completely "
+        "blank whiteboard (no text) stands right of the podium, the speaker gestures toward "
+        "it…\", \"motion_zh\": \"讲师手臂抬起指向白板 (第1.0秒), 台下两人同时转头 (第2.0秒), "
+        "环境光渐暖…\", \"motion_en\": \"ambient life only, no text\", \"text_layer\": [], "
+        "\"in_image_text\": [\"信任才是硬通货\"], \"camera\": \"固定\"}\n"
+        "无字镜: {同上结构, \"in_image_text\": [], 画面句不出现任何载体物件}\n")
     return "\n".join(blocks)
 
 
@@ -409,10 +421,12 @@ def dispatch_scene(book_id: str, book_title: str, ep: int, arc_id: str,
         return _fallback_scene(book_id, book_title, ep, arc_id, manifest, bible,
                                fix_hints=fix_hints)
     hints = list(fix_hints or [])
+    _prior = None  # 1022 修: 第1把产物回喂 (批评轮 _old_board 对齐 hint 点名 sid)
     for attempt in (1, 2):
         try:
             doc = director2.plan_scene(book_id, book_title, ep, arc_id, manifest, bible,
-                                       fix_hints=hints or None, mode="writer")
+                                       fix_hints=hints or None, mode="writer",
+                                       prior_doc=_prior)
             fails = writer_failures(doc, arc_id)
             if not fails:
                 for s in doc.get("shots") or []:
@@ -420,6 +434,7 @@ def dispatch_scene(book_id: str, book_title: str, ep: int, arc_id: str,
                         s["writer_source"] = "writer"
                 logger.info("[writer] 场 %s ✓ 单写者五件套 (第%d把)", arc_id.upper(), attempt)
                 return doc
+            _prior = doc
             hints = fails
             logger.warning("[writer] 场 %s 出口闸 %d 处 (第%d把): %s",
                            arc_id.upper(), len(fails), attempt, "; ".join(fails[:4]))
