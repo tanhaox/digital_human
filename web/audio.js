@@ -582,15 +582,23 @@ async function submitSegEditor(goBtn) {
   const pinyinRaw = (py?.value || '').trim();
 
   // 注音解析: "恰=QIA4 份=FEN4" → {恰:"QIA4", 份:"FEN4"}
+  // 1022 修: 大小写宽容 (xing2 也收, 统一转大写); 解析失败改 confirm 模态阻断 —
+  // 旧版 4s toast 一闪即逝, 错过后用户以为注音已生效 (036 我多行=XING2 实锤)
   const annotate = {};
   if (pinyinRaw) {
-    for (const m of pinyinRaw.matchAll(/([一-鿿])=([A-Z]+\d)/g)) {
-      annotate[m[1]] = m[2];
+    for (const m of pinyinRaw.matchAll(/([一-鿿])=([A-Za-z]+\d)/g)) {
+      annotate[m[1]] = m[2].toUpperCase();
     }
     if (!Object.keys(annotate).length) {
-      toast('注音格式: 字=拼音 (如 恰=QIA4)', 'error');
-      return;
+      const go = confirm(`注音「${pinyinRaw}」没认出来。\n格式: 字=拼音, 空格分隔 (如 恰=QIA4, 拼音+声调数字, 大小写均可)\n\n确定 = 忽略注音, 只按改字重合成\n取消 = 回去改格式`);
+      if (!go) return;
     }
+  }
+  // 1022 防呆: 正文里混入「字=拼音」写法 — 正文中的 = 会被 TTS 念成"等于",
+  // 注音语义彻底失效 (pinyin_fix._eq_to_cn 行为), 提示挪到注音框
+  if (/([一-鿿])\s*=\s*[A-Za-z]+\d/.test(newText)) {
+    const go = confirm('正文里检测到「字=拼音」写法。\n正文的 = 会被念成"等于", 拼音注音请填下方黄色注音框。\n\n确定 = 照正文原样合成\n取消 = 回去改');
+    if (!go) return;
   }
   if (!newText) { toast('文本不能为空', 'error'); return; }
   _releasePlayers();  // Win 锁前置 (055 实锤, 见 helper 注释)

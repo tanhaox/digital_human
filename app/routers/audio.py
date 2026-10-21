@@ -810,9 +810,6 @@ def reroll_line(file_id: str, payload: dict | None = None, db: Session = Depends
             or "\n".join((s2.text or "").strip() for s2 in _chunk_lines).strip()
             or (seg.text or ""))
     _plain_chunk = text  # 未加注音的包文本 (改字比较基准)
-    _ann_map = {ch: pin for ch, pin in ((payload or {}).get("annotate") or {}).items() if ch in text}
-    for ch, pin in _ann_map.items():
-        text = text.replace(ch, f"<{ch}|{pin}>", 1)
     # ✏改字 (0912): 行级文字消歧 — 断句/语义歧义类病 (如"核辐射死人"被逐字拖读)
     # 改字后 Segment/Script/书稿 三处同步, 防下次 produce 误重建
     # (0913 包化: 包级改字 — 比较基准是整包文本; 同步按"包内哪行变了"定位)
@@ -822,6 +819,12 @@ def reroll_line(file_id: str, payload: dict | None = None, db: Session = Depends
         from app.services.script_parser import clean_episode_script as _ces
         _new_text = _ces(_new_text)[0].strip() or _new_text
         text = _new_text
+    # 字级注音打标 (1022 修: 原版在改字分支之前打标, 改字 text=_new_text 直接
+    # 覆盖 → 改字+注音同提交时注音必丢。挪到文本定稿之后; _ann_map 后续词表
+    # 沉淀引用在函数尾部, 仍在定义之后)
+    _ann_map = {ch: pin for ch, pin in ((payload or {}).get("annotate") or {}).items() if ch in text}
+    for ch, pin in _ann_map.items():
+        text = text.replace(ch, f"<{ch}|{pin}>", 1)
 
     voice = db.query(Voice).filter(Voice.id == job.voice_id).first()
     vp = ((voice.config_json or {}).get("params") or {}) if voice and voice.config_json else {}
