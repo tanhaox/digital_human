@@ -133,6 +133,7 @@ class GPUServiceManager(ServiceLifecycleMixin):
                 self._waiting -= 1
                 self._active_key = backend
             self._clear_gpu_neighborhood(backend, notify)
+            self._card_preflight(backend, notify)
             self._ensure_running(backend, notify)
             self._touch(backend)
             yield
@@ -180,13 +181,31 @@ class GPUServiceManager(ServiceLifecycleMixin):
                     if st is not None and st.proc is not None:
                         notify(f"GPU 清场: 停 {self.specs[key].display_name} 腾显存…")
                         self._stop_service(key)
-        except Exception:  # noqa: BLE001 — 清场尽力, 不挡会话
+        except Exception:
             logger.warning("[gpu_svc] 跨族清场失败 (忽略)", exc_info=True)
 
     def _effective_idle(self, key: str) -> float:
         """本服务的空闲关停阈值: spec 覆盖优先, 否则全局 (0917 ComfyUI 单独保温)."""
         spec_idle = self.specs.get(key).idle_timeout_sec if key in self.specs else None
         return spec_idle if spec_idle is not None else self.idle_timeout_sec
+
+    def _card_preflight(self, backend: str, notify: Callable[[str], None]) -> None:
+        """卡级预清 (1023 三卡产线用户令: 上卡前先清显存).
+
+        族级清场之后、ensure 之前: 按 spec 钉的 GPU-uuid 查目标卡 compute-apps,
+        自家他族→停, 后端自身→告警, 外来→告警不杀。未钉卡 spec 无预检义务。
+        尽力而为, 失败不挡会话 (fail-open)。
+        """
+        try:
+            from ._card_guard import card_preflight
+            with self._state_lock:
+                tracked = {st.proc.pid: key for key, st in self._states.items()
+                           if st.proc is not None and st.proc.poll() is None}
+            card_preflight(backend, self.specs.get(backend),
+                           tracked_pids=tracked,
+                           stop_service=self._stop_service, notify=notify)
+        except Exception:
+            logger.warning("[gpu_svc] 卡级预检异常 (忽略)", exc_info=True)
 
     # ── 状态与手动控制 ────────────────────────────────────────
 

@@ -60,30 +60,34 @@ def _start_heartbeat(
 
 
 def _pin_biggest_gpu() -> int | None:
-    """多卡时用 nvidia-smi (PCI 序) 选显存最大卡, 以 CUDA_DEVICE_ORDER=PCI_BUS_ID
-    + CUDA_VISIBLE_DEVICES=<PCI 序号> 钉死, 返回序号 (单卡/失败不动 env 返回 None)。
+    """多卡时钉**空闲最多的大卡** (≥32G), 以 CUDA_DEVICE_ORDER=PCI_BUS_ID
+    + CUDA_VISIBLE_DEVICES=<PCI 序号> 钉死, 返回序号 (无大卡/失败不动 env 返回 None)。
 
     背景 (2026-09-03 全库回听审计实锤): float32 large-v3 ~6.2G 落到 4060 核显 8G
     (WDDM) → 显存溢出 → 共享内存风暴 → 整机死机。CUDA 枚举 (FASTEST_FIRST 默认)
     与 nvidia-smi (PCI 序) 不一致, device_index 序号不可靠 — 唯一实证有效的是
     本 env 组合。web 进程 torch 为 CPU 版, ctranslate2 是首个 CUDA 初始化者,
     构造 WhisperModel 前设 env 时序满足; 若调用方进程已初始化过 CUDA 则静默
-    无效 (维持原行为)。"""
+    无效 (维持原行为)。
+    1023 三卡产线改版: 原"最大总显存卡"在三张同规格 4090 下按索引盲选第一张,
+    会与钉卡产线服务 (comfy-k2/h3/indextts) 对撞 — 改选 used 最低的大卡
+    (worker 空闲自杀 + 此策略 = 短暂上最闲的卡, 用完即走)。"""
     import subprocess
 
     try:
         out = subprocess.run(
-            ["nvidia-smi", "--query-gpu=index,memory.total",
+            ["nvidia-smi", "--query-gpu=index,memory.total,memory.used",
              "--format=csv,noheader,nounits"],
             capture_output=True, text=True, timeout=10,
         ).stdout.strip()
-        cards = [(int(a), int(b)) for a, b in
-                 (ln.split(",") for ln in out.splitlines() if "," in ln)]
+        cards = [(int(a), int(b), int(c)) for a, b, c in
+                 (ln.split(",") for ln in out.splitlines() if ln.count(",") == 2)]
     except Exception:
         return None
-    if len(cards) <= 1:
+    big = [(idx, used) for idx, total, used in cards if total >= 32000]
+    if not big:
         return None
-    best = max(cards, key=lambda x: x[1])[0]
+    best = min(big, key=lambda x: x[1])[0]
     os.environ["CUDA_DEVICE_ORDER"] = "PCI_BUS_ID"
     os.environ["CUDA_VISIBLE_DEVICES"] = str(best)
     return best

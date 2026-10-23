@@ -328,12 +328,21 @@ def _add_nvidia_dll_dirs() -> None:
 
 
 def _whisper_transcribe(wav: Path) -> str:
-    """单行 wav → 文本 (faster-whisper large-v3, 进程级单例复用, CUDA)。
+    """单行 wav → 文本 (faster-whisper large-v3, CUDA)。
 
     initial_prompt (0912): 诱导逐字转写保留语气词 — whisper 默认吞 嗯/呃,
     会令语气词污染检失聪; 逐字口径对错音比对同样更准 (只会更忠实, 无副作用)。
-    """
+    1023: worker 子进程优先 (空闲自杀释放 4090, 防 ComfyUI 批生成被常驻挤压);
+    worker 不可用回退进程内单例 (老行为, 常驻)."""
     _add_nvidia_dll_dirs()
+    from app.services.alignment_service._worker import _transcribe_via_worker
+
+    segs = _transcribe_via_worker(
+        wav, language="zh", vad_filter=False,
+        initial_prompt="以下是逐字转写,一字不漏,保留全部语气词:嗯、呃。")
+    if segs is not None:
+        return "".join(s.get("text", "") for s in segs)
+
     from app.services.alignment_service._models import _ensure_model
 
     model = _ensure_model()

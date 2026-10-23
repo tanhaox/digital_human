@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
 from app.services.alignment_service._models import _ensure_model
+from app.services.alignment_service._worker import _transcribe_via_worker
 from app.services.director_events import PlanCancelled
 
 if TYPE_CHECKING:  # 0919 pyflakes 补漏: 注解用 WhisperModel, 运行时实例化走 _ensure_model
@@ -39,14 +40,40 @@ def _transcribe_words(
     vad_filter: bool = True,
     on_event: Callable[[dict[str, Any]], None] | None = None,
     is_cancelled: Callable[[], bool] | None = None,
+    *,
+    size: str | None = None,
+    device: str | None = None,
 ) -> list[WordSegment]:
     """Transcribe audio, return segment-level timestamps as coarse "words".
 
     word_timestamps=False 规避 CTranslate2 4.6.0 align() bug; suppress_tokens
     不传 (空列表会崩 generate); 下游 _match_segments 按字符占比分布.
+
+    1023 进程隔离: model=None 时优先 whisper worker 子进程 (空闲自杀释放 4090,
+    防 ComfyUI 批生成被 6.2G 常驻挤压 — ep3 实锤); worker 失败回退进程内旧路径。
+    worker 路径无转录中进度/中途取消 (整段返回后由调用方续), 可接受。
     """
     if model is None:
-        model = _ensure_model()
+        if on_event:
+            on_event({"type": "alignment_progress",
+                      "msg": "Whisper 转录开始… (子进程, 首次加载约 70s)"})
+        segs = _transcribe_via_worker(
+            audio_path, language=language, vad_filter=vad_filter,
+            size=size, device=device)
+        if segs is not None:
+            words = [WordSegment(text=_normalize(s["text"]),
+                                 start=round(float(s["start"]), 3),
+                                 end=round(float(s["end"]), 3),
+                                 probability=1.0)
+                     for s in segs if _normalize(s.get("text", ""))]
+            if on_event:
+                on_event({
+                    "type": "alignment_progress",
+                    "msg": f"Whisper 转录完成: {len(words)} segments",
+                    "segments_seen": len(words),
+                })
+            return words
+        model = _ensure_model(size, device)  # 回退: 进程内常驻 (worker 不可用)
 
     if on_event:
         on_event({"type": "alignment_progress", "msg": "Whisper 转录开始…"})

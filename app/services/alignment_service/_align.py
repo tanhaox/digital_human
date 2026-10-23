@@ -9,7 +9,6 @@ from pathlib import Path
 from typing import Any, Callable
 
 from app.config import get_config
-from app.services.alignment_service._models import _ensure_model
 from app.services.alignment_service._timings import (
     SegmentTiming,
     _match_segments,
@@ -43,11 +42,14 @@ def _align_whisper(
     on_event: Callable[[dict[str, Any]], None] | None,
     is_cancelled: Callable[[], bool] | None,
 ) -> tuple[list[WordSegment], list[SegmentTiming]]:
-    """whisper 转录 + 字符占比匹配, 返回 (words, timings)."""
-    model = _ensure_model(size, dev, on_event=on_event)
+    """whisper 转录 + 字符占比匹配, 返回 (words, timings).
+
+    1023: 不再进程内预载模型 — _transcribe_words 走 worker 子进程优先,
+    size/device 透传; 仅 worker 不可用才落进程内常驻 (老行为)."""
     words = _transcribe_words(
-        audio_path, model=model, language=language,
+        audio_path, language=language,
         on_event=on_event, is_cancelled=is_cancelled,
+        size=size, device=dev,
     )
     timings = _match_segments(words, segments, on_event=on_event, is_cancelled=is_cancelled)
     return words, timings
