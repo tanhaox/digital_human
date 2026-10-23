@@ -49,6 +49,9 @@ def _merge_short_sentences(sentences: list[str], min_chars: int = _MIN_SENTENCE_
 
     策略: 短句优先并入前一句 (语义上多为补充/感叹); 首句过短则并入后一句.
     合并后再扫一遍, 直到没有短句或只剩一句.
+    1023 报幕行铁律 (ep3 TTS 008 实锤: 「一样不占，那叫自己转圈。第一件事：」):
+    冒号结尾的短行是报幕头 (第X件：/第一问：…), 语义属于**下一句**, 且是画面
+    切换锚 — 向前合并会把换画面点焊进上一段。此类短句一律向后并入, 禁向前。
     """
     merged = list(sentences)
     changed = True
@@ -57,7 +60,13 @@ def _merge_short_sentences(sentences: list[str], min_chars: int = _MIN_SENTENCE_
         for i, s in enumerate(merged):
             if _effective_len(s) >= min_chars:
                 continue
-            if i > 0:
+            if s.endswith("：") or s.endswith(":"):
+                # 报幕头: 并入下一句 (末句兜底才向前)
+                if i + 1 < len(merged):
+                    merged[i + 1] = s + merged[i + 1]
+                else:
+                    merged[i - 1] = merged[i - 1] + s
+            elif i > 0:
                 merged[i - 1] = merged[i - 1] + s
             else:
                 merged[1] = s + merged[1]
