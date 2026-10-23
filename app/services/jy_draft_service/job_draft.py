@@ -24,6 +24,10 @@ from app.services.jy_draft_service.common import (
     _load_manifest,
     _trange_sec,
 )
+from app.services.jy_draft_service.quote_card import (
+    QUOTE_CARD_TAIL_SEC,
+    detect_quote_cards,
+)
 from app.services.jy_draft_service.sfx import _probe_duration, attach_sound, sound_path
 from app.services.jy_draft_service.subtitle_style import (
     _SUBTITLE_COLOR_HF,
@@ -73,6 +77,9 @@ def export_job_draft(db: Session, job_id: str) -> dict[str, Any]:
         draft_mod.TrackSpec(draft_mod.TrackType.audio, "sfx"),
         draft_mod.TrackSpec(draft_mod.TrackType.video, "main"),
         draft_mod.TrackSpec(draft_mod.TrackType.text, "caption"),
+        # 1023 截屏卡轨 (后来居上 = 最上层): 清单三连/金句断言的停留画面,
+        # 纯文字素材直加 — 不动规划层 (用户令)
+        draft_mod.TrackSpec(draft_mod.TrackType.text, "quote_card"),
     ])
 
     # ── audio 轨: TTS 分段逐段进轨 (时间轴 = 累计时长), 无 manifest 回退整段 ──
@@ -207,6 +214,26 @@ def export_job_draft(db: Session, job_id: str) -> dict[str, Any]:
                         ws / _US, volume=0.9, max_sec=(we - ws) / _US):
             n_boundary += 1
 
+    # ── 1023 截屏卡预检: manifest 逐段文本 → 确定性检测 (清单/平行/断言), 段级时间窗 ──
+    quote_cards: list[dict] = []
+    _qc_covered: set[int] = set()
+    if manifest and manifest.get("segments"):
+        _qc_texts: list[str] = []
+        _qc_t0: list[float] = []
+        _qc_cum = 0.0
+        for _si, _s in enumerate(manifest["segments"]):
+            _qc_texts.append((_display_lines[_si].strip() if _si < len(_display_lines)
+                              else (_s.get("text") or "")).strip())
+            _qc_t0.append(_qc_cum)
+            _qc_cum += float(_s.get("duration") or 0)
+        for _c in detect_quote_cards(_qc_texts):
+            _ws = _qc_t0[_c["start"]]
+            _we = (_qc_t0[_c["end"] - 1]
+                   + float(manifest["segments"][_c["end"] - 1].get("duration") or 0)
+                   + QUOTE_CARD_TAIL_SEC)
+            quote_cards.append({**_c, "start_s": round(_ws, 2), "end_s": round(_we, 2)})
+            _qc_covered.update(range(_c["start"], _c["end"]))
+
     # ── text 轨: 逐段字幕 (洗 TTS 读法 + 超长断句, 时长按字数比例分配) ──
     # 横屏每屏上限 30 字 (2026-08-15 用户实测超出横屏); 竖屏画面窄取 18。
     max_chars = 18 if height > width else 30
@@ -222,6 +249,12 @@ def export_job_draft(db: Session, job_id: str) -> dict[str, Any]:
             text = (_display_lines[_seg_i].strip() if _seg_i < len(_display_lines)
                     else (seg.get("text") or "").strip())
             if dur > 0 and text:
+                if _seg_i in _qc_covered:
+                    # 1023 截屏卡: 卡片整屏承载该段文本, 底部字幕让位
+                    # (仅卡内段索引让位 — 非时间窗泛杀, 无 0826 HF 窗漂移误杀问题)
+                    r9_stats["caption_suppressed"] += 1
+                    cum += dur
+                    continue
                 washed = wash_subtitle_text(text)
                 if washed != text:
                     logger.info("[jy_export] 字幕洗涤: %r → %r", text, washed)
@@ -275,6 +308,23 @@ def export_job_draft(db: Session, job_id: str) -> dict[str, Any]:
             else:
                 cum += dur
 
+    # ── 1023 截屏卡进轨: 纯文字素材 (加粗居中奶油色 + 半透明暗底提可读性),
+    #    清单逐行 \n 多行; 断言型单行同款。位置居中 (transform 默认), 与底部字幕分层 ──
+    for _c in quote_cards:
+        try:
+            _card_txt = "\n".join(wash_subtitle_text(l) for l in _c["lines"])
+            script.add_segment(draft_mod.TextSegment(
+                _card_txt,
+                _trange_sec(_c["start_s"], _c["end_s"] - _c["start_s"]),
+                style=draft_mod.TextStyle(
+                    size=7.0, bold=True,
+                    color=(0.976, 0.953, 0.769), align=1),
+                background=draft_mod.TextBackground(
+                    color="#000000", alpha=0.35, round_radius=0.08),
+            ), "quote_card")
+        except Exception as exc:  # noqa: BLE001 — 单卡失败不挡导出
+            logger.warning("[jy_export] 截屏卡失败: %s | %s", _c["lines"][0][:16], exc)
+
     script.save()
     draft_dir = _drafts_dir() / name
     result = {
@@ -294,6 +344,7 @@ def export_job_draft(db: Session, job_id: str) -> dict[str, Any]:
         "sfx_boundary": r9_stats["sfx_boundary"],
         "fx_attached": n_fx,
         "skipped_slots": skipped,
+        "quote_cards": quote_cards,
         "exported_at": datetime.now().isoformat(timespec="seconds"),
     }
     logger.info("[jy_export] %s -> %s (%s)", job_id, name, result)
