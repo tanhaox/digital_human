@@ -4330,6 +4330,13 @@ def auto_fix_banned(doc: dict[str, Any]) -> int:
         "吸烟": "托腮沉思", "抽烟": "若有所思", "烟圈": "袅袅热气",
         "喝酒": "举杯畅饮", "饮酒": "举杯畅饮", "醉酒": "酣然入睡",
         "酒精": "灯油", "酒瓶": "玻璃瓶", "啤酒": "麦芽饮料", "白酒": "清茶",
+        # 1023 disturbing_imagery 族 (ep4 A4 粮仓猫鼠 11 镜死锁实锤: 老鼠在
+        # 引人不适画面禁区, 无替换键 = 命中即 political_flag + K2 永久跳过)。
+        # 仓鼠不在禁区且保比喻 (粮仓囤粮的胖仓鼠=占资源的短板员工, 横幅→装饰带
+        # 同款换载体); EN 走短语键 — 裸 "rat" 子串会误伤 gene/rat/e, deco/rat/e
+        "老鼠": "仓鼠",
+        "plump rat": "plump hamster", "caught rats": "caught hamsters",
+        "rat paw prints": "hamster paw prints",
     }
     n = 0
     for s in doc.get("shots") or []:
