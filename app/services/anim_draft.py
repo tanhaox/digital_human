@@ -14,7 +14,7 @@ build_draft (剪映草稿, pyJianYingDraft, storyboard_draft.py 范式):
   video 轨: 归真时间轴逐镜 anim/<sid>.mp4; 品牌卡镜插定稿卡 (5s 播完+首帧定格
   续槽, P1 的 s11 同款); 缺片镜 img 定格 → 纯色占位卡降级 (拼图彩排).
   caption 轨: text_layer → 暖金色字幕 (H3 文字配方同色系).
-  typing 轨: 0-2s 打字卡逐字 (文案 = roadmap_json.打字卡, 书级冻结).
+  typing 轨已撤 (1023 用户令: 取消前3秒打字卡, 书墙滚动顶到 0).
   voice 轨: 整集口播 concat (voice_full.wav, 随 align 落 ep 目录).
 """
 from __future__ import annotations
@@ -69,21 +69,8 @@ _CAP_BORDER = draft_mod.TextBorder(alpha=0.85, color=(0.0, 0.0, 0.0), width=12)
 _CAP_SHADOW = draft_mod.TextShadow(alpha=0.55, color=(0.0, 0.0, 0.0), diffuse=12, distance=3)
 _CAP_SPLIT_LIMIT = 30  # 横屏断句上限 (J线 job_draft 横屏同款; >30 字拆多条滚动)
 
-# ── 86万赞打字卡 1:1 (0916 用户令; 锚=.tmp/s6top_open_0_5s_8fps.png 逐帧判读) ──
-# 白字居中偏上两行 · 三承重词同字号金黄 · 逐字 ~0.25s 起 ~1.9s 满 无光标 ·
-# 2-3s 定格 · 打字音效同帧 (打字（字幕专用）1416ms 与打字窗严丝合缝)
-_TYPE_BASE = (1.0, 1.0, 1.0)          # 正文白 (锚点实况)
-_TYPE_HL = (1.0, 0.75, 0.09)          # 承重词黄 (jy_style_palette 关键词黄, 53期 mined)
-_TYPE_SIZE = 6.8                      # 44字骨架两行装下 (30字×5号口径: chars/line=150/size)
-_TYPE_Y = 0.45                        # 画面上四分之一带 (锚点实况)
-_TYPE_SHADOW = draft_mod.TextShadow(alpha=0.45, color=(0.0, 0.0, 0.0), diffuse=8, distance=2)
-_TYPE_SFX = "打字（字幕专用）"
-_TYPE_START_S = 0.25                  # 首字出现 (锚点 ~0.25s)
-_TYPE_END_S = 1.9                     # 打满 (锚点 ~1.9s)
-
-# ── 选书后 2s 版式 (0916 模板令, 64-商业认知 拆解) ──
-_FONT_SIYUAN = "674043984025433344"   # 思源黑体 (模板明文实测 id)
-_TYPE_LINE_SPACING = 6               # 0916 用户令: 打字卡行间距 6 (抖音同款)
+# 86万赞打字卡常量族 (_TYPE_* / 思源黑体 / 行间距) 已随 S00 打字卡撤销
+# (1023 用户令: 取消前3秒打字卡) — 复原走 git 历史.
 
 
 # ── 字幕数字阿拉伯还原 (0916 用户令: 一九二八年=1928年) ──
@@ -183,46 +170,8 @@ def _book_author_short(book_id: str) -> str:
         return ""
 
 
-def _typing_emph_spans(text: str) -> list[tuple[int, int]]:
-    """打字卡三承重词区间 (骨架锚定): 坚持每晚睡前 / 收益主体槽 / 超过90%.
-
-    骨架书级冻结 (0914 定稿): "如果你能坚持每晚睡前看一集，一个月后，
-    {收益主体}，会超过90%的{对比人群}。" — 槽位用冻结锚词定位, 缺锚即跳 (宁缺毋滥)。
-    """
-    spans = []
-    for w in ("坚持每晚睡前", "超过90%"):
-        i = text.find(w)
-        if i >= 0:
-            spans.append((i, i + len(w)))
-    m = re.search(r"一个月后，(.+?)，会超过", text)
-    if m:
-        spans.append((m.start(1), m.end(1)))
-    return sorted(spans)
-
-
-def _typing_split_lines(text: str) -> list[str]:
-    """打字卡按冻结骨架切行 (0916 行槽制): 三句 = 三行, 槽位随书但切点冻结.
-
-    "如果你能坚持每晚睡前看一集，" | "一个月后，{X}，" | "会超过90%的{Y}。"
-    切点 = 看一集后的逗号 + 「，会超过」前的逗号; 骨架不合 (极端改写) 回退整句一行.
-    """
-    i2 = text.find("，会超过")
-    i1 = text.find("，", text.find("看一集"))
-    if i1 > 0 and i2 > i1:
-        return [text[:i1 + 1], text[i1 + 1:i2 + 1], text[i2 + 1:]]
-    if i1 > 0:
-        return [text[:i1 + 1], text[i1 + 1:]]
-    return [text]
-
-
-def _typing_line_ys(n: int) -> tuple[float, ...]:
-    """行槽 y. 0916 定稿: 行1 上提 (0.32 独立元素), 行2+3 块下移 (0.10/-0.03,
-    块中心 0.035 — 行间距 6 撑高块后与行1 两元素防叠, 用户验收调)."""
-    if n >= 3:
-        return (0.32,) + tuple(round(0.10 - 0.13 * i, 3) for i in range(n - 1))
-    if n == 2:
-        return (0.10, -0.03)
-    return (0.32,)
+# 打字卡 helper 三件套 (_typing_emph_spans/_typing_split_lines/_typing_line_ys)
+# 已随 S00 打字卡撤销 (1023 用户令: 取消前3秒打字卡) — 复原走 git 历史.
 
 
 def _collect_text_events(shots: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
@@ -244,10 +193,14 @@ def _collect_text_events(shots: list[dict[str, Any]]) -> tuple[list[dict[str, An
     for s in shots:
         tls = list(s.get("text_layer") or [])
         # 品牌卡镜: 仪式句走后期金字 (旧资产烤字根治, v3 文字层纪律)
+        # 1023 用户令 (ep3 s66 实锤): 仪式句本身 (我是老谭…/下一集见) 不再上字 —
+        # 品牌卡视频已承载, 叠一行金字=多插的非字幕; 只给非仪式性品牌镜内容上字
         if s.get("brand_card") and not tls and (s.get("narration") or "").strip():
-            _span = max(float(s["t_end"]) - float(s["t_start"]), 2.0)
-            tls = [{"kind": "title", "text": str(s["narration"]).strip(),
-                    "t_start": 0.6, "t_end": round(_span - 0.4, 2)}]
+            from app.services.anim_pipeline.shots import is_brand_text, norm_for_match
+            if not is_brand_text(norm_for_match(str(s["narration"]))):
+                _span = max(float(s["t_end"]) - float(s["t_start"]), 2.0)
+                tls = [{"kind": "title", "text": str(s["narration"]).strip(),
+                        "t_start": 0.6, "t_end": round(_span - 0.4, 2)}]
         for t in tls:
             kind = str(t.get("kind") or "caption")
             t0, t1 = float(t.get("t_start") or 0), float(t.get("t_end") or 0)
@@ -1105,39 +1058,8 @@ def align_episode(book_ref: str, ep: int, dry_run: bool = False, stretch: bool =
 
 # ── 剪映草稿装配 ─────────────────────────────────────────────
 
-def _resolve_typing_text(book_id: str, ep: int) -> str:
-    """打字卡文案 (书级冻结): input_json.系列打字卡.card > roadmap_json.打字卡
-    > 稿内 '打字卡:' 行 > 书名占位.
-
-    0918 实锤: ep2 roadmap/稿内两源皆空 → return "" → typing 轨整轨丢失
-    (抖音前 2s 无字无打字音效)。书级冻结卡真相源 = input_json['系列打字卡']
-    (ep1 自产回填), 补为第一优先级; 末端书名占位兜底 (docstring 曾承诺未实现)。"""
-    con = sqlite3.connect(anim_cfg_load().db_path)
-    try:
-        r = con.execute(
-            "select e.roadmap_json, e.script_text, p.input_json from book_episodes e "
-            "join book_projects p on p.id = e.book_id where e.book_id=? and e.ep_index=?",
-            (book_id, ep)).fetchone()
-    finally:
-        con.close()
-    if r:
-        try:
-            card = (json.loads(r[2] or "{}").get("系列打字卡") or {})
-            if isinstance(card, dict) and card.get("card"):
-                return str(card["card"]).strip().strip("。")
-        except Exception:  # noqa: BLE001
-            pass
-        try:
-            rm = json.loads(r[0] or "{}")
-            if rm.get("打字卡"):
-                return str(rm["打字卡"]).strip().strip("。")
-        except Exception:  # noqa: BLE001
-            pass
-        m = re.search(r"打字卡[:：]\s*(.+)", r[1] or "")
-        if m:
-            return m.group(1).strip().strip("。")
-    return ""
-
+# 打字卡文案解析 _resolve_typing_text 已随 S00 打字卡撤销 (1023 用户令:
+# 取消前3秒打字卡) — 复原走 git 历史.
 
 def _placeholder_card(shot: dict[str, Any], out: Path, label: str = "待生成") -> None | Path:
     """缺片占位卡 (拼图彩排): 粉底动画系 + 镜号/标签/时间/口播摘要.
@@ -1427,7 +1349,8 @@ def _intro_voice(book_title: str, base: Path) -> dict[str, Any] | None:
     装配只读 _资产/开场白_{书}_{1,2}.wav, **不现场合成** (旧径每集装配期现调
     IndexTTS2.5, 服务未在线即静默缺段 — ep4 装配实锤两连). 缺素材 → None +
     明确日志; 生成走 produce_opening (POST /api/anim/ep/{book}/{ep}/opening,
-    书级一次全系列复用). 落位不变: 拆解句 @3.00 书墙首帧, 书名 @ 滴声半程.
+    书级一次全系列复用). 落位: 拆解句 @0.00 书墙首帧 (1023 打字卡取消令, 原
+    @3.00), 书名 @ 滴声半程.
     """
     v1, v2 = _opening_asset_paths(book_title)
     if not (v1.exists() and v2.exists()):
@@ -1557,14 +1480,14 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
         # 未对齐时规划轴无 tc 预留, 强加会与 s01 重叠 — 标题卡只随对齐出现
         with_title_card = aligned
         # ── 开场链 v3 预计算 (0916 人声令): 滚动+滴声+人声 → tc 推轴 ──
-        # 滚动 3.0→rev_start (齿轮音对齐滚动) → reveal+滴声; 书名 @ rev_start+
-        # 滴声半程; 拆解句收在书名前; 书名念完 +0.5s 静止 = 新 tc (全镜平移).
+        # 滚动 0→rev_start (齿轮音对齐滚动; 1023 打字卡取消令: 原起 3.0) → reveal+滴声;
+        # 书名 @ rev_start+滴声半程; 拆解句收在书名前; 书名念完 +0.5s 静止 = 新 tc (全镜平移).
         from app.services.anim_pipeline import covers as covers_mod
         tc0 = float(cfg.brand_card.opening_sec)
         intro = _intro_voice(book_title, base) if with_title_card else None
         scroll = covers_mod.render_wall_scroll(book_title) if with_title_card else None
         scroll_s = _sfx_dur(str(scroll)) if scroll else 0.0
-        rev_start = 3.0 + scroll_s if scroll else 4.0
+        rev_start = scroll_s if scroll else 1.0
         drop_half = _sfx_dur(_INTRO_SFX_DROP) / 2
         t_shift = 0.0
         if intro:
@@ -1582,6 +1505,24 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
         _sent_segs = _sentence_segs(audio["files"]) if audio["files"] else []
         tc_us = int((float(cfg.brand_card.opening_sec) + t_shift) * _US)
 
+        # ── 1023 截屏卡 (用户令): 句级 segs → 确定性检测清单/断言金句,
+        #    quote_card 轨纯文字直加 (规划层不动); 轴 = tc_us + seg 时刻
+        #    (与品牌卡仪式句锚定同口径) ──
+        quote_cards: list[dict[str, Any]] = []
+        if _sent_segs:
+            from app.services.jy_draft_service.quote_card import (
+                QUOTE_CARD_TAIL_SEC,
+                detect_quote_cards,
+            )
+            for _c in detect_quote_cards([sg["text"] for sg in _sent_segs]):
+                _a0 = tc_us + int(round(float(_sent_segs[_c["start"]]["t_start"]) * _US))
+                _a1 = tc_us + int(round(
+                    (float(_sent_segs[_c["end"] - 1]["t_end"]) + QUOTE_CARD_TAIL_SEC) * _US))
+                quote_cards.append({**_c, "a0_us": _a0, "a1_us": max(_a1, _a0 + 800_000)})
+            if quote_cards:
+                logger.info("[draft] 截屏卡 ×%d: %s", len(quote_cards),
+                            [f"{c['kind']}:{c['lines'][0][:10]}" for c in quote_cards])
+
         import os
         drafts_dir = Path(os.path.join(
             os.environ.get("LOCALAPPDATA", ""),
@@ -1594,7 +1535,7 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
         folder = draft_mod.DraftFolder(str(drafts_dir))
         try:
             script = folder.create_draft(name, 1920, 1080, allow_replace=True)
-        except OSError as exc:  # noqa: BLE001 — 剪映占用/半加密目录锁
+        except OSError as exc:
             name = f"{name}_{datetime.now().strftime('%m%d_%H%M')}"
             logger.warning("[draft] 同名草稿被占用 (剪映开着? %s), 改用新名: %s", exc, name)
             script = folder.create_draft(name, 1920, 1080, allow_replace=True)
@@ -1603,7 +1544,8 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
             draft_mod.TrackSpec(draft_mod.TrackType.video, "book"),  # 主书封层 (压暗墙底之上)
             draft_mod.TrackSpec(draft_mod.TrackType.text, "caption"),
             draft_mod.TrackSpec(draft_mod.TrackType.text, "hero"),  # 标题层 (title/logo_note; 强调词已降维进字幕)
-            draft_mod.TrackSpec(draft_mod.TrackType.text, "typing"),
+            # 1023 截屏卡轨 (最上文字层): 清单三连/断言金句停留卡
+            draft_mod.TrackSpec(draft_mod.TrackType.text, "quote_card"),
             draft_mod.TrackSpec(draft_mod.TrackType.audio, "voice"),
             draft_mod.TrackSpec(draft_mod.TrackType.audio, "sfx"),  # R9 同帧音效 (attach_sound 平移)
             draft_mod.TrackSpec(draft_mod.TrackType.effect, "fx"),
@@ -1724,7 +1666,7 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
         # 0916 有稿必有字幕令: caption 事件 = 句级稿直出 (音频句轴+停顿吸附,
         # 100% 覆盖), 不再依赖 LLM text_layer 完备性 (实锤 10/54 句无字幕:
         # 导览句被并条/作者译者句被漏); text_layer 只供强调词降维与音效 cue.
-        _cap0, hero_events = _collect_text_events(shots)  # noqa: F841 — hero/impact 源 (caption 走句级稿; overlay 0921 弃渲)
+        _cap0, hero_events = _collect_text_events(shots)
         from bisect import bisect_right as _br
         _st_axis = [float(s["t_start"]) for s in shots]
 
@@ -1769,94 +1711,27 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
         for ev in hero_events:
             if ev["kind"] in ("hero_number", "year", "impact", "logo_note"):
                 emph_by_sid.setdefault(ev["sid"], []).append((ev["text"], ev["kind"]))
+        # 1023 截屏卡字幕退避 (用户令: 卡在屏时字幕全部不上屏 — 给截屏者清静画面;
+        # 卡内容本就是口播原文, 字幕是复读)
+        if quote_cards:
+            _qc_wins = [(c["a0_us"] / _US, c["a1_us"] / _US) for c in quote_cards]
+            _before_caps = len(cap_events)
+            cap_events = [ev for ev in cap_events
+                          if not any(ev["a0"] < _w1 and ev["a1"] > _w0
+                                     for _w0, _w1 in _qc_wins)]
+            if len(cap_events) != _before_caps:
+                logger.info("[draft] 字幕退避: 截屏卡窗内 %d 条字幕未上屏",
+                            _before_caps - len(cap_events))
         cap_stats = _render_captions(script, cap_events, emph_by_sid)
         # R9 同帧音效自动挂 (0916 attach_sound 平移; 缺文件/密度闸门自动跳过)
         sfx_stats = _attach_sound_cues(script, _sound_cues(doc))
 
-        # 开场套件 (剪辑层 5.5s 预留, 素材拼贴非生成 — 与生成动画不抢时间):
-        # S00 打字卡 0-2s (逐字) + S00b 定格 2-3s + S00c 书封墙 3-4.2s + S00d 主书封 4.2-5.5s
+        # 开场套件 (剪辑层预留, 素材拼贴非生成 — 与生成动画不抢时间):
+        # S00/S00b 打字卡 0-3s 已撤 (1023 用户令: 取消前3秒打字卡, 书墙滚动顶到 0);
+        # 存续 = S00c 书封墙 0→scroll_s + S00d 主书封 reveal (相对节拍不变, 整体前移 3s)
         # 飞入/扫描/收敛动画与音效 = 剪映后期位 (素材就位, 特效剪映里套)
-        typing_text = ""
         wall_notes: list[str] = []
         if with_title_card:
-            typing_text = _resolve_typing_text(book_id, ep)
-            bg = Path(cfg.brand_card.title_bg)
-            bg = bg if bg.exists() else _placeholder_card(
-                {"shot_id": "标题卡", "t_start": 0, "t_end": 2,
-                 "narration": typing_text or book_title}, cards_dir / "title_bg.png")
-            # 0915 用户定: 标题底图 mp4 与系统生成动画同夹 (anim/) — 与 s27 等同源同位
-            _t_src = _as_video_path(bg, base, 3.0)
-            _t_dst = base / "anim" / _t_src.name
-            if _t_src != _t_dst:
-                _t_dst.parent.mkdir(parents=True, exist_ok=True)
-                if not _t_dst.exists() or _t_dst.stat().st_mtime < _t_src.stat().st_mtime:
-                    shutil.copy2(_t_src, _t_dst)
-            script.add_segment(draft_mod.VideoSegment(
-                draft_mod.VideoMaterial(str(_t_dst)), trange(0, 3 * _US), volume=0), "main")  # S00+S00b
-            if typing_text:
-                # 86万赞 1:1 · 0916 定稿四改 (验收: 原生打字动画管不住首行, 首行
-                # 直接整行直出): 行1 静态常驻 0→3s; 行2+3 单常驻元素 + 居中打字
-                # 1.65s (0.25 起 1.9 满); 字在元素内累加永不清空; 三承重金黄不变.
-                emph = _typing_emph_spans(typing_text)
-                lines = _typing_split_lines(typing_text)
-                ys = _typing_line_ys(len(lines))
-                offs, acc = [], 0
-                for L in lines:
-                    offs.append(acc)
-                    acc += len(L)
-                line1, rest = lines[0], lines[1:]
-                rest_off = len(line1)  # rest 元素内坐标 = 全文坐标 - 行1长度
-
-                def _type_seg(txt: str, start_us: int, dur_us: int, y: float,
-                              hl_spans: list[tuple[int, int]]):
-                    hl = [(s, min(e, len(txt))) for s, e in hl_spans
-                          if s < len(txt) and min(e, len(txt)) > s]
-                    return _StyledTextSegment(
-                        txt, trange(start_us, dur_us),
-                        base_color=_TYPE_BASE,
-                        hl_color=_TYPE_HL, hl_size=_TYPE_SIZE,
-                        highlight_ranges=hl,
-                        style=TextStyle(size=_TYPE_SIZE, align=1, max_line_width=0.82,
-                                        auto_wrapping=True,
-                                        line_spacing=_TYPE_LINE_SPACING),
-                        shadow=_TYPE_SHADOW,
-                        clip_settings=ClipSettings(transform_y=y))
-
-                # 行1: 静态直出 (无动画), 常驻整卡 0→3s
-                l1_spans = [(max(s - offs[0], 0), min(e - offs[0], len(line1)))
-                            for s, e in emph if min(e, offs[0] + len(line1)) > max(s, offs[0])]
-                try:
-                    script.add_segment(_type_seg(line1, 0, 3 * _US, ys[0], l1_spans),
-                                       "typing")
-                except Exception as exc:  # noqa: BLE001
-                    logger.warning("[draft] 打字卡行1失败: %s", exc)
-                # 行2+3: 常驻元素 + 原生打字 (元素内坐标换算, \n 偏移逐行累计)
-                if rest:
-                    rest_txt = chr(10).join(rest)
-                    r_spans: list[tuple[int, int]] = []
-                    for li in range(1, len(lines)):
-                        for s, e in emph:
-                            ls = max(s - offs[li], 0)
-                            le = min(e - offs[li], len(lines[li]))
-                            if le > ls:
-                                base_off = offs[li] - rest_off + (li - 1)
-                                r_spans.append((ls + base_off, le + base_off))
-                    rest_y = sum(ys[1:]) / len(ys[1:])
-                    _anim = next((a for a in ("打字机_I", "打字机_II", "打字机III")
-                                  if hasattr(TextIntro, a)), None)
-                    seg = _type_seg(rest_txt, int(_TYPE_START_S * _US),
-                                    int((3.0 - _TYPE_START_S) * _US), rest_y, r_spans)
-                    if _anim:
-                        try:
-                            seg.add_animation(getattr(TextIntro, _anim),
-                                              duration=int((_TYPE_END_S - _TYPE_START_S) * _US))
-                        except Exception as exc:  # noqa: BLE001
-                            logger.warning("[draft] 打字机动画失败(%s): %s", _anim, exc)
-                    try:
-                        script.add_segment(seg, "hero")
-                    except Exception as exc:  # noqa: BLE001
-                        logger.warning("[draft] 打字卡行2+3失败: %s", exc)
-                _attach_sfx(script, _TYPE_SFX, _TYPE_START_S)
             s00c, s00d, wall_notes = _prep_opening_assets(book_title, base)
             # ── 书墙滚动 + reveal v3 (0916 五升级令): 滚动+齿轮音对齐 → reveal
             # 素材二封面折叠开幕 + 末帧虚化垫底 + 滴声(书名@半程) + 人声两段 ──
@@ -1866,12 +1741,12 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
             if scroll:
                 script.add_segment(draft_mod.VideoSegment(
                     draft_mod.VideoMaterial(str(scroll)),
-                    trange(3 * _US, int(scroll_s * _US)), volume=0), "main")
-                _attach_sfx(script, _INTRO_SFX_GEAR, 3.0, max_sec=scroll_s)
+                    trange(0, int(scroll_s * _US)), volume=0), "main")
+                _attach_sfx(script, _INTRO_SFX_GEAR, 0.0, max_sec=scroll_s)
             else:
                 _wv = _as_video_path(s00c, base, 1.5)
-                seg_c = draft_mod.VideoSegment(   # 兜底: 静态书封墙 3-4.0s 飞入
-                    draft_mod.VideoMaterial(str(_wv)), trange(3 * _US, int(1.0 * _US)), volume=0)
+                seg_c = draft_mod.VideoSegment(   # 兜底: 静态书封墙 0-1.0s 飞入
+                    draft_mod.VideoMaterial(str(_wv)), trange(0, int(1.0 * _US)), volume=0)
                 seg_c.add_animation(draft_mod.IntroType.向上滑动, 400_000)
                 script.add_segment(seg_c, "main")
                 _endf = None
@@ -1904,13 +1779,13 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
             _attach_sfx(script, _INTRO_SFX_DROP, rev_start)
             if intro:
                 _title_at = rev_start + drop_half
-                # 拆解句 @3.00 与书墙首帧对齐 (0916 令); 不越书名点
+                # 拆解句 @0.00 与书墙首帧对齐 (1023 打字卡取消令, 原 @3.00); 不越书名点
                 _d1 = min(max(int(intro["d1"] * _US) - 2000, 200_000),
-                          int((_title_at - 3.0) * _US))
+                          int(_title_at * _US))
                 _d2 = max(int(intro["d2"] * _US) - 2000, 200_000)
                 try:
                     script.add_segment(draft_mod.AudioSegment(
-                        str(intro["v1"]), trange(3 * _US, _d1)), "voice")
+                        str(intro["v1"]), trange(0, _d1)), "voice")
                     script.add_segment(draft_mod.AudioSegment(
                         str(intro["v2"]), trange(int(_title_at * _US), _d2)), "voice")
                 except Exception as exc:  # noqa: BLE001
@@ -1970,6 +1845,49 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
             script.add_segment(draft_mod.AudioSegment(
                 str(voice), trange(tc_us if aligned else 0, vdur)), "voice")
 
+        # ── 1023 截屏卡进轨 (用户选型 A2/B6): 多行=黑金商务卡 (优设标题黑/8号/
+        #    左对齐/行距10/深底圆角), 单行=特黑红锤 (特黑体/8号/红描边/居中),
+        #    入场统一逐字显影 (打字感, 卡内容跟口播逐字落) ──
+        _QC_INTRO = getattr(draft_mod.TextIntro, "逐字显影", None)
+        for _c in quote_cards:
+            try:
+                from pyJianYingDraft import TextBackground
+                # 1023 用户令: 卡上不留句号 (大字排版惯例; ？！保留 — 带情绪);
+                # 先剥 markdown 强调符 (**/*/_) 再剥句号 — 豆包稿 "**…。**" 句尾
+                # 是 。** , 只 rstrip 句号够不到 (ep3 实锤)
+                _lines = [re.sub(r"[*_]+", "", l).strip().rstrip("。")
+                          for l in _c["lines"]]
+                if len(_lines) == 1:
+                    _seg = TextSegment(
+                        _lines[0],
+                        trange(_c["a0_us"], _c["a1_us"] - _c["a0_us"]),
+                        font=draft_mod.FontType.特黑体,
+                        style=TextStyle(size=8, bold=True, color=(1, 1, 1), align=1,
+                                        auto_wrapping=True, max_line_width=0.82),
+                        border=draft_mod.TextBorder(alpha=0.9, color=(0.72, 0.11, 0.11),
+                                                     width=16),
+                        shadow=draft_mod.TextShadow(alpha=0.7, color=(0, 0, 0),
+                                                    diffuse=16, distance=4),
+                        clip_settings=ClipSettings(transform_y=0.0))
+                else:
+                    _seg = TextSegment(
+                        "\n".join(_lines),
+                        trange(_c["a0_us"], _c["a1_us"] - _c["a0_us"]),
+                        font=draft_mod.FontType.优设标题黑,
+                        style=TextStyle(size=8, bold=True, color=(1, 1, 1), align=0,
+                                        auto_wrapping=True, max_line_width=0.78,
+                                        line_spacing=10),
+                        background=TextBackground(color="#0D0D12", alpha=0.82,
+                                                  round_radius=0.05),
+                        shadow=draft_mod.TextShadow(alpha=0.4, color=(0, 0, 0),
+                                                    diffuse=10, distance=2),
+                        clip_settings=ClipSettings(transform_y=0.0))
+                if _QC_INTRO is not None:
+                    _seg.add_animation(_QC_INTRO, duration=400_000)
+                script.add_segment(_seg, "quote_card")
+            except Exception as exc:  # noqa: BLE001 — 单卡失败不炸草稿
+                logger.warning("[draft] 截屏卡失败 %s: %s", _c["lines"][0][:12], exc)
+
         # 0915 定案: 剪映 2026 迁移按数组顺序校验, 时间早于前段结尾的段会被摘下重挂到时间轴末尾
         # (开场套件后追加导致); 保存前按 target start 全轨排序
         for _tr in script.tracks.values():
@@ -1997,9 +1915,10 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                  "book": book_title, "ep": ep, "shots": len(shots),
                  "total_s": shots[-1]["t_end"], "real": n_real,
                  "placeholder": len(shots) - n_real, "voice": bool(voice and voice.exists()),
-                 "typing": bool(typing_text), "aligned": aligned, "opening_s": tc_us / _US,
+                 "aligned": aligned, "opening_s": tc_us / _US,
                  "opening": "ok" if intro else ("off" if not with_title_card else "missing"),
                  **cap_stats, "hero_texts": hero_n, "overlay_texts": overlay_n,
+                 "quote_cards": [f"{c['kind']}:{c['lines'][0][:10]}" for c in quote_cards],
                  **sfx_stats,
                  "kinds": kinds, "short_holds": warn_short, "opening_wall": wall_notes,
                  "content_mismatch": entry_mismatch}
