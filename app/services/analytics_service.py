@@ -256,11 +256,26 @@ def episodes_table(rows: list[dict], links: list[dict],
     for lk in links:
         d = lk["date"]
         r = by_date.get(d)
+        v = vid_by_date.get(d) or {}
         if r is None:
+            # 1023 用户令: 集已发、账号日未导 (ep2 实发 10-22, 日数据隔日才有) —
+            # 照常上屏, 日列空 (—), 视频真值优先; 不再整行蒸发让"集消失"
+            out.append({
+                "date": d, "series": lk["series"],
+                "ep": (f"ep{lk['ep_index']}" if lk["ep_index"] else "非正片"),
+                "ep_title": lk["ep_title"], "publish_time": lk["publish_time"], "note": lk["note"],
+                "posts": None, "views": None,
+                "fan_net": None, "fan_new": None, "revisit": None, "next_net": None,
+                "is_anomaly": False, "factor": in_factor(factors or [], d),
+                "v_title": v.get("title"), "v_genre": v.get("genre"),
+                "v_views": v.get("views"), "v_completion": v.get("completion_rate"),
+                "v_watch_sec": v.get("avg_watch_sec"),
+                "v_fan_growth": v.get("fan_growth"), "v_collects": v.get("collects"),
+                "v_profile_visits": v.get("profile_visits"),
+            })
             continue
         i = order.index(d)
         nxt = rows[i + 1]["fan_net"] if i + 1 < len(rows) else None
-        v = vid_by_date.get(d) or {}
         out.append({
             "date": d, "series": lk["series"],
             "ep": (f"ep{lk['ep_index']}" if lk["ep_index"] else "非正片"),

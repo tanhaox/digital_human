@@ -89,8 +89,8 @@ function render(data) {
   });
   var fxTag = function (d) { var f = (data.factors || []).filter(function (x) { return d >= x.date_from && d <= x.date_to; })[0]; return f ? '<span class="fx">' + f.label + "</span>" : ""; };
 
-  var epFan = function (e) { return e.v_fan_growth != null ? e.v_fan_growth : e.fan_new; }; // 视频真值优先
-  var epViews = function (e) { return e.v_views != null ? e.v_views : e.views; }; // 视频真值优先, 缺则账号日
+  var epFan = function (e) { return e.v_fan_growth != null ? e.v_fan_growth : (e.fan_new != null ? e.fan_new : "—"); }; // 视频真值优先 (1023: 日未导 → —)
+  var epViews = function (e) { return e.v_views != null ? e.v_views : (e.views != null ? e.views : "—"); }; // 视频真值优先, 缺则账号日
   chart("cEps").setOption({
     grid: { left: 8, right: 56, top: 42, bottom: 8, containLabel: true },
     legend: { top: 6, right: 8, itemWidth: 14, itemHeight: 9,
@@ -146,12 +146,12 @@ function render(data) {
     return "<tr" + out + "><td>" + md(e.date) + fxTag(e.date) + '</td><td class="l"><span class="sers" style="background:' +
       (SERIES_COLORS[e.series] || GRAY) + '"></span>' + e.series + "</td><td>" + e.ep + "</td><td>" +
       (e.v_genre || "—") + '</td><td class="l" title="' + esc(tip) + '">' + esc(e.ep_title || "—") + "</td><td>" +
-      (e.v_views != null ? e.v_views : e.views) + "</td><td>" +
+      (e.v_views != null ? e.v_views : (e.views != null ? e.views : "—")) + "</td><td>" +
       (e.v_completion != null ? pct1(e.v_completion) : "—") + "</td><td><b>" + epFan(e) + "</b>" +
-      (e.v_fan_growth != null && e.fan_new !== e.v_fan_growth ? ' <span class="eta">(' + e.fan_new + ")</span>" : "") +
+      (e.v_fan_growth != null && e.fan_new != null && e.fan_new !== e.v_fan_growth ? ' <span class="eta">(' + e.fan_new + ")</span>" : "") +
       "</td><td>" + (e.v_collects != null ? e.v_collects : "—") + "</td><td>" +
       (e.v_profile_visits != null ? e.v_profile_visits : "—") + "</td><td" +
-      (e.fan_net < 0 ? ' class="neg"' : "") + ">" + e.fan_net + "</td><td>" +
+      (e.fan_net != null && e.fan_net < 0 ? ' class="neg"' : "") + ">" + (e.fan_net == null ? "—" : e.fan_net) + "</td><td>" +
       (e.next_net == null ? "—" : e.next_net) + "</td></tr>";
   }).join("");
   byId("epNote").innerHTML = "投稿日 ↔ 集数 1:1（" + eps.length + "/" + v.posts_total +
