@@ -26,7 +26,7 @@ from app.services.alignment_service._timings import (
 )
 from app.services.alignment_service._transcribe import WordSegment
 from app.services.tokenizer_fix import (
-    apply_tokenizer_fix,  # noqa: E402,F401  (触发副作用)
+    apply_tokenizer_fix,  # noqa: F401  (触发副作用)
 )
 
 __all__ = [
