@@ -112,3 +112,6 @@ data/*.bak-*
 # 防未来：任意层临时文件
 **/*.tmp
 data/pipeline_backup_*.db
+
+# 抖音导出 xlsx (源数据入 analytics.db 后留档, 不进 git)
+data/*.xlsx
