@@ -233,6 +233,11 @@ def export_job_draft(db: Session, job_id: str) -> dict[str, Any]:
                    + QUOTE_CARD_TAIL_SEC)
             quote_cards.append({**_c, "start_s": round(_ws, 2), "end_s": round(_we, 2)})
             _qc_covered.update(range(_c["start"], _c["end"]))
+        # 1025 相邻卡尾裁 (同 anim_draft: LLM 可出相邻区间, 1.5s 停留尾重叠丢卡)
+        if len(quote_cards) > 1:
+            quote_cards.sort(key=lambda c: c["start_s"])
+            for _c, _n in zip(quote_cards, quote_cards[1:]):
+                _c["end_s"] = min(_c["end_s"], _n["start_s"])
 
     # ── text 轨: 逐段字幕 (洗 TTS 读法 + 超长断句, 时长按字数比例分配) ──
     # 横屏每屏上限 30 字 (2026-08-15 用户实测超出横屏); 竖屏画面窄取 18。

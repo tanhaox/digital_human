@@ -1519,6 +1519,19 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                 _a1 = tc_us + int(round(
                     (float(_sent_segs[_c["end"] - 1]["t_end"]) + QUOTE_CARD_TAIL_SEC) * _US))
                 quote_cards.append({**_c, "a0_us": _a0, "a1_us": max(_a1, _a0 + 800_000)})
+            # 1025 LLM 主判可出相邻卡 (ep6 实锤: 断言[33]+模板[34], 1.5s 停留尾
+            # 压进下一卡起点, pyJianYingDraft 拒重叠段丢卡) → 排序后尾裁到下一卡
+            # 起点; 起点贴脸 (<800ms) 挤不下两张, 保前丢后
+            if len(quote_cards) > 1:
+                quote_cards.sort(key=lambda c: c["a0_us"])
+                _qc_keep = [quote_cards[0]]
+                for _c in quote_cards[1:]:
+                    if _c["a0_us"] < _qc_keep[-1]["a0_us"] + 800_000:
+                        continue
+                    _qc_keep.append(_c)
+                for _c, _n in zip(_qc_keep, _qc_keep[1:]):
+                    _c["a1_us"] = min(_c["a1_us"], _n["a0_us"])
+                quote_cards[:] = _qc_keep
             if quote_cards:
                 logger.info("[draft] 截屏卡 ×%d: %s", len(quote_cards),
                             [f"{c['kind']}:{c['lines'][0][:10]}" for c in quote_cards])
