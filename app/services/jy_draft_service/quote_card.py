@@ -22,8 +22,11 @@ LLM 主判 (只选区间, 卡上文字一律取原文切片 — 零幻觉) + 下
 """
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 import re
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -221,7 +224,8 @@ _LLM_SYSTEM = (
     '"kind":"list|mantra|aphorism|parallel","why":"≤12字"}]}。'
     "start/end 用句编号 [n]（end 那句不含在卡内，左闭右开），区间内句子须连成"
     "同一张卡；报幕/引子句（如「给一张可截图模板：」「浓缩成一句口诀：」）"
-    "不要收进卡，从内容句起选；-1s- 之类口播停顿标记不是文字；"
+    "不要收进卡，从内容句起选；稿中明写「可截图」「建议截图」的模板必须选上；"
+    "-1s- 之类口播停顿标记不是文字；"
     "最多 4 张，宁缺毋滥；没有值得的输出 {\"cards\":[]}；"
     "禁止改写原句，禁止输出 JSON 以外任何文字。"
 )
@@ -263,7 +267,7 @@ def _detect_quote_cards_llm(texts: list[str]) -> list[dict]:
     from app.services.llm_service import _parse_json, get_llm_service
     numbered = "\n".join(f"[{i}] {t}" for i, t in enumerate(texts, start=1))
     raw = get_llm_service().chat(
-        _LLM_SYSTEM, numbered, model="flash", temperature=0.2,
+        _LLM_SYSTEM, numbered, model="flash", temperature=0,
         timeout=25, max_tokens=600,
         response_format={"type": "json_object"}, tag="quote_card")
     data = _parse_json(raw) or {}
@@ -274,14 +278,32 @@ def _detect_quote_cards_llm(texts: list[str]) -> list[dict]:
     return _clamp_llm_cards(_raw or [], texts)
 
 
-def detect_quote_cards_smart(texts: list[str]) -> list[dict]:
-    """LLM 主判 + 正则兜底 (fail-open).
+def detect_quote_cards_smart(texts: list[str], cache_path=None) -> list[dict]:
+    """LLM 主判 + 正则兜底 (fail-open) + 稿指纹缓存.
 
+    cache_path (1025 实锤: 每次装配重判洗牌, 用户要的模板卡被判丢): 同稿
+    (texts sha1 相同) 复用上次判卡, 稿变自动重判; 缓存只存区间/kind, lines
+    一律按当前 texts 重切 (缓存无幻觉通道).
     LLM 空数组/超时/异常 → 回落 detect_quote_cards 正则四型
     (装配日志可辨: LLM 检出/正则检出 前缀不同)。
     """
     if not any((t or "").strip() for t in texts):
         return []
+    _key = hashlib.sha1(chr(0).join(texts).encode("utf-8")).hexdigest()
+    if cache_path is not None:
+        try:
+            _c = json.loads(Path(cache_path).read_text(encoding="utf-8"))
+            if _c.get("hash") == _key:
+                cards = [{"start": int(x["start"]), "end": int(x["end"]),
+                          "kind": str(x.get("kind") or "llm"),
+                          "why": str(x.get("why") or ""),
+                          "lines": [texts[k].strip()
+                                    for k in range(int(x["start"]), int(x["end"]))]}
+                         for x in _c.get("cards", [])]
+                logger.info("[quote_card] 命中判卡缓存 %d 张 (稿未变, 不洗牌)", len(cards))
+                return cards
+        except Exception:
+            pass  # 缓存读失败照常判
     try:
         cards = _detect_quote_cards_llm(texts)
     except Exception as exc:  # noqa: BLE001 — fail-open 回正则
@@ -291,5 +313,15 @@ def detect_quote_cards_smart(texts: list[str]) -> list[dict]:
         logger.info("[quote_card] LLM 检出 %d 张: %s", len(cards),
                     [f"#{c['start']}-{c['end']}({c['kind']}) {c['lines'][0][:12]}…"
                      for c in cards])
-        return cards
-    return detect_quote_cards(texts)
+    else:
+        cards = detect_quote_cards(texts)
+    if cache_path is not None:
+        try:
+            Path(cache_path).write_text(json.dumps({
+                "hash": _key,
+                "cards": [{"start": c["start"], "end": c["end"],
+                           "kind": c["kind"], "why": c.get("why", "")}
+                          for c in cards]}, ensure_ascii=False), encoding="utf-8")
+        except Exception:
+            pass  # 缓存写失败不挡判卡
+    return cards

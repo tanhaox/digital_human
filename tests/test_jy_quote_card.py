@@ -233,3 +233,23 @@ def test_style_label_bare_ordinal():
     assert is_list_card(["第一，如果这个方案失败，最可能死在哪？", "第二，谁最反对？"])
     assert not is_pure_list_card(["第一，谁最反对？", "他的理由能不能变成B方案？"])
     assert not is_list_card(["三问定性质，三线定底线，三案防翻车"])  # 量词后是"定"非分隔符
+
+
+def test_smart_cache_same_texts_no_reshuffle(tmp_path, monkeypatch):
+    # 1025 实锤: 同稿重装配不该洗牌 — 缓存命中复用; 稿变 (hash 异) 重判
+    calls = []
+
+    class _CountLLM:
+        def chat(self, system, user, **kw):
+            calls.append(1)
+            return json.dumps({"cards": [{"start": 2, "end": 3,
+                                          "kind": "mantra", "why": "口诀"}]})
+
+    monkeypatch.setattr("app.services.llm_service.get_llm_service", lambda: _CountLLM())
+    texts = ["开场一句。", "三问定性质，三线定底线，三案防翻车。"]
+    cp = tmp_path / "quote_cards.json"
+    c1 = detect_quote_cards_smart(texts, cache_path=cp)
+    c2 = detect_quote_cards_smart(texts, cache_path=cp)   # 命中缓存, LLM 零调用
+    assert len(calls) == 1 and c1 == c2
+    c3 = detect_quote_cards_smart(texts + ["稿改了。"], cache_path=cp)  # hash 变 → 重判
+    assert len(calls) == 2

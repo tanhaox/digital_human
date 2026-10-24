@@ -1517,7 +1517,9 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                 is_pure_list_card,
                 wash_card_lines,
             )
-            for _c in detect_quote_cards_smart([sg["text"] for sg in _sent_segs]):
+            # 1025 实锤: 每次装配重判洗牌 (用户要的模板卡被判丢) → 稿指纹缓存
+            for _c in detect_quote_cards_smart([sg["text"] for sg in _sent_segs],
+                                              cache_path=base / "quote_cards.json"):
                 _a0 = tc_us + int(round(float(_sent_segs[_c["start"]]["t_start"]) * _US))
                 _a1 = tc_us + int(round(
                     (float(_sent_segs[_c["end"] - 1]["t_end"]) + QUOTE_CARD_TAIL_SEC) * _US))
