@@ -226,3 +226,10 @@ def test_is_pure_list_card_size_tier():
                                   "第二，谁最反对？",
                                   "他的理由能不能变成B方案？"])  # 杂行 → 5号档
     assert not is_pure_list_card(["三问定性质，三线定底线，三案防翻车"])  # 金句非清单
+
+
+def test_style_label_bare_ordinal():
+    # 1025 实锤补: 三问卡 "第一，/第二，" 无量词 — 样式判据须认 (检测正则仍严格)
+    assert is_list_card(["第一，如果这个方案失败，最可能死在哪？", "第二，谁最反对？"])
+    assert not is_pure_list_card(["第一，谁最反对？", "他的理由能不能变成B方案？"])
+    assert not is_list_card(["三问定性质，三线定底线，三案防翻车"])  # 量词后是"定"非分隔符

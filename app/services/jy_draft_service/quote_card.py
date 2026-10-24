@@ -172,16 +172,22 @@ _CARD_MD_RE = re.compile(r"[*_]+")                            # markdown 强调�
 _CARD_LEAD_RE = re.compile(r"^[^：:，。！？\s]{1,10}[：:](?=\S)")
 
 
+# 样式判据专用 (1025 实锤: 三问卡 "第一，/第二，" 无量词, 检测正则不认, 分样式
+# 掉进 8号红锤更大): 量词可选; 只影响样式选择不影响检测, 容忍 "一句话，"
+# 级误判 (最坏=金句卡误走清单样式)
+_STYLE_LABEL_RE = re.compile(r"^第?[一二三四五](?:问|句|步|招|条|件)?[，,：:]")
+
+
 def is_list_card(lines: list[str]) -> bool:
     """清单卡判定 (1025 用户令: 分样式看语义不看行数) — 任一行段首带
-    报幕标签 (第一条，/一问：…); 无标签金句 (口诀/断言/平行短句) = False."""
-    return any(_label_at(l) for l in lines)
+    报幕标签 (第一条，/第一，/一问：…); 无标签金句 (口诀/断言/平行短句) = False."""
+    return any(_STYLE_LABEL_RE.match((l or "").strip()) for l in lines)
 
 
 def is_pure_list_card(lines: list[str]) -> bool:
     """标准清单卡 (1025 用户令 B 案): 行行带报幕标签, 无追问杂行 —
     6号; 带杂行的问句清单 (第一，…/他的理由…混排) 走 5号 小一档."""
-    return bool(lines) and all(_label_at(l) for l in lines)
+    return bool(lines) and all(_STYLE_LABEL_RE.match((l or "").strip()) for l in lines)
 
 
 def wash_card_lines(lines: list[str]) -> list[str]:
