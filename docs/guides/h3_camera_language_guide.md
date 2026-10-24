@@ -126,4 +126,9 @@ Part 2: 主体 → 场景 → 事件 → 镜头 → 声音 (镜头句嵌在事�
   - ✅ h3 工位全通：s12 空镜（拉远）走新通道 ✓（首条产线运镜镜日志实锤）。
   - ⚠️ **r2v 工位未适配**：人物镜（keyframe 命中圣经角色名）路由进 r2v（h3.py:_pick_video_station），r2v.py 有独立 prompt/workflow（4 步 beta 弹匣）——运镜词进去=裸奔（无 608/无补丁，4 步大幅=拖影区）。人物镜运镜 → 挂账 r2v 适配。
   - **操作铁律**：①已完结镜重跑走 `reroll`（`only` 只吃 approved 态，静默空转）；②redo-queue 会重规划覆写手改 camera——运镜补丁必须在规划之后打、直接 H3，永不走 redo-queue。
-- **幅度时长边界（1024 ep6 s12 三连实测）**：4.46s 短镜三测（原 seed 不动 / 换 seed 小幅 / 换 seed+起止构图句仍小幅）——**幅度天花板由槽长决定**，"large amplitude at slow speed" 在 <5s 里物理上折中为小幅；8s 镜无需技巧即全幅。**选镜铁律：运镜镜只给 ≥6s 槽**。挂账②（起止构图句）关闭：无效且长镜不需要。- 挂账：①环绕焦点能否 prompt 指定；②幅度锁定（起止构图句）；③白板上写字（画外发明物+物面文字组合技）。
+- **幅度时长边界（1024 ep6 s12 三连实测）**：4.46s 短镜三测（原 seed 不动 / 换 seed 小幅 / 换 seed+起止构图句仍小幅）——**幅度天花板由槽长决定**，"large amplitude at slow speed" 在 <5s 里物理上折中为小幅；8s 镜无需技巧即全幅。**选镜铁律：运镜镜只给 ≥6s 槽**。挂账②（起止构图句）关闭：无效且长镜不需要。
+- **第十一轮 ab_camv11（R2V 素材参考图入镜·体外，1024 用户提出路线）：基本成功**。
+  - 路线：素材图作 Object reference（`fully_preserved`）+ prompt 角色映射（"shows exactly the table from the first reference image, redrawn in the scene's art style"）+ 定格持镜句。复用产线 r2v._build_workflow 原配方 **4 步 beta** 零加价。
+  - **第五条素材入镜路 = 参考图通道**：模型按场景画风重绘参考内容，绕开贴图的风格异常死因（对照 v7/v8/v9 贴图 0/6）。
+  - 依据：ethanfel 参考媒体指南（参考角色系统：Object/prop/interface 官方用途）+ 官方 R2VA 多参考。
+  - 待补细节："基本"成功部分待复盘（瑕疵定位）；参考图规格=短边~800、近目标纵横比。- 挂账：①环绕焦点能否 prompt 指定；②幅度锁定（起止构图句）；③白板上写字（画外发明物+物面文字组合技）。
