@@ -167,8 +167,9 @@ def detect_quote_cards(texts: list[str]) -> list[dict]:
 _CARD_PAUSE_RE = re.compile(r"-\d+(?:\.\d+)?s-")          # TTS 停顿标记 -0.8s-
 _CARD_PINYIN_RE = re.compile(r"<([^|>]+)\|[^>]+>")          # 拼音标记 <字|PINYIN>
 _CARD_MD_RE = re.compile(r"[*_]+")                            # markdown 强调符
-# "报幕：+条目标签" 引子 (给一张可截图模板：第一条，… → 第一条，…)
-_CARD_LEAD_RE = re.compile(r"^[^：:，。！？\s]{1,14}[：:](?=第?[一二三四五](?:问|句|步|招|条|件)?[，,：:])")
+# 冒号前 ≤10 字无逗号的句首报幕短语 (记一句话就行：/先说结论：/给一张可截图模板：)
+# — 冒号后有正文才剥; 含逗号的引导 (第一步，先判：) 是正文结构, 不动
+_CARD_LEAD_RE = re.compile(r"^[^：:，。！？\s]{1,10}[：:](?=\S)")
 
 
 def wash_card_lines(lines: list[str]) -> list[str]:
