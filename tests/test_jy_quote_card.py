@@ -59,3 +59,40 @@ def test_cap_four():
                   "一问：这成果给谁用？", "二问：谁能验证？", "三问：不做会怎样？"]
     cards = detect_quote_cards(texts)
     assert len(cards) == 4  # 上限封顶
+
+
+def test_labeled_list_ep6_comma_labels_and_leadin():
+    # 1025 ep6 实锤: 逗号式标签 ("第一条，") + 首行报幕引子 ("给一张可截图模板：第一条，…")
+    texts = ["不是“尽量做好”，是低于这条线，方案直接作废。",
+             "给一张可截图模板：第一条，必须达成的结果：数字、时间、质量，写清楚。",
+             "第二条，绝对不能牺牲的底线：成本、合规、体验，选最硬的。",
+             "第三条，低于哪条直接作废：写一句“触线即否”。",
+             "写不出来也没关系。"]
+    cards = detect_quote_cards(texts)
+    lists = [c for c in cards if c["kind"] == "list"]
+    assert len(lists) == 1
+    c = lists[0]
+    assert c["start"] == 1 and c["end"] == 4
+    assert c["lines"][0].startswith("第一条，")  # 引子已剥, 报幕不上卡
+    assert [l[:3] for l in c["lines"]] == ["第一条", "第二条", "第三条"]
+
+
+def test_mantra_ep6_two():
+    texts = ["今天5分钟，分享一张能截图的“决策边界卡”：",
+             "三问定性质，三线定底线，三案防翻车。",
+             "可以先收藏，下次开会前30秒翻出来，能用上。",
+             "整套东西，浓缩成一句口诀： -0.8s-",
+             "先判性质，再钉三线，后找反方。"]
+    cards = detect_quote_cards(texts)
+    mantras = [c for c in cards if c["kind"] == "mantra"]
+    assert len(mantras) == 2
+    assert mantras[0]["lines"][0].startswith("三问定性质")
+    assert mantras[1]["lines"][0].startswith("先判性质")
+
+
+def test_mantra_negative_unequal_or_quoted():
+    # ep6 负例: 长短不齐 (7/8/7) 与带引号等长 (6/6/6) 都不该成口诀卡
+    texts = ["很多人天天救火，不一定是能力问题，往往是规则缺位。",
+             "不是“尽量做好”，是低于这条线，方案直接作废。"]
+    cards = detect_quote_cards(texts)
+    assert not any(c["kind"] == "mantra" for c in cards)
