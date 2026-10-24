@@ -27,7 +27,7 @@ import re
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["detect_quote_cards", "detect_quote_cards_smart", "wash_card_lines", "is_list_card", "QUOTE_CARD_TAIL_SEC"]
+__all__ = ["detect_quote_cards", "detect_quote_cards_smart", "wash_card_lines", "is_list_card", "is_pure_list_card", "QUOTE_CARD_TAIL_SEC"]
 
 # 截屏窗: 末行念完后卡片再停留的秒数 (静置截屏窗口)
 QUOTE_CARD_TAIL_SEC = 1.5
@@ -176,6 +176,12 @@ def is_list_card(lines: list[str]) -> bool:
     """清单卡判定 (1025 用户令: 分样式看语义不看行数) — 任一行段首带
     报幕标签 (第一条，/一问：…); 无标签金句 (口诀/断言/平行短句) = False."""
     return any(_label_at(l) for l in lines)
+
+
+def is_pure_list_card(lines: list[str]) -> bool:
+    """标准清单卡 (1025 用户令 B 案): 行行带报幕标签, 无追问杂行 —
+    6号; 带杂行的问句清单 (第一，…/他的理由…混排) 走 5号 小一档."""
+    return bool(lines) and all(_label_at(l) for l in lines)
 
 
 def wash_card_lines(lines: list[str]) -> list[str]:

@@ -1514,6 +1514,7 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                 QUOTE_CARD_TAIL_SEC,
                 detect_quote_cards_smart,
                 is_list_card,
+                is_pure_list_card,
                 wash_card_lines,
             )
             for _c in detect_quote_cards_smart([sg["text"] for sg in _sent_segs]):
@@ -1861,9 +1862,10 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                 str(voice), trange(tc_us if aligned else 0, vdur)), "voice")
 
         # ── 截屏卡进轨 (1023 选型 A2/B6; 1025 用户令改分样式看语义不看行数):
-        #    有报幕标签(第一条，/一问：)=清单卡 → 黑金商务卡 6号/行距22 (ep6实锤
-        #    文字最多一行第二条, 8号溢出); 无标签金句(口诀/断言/平行, 1-2行同款)
-        #    → 特黑红锤 8号居中 (15字+2标点正好单行容量); 入场统一逐字显影 ──
+        #    有报幕标签=清单卡 → 黑金商务卡: 行行带标签=标准清单 6号/行距22,
+        #    带追问杂行(第一，…/他的理由…混排)=问句清单 5号/行距22 (1025 用户令
+        #    B案: 22字最长行 5号才单行装下, 6号必折行); 无标签金句(口诀/断言/
+        #    平行, 1-2行同款) → 特黑红锤 8号居中; 入场统一逐字显影 ──
         _QC_INTRO = getattr(draft_mod.TextIntro, "逐字显影", None)
         for _c in quote_cards:
             try:
@@ -1879,11 +1881,12 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                     logger.info("[draft] 截屏卡洗行 %s: %d→%d 行 %s", _c["kind"],
                                 len(_c["lines"]), len(_lines), _lines[0][:16])
                 if is_list_card(_lines):
+                    _sz = 6 if is_pure_list_card(_lines) else 5  # 杂行问句清单小一档
                     _seg = TextSegment(
                         "\n".join(_lines),
                         trange(_c["a0_us"], _c["a1_us"] - _c["a0_us"]),
                         font=draft_mod.FontType.优设标题黑,
-                        style=TextStyle(size=6, bold=True, color=(1, 1, 1), align=0,
+                        style=TextStyle(size=_sz, bold=True, color=(1, 1, 1), align=0,
                                         auto_wrapping=True, max_line_width=0.78,
                                         line_spacing=22),
                         background=TextBackground(color="#0D0D12", alpha=0.82,

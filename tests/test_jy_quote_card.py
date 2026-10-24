@@ -9,6 +9,7 @@ from app.services.jy_draft_service.quote_card import (
     detect_quote_cards,
     detect_quote_cards_smart,
     is_list_card,
+    is_pure_list_card,
     wash_card_lines,
 )
 
@@ -215,3 +216,13 @@ def test_is_list_card_semantic_style_gate():
     assert is_list_card(["一问：这成果给谁用？", "二问：谁能验证？"])
     assert not is_list_card(["三问定性质，三线定底线，三案防翻车"])  # "三问"后无分隔符
     assert not is_list_card(["反复出现的，定规则；", "偶尔发生的，才临时处置"])
+
+
+def test_is_pure_list_card_size_tier():
+    # 1025 用户令 B 案: 行行带标签=标准清单(6号); 带追问杂行=问句清单(5号)
+    assert is_pure_list_card(["第一条，必须达成的结果：数字、时间、质量，写清楚",
+                              "第二条，绝对不能牺牲的底线：成本、合规、体验，选最硬的"])
+    assert not is_pure_list_card(["第一，如果这个方案失败，最可能死在哪？",
+                                  "第二，谁最反对？",
+                                  "他的理由能不能变成B方案？"])  # 杂行 → 5号档
+    assert not is_pure_list_card(["三问定性质，三线定底线，三案防翻车"])  # 金句非清单
