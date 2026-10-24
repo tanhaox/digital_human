@@ -1512,7 +1512,9 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
         if _sent_segs:
             from app.services.jy_draft_service.quote_card import (
                 QUOTE_CARD_TAIL_SEC,
-                detect_quote_cards_smart, wash_card_lines,
+                detect_quote_cards_smart,
+                is_list_card,
+                wash_card_lines,
             )
             for _c in detect_quote_cards_smart([sg["text"] for sg in _sent_segs]):
                 _a0 = tc_us + int(round(float(_sent_segs[_c["start"]]["t_start"]) * _US))
@@ -1858,9 +1860,10 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
             script.add_segment(draft_mod.AudioSegment(
                 str(voice), trange(tc_us if aligned else 0, vdur)), "voice")
 
-        # ── 1023 截屏卡进轨 (用户选型 A2/B6): 多行=黑金商务卡 (优设标题黑/8号/
-        #    左对齐/行距10/深底圆角), 单行=特黑红锤 (特黑体/8号/红描边/居中),
-        #    入场统一逐字显影 (打字感, 卡内容跟口播逐字落) ──
+        # ── 截屏卡进轨 (1023 选型 A2/B6; 1025 用户令改分样式看语义不看行数):
+        #    有报幕标签(第一条，/一问：)=清单卡 → 黑金商务卡 6号/行距22 (ep6实锤
+        #    文字最多一行第二条, 8号溢出); 无标签金句(口诀/断言/平行, 1-2行同款)
+        #    → 特黑红锤 8号居中 (15字+2标点正好单行容量); 入场统一逐字显影 ──
         _QC_INTRO = getattr(draft_mod.TextIntro, "逐字显影", None)
         for _c in quote_cards:
             try:
@@ -1875,9 +1878,22 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                 if [l.strip().rstrip("。") for l in _c["lines"]] != _lines:
                     logger.info("[draft] 截屏卡洗行 %s: %d→%d 行 %s", _c["kind"],
                                 len(_c["lines"]), len(_lines), _lines[0][:16])
-                if len(_lines) == 1:
+                if is_list_card(_lines):
                     _seg = TextSegment(
-                        _lines[0],
+                        "\n".join(_lines),
+                        trange(_c["a0_us"], _c["a1_us"] - _c["a0_us"]),
+                        font=draft_mod.FontType.优设标题黑,
+                        style=TextStyle(size=6, bold=True, color=(1, 1, 1), align=0,
+                                        auto_wrapping=True, max_line_width=0.78,
+                                        line_spacing=22),
+                        background=TextBackground(color="#0D0D12", alpha=0.82,
+                                                  round_radius=0.05),
+                        shadow=draft_mod.TextShadow(alpha=0.4, color=(0, 0, 0),
+                                                    diffuse=10, distance=2),
+                        clip_settings=ClipSettings(transform_y=0.0))
+                else:
+                    _seg = TextSegment(
+                        "\n".join(_lines),
                         trange(_c["a0_us"], _c["a1_us"] - _c["a0_us"]),
                         font=draft_mod.FontType.特黑体,
                         style=TextStyle(size=8, bold=True, color=(1, 1, 1), align=1,
@@ -1886,19 +1902,6 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                                                      width=16),
                         shadow=draft_mod.TextShadow(alpha=0.7, color=(0, 0, 0),
                                                     diffuse=16, distance=4),
-                        clip_settings=ClipSettings(transform_y=0.0))
-                else:
-                    _seg = TextSegment(
-                        "\n".join(_lines),
-                        trange(_c["a0_us"], _c["a1_us"] - _c["a0_us"]),
-                        font=draft_mod.FontType.优设标题黑,
-                        style=TextStyle(size=8, bold=True, color=(1, 1, 1), align=0,
-                                        auto_wrapping=True, max_line_width=0.78,
-                                        line_spacing=10),
-                        background=TextBackground(color="#0D0D12", alpha=0.82,
-                                                  round_radius=0.05),
-                        shadow=draft_mod.TextShadow(alpha=0.4, color=(0, 0, 0),
-                                                    diffuse=10, distance=2),
                         clip_settings=ClipSettings(transform_y=0.0))
                 if _QC_INTRO is not None:
                     _seg.add_animation(_QC_INTRO, duration=400_000)

@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app.services.jy_draft_service.quote_card import (
     detect_quote_cards,
     detect_quote_cards_smart,
+    is_list_card,
     wash_card_lines,
 )
 
@@ -205,3 +206,12 @@ def test_wash_card_lines_clean_screen_text():
     assert wash_card_lines(["记一句话就行：反复出现的，定规则；"]) == ["反复出现的，定规则；"]
     assert wash_card_lines(["先说结论：决策不是找标准答案。"]) == ["决策不是找标准答案"]
     assert wash_card_lines(["第一步，先判：这事是通例，还是特例？"]) == ["第一步，先判：这事是通例，还是特例？"]
+
+
+def test_is_list_card_semantic_style_gate():
+    # 1025 用户令: 分样式看语义不看行数 — 有报幕标签=清单卡(黑金6号), 无标签=金句(红锤8号)
+    assert is_list_card(["第一条，必须达成的结果：数字、时间、质量，写清楚",
+                         "第二条，绝对不能牺牲的底线：成本、合规、体验，选最硬的"])
+    assert is_list_card(["一问：这成果给谁用？", "二问：谁能验证？"])
+    assert not is_list_card(["三问定性质，三线定底线，三案防翻车"])  # "三问"后无分隔符
+    assert not is_list_card(["反复出现的，定规则；", "偶尔发生的，才临时处置"])
