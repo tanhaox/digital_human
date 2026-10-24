@@ -131,4 +131,5 @@ Part 2: 主体 → 场景 → 事件 → 镜头 → 声音 (镜头句嵌在事�
   - 路线：素材图作 Object reference（`fully_preserved`）+ prompt 角色映射（"shows exactly the table from the first reference image, redrawn in the scene's art style"）+ 定格持镜句。复用产线 r2v._build_workflow 原配方 **4 步 beta** 零加价。
   - **第五条素材入镜路 = 参考图通道**：模型按场景画风重绘参考内容，绕开贴图的风格异常死因（对照 v7/v8/v9 贴图 0/6）。
   - 依据：ethanfel 参考媒体指南（参考角色系统：Object/prop/interface 官方用途）+ 官方 R2VA 多参考。
-  - 待补细节："基本"成功部分待复盘（瑕疵定位）；参考图规格=短边~800、近目标纵横比。- 挂账：①环绕焦点能否 prompt 指定；②幅度锁定（起止构图句）；③白板上写字（画外发明物+物面文字组合技）。
+  - **12 步定稿（R2 实测"完美"）**：4→12 步字清晰度/融合显著提升，无过锐塑料感（4step_v0.1 蒸馏线高步风险未兑现）。跑时 104s→177s（弹性 ~1.7x）。**素材参考镜配方 = Object reference + 角色映射 + 定格持镜 + 12 步 beta**。
+  - 参考图规格=短边~800、近目标纵横比。- 挂账：①环绕焦点能否 prompt 指定；②幅度锁定（起止构图句）；③白板上写字（画外发明物+物面文字组合技）。
