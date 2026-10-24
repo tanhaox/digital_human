@@ -1512,7 +1512,7 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
         if _sent_segs:
             from app.services.jy_draft_service.quote_card import (
                 QUOTE_CARD_TAIL_SEC,
-                detect_quote_cards_smart,
+                detect_quote_cards_smart, wash_card_lines,
             )
             for _c in detect_quote_cards_smart([sg["text"] for sg in _sent_segs]):
                 _a0 = tc_us + int(round(float(_sent_segs[_c["start"]]["t_start"]) * _US))
@@ -1865,11 +1865,16 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
         for _c in quote_cards:
             try:
                 from pyJianYingDraft import TextBackground
-                # 1023 用户令: 卡上不留句号 (大字排版惯例; ？！保留 — 带情绪);
-                # 先剥 markdown 强调符 (**/*/_) 再剥句号 — 豆包稿 "**…。**" 句尾
-                # 是 。** , 只 rstrip 句号够不到 (ep3 实锤)
-                _lines = [re.sub(r"[*_]+", "", l).strip().rstrip("。")
-                          for l in _c["lines"]]
+                # 1025 验收实锤: 卡上文字必须干净上屏文 — 停顿标记(-0.8s-)/
+                # 报幕引子句/拼音/markdown 全剥 (洗涤出口闸在 wash_card_lines,
+                # 旧 1023 版只剥 markdown+句号不够)
+                _lines = wash_card_lines(_c["lines"])
+                if not _lines:
+                    logger.warning("[draft] 截屏卡洗后无内容, 跳过: %s", _c["lines"][0][:16])
+                    continue
+                if [l.strip().rstrip("。") for l in _c["lines"]] != _lines:
+                    logger.info("[draft] 截屏卡洗行 %s: %d→%d 行 %s", _c["kind"],
+                                len(_c["lines"]), len(_lines), _lines[0][:16])
                 if len(_lines) == 1:
                     _seg = TextSegment(
                         _lines[0],

@@ -8,6 +8,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app.services.jy_draft_service.quote_card import (
     detect_quote_cards,
     detect_quote_cards_smart,
+    wash_card_lines,
 )
 
 
@@ -183,3 +184,20 @@ def test_smart_real_ep6_texts_smoke():
     for c in cards:  # 确定性闸: 区间合法 + 文字逐字原文
         assert 0 <= c["start"] < c["end"] <= len(texts)
         assert c["lines"] == [texts[k].strip() for k in range(c["start"], c["end"])]
+
+
+def test_wash_card_lines_clean_screen_text():
+    # 1025 验收实锤: 停顿标记/报幕引子/拼音/markdown 全剥, 洗后空行丢弃
+    assert wash_card_lines(
+        ["整套东西，浓缩成一句口诀： -0.8s-", "先判性质，再钉三线，后找反方。"]
+    ) == ["先判性质，再钉三线，后找反方"]
+    assert wash_card_lines(
+        ["给一张可截图模板：第一条，必须达成的结果：数字、时间、质量，写清楚。"]
+    ) == ["第一条，必须达成的结果：数字、时间、质量，写清楚"]
+    assert wash_card_lines(
+        ["可以拿这三问去聊：第一，如果这个方案失败，最可能死在哪？", "第二，谁最反对？"]
+    ) == ["第一，如果这个方案失败，最可能死在哪？", "第二，谁最反对？"]
+    assert wash_card_lines(
+        ["**专业自嗨**，<是|shì>管理者最贵的一种浪费。"]
+    ) == ["专业自嗨，是管理者最贵的一种浪费"]
+    assert wash_card_lines(["-1.2s-"]) == []  # 洗后空 → 整卡跳过的判定依据

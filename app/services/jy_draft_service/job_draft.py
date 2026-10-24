@@ -26,7 +26,7 @@ from app.services.jy_draft_service.common import (
 )
 from app.services.jy_draft_service.quote_card import (
     QUOTE_CARD_TAIL_SEC,
-    detect_quote_cards_smart,
+    detect_quote_cards_smart, wash_card_lines,
 )
 from app.services.jy_draft_service.sfx import _probe_duration, attach_sound, sound_path
 from app.services.jy_draft_service.subtitle_style import (
@@ -317,7 +317,12 @@ def export_job_draft(db: Session, job_id: str) -> dict[str, Any]:
     #    清单逐行 \n 多行; 断言型单行同款。位置居中 (transform 默认), 与底部字幕分层 ──
     for _c in quote_cards:
         try:
-            _card_txt = "\n".join(wash_subtitle_text(l) for l in _c["lines"])
+            # 1025 验收实锤: 卡文字干净上屏文 (洗行出口闸, 与 anim_draft 同源)
+            _washed = wash_card_lines(_c["lines"])
+            if not _washed:
+                logger.warning("[jy_export] 截屏卡洗后无内容, 跳过: %s", _c["lines"][0][:16])
+                continue
+            _card_txt = "\n".join(_washed)
             script.add_segment(draft_mod.TextSegment(
                 _card_txt,
                 _trange_sec(_c["start_s"], _c["end_s"] - _c["start_s"]),

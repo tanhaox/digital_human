@@ -27,7 +27,7 @@ import re
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["detect_quote_cards", "detect_quote_cards_smart", "QUOTE_CARD_TAIL_SEC"]
+__all__ = ["detect_quote_cards", "detect_quote_cards_smart", "wash_card_lines", "QUOTE_CARD_TAIL_SEC"]
 
 # 截屏窗: 末行念完后卡片再停留的秒数 (静置截屏窗口)
 QUOTE_CARD_TAIL_SEC = 1.5
@@ -163,6 +163,32 @@ def detect_quote_cards(texts: list[str]) -> list[dict]:
                 [f"#{c['start']}-{c['end']}({c['kind']}) {c['lines'][0][:12]}…" for c in cards])
     return cards
 
+# ── 1025 验收实锤: 卡上文字必须干净 — 停顿标记/报幕引子/拼音/markdown 全剥 ──
+_CARD_PAUSE_RE = re.compile(r"-\d+(?:\.\d+)?s-")          # TTS 停顿标记 -0.8s-
+_CARD_PINYIN_RE = re.compile(r"<([^|>]+)\|[^>]+>")          # 拼音标记 <字|PINYIN>
+_CARD_MD_RE = re.compile(r"[*_]+")                            # markdown 强调符
+# "报幕：+条目标签" 引子 (给一张可截图模板：第一条，… → 第一条，…)
+_CARD_LEAD_RE = re.compile(r"^[^：:，。！？\s]{1,14}[：:](?=第?[一二三四五](?:问|句|步|招|条|件)?[，,：:])")
+
+
+def wash_card_lines(lines: list[str]) -> list[str]:
+    """卡上文字洗涤 (出口闸): 剥停顿标记/拼音/markdown 与 "报幕：标签" 引子;
+    整行以冒号收尾 = 报幕句 (内容在下一行) → 整行丢弃; 句尾句号剥 (大字排版惯例).
+    """
+    out: list[str] = []
+    for l in lines:
+        t = _CARD_PAUSE_RE.sub("", l or "")
+        t = _CARD_PINYIN_RE.sub(lambda m: m.group(1), t)
+        t = _CARD_LEAD_RE.sub("", t)
+        t = _CARD_MD_RE.sub("", t).strip()
+        if t.endswith(("：", ":")):
+            continue
+        t = t.rstrip("。")
+        if t:
+            out.append(t)
+    return out
+
+
 # ── 1025 LLM 主判 (用户令: 正则判卡极难, LLM 自动总结简单) ──────────────
 # 分工: LLM 只选区间 (start/end), 卡上文字一律 texts 原文切片 — 幻觉零通道;
 # 确定性闸在代码侧: 区间夹取/剥空句/去重叠/跨度与字数下限/上限 4 全部代码说了算。
@@ -175,7 +201,9 @@ _LLM_SYSTEM = (
     '严格输出 JSON {"cards":[{"start":<int>,"end":<int>,'
     '"kind":"list|mantra|aphorism|parallel","why":"≤12字"}]}。'
     "start/end 用句编号 [n]（end 那句不含在卡内，左闭右开），区间内句子须连成"
-    "同一张卡；最多 4 张，宁缺毋滥；没有值得的输出 {\"cards\":[]}；"
+    "同一张卡；报幕/引子句（如「给一张可截图模板：」「浓缩成一句口诀：」）"
+    "不要收进卡，从内容句起选；-1s- 之类口播停顿标记不是文字；"
+    "最多 4 张，宁缺毋滥；没有值得的输出 {\"cards\":[]}；"
     "禁止改写原句，禁止输出 JSON 以外任何文字。"
 )
 
