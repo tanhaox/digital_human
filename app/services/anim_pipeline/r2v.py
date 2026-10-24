@@ -38,6 +38,13 @@ PROFILE = {
     "premium": {"width": 1344, "height": 768},    # ~89s/镜 (CU/ECU)
 }
 
+# ── 1024 B-ASSET1 素材参考镜 (docs/guides/h3_camera_language_guide.md 第十一轮) ──
+# R2(表格)/R3(照片) 双"完美"配方: 素材作 Object reference (fully_preserved) +
+# 角色映射句 + 定格持镜 + 12 步 beta (177s/镜 vs 4 步 44s; 步数买细节保真,
+# 4→12 字清/融合显著升且无过锐)。参考图规格: 短边~800、近目标纵横比。
+_ASSET_STEPS = 12
+_ORDINALS = ("first", "second", "third", "fourth", "fifth")
+
 # 人物匹配表 (keyframe_zh 含名字 → 定妆照 png 名)
 _CHAR_SHEETS: dict[str, str] | None = None
 
@@ -99,16 +106,48 @@ def _build_prompt(shot: dict[str, Any], char_names: list[str],
             "consistent with his own reference image. "
         )
 
-    prompt += (
-        "The scene stays consistent with the scene reference image. "
-        "Camera stays stable, only a very slight push-in. "
-    )
+    # 1024 B-ASSET1: 素材参考镜 — 映射句 (R2/R3 双"完美"配方)
+    _asset = shot.get("asset_ref") or {}
+    _has_asset = bool(_asset.get("image"))
+    if _has_asset:
+        _ord = _ORDINALS[min(len(char_names), len(_ORDINALS) - 1)]
+        prompt += (
+            "The " + str(_asset["anchor_en"]) + " shows exactly "
+            + str(_asset["content_en"]) + " from the " + _ord
+            + " reference image (Object reference, fully preserved) — "
+            "redrawn cleanly in the scene's own art style, sharp and readable, "
+            "completely static like a printed poster; nothing inside it ever "
+            "moves, animates or changes. "
+        )
+
+    prompt += "The scene stays consistent with the scene reference image. "
+    if _has_asset:
+        _hold = str(_asset.get("hold_en") or "").strip()
+        if not _hold:
+            _hold = ("The camera performs one slow settle push-in toward the "
+                     + str(_asset["anchor_en"])
+                     + " until it fills the right half of the view, then holds "
+                       "absolutely still on this composition for the rest of "
+                       "the shot — one single continuous take, no cuts, no "
+                       "new scene. ")
+        prompt += _hold
+    else:
+        prompt += "Camera stays stable, only a very slight push-in. "
     # 1017 W2 文字总路由: r2v 消费 h3_text_event — 旧版静默丢弃, 人物镜路由
     # r2v 时花字消失 (s01 家族实锤)。有事件字 → 拼文字规格行 (逐字取表);
     # 无 → 维持 No text (逐镜分支, 防无字镜幻字)。
     ev = shot.get("h3_text_event") or {}
     ev_text = str(ev.get("text") or "").strip()
-    if ev_text:
+    if _has_asset and _asset.get("has_text"):
+        if ev_text:
+            logger.warning("[r2v] %s asset_ref 含字, h3_text_event 花字已抑制: %s",
+                           shot.get("shot_id"), ev_text[:30])
+        prompt += (
+            "The only text in the video is the content of "
+            + str(_asset["anchor_en"]) + "; no other text anywhere. "
+            "No human voice."
+        )
+    elif ev_text:
         _at = ev.get("at_s")
         at_txt = f"at {float(_at):.1f}s" if isinstance(_at, (int, float)) else "mid-video"
         _zone = str(ev.get("zone") or "").strip() or "above the character"
@@ -145,7 +184,8 @@ def _build_prompt(shot: dict[str, Any], char_names: list[str],
 
 
 def _build_workflow(prompt: str, ref_paths: list[str], scene_path: Path,
-                    width: int, height: int, length: int, seed: int) -> dict[str, Any]:
+                    width: int, height: int, length: int, seed: int,
+                    steps: int = 4) -> dict[str, Any]:
     """r2v ComfyUI 工作流 (API 格式) — ep1_r2v_batch.py 已验证配方."""
     # 上传参考图 (人物照 ×N + 场景帧)
     load_nodes: dict[str, Any] = {}
@@ -183,7 +223,7 @@ def _build_workflow(prompt: str, ref_paths: list[str], scene_path: Path,
             "noise_seed": seed, "control_after_generate": "fixed"}},
         "221": {"class_type": "MiniMaxH3TurboSampler", "inputs": {}},
         "361": {"class_type": "BasicScheduler", "inputs": {
-            "model": ["341", 0], "scheduler": "beta", "steps": 4, "denoise": 1.0}},
+            "model": ["341", 0], "scheduler": "beta", "steps": int(steps), "denoise": 1.0}},
         "127": {"class_type": "SamplerCustomAdvanced", "inputs": {
             "noise": ["131", 0], "guider": ["128", 0], "sampler": ["221", 0],
             "sigmas": ["361", 0], "latent_image": ["133", 1]}},
@@ -204,6 +244,11 @@ def _profile_for(shot: dict[str, Any]) -> str:
     return "premium" if size in ("CU", "ECU", "MCU") else "standard"
 
 
+def _steps_for(shot: dict[str, Any]) -> int:
+    """步数路由 (1024 定律: 步数买细节保真不买运镜稳定): asset_ref 素材镜 12 步, 其余 4 步。"""
+    return _ASSET_STEPS if (shot.get("asset_ref") or {}).get("image") else 4
+
+
 def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
     """跑单镜 r2v: K2 贴膜帧 + 定妆照参考 → mp4, 状态 → anim_done.
 
@@ -222,6 +267,19 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
     char_paths = _match_chars(
         str(shot.get("keyframe_zh") or ""), doc["book_title"])
 
+    # 1024 B-ASSET1: 素材参考图 (镜级 asset_ref, 相对 ep_dir; refs=[人物…, 素材, 场景])
+    _asset = shot.get("asset_ref") or {}
+    _asset_path = None
+    if _asset.get("image"):
+        _asset_path = base_dir / str(_asset["image"])
+        if not _asset_path.exists():
+            raise comfy.ComfyRunError(f"素材参考图不存在: {_asset_path}")
+        if not str(_asset.get("anchor_en") or "").strip() or \
+                not str(_asset.get("content_en") or "").strip():
+            raise comfy.ComfyRunError("asset_ref 缺 anchor_en/content_en")
+        logger.info("[r2v] %s 素材参考镜 (%d 步档, %s)",
+                    shot["shot_id"], _ASSET_STEPS, _asset["image"])
+
     # prompt + 配方
     char_names = [Path(cp).stem for cp in char_paths]
     from .h3 import arc_thesis  # 惰性避环 (同 motion_style)
@@ -234,15 +292,19 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
     length = max(5, round(span * 24))
     length = min(362, length + (5 - (length % 17)) % 17)
 
+    _refs = list(char_paths) + ([str(_asset_path)] if _asset_path else [])
     wf = _build_workflow(
-        prompt, char_paths, src_img,
+        prompt, _refs, src_img,
         prof["width"], prof["height"], length,
-        int(shot.get("h3_seed") or 711))
+        int(shot.get("h3_seed") or 711), steps=_steps_for(shot))
 
+    _soft = max(90 * min(span, 10.0) + 120, 300)
+    if _asset_path:  # 12 步实测 177s/镜, ×2 防冷启动+暂态爬行
+        _soft *= 2
     comfy.run_workflow(
         wf, dest=dest, timeout_sec=600 + int(240 * min(span, 10.0)),
         label=f"r2v {shot['shot_id']}",
-        soft_timeout_sec=max(90 * min(span, 10.0) + 120, 300),
+        soft_timeout_sec=_soft,
         interrupt_grace_sec=180)
 
     # 同 h3: 状态推进 + 指纹 + 机检 + ledger
@@ -265,7 +327,8 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
     _ledger.record(doc["book_title"], doc["ep"], "r2v", shot["shot_id"],
                    trigger=str(doc.get("_ledger_trigger") or ""),
                    ms=int((time.monotonic() - t0) * 1000))
-    logger.info("[r2v] %s done (%d 人物参考, %s档, %.0fs)",
+    logger.info("[r2v] %s done (%d 人物参考, %s档, %d 步%s, %.0fs)",
                 shot["shot_id"], len(char_paths), _profile_for(shot),
+                _steps_for(shot), ", 素材参考" if _asset_path else "",
                 time.monotonic() - t0)
     return dest
