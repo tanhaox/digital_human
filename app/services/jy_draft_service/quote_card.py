@@ -2,8 +2,9 @@
 """quote_card — 截屏卡 (1023 用户令: 3-4 个金句停留画面, 纯文字编辑手段加字).
 
 稿件里的清单式三连句 / 金句断言句是观众截屏收藏的瞬间, 但画面规划层不认识它们。
-本模块在剪映草稿生成侧做确定性检测, 命中区间由 job_draft 以文本素材直加
-(不动规划层/H3/后期合同 — 用户明令)。
+命中区间由 job_draft 以文本素材直加 (不动规划层/H3/后期合同 — 用户明令)。
+1025 用户令: 正则抓稿式漂移极难, LLM 选区间简单 → detect_quote_cards_smart
+LLM 主判 (只选区间, 卡上文字一律取原文切片 — 零幻觉) + 下列正则四型兜底。
 
 检测四型 (每集上限 4 张, 先到先得):
   L 清单型: ≥3 连续段命中报幕行标签 (一问：/第一条，…), 序数从一起步且连续递增;
@@ -26,7 +27,7 @@ import re
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["detect_quote_cards", "QUOTE_CARD_TAIL_SEC"]
+__all__ = ["detect_quote_cards", "detect_quote_cards_smart", "QUOTE_CARD_TAIL_SEC"]
 
 # 截屏窗: 末行念完后卡片再停留的秒数 (静置截屏窗口)
 QUOTE_CARD_TAIL_SEC = 1.5
@@ -161,3 +162,87 @@ def detect_quote_cards(texts: list[str]) -> list[dict]:
     logger.info("[quote_card] 检出 %d 张: %s", len(cards),
                 [f"#{c['start']}-{c['end']}({c['kind']}) {c['lines'][0][:12]}…" for c in cards])
     return cards
+
+# ── 1025 LLM 主判 (用户令: 正则判卡极难, LLM 自动总结简单) ──────────────
+# 分工: LLM 只选区间 (start/end), 卡上文字一律 texts 原文切片 — 幻觉零通道;
+# 确定性闸在代码侧: 区间夹取/剥空句/去重叠/跨度与字数下限/上限 4 全部代码说了算。
+_LLM_MAX_SPAN = 6  # 单卡最多句数 (清单 3-4 句 + 余量)
+_LLM_SYSTEM = (
+    "你是爆款知识短视频的剪辑指导。下面是口播逐句编号清单，从中挑出观众会"
+    "截屏收藏、值得做成停留卡片的时刻。参考四类：清单/模板三连（如 第一条，…"
+    "第二条，…）、对仗口诀（如 三问定性质，三线定底线，三案防翻车）、断言金句"
+    "（不是…，是…）、平行短句三连。"
+    '严格输出 JSON {"cards":[{"start":<int>,"end":<int>,'
+    '"kind":"list|mantra|aphorism|parallel","why":"≤12字"}]}。'
+    "start/end 用句编号 [n]（end 那句不含在卡内，左闭右开），区间内句子须连成"
+    "同一张卡；最多 4 张，宁缺毋滥；没有值得的输出 {\"cards\":[]}；"
+    "禁止改写原句，禁止输出 JSON 以外任何文字。"
+)
+
+
+def _clamp_llm_cards(raw_cards: list, texts: list[str]) -> list[dict]:
+    """LLM 原始区间 → 合法卡 (确定性闸: 全在代码侧, LLM 说了不算)."""
+    n = len(texts)
+    out: list[dict] = []
+    taken: list[tuple[int, int]] = []
+    for c in raw_cards if isinstance(raw_cards, list) else []:
+        try:
+            a, b = int(c["start"]) - 1, int(c["end"]) - 1  # 编号 1 起 → 索引 0 起
+        except (KeyError, TypeError, ValueError):
+            continue
+        a, b = max(a, 0), min(b, n)
+        while a < b and not texts[a].strip():  # 剥两端空句 (TTS 停顿行不上卡)
+            a += 1
+        while b > a and not texts[b - 1].strip():
+            b -= 1
+        if not (0 <= a < b <= n) or b - a > _LLM_MAX_SPAN:
+            continue
+        if any(a < e and s < b for s, e in taken):  # 与已收卡重叠 → 丢
+            continue
+        if sum(_eff_len(texts[k]) for k in range(a, b)) < 6:
+            continue
+        taken.append((a, b))
+        out.append({"start": a, "end": b,
+                    "kind": str(c.get("kind") or "llm")[:12],
+                    "lines": [texts[k].strip() for k in range(a, b)],
+                    "why": str(c.get("why") or "")[:20]})
+        if len(out) >= QUOTE_CARD_MAX:
+            break
+    out.sort(key=lambda c: c["start"])
+    return out
+
+
+def _detect_quote_cards_llm(texts: list[str]) -> list[dict]:
+    from app.services.llm_service import _parse_json, get_llm_service
+    numbered = "\n".join(f"[{i}] {t}" for i, t in enumerate(texts, start=1))
+    raw = get_llm_service().chat(
+        _LLM_SYSTEM, numbered, model="flash", temperature=0.2,
+        timeout=25, max_tokens=600,
+        response_format={"type": "json_object"}, tag="quote_card")
+    data = _parse_json(raw) or {}
+    _raw = data.get("cards") if isinstance(data, dict) else None
+    if _raw:
+        logger.info("[quote_card] LLM 判卡理由: %s",
+                    [str(c.get("why") or "")[:16] for c in _raw])
+    return _clamp_llm_cards(_raw or [], texts)
+
+
+def detect_quote_cards_smart(texts: list[str]) -> list[dict]:
+    """LLM 主判 + 正则兜底 (fail-open).
+
+    LLM 空数组/超时/异常 → 回落 detect_quote_cards 正则四型
+    (装配日志可辨: LLM 检出/正则检出 前缀不同)。
+    """
+    if not any((t or "").strip() for t in texts):
+        return []
+    try:
+        cards = _detect_quote_cards_llm(texts)
+    except Exception as exc:  # noqa: BLE001 — fail-open 回正则
+        logger.warning("[quote_card] LLM 判卡失败, 回正则: %s", exc)
+        cards = []
+    if cards:
+        logger.info("[quote_card] LLM 检出 %d 张: %s", len(cards),
+                    [f"#{c['start']}-{c['end']}({c['kind']}) {c['lines'][0][:12]}…"
+                     for c in cards])
+        return cards
+    return detect_quote_cards(texts)

@@ -1512,9 +1512,9 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
         if _sent_segs:
             from app.services.jy_draft_service.quote_card import (
                 QUOTE_CARD_TAIL_SEC,
-                detect_quote_cards,
+                detect_quote_cards_smart,
             )
-            for _c in detect_quote_cards([sg["text"] for sg in _sent_segs]):
+            for _c in detect_quote_cards_smart([sg["text"] for sg in _sent_segs]):
                 _a0 = tc_us + int(round(float(_sent_segs[_c["start"]]["t_start"]) * _US))
                 _a1 = tc_us + int(round(
                     (float(_sent_segs[_c["end"] - 1]["t_end"]) + QUOTE_CARD_TAIL_SEC) * _US))

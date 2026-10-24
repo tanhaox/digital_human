@@ -26,7 +26,7 @@ from app.services.jy_draft_service.common import (
 )
 from app.services.jy_draft_service.quote_card import (
     QUOTE_CARD_TAIL_SEC,
-    detect_quote_cards,
+    detect_quote_cards_smart,
 )
 from app.services.jy_draft_service.sfx import _probe_duration, attach_sound, sound_path
 from app.services.jy_draft_service.subtitle_style import (
@@ -226,7 +226,7 @@ def export_job_draft(db: Session, job_id: str) -> dict[str, Any]:
                               else (_s.get("text") or "")).strip())
             _qc_t0.append(_qc_cum)
             _qc_cum += float(_s.get("duration") or 0)
-        for _c in detect_quote_cards(_qc_texts):
+        for _c in detect_quote_cards_smart(_qc_texts):
             _ws = _qc_t0[_c["start"]]
             _we = (_qc_t0[_c["end"] - 1]
                    + float(manifest["segments"][_c["end"] - 1].get("duration") or 0)

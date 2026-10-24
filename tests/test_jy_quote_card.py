@@ -5,7 +5,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from app.services.jy_draft_service.quote_card import detect_quote_cards
+from app.services.jy_draft_service.quote_card import (
+    detect_quote_cards,
+    detect_quote_cards_smart,
+)
 
 
 def test_labeled_list_ep3_judgement():
@@ -96,3 +99,87 @@ def test_mantra_negative_unequal_or_quoted():
              "不是“尽量做好”，是低于这条线，方案直接作废。"]
     cards = detect_quote_cards(texts)
     assert not any(c["kind"] == "mantra" for c in cards)
+
+
+# ── 1025 LLM 主判 (detect_quote_cards_smart): fake-LLM 三例 + real_api 冒烟 ──
+import json
+
+import pytest
+
+
+class _FakeLLM:
+    def __init__(self, payload):
+        self.payload = payload
+
+    def chat(self, system, user, **kw):
+        return json.dumps(self.payload, ensure_ascii=False)
+
+
+def test_smart_llm_ranges_verbatim_and_clamped(monkeypatch):
+    texts = ["开场引入一句。", "三问定性质，三线定底线，三案防翻车。", "", "收尾一句。"]
+    fake = {"cards": [
+        {"start": 2, "end": 3, "kind": "mantra", "why": "口诀"},
+        {"start": 1, "end": 5, "kind": "list", "why": "与上重叠应被丢"},
+    ]}
+    monkeypatch.setattr("app.services.llm_service.get_llm_service",
+                        lambda: _FakeLLM(fake))
+    cards = detect_quote_cards_smart(texts)
+    assert len(cards) == 1
+    c = cards[0]
+    assert c["start"] == 1 and c["end"] == 2  # 编号1起→索引0起
+    # 卡上文字 = texts 原文切片 (LLM 写的字一个不用)
+    assert c["lines"] == ["三问定性质，三线定底线，三案防翻车。"]
+
+
+def test_smart_llm_garbage_clamped(monkeypatch):
+    texts = ["一问：这成果给谁用？", "二问：谁能验证？", "三问：不做会怎样？", "收尾。"]
+    fake = {"cards": [
+        {"start": 0, "end": 99, "kind": "list", "why": "越界夹取"},
+        {"start": "x", "end": 2, "kind": "bad", "why": "非整数丢"},
+        {"start": 4, "end": 5, "kind": "aphorism", "why": "字数不足丢"},
+    ]}
+    monkeypatch.setattr("app.services.llm_service.get_llm_service",
+                        lambda: _FakeLLM(fake))
+    cards = detect_quote_cards_smart(texts)
+    assert len(cards) == 1
+    assert cards[0]["start"] == 0 and cards[0]["end"] == 4  # start0→-1夹回0, end99夹到尾
+    assert [l[:2] for l in cards[0]["lines"]] == ["一问", "二问", "三问", "收尾"]
+
+
+def test_smart_llm_failure_or_empty_falls_back_to_regex(monkeypatch):
+    texts = ["一问：这成果给谁用？", "二问：谁能验证？", "三问：不做会怎样？"]
+
+    def _boom():
+        raise RuntimeError("provider down")
+
+    monkeypatch.setattr("app.services.llm_service.get_llm_service", _boom)
+    cards = detect_quote_cards_smart(texts)
+    assert len(cards) == 1 and cards[0]["kind"] == "list"  # 异常回正则
+
+    monkeypatch.setattr("app.services.llm_service.get_llm_service",
+                        lambda: _FakeLLM({"cards": []}))
+    cards = detect_quote_cards_smart(texts)
+    assert len(cards) == 1 and cards[0]["kind"] == "list"  # 空判也回正则
+
+
+@pytest.mark.real_api
+def test_smart_real_ep6_texts_smoke():
+    # ep6 真句节选 (两个设计截屏卡 + 口诀 + 断言), 真 LLM 实调
+    texts = ["为什么发明了数码相机的柯达，最后被数码相机淘汰？",
+             "结果不是没有Plan B，是不敢启用Plan B。",
+             "今天5分钟，分享一张能截图的“决策边界卡”：",
+             "三问定性质，三线定底线，三案防翻车。",
+             "先说结论：决策不是找标准答案。",
+             "给一张可截图模板：第一条，必须达成的结果：数字、时间、质量，写清楚。",
+             "第二条，绝对不能牺牲的底线：成本、合规、体验，选最硬的。",
+             "第三条，低于哪条直接作废：写一句“触线即否”。",
+             "这张“三条线”，建议截图。",
+             "没有B方案的计划，越精密越脆。",
+             "整套东西，浓缩成一句口诀：",
+             "先判性质，再钉三线，后找反方。",
+             "我是老谭，拆一本书，多一个硬本事。"]
+    cards = detect_quote_cards_smart(texts)
+    assert 2 <= len(cards) <= 4  # 稿里至少两处明写的截屏卡
+    for c in cards:  # 确定性闸: 区间合法 + 文字逐字原文
+        assert 0 <= c["start"] < c["end"] <= len(texts)
+        assert c["lines"] == [texts[k].strip() for k in range(c["start"], c["end"])]
