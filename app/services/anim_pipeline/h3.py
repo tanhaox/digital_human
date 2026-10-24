@@ -691,6 +691,15 @@ def _pick_video_station(shot: dict[str, Any]) -> str:
     from . import r2v
     kf = str(shot.get("keyframe_zh") or "")
 
+    # 1024 B-ASSET1: 素材参考镜 → r2v (Object reference 通道; h3 i2v 节点无
+    # ref_images 入参)。显式镜级意图优先于道具判死/角色匹配, 置 char_map 读取前
+    # (测试无需圣经缓存); 若同时命中人形道具词 → 告警 (r2v 有赋活前科, 人验留意)。
+    if (shot.get("asset_ref") or {}).get("image"):
+        if any(w in kf for w in ("雕塑", "人偶", "画像", "雕像", "模型人", "镜中影")):
+            logger.warning("[h3] %s asset_ref 与人形道具词并存 → 仍走 r2v (赋活风险, 人验留意)",
+                           shot.get("shot_id"))
+        return "r2v"
+
     # 人形道具优先判死 → h3
     if any(w in kf for w in ("雕塑", "人偶", "画像", "雕像", "模型人", "镜中影")):
         return "h3"
