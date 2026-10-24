@@ -373,10 +373,107 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
     return "\n".join(lines)
 
 
+# ── 1024 B-CAM1 运镜镜 (依据 docs/guides/h3_camera_language_guide.md v2.3) ──
+# 触发: 镜级 camera 含显式运镜词 (左摇/右摇/上摇/下摇/拉近/拉远) → 该镜走运镜
+# 模式, 普通镜零变化。实证 (1024 十轮): ① 16:9 画布缩放落 1024x576 (双轴 %64=0)
+# → 横摇每 24 帧顿跳 (Wan2GP#2279, okkazoo 24 renders), 预裁 1024:608 纵横比出
+# 雷区; ② prompt 三暗坑对抗运镜 (军规句禁摇 / era lock 禁画外新内容 /
+# locked-off camera); ③ 缺 I2VA 首行则与官方两段式不对齐。步数 8 不动 (已实证)。
+_CAM_MOVE_KINDS = (("左摇", "pan_left"), ("右摇", "pan_right"), ("上摇", "tilt_up"),
+                   ("下摇", "tilt_down"), ("拉近", "push_in"), ("拉远", "pull_back"))
+_CAM_BAN = (
+    "the camera viewpoint stays locked to Picture 1; only a very slight push-in or "
+    "pull-back is allowed; strictly no lateral panning or tracking; no large-area "
+    "repaint of the scene (no costumes or objects morphing into different shapes).")
+_CAM_ERA_OLD = (
+    "Every part of Picture 1 stays itself for the whole video: the same "
+    "setting, the same objects and the same background as the first "
+    "frame; nothing new is added at any moment.")
+_CAM_ERA_NEW = (
+    "Every part of Picture 1 stays itself while on screen; any content revealed "
+    "beyond the original frame edges continues the same setting, the same "
+    "lighting and the same art style seamlessly.")
+_CAM_I2VA = "For the target video, at 0.00 seconds, Picture 1 is fully referenced.\n"
+_CAM_PERMIT = {
+    "pan_left": (
+        "the camera pans left with large amplitude at slow speed as the scene's own "
+        "action continues — one continuous viewpoint move, not subject motion: the "
+        "framing travels past the original left edge of Picture 1 while the subjects "
+        "stay where they are in the world; the horizon stays level and straight "
+        "lines stay straight"),
+    "pan_right": (
+        "the camera pans right with large amplitude at slow speed as the scene's own "
+        "action continues — one continuous viewpoint move, not subject motion: the "
+        "framing travels past the original right edge of Picture 1 while the subjects "
+        "stay where they are in the world; the horizon stays level and straight "
+        "lines stay straight"),
+    "tilt_up": (
+        "the camera tilts upward with large amplitude at slow speed as the scene's "
+        "own action continues — one continuous viewpoint move, not subject motion: "
+        "the view lifts past the original top edge of Picture 1 while the subjects "
+        "stay where they are in the world; vertical lines stay straight"),
+    "tilt_down": (
+        "the camera tilts downward with large amplitude at slow speed as the scene's "
+        "own action continues — one continuous viewpoint move, not subject motion: "
+        "the view drops past the original bottom edge of Picture 1 while the subjects "
+        "stay where they are in the world; vertical lines stay straight"),
+    "push_in": (
+        "the camera pushes in with large amplitude at slow speed toward the center "
+        "of the action — one continuous viewpoint move, not subject motion; the "
+        "whole scene keeps its exact shape; no lateral panning, no orbit, no roll"),
+    "pull_back": (
+        "the camera pulls back with large amplitude at slow speed, revealing more "
+        "of the scene around the original framing — one continuous viewpoint move, "
+        "not subject motion; the whole scene keeps its exact shape; no lateral "
+        "panning, no orbit, no roll"),
+}
+
+
+def cam_move_kind(camera: str) -> str:
+    """镜级 camera 字段 → 运镜类别 (无运镜词返回 ""); 首词命中优先。"""
+    for _w, _k in _CAM_MOVE_KINDS:
+        if _w in (camera or ""):
+            return _k
+    return ""
+
+
+def _cam_patch_prompt(prompt: str, kind: str) -> str:
+    """运镜镜 prompt 三补丁: 军规句→运镜令 + era 禁新内容→画外延续 + I2VA 首行。"""
+    if _CAM_BAN not in prompt:
+        raise ValueError("cam_move: 军规句未命中 (h3.py 文案漂移, 现场复核)")
+    prompt = prompt.replace(_CAM_BAN, _CAM_PERMIT[kind])
+    if _CAM_ERA_OLD in prompt:
+        prompt = prompt.replace(_CAM_ERA_OLD, _CAM_ERA_NEW)
+    return _CAM_I2VA + prompt
+
+
+def _cam_strip_locked(desc: str) -> str:
+    """剥 opening_desc 尾部 locked-off camera (与运镜令直接冲突)。"""
+    out = re.sub(r",?\s*locked-off camera\.?", "", desc).rstrip()
+    return out + "." if out and not out.endswith((".", "!", "?")) else out
+
+
+def _cam_pre_crop_608(src: Path, sid: str) -> Path:
+    """16:9 族底图中心裁 1024:608 纵横比 (防 24 帧抖); 其他比例原样返回。"""
+    from PIL import Image as _Img
+    with _Img.open(src) as _im:
+        w, h = _im.size
+    if abs(w / h - 1024 / 608) < 0.02:
+        return src
+    if abs(w / h - 16 / 9) >= 0.02:
+        return src
+    nw = int(round(h * 1024 / 608))
+    x0 = (w - nw) // 2
+    out = Path(".tmp/cam608") / f"{sid}.png"
+    out.parent.mkdir(parents=True, exist_ok=True)
+    _Img.open(src).convert("RGB").crop((x0, 0, x0 + nw, h)).save(out)
+    return out
+
+
 def build_workflow(image_name: str, anim: dict[str, Any], seed: int, prefix: str,
                    book_title: str = "", qc_history: list | None = None,
                    text_event: dict | None = None, in_image_text: list | None = None,
-                   thesis: str = "") -> dict[str, Any]:
+                   thesis: str = "", cam_move: str = "") -> dict[str, Any]:
     """H3 I2V 工作流 (API 格式), 节点 ID 对齐最爱视频真相图 (102.4s/10s).
 
     qc_history (1004 修): 该镜既往机检判决 (乱码/崩坏史) → 重 roll 时注入
@@ -409,6 +506,8 @@ def build_workflow(image_name: str, anim: dict[str, Any], seed: int, prefix: str
                 "\n\nCostume color lock (this video previously recolored the protagonist's "
                 "clothes — hard rule): every character's outfit color stays pixel-faithful to "
                 "Picture 1 for every frame; no recoloring, no hue shift, no redesign.")
+    if cam_move:  # B-CAM1: 运镜镜 prompt 三补丁 (军规/era/I2VA)
+        _prompt = _cam_patch_prompt(_prompt, cam_move)
     return {
         "129": {"class_type": "UNETLoader", "inputs": {
             "unet_name": "minimax_it2v\\minimax_h3_fl2va_pruned_int8_convrot.safetensors",
@@ -495,6 +594,14 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
                        shot["shot_id"], min(round(_span, 2), 10.0))
     dest = base_dir / "anim" / f"{shot['shot_id']}.mp4"
     prefix = f"video/anim/{shots_mod._safe(doc['book_title'])}/ep{doc['ep']}/{shot['shot_id']}"
+    _cmove = cam_move_kind(str(shot.get("camera") or ""))
+    _h3_anim = shot["anim"]
+    if _cmove:  # B-CAM1 运镜镜: anim 浅拷贝 (剥 locked-off camera, 不落盘)
+        _h3_anim = dict(_h3_anim)
+        _h3_anim["opening_desc"] = _cam_strip_locked(
+            str(_h3_anim.get("opening_desc") or ""))
+        logger.info("[h3] %s 运镜镜 (%s): 608 画布 + prompt 三补丁",
+                    shot["shot_id"], _cmove)
 
     if shot.get("skip_first_frame"):
         # t2v 模式: 生成中性灰底图代替 K2 图 — i2v 管线兼容, H3 从 prompt 自由生成
@@ -505,22 +612,26 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
         image_name = comfy.upload_image(_placeholder)
         logger.info("[h3] %s 跳首帧锚定 (中性底图, H3 从 prompt 自生成)", shot["shot_id"])
         _thesis = arc_thesis(doc, str(shot.get("arc_id") or ""))
-        wf = build_workflow(image_name, shot["anim"], shot["h3_seed"], prefix,
+        wf = build_workflow(image_name, _h3_anim, shot["h3_seed"], prefix,
                             book_title=doc["book_title"],
                             qc_history=(shot.get("qc_rejects") or None),
                             text_event=shot.get("h3_text_event"),
-                            in_image_text=shot.get("in_image_text"), thesis=_thesis)
+                            in_image_text=shot.get("in_image_text"), thesis=_thesis,
+                            cam_move=_cmove)
     else:
         src_img = base_dir / shot["image_file"]
         if not src_img.exists():
             raise comfy.ComfyRunError(f"首帧图不存在: {src_img}")
+        if _cmove:  # B-CAM1: 运镜镜预裁 1024:608 (防 24 帧抖)
+            src_img = _cam_pre_crop_608(src_img, shot["shot_id"])
         image_name = comfy.upload_image(src_img)
         _thesis = arc_thesis(doc, str(shot.get("arc_id") or ""))
-        wf = build_workflow(image_name, shot["anim"], shot["h3_seed"], prefix,
+        wf = build_workflow(image_name, _h3_anim, shot["h3_seed"], prefix,
                             book_title=doc["book_title"],
                             qc_history=(shot.get("qc_rejects") or None),
                             text_event=shot.get("h3_text_event"),
-                            in_image_text=shot.get("in_image_text"), thesis=_thesis)
+                            in_image_text=shot.get("in_image_text"), thesis=_thesis,
+                            cam_move=_cmove)
     # 10s 热机 ~102s, 冷机翻倍, 留余量; 0919 实锤: 长镜 (6.9-8.8s) 在低显存节点
     # 帧数放大超线性, 600s 定额连杀 s11/s12/s21 两轮 (ComfyUI 实际都跑完了,
     # 产物躺 output 成孤儿) — 超时按时长伸缩
