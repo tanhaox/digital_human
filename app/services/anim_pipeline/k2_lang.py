@@ -145,8 +145,10 @@ def character_policy_en(book_title: str) -> str:
 # ── K2 军规常量 EN 版 (与中文版语义逐条对齐; 中文版保留给 H3/编辑 pass) ──
 SKIN_HAIR_LAW_EN = (
     ". Character skin is solid matte cartoon skin (opaque, no mirror highlights); "
-    "hair is sculpted grouped locks with clear highlight separation and gaps, "
-    "readable strand direction (no smooth plastic shell, no mushy detail-less hair)")
+    "hair is soft fluffy matte locks: matte velvety texture, clear strand detail, "
+    "natural gaps between tufts, light airy tips, only soft diffuse sheen "
+    "(no smooth plastic shell, no mirror highlights, no solid sculpted helmet, "
+    "no mushy detail-less hair)")
 FACE_LAW_EN = (
     ". Every character's facial features are complete and clear: distinct eyes, "
     "nose and mouth with a readable expression (never blank, featureless, missing "
