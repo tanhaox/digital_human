@@ -127,13 +127,13 @@ def _render_fp(st: dict, shot: dict, direction: str, neg: str = "") -> str:
     '同镜同种子配方未变', 配置升级 (如军规改版/方向指定) 后旧图自动失效重渲,
     防同板混新旧两版配方 (22:57 base 版留存列 vs k2+军规新列实锤).
     1010: neg (圣经负面词) 参与指纹 — 空值不追加, 字节不变 → 无负词书旧指纹不失效."""
-    from .k2 import SKIN_HAIR_LAW
+    from .k2 import SKIN_HAIR_LAW as _shl_f
     k2ov = (st.get("page_overrides") or {}).get("k2") or {}
     blob = "|".join(str(x or "") for x in (
         st.get("style_prompt_head"), st.get("style_prompt_tail"),
         k2ov.get("style_prompt_head"), k2ov.get("style_prompt_tail"),
         st.get("lora"), st.get("lora_strength"), st.get("h3_style"),
-        SKIN_HAIR_LAW, direction, shot.get("image_prompt_zh")))
+        _shl_f(), direction, shot.get("image_prompt_zh")))
     if neg:
         blob += "|neg:" + neg
     return hashlib.sha1(blob.encode("utf-8")).hexdigest()[:12]
@@ -789,6 +789,32 @@ def _bible_done_recently(book_id: str, kind: str) -> dict | None:
     return None
 
 
+def _samples_fp(book_title: str) -> tuple[str, str, list[str]]:
+    """试渲指纹 (1026 抽公共): 渲染路径与冷却守卫同源 — 旧两处各算各的, 格式
+    永不相等 → 冷却永远穿透 (连点必全量重渲, 晚间实锤)。返回 (fp, hue, scenes)。"""
+    from .config import pick_main_hue, resolve_style
+    from .k2 import SKIN_HAIR_LAW as _shl_f
+    d = _board_dir(book_title)
+    board = json.loads((d / "board.json").read_text(encoding="utf-8"))
+    shots = board.get("shots") or []
+    from .director2 import _bible_cache_path
+    b = json.loads(_bible_cache_path(book_title).read_text(encoding="utf-8"))
+    hue = pick_main_hue(str(b.get("color_palette") or ""))
+    scenes = [str(s.get("image_prompt_zh") or "") + main_color_tint(hue, brief=True)
+              for s in shots]
+    recipe = resolve_style(book_title)
+    k2ov = (recipe.get("page_overrides") or {}).get("k2") or {}
+    blob = "bv3|" + "|".join(str(x or "") for x in (
+        recipe.get("style_prompt_head"), recipe.get("style_prompt_tail"),
+        k2ov.get("style_prompt_head"), k2ov.get("style_prompt_tail"),
+        recipe.get("lora"), recipe.get("lora_strength"),
+        _shl_f(), hue, *scenes))
+    neg = bible_negative(book_title)
+    if neg:  # 1010: 负词入指纹, 空值字节不变 (无负词书旧试渲不失效)
+        blob += "|neg:" + neg
+    return hashlib.sha1(blob.encode("utf-8")).hexdigest()[:12], hue, scenes
+
+
 def render_bible_samples(book_id: str, book_title: str, force: bool = False) -> dict:
     """圣经试渲 (0922 用户令: 纯文字难转图形效果): 色板/质感/角色策略烘进画面渲 2 张.
 
@@ -800,19 +826,9 @@ def render_bible_samples(book_id: str, book_title: str, force: bool = False) -> 
     cached = None if force else _bible_done_recently(book_id, "samples")
     if cached:
         # 1009 小坑8-E: 冷却命中但试渲指纹不符 (圣经/配方已变) → 不放行, 重渲
+        # 1026 修: 改用 _samples_fp 公共源 (旧内联版与主指纹格式永不相等=冷却死守卫)
         try:
-            _pal = str((bible_view(book_id, book_title).get("bible") or {}).get("color_palette") or "")
-            import re as _re0
-            _m0 = _re0.search(r"主色[:：]?\s*([^;；,，。(（]{2,20})", _pal)
-            _hue0 = (_m0.group(1).strip() if _m0 else "")[:12]
-            from .config import resolve_style as _rs
-            from .k2 import SKIN_HAIR_LAW as _LAW
-            _r = _rs(book_title)
-            _ov = (_r.get("page_overrides") or {}).get("k2") or {}
-            _fp0 = hashlib.sha1("|".join(str(x or "") for x in (
-                _r.get("style_prompt_head"), _r.get("style_prompt_tail"),
-                _ov.get("style_prompt_head"), _ov.get("style_prompt_tail"),
-                _r.get("lora"), _r.get("lora_strength"), _LAW, _hue0)).encode("utf-8")).hexdigest()[:12]
+            _fp0, _, _ = _samples_fp(book_title)
             _fps0 = _load_fps(book_title)
             if not _fps0.get("圣经试渲_1.png") or _fps0.get("圣经试渲_1.png") != _fp0:
                 cached = None  # 指纹不符 → 穿透冷却强制重渲
@@ -850,39 +866,14 @@ def render_bible_samples(book_id: str, book_title: str, force: bool = False) -> 
             # 0925 用户令撤角色注入: 原镜句已按露脸军规自带人物, 硬塞轮换角色 =
             # 多一个人 + 串人 (镜2 霍普金斯本尊在场还被前置董事长实锤); 角色造型
             # 预览归定妆照 (角色设计台), 试渲 A/B 差异纯 = 圣经主色贡献
-            import re as _re
-            pal = str(bible.get("color_palette") or "")
-            # 1026 修: 收口 config.pick_main_hue 单源 (同 k2._bible_hue — 两处正则漂移过一次)
-            from .config import pick_main_hue
-            hue = pick_main_hue(pal)
-            scenes = []
-            for i, s in enumerate(shots):
-                base = str(s.get("image_prompt_zh") or "")
-                # 1016 W1: 主色尾单源 (config.main_color_tint; 0925 塑料衣/1012
-                # 朱砂红实锤历史注释见 config 定义处)
-                # 1026: brief=True — 试渲只预览主色贡献, 全尾军规对高光滚降过重
-                # (前景过曝露白实锤), 产线全尾在 k2 不动
-                base += main_color_tint(hue, brief=True)
-                scenes.append(base)
+            # 1026: hue/scenes/指纹收口 _samples_fp (与冷却守卫同源, 治两处漂移;
+            # brief 尾语义: 试渲只预览主色贡献, 全尾军规对高光滚降过重实锤)
+            _fp, hue, scenes = _samples_fp(book_title)
             d = _board_dir(book_title)
             d.mkdir(parents=True, exist_ok=True)
             (d / "调味句.json").write_text(
                 json.dumps({"hue": hue, "scenes": scenes}, ensure_ascii=False, indent=1),
                 encoding="utf-8")
-            # 1009 小坑8-E: 试渲指纹 (圣经主色+配方+军规+镜句) — 圣经重掷/手改/配方
-            # 升级后旧试渲自动失效; 冷却命中但指纹不符也强制重渲 (防毒缓存)
-            # 1012 bv2: 种子对齐镜号 (旧试渲全是错位种子渲的) — 版本号一跳, 全库旧试渲失效重渲
-            from .k2 import SKIN_HAIR_LAW
-            k2ov = (recipe.get("page_overrides") or {}).get("k2") or {}
-            _fp_blob = "bv3|" + "|".join(str(x or "") for x in (
-                recipe.get("style_prompt_head"), recipe.get("style_prompt_tail"),
-                k2ov.get("style_prompt_head"), k2ov.get("style_prompt_tail"),
-                recipe.get("lora"), recipe.get("lora_strength"),
-                SKIN_HAIR_LAW, hue, *scenes))
-            _neg = bible_negative(book_title)
-            if _neg:  # 1010: 负词入指纹, 空值字节不变 (无负词书旧试渲不失效)
-                _fp_blob += "|neg:" + _neg
-            _fp = hashlib.sha1(_fp_blob.encode("utf-8")).hexdigest()[:12]
             fps = _load_fps(book_title)
             # 1012: force=全量重掷且换种子 (同种子重掷=渲出同一张图, 无意义);
             # 稳态沿用是正确行为但用户要有强制入口 (UX 洞实锤)

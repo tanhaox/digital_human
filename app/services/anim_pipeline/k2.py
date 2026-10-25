@@ -67,12 +67,16 @@ COMPOSITION_BOOST = (
 # 皮肤, 头发反向锚定"分组雕塑感" (对齐用户认可 style1_2: Pixar 式分组块面高光)。
 # 全局注入 page="k2" — 单一事实源, 六张库卡/未来新提案自动生效, 不再逐卡手抄。
 # 1013 P0: SSOT=bible.style_prefix (冲突14 域界), 本常量退为宪法 skin_law.k2_fallback。
-SKIN_HAIR_LAW = CST.skin_fallback() or (
+_SKIN_HAIR_LAW_DEFAULT = (
     "。人物皮肤为实色哑光卡通皮肤（不透明、无镜面高光），"
     "头发为柔软蓬松的发丝簇：哑光绒面质感、发丝纹理清晰、发组之间有自然间隙、"
     "发梢轻盈有空气感，光泽只许柔和漫反射（禁整体光滑塑料壳、禁镜面高光、"
     "禁一块实心雕塑壳、禁无细节糊状头发）"
 )
+
+
+def SKIN_HAIR_LAW() -> str:  # 1026 惰性化: 军规改动免重启 (旧 import 时固化, 长命进程吃旧文实锤)
+    return CST.skin_fallback() or _SKIN_HAIR_LAW_DEFAULT
 
 # 1014 五官完整性军规 (ep3 批图实锤: s28 无眼/s34 空白脸/s12 缺嘴鼻/s14 小脸):
 # 3D C4D 圆润风是残缺脸高发先验, 画面句的面部交代被风格锚压制 — 人物在场时
@@ -224,7 +228,7 @@ def build_prompt(scene_zh: str, book_title: str = "", style: dict | None = None,
     # 1009 大坑修 (backlog ID-080): 皮肤/头发军规全局化 — 只在 k2 产线配方注入,
     # 单一事实源 (此前散在风格卡 k2 tail, 六卡各抄一份且漏头发)。药限定皮肤,
     # 头发反向锚"分组雕塑感"治塑料感 (1006 皮肤药无差别罩住头发 = 光滑壳实锤)。
-    law = SKIN_HAIR_LAW if page == "k2" else ""
+    law = SKIN_HAIR_LAW() if page == "k2" else ""
     # 1014 五官军规: 人物在场才锚 (纯物件镜锚五官会诱导模型幻觉出人脸)
     if page == "k2" and _person_in(scene, book_title):
         law += FACE_LAW
