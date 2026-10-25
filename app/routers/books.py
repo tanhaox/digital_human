@@ -846,6 +846,14 @@ def style_board_start(book_id: str, db: Session = Depends(get_db)):
         "第1集": {k: (ep1.roadmap_json or {}).get(k) for k in
                  ("主题", "黄金三秒钩子", "赌注层级", "贯穿人物", "对应书中内容", "核心任务")},
     }
+    # 1026 域优先: 圣经已备赛道锚 (存量书重掷试镜) 则随材料下发 — 试镜镜域内取材
+    try:
+        from app.services.anim_pipeline.director2 import _bible_cache_path as _bcp
+        _b = json.loads(_bcp(b.book_title).read_text(encoding="utf-8"))
+        if str(_b.get("world_domain") or "").strip():
+            material["赛道锚"] = str(_b["world_domain"]).strip()
+    except Exception:  # noqa: BLE001 — 无圣经/坏经 = 不带锚, 走题材分支
+        pass
     try:
         return style_board.start_board(b.id, b.book_title, material)
     except RuntimeError as exc:
