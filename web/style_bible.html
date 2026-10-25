@@ -81,7 +81,7 @@
       </div>
       <div id="live" hidden></div>
       <label style="margin-top:1rem">样张 — 文字配方到底长什么样
-        <small>试镜镜=选定风格原样张; 试渲=原镜+角色锁定卡+圣经主色 (同镜同种子 A/B)</small></label>
+        <small>试镜镜=选定风格原样张; 试渲=原镜+圣经主色 (0925 撤角色注入, 角色造型归定妆照; 同镜同种子 A/B)</small></label>
       <div class="samples" id="samples"></div>
       <div id="motion-block" hidden style="margin-top:.8rem">
         <label>🎬 动画试渲 — 运动气质眼验 (同 H3 批产配方: 首帧+动画律)
@@ -238,7 +238,7 @@ function renderSamples(list, rev){
     <div class="cap">${esc(cap)}</div></div>`;
   $('samples').innerHTML =
     board.map((n, i) => cell(n, `试镜镜${i + 1} · 选定风格原样张`)).join('') +
-    bible.map((n, i) => cell(n, `圣经试渲${i + 1} · 原镜+角色卡+主色`)).join('') ||
+    bible.map((n, i) => cell(n, `圣经试渲${i + 1} · 原镜+圣经主色`)).join('') ||
     '<span class="hint">无样张 — 先跑风格选型出试镜镜</span>';
 }
 

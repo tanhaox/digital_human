@@ -844,7 +844,8 @@ def render_bible_samples(book_id: str, book_title: str, force: bool = False) -> 
             # 预览归定妆照 (角色设计台), 试渲 A/B 差异纯 = 圣经主色贡献
             import re as _re
             pal = str(bible.get("color_palette") or "")
-            m = _re.search(r"主色[:：]?\s*([^;；,，。(（]{2,20})", pal)
+            # 1026 修: 同 k2._bible_hue — 顿号入排除类, 主色只取第一项 (旧: 整串+截断病句)
+            m = _re.search(r"主色[:：]?\s*([^;；,，、。(（]{2,20})", pal)
             hue = (m.group(1).strip() if m else "")[:12]
             scenes = []
             for i, s in enumerate(shots):

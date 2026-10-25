@@ -499,7 +499,9 @@ def _bible_hue(book_title: str) -> str:
         if hit and hit[0] == mt:
             return hit[1]
         b = json.loads(p.read_text(encoding="utf-8"))
-        m = _re.search(r"主色[:：]?\s*([^;；,，。(（]{2,20})",
+        # 1026 修: 排除顿号 — 主色多为顿号列表 (主色: 暖羊毛白、阳光橙黄、信任蓝),
+        # 旧类吞整串再 [:12] 截断 → "暖羊毛白、阳光橙黄、信任" (信任蓝被腰斩, 病句进产线)
+        m = _re.search(r"主色[:：]?\s*([^;；,，、。(（]{2,20})",
                        str(b.get("color_palette") or ""))
         hue = (m.group(1).strip() if m else "")[:12]
         _BIBLE_HUE[book_title] = (mt, hue)
