@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Any
 
 from . import comfy
-from .config import _safe_name, load
+from .config import _safe_name, load, main_color_tint  # 1016 W1 主色尾单源 (style_board 漏挂致试渲必炸 NameError, 1026 补)
 from .k2 import bible_negative, build_workflow, render_gated
 
 logger = logging.getLogger(__name__)
