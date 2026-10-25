@@ -377,6 +377,9 @@ def render_missing(book_title: str, emit) -> tuple[int, int]:
             c.get("look") or "",
             recipe.get("style_prompt_head"), recipe.get("style_prompt_tail"),
             recipe.get("lora"), recipe.get("lora_strength"),
+            # 1026 修: character 页 override 入指纹 — 旧版只哈希基座头,
+            # 该页专属头改动永不判旧 (渐变染白大褂重渲 0 张实锤)
+            (recipe.get("page_overrides") or {}).get("character", {}).get("style_prompt_head", ""),
         )).encode("utf-8")).hexdigest()[:10]
 
     work, skipped = [], 0
