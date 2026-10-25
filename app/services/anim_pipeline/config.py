@@ -240,8 +240,10 @@ def main_color_tint(hue: str, lang: str = "zh", brief: bool = False) -> str:
     if not hue:
         return ""
     if brief:
-        return (f", environment and props accented in {hue} tones" if lang == "en"
-                else f"，环境与核心道具点缀{hue}色调")
+        # 1026 二修: '点缀X色调'被画成平涂色块(15%无细节黄斑实锤); 光线措辞
+        # 让模型走光路渲染(窗/灯带细节), 不走色块路
+        return (f", bathed in soft {hue} ambient light" if lang == "en"
+                else f"，画面笼罩{hue}的柔和光线")
     if not hue:
         return ""
     if lang == "en":
