@@ -224,7 +224,7 @@ def pick_main_hue(color_palette: str) -> str:
     m = _re.search(r"主色[:：]?\s*([^;；,，。(（]{2,40})", str(color_palette or ""))
     if not m:
         return ""
-    terms = [t.strip() for t in _re.split(r"[、,，]", m.group(1)) if t.strip()]
+    terms = [t.strip().lstrip("为是：: ") for t in _re.split(r"[、,，]", m.group(1)) if t.strip()]
     chroma = [t for t in terms if not any(k in t for k in ("白", "灰", "黑"))]
     return (chroma or terms or [""])[0][:12]
 
