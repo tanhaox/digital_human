@@ -213,6 +213,22 @@ def resolve_style(book_title: str) -> dict:
     return recipe
 
 
+def pick_main_hue(color_palette: str) -> str:
+    """圣经主色提取 (1026 收口单源, k2._bible_hue 与试渲调味共用 — 两处正则已漂移一次):
+
+    主色字段顿号列表取第一**彩色**项; 中性项 (含 白/灰/黑) 跳过 — 主色首项常是
+    底色级白系 (暖羊毛白实锤: '以暖羊毛白为主色调点缀'=全图洗白, GLM 眼验实锤),
+    调味尾要的是可点缀的彩色。全中性/无主色字段 → 回退第一项/空串。"""
+    import re as _re
+    # 顿号放行进捕获 (主色常为顿号列表), 到 ;；,，。(（ 截断; 捕获后分项过滤
+    m = _re.search(r"主色[:：]?\s*([^;；,，。(（]{2,40})", str(color_palette or ""))
+    if not m:
+        return ""
+    terms = [t.strip() for t in _re.split(r"[、,，]", m.group(1)) if t.strip()]
+    chroma = [t for t in terms if not any(k in t for k in ("白", "灰", "黑"))]
+    return (chroma or terms or [""])[0][:12]
+
+
 def main_color_tint(hue: str, lang: str = "zh") -> str:
     """圣经主色调味尾 (1016 W1 单源化): 旧版三处拷贝 (k2 中文/英文 + style_board
     试渲), 漂移即 bug — 以 k2 主路径为 canonical 收口于此。
