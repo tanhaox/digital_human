@@ -860,7 +860,9 @@ def render_bible_samples(book_id: str, book_title: str, force: bool = False) -> 
                 base = str(s.get("image_prompt_zh") or "")
                 # 1016 W1: 主色尾单源 (config.main_color_tint; 0925 塑料衣/1012
                 # 朱砂红实锤历史注释见 config 定义处)
-                base += main_color_tint(hue)
+                # 1026: brief=True — 试渲只预览主色贡献, 全尾军规对高光滚降过重
+                # (前景过曝露白实锤), 产线全尾在 k2 不动
+                base += main_color_tint(hue, brief=True)
                 scenes.append(base)
             d = _board_dir(book_title)
             d.mkdir(parents=True, exist_ok=True)

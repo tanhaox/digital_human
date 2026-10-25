@@ -229,12 +229,19 @@ def pick_main_hue(color_palette: str) -> str:
     return (chroma or terms or [""])[0][:12]
 
 
-def main_color_tint(hue: str, lang: str = "zh") -> str:
+def main_color_tint(hue: str, lang: str = "zh", brief: bool = False) -> str:
     """圣经主色调味尾 (1016 W1 单源化): 旧版三处拷贝 (k2 中文/英文 + style_board
     试渲), 漂移即 bug — 以 k2 主路径为 canonical 收口于此。
 
     域界随宪法 (1012 朱砂红烧衬衫实锤): 主色只管环境与道具, 服装颜色归画面句;
-    哑光织物锚压塑料光面 (0925 实锤)。空 hue 返回空串 (调用方免 if)。"""
+    哑光织物锚压塑料光面 (0925 实锤)。空 hue 返回空串 (调用方免 if)。
+    brief (1026): 试渲 A/B 专用极简尾 — 全尾~90字军规对此 LoRA 高光滚降过重
+    (前景过曝露白实锤), 试渲只预览主色贡献, 产线全尾不动。"""
+    if not hue:
+        return ""
+    if brief:
+        return (f", environment and props accented in {hue} tones" if lang == "en"
+                else f"，环境与核心道具点缀{hue}色调")
     if not hue:
         return ""
     if lang == "en":
