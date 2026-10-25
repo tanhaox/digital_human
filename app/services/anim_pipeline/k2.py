@@ -483,6 +483,20 @@ def _inject_char_looks(scene: str, book_title: str, shot: dict | None = None) ->
                     logger.warning("[k2] 围栏: %s 非引用镜不前置作者 look (冲突6对账)", name)
                     return scene or ""
             return f"{name}（{look}），" + (scene or "")
+    # 1026 兜底 (s10 实锤: '职场人物(时代锚服装列表)'型镜句 — 无卡名无身份 →
+    # 模型自由造人, 一帧绿发黑发各色领带随机人群): 有人物但零身份信号 →
+    # 前置观众替身 look。有 皮肤/发型/发色 词(=writer 已自带造型括注)不扰。
+    if scene and _person_in(scene, book_title) and not any(
+            w in scene for w in ("皮肤", "发型", "发色", "短发", "长发", "卷发")):
+        try:
+            from .assembler import _standin
+            from .director2 import _bible_cache_path
+            _bb = json.loads(_bible_cache_path(book_title).read_text(encoding="utf-8"))
+            _sn, _sl = _standin(_bb)
+            if _sl and "皮肤" in _sl:   # 退到时代锚的旧替身(无皮肤词)不前置
+                return f"{_sn}（{_sl}），" + scene
+        except Exception:  # noqa: BLE001 — 兜底失败保持原句
+            pass
     return scene or ""
 
 
