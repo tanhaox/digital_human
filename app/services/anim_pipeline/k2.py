@@ -543,6 +543,23 @@ def _scene_eff(shot: dict[str, Any], book_title: str) -> str:
     if en:
         # EN 路不注入 look — writer 的 keyframe_en 是同构图英文版, look 已内联
         # (林肯 (Caucasian male, ...)); 只挂主色调味尾 (域界随宪法, 英文版)
+        # 1026 兜底: fallback 模板 EN 零身份 (随机人群实锤) — zh 侧判零身份
+        # (无卡名+无皮肤/发型词) → 替身 look 英译前置
+        _zh = str(shot.get("image_prompt_zh") or "")
+        from . import k2_lang as _kl0
+        _cards = _char_looks(book_title)
+        _named = any((c[0] or "") in _zh for c in _cards)
+        if (not _named and _person_in(_zh or en, book_title)
+                and not any(w in _zh for w in ("皮肤", "发型", "发色", "短发", "长发", "卷发"))):
+            try:
+                from .assembler import _standin
+                from .director2 import _bible_cache_path
+                _bb = json.loads(_bible_cache_path(book_title).read_text(encoding="utf-8"))
+                _sn, _sl = _standin(_bb)
+                if _sl and "皮肤" in _sl:
+                    en = f"{_sn} ({_kl0.standin_look_en(_sl)}), " + en
+            except Exception:  # noqa: BLE001 — 兜底失败走原 EN
+                pass
         # 1016 W1: 主色尾单源 (config.main_color_tint, 三拷贝收口)
         en += main_color_tint(_bible_hue(book_title), "en")
         return en

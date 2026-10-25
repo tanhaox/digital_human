@@ -29,6 +29,26 @@ _BOOK_HEAD: dict[str, tuple[str, str]] = {}   # book → (style_head_sha, en)
 _BOOK_TAIL: dict[str, tuple[str, str]] = {}   # book → (style_tail_sha, en)
 _ARC_THESIS: dict[tuple[str, str], str] = {}  # (book, thesis_sha) → en
 _BOOK_POLICY: dict[str, tuple[float, str]] = {}  # book → (bible_mtime, policy_en)
+_STANDIN_EN: dict[str, str] = {}  # zh_look sha → en (替身 look 英译, 零身份镜 EN 路兜底)
+
+
+def standin_look_en(zh_look: str) -> str:
+    """观众替身 look 英译 (1026: fallback 镜 keyframe_en 模板零身份 → 随机人群;
+    EN 路不跑 zh 注入, 需英译前置。sha 进程缓存, fail-open 退中文原串)。"""
+    if not zh_look:
+        return ""
+    sha = _sha(zh_look)
+    hit = _STANDIN_EN.get(sha)
+    if hit:
+        return hit
+    try:
+        en = _chat(zh_look)
+        if len(en) < 8:
+            raise ValueError("empty")
+    except Exception:  # noqa: BLE001 — 翻译失败退中文 (名词串混排仍有效)
+        return zh_look
+    _STANDIN_EN[sha] = en
+    return en
 
 
 def _sha(s: str) -> str:
