@@ -1754,7 +1754,7 @@ def _reroll_concept_llm(arcs: list[dict], arc: dict, scene_text: str,
            + f"【其余场隐喻板 (新隐喻禁撞车; 视觉世界禁与相邻场相同 — 轮换宪法)】\n{board}\n"
            + aud_block
            + "\n【输出】严格 JSON: {\"narrative\": \"一句话这场讲什么\", "
-             "\"metaphor_core\": \"核心映射 A=B (一句话)\", "
+             "\"metaphor_core\": \"核心映射系统 (≥3组实体=概念+故障机制, 秤/三砝码/沙袋范式)\", "
              "\"metaphor_mappings\": [\"x=y\", \"x=y\"], "
              "\"carrier_lines\": [\"口播承载句1\", \"句2\"], "
              "\"visual_motifs\": [\"可直接画的物理画面1\", \"画面2\"], "
@@ -1895,7 +1895,7 @@ def plan_arcs(book_id: str, book_title: str, ep: int, ep_title: str,
                                 "禁改名换装; 服装+脸+道具一起写进画面)】\n" + lines + "\n")
     # 0918 立意模块 v2: LLM 直出结构化多维度 (核心映射/分映射/承载句/画面母题),
     # visual_metaphor 由系统投影 (单一事实源, LLM 不再直出)
-    _schema_out = ("\"metaphor_core\": \"核心映射 A=B (一句话)\", "
+    _schema_out = ("\"metaphor_core\": \"核心映射系统 (≥3组实体=概念+故障机制, 秤/三砝码/沙袋范式)\", "
                    "\"metaphor_mappings\": [\"x=y\", \"x=y\"], "
                    "\"carrier_lines\": [\"口播承载句1\", \"句2\"], "
                    "\"visual_motifs\": [\"可直接画的物理画面1\", \"画面2\"], "
