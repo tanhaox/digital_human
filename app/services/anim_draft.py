@@ -1444,13 +1444,28 @@ def _intro_voice(book_title: str, base: Path) -> dict[str, Any] | None:
     return {"v1": v1, "v2": v2, "d1": _wav_duration(v1), "d2": _wav_duration(v2)}
 
 
+def _spoken_title(book_title: str) -> str:
+    """念读版书名 (1029 用户令): 剥尾部版别后缀 — 《卓有成效的管理者（中英文
+    双语珍藏版）》开口播只念"卓有成效的管理者", 括号后缀 (典藏/珍藏/双语/精装
+    版式) 是视觉信息不是听觉信息, 念出来既拖秒数又拗口。只剥**尾部**括号段
+    (全/半角, 可叠层); 书名中段的括号 (如副题) 不动。"""
+    t = (book_title or "").strip()
+    while True:
+        m = re.search(r"[（(][^（）()]*[)）]\s*$", t)
+        if not m or m.start() <= 0:
+            return t
+        t = t[:m.start()].rstrip()
+
+
 def produce_opening(book_title: str) -> dict[str, str]:
     """开场白书级素材生产 (幂等; 一次生成全系列复用 — 与品牌卡同路数).
 
     源优先级: ① _资产已有 → 原样返回 ② 迁移: 各集 ep*/opening/ 缓存里最新
     一集的成品 (intro_{1,2}t.f.wav) 拷入 _资产 ③ IndexTTS2.5 现合成 (经 gpu
     manager session 自动拉起) → 双向裁静音 → atempo 1.5× → 落 _资产.
-    附文案 sidecar 开场白_{书}_文案.txt 留痕. 返回 {1,2,source}.
+    书名走 _spoken_title 出口闸 (1029 令: 版别后缀不念, 卓有成效"（中英文双语
+    珍藏版）"实锤); 合成中间产物按**文案指纹**命名 — 旧文案原料不被复用, 换文案
+    即重烧. 附文案 sidecar 开场白_{书}_文案.txt 留痕. 返回 {1,2,source}.
     """
     v1, v2 = _opening_asset_paths(book_title)
     if v1.exists() and v2.exists():
@@ -1483,11 +1498,14 @@ def produce_opening(book_title: str) -> dict[str, str]:
                 logger.warning("[opening] IndexTTS2.5 自动拉起失败: %s", exc)
         if not T._server_ok(tcfg.base_url):
             raise RuntimeError("IndexTTS2.5 (7866) 未在线, 开场白无法合成")
-        for name, text in (("intro_1", _INTRO_LINE1), ("intro_2", book_title)):
-            raw = work / f"{name}.wav"
+        spoken = _spoken_title(book_title)
+        for name, text in (("intro_1", _INTRO_LINE1), ("intro_2", spoken)):
+            # 文案指纹进原料名 (1029): 换文案=换文件=必重烧; 旧文案原料成孤儿不误命中
+            _th = hashlib.md5(text.encode("utf-8")).hexdigest()[:8]
+            raw = work / f"{name}_{_th}.wav"
             if not raw.exists():
                 T._synth_one(T.tts_input(text, tcfg.pinyin_map), raw, tcfg)
-            trimmed = work / f"{name}t.wav"
+            trimmed = work / f"{name}_{_th}t.wav"
             if not trimmed.exists() and raw.exists():
                 subprocess.run(
                     ["ffmpeg", "-y", "-loglevel", "error", "-i", str(raw),
@@ -1496,8 +1514,9 @@ def produce_opening(book_title: str) -> dict[str, str]:
                             "start_threshold=-38dB:start_silence=0.15,areverse",
                      str(trimmed)], capture_output=True, timeout=60)
             # 0924 修: atempo 加工步漏了 — 合成路径只到 trimmed, 没产 .f.wav 最终版
+            # (1029: 成品步无条件重产 — 迁移来的旧文案成品不再顶包新文案)
             final = work / f"{name}t.f.wav"
-            if not final.exists() and trimmed.exists():
+            if trimmed.exists():
                 subprocess.run(
                     ["ffmpeg", "-y", "-loglevel", "error", "-i", str(trimmed),
                      "-af", f"atempo={_INTRO_SPEED}", str(final)],
@@ -1511,7 +1530,8 @@ def produce_opening(book_title: str) -> dict[str, str]:
             raise RuntimeError(f"开场白中间产物缺失: {src_f}")
         _sh.copy2(src_f, dst)
     sidecar = v1.with_name(v1.name.replace("_1.wav", "_文案.txt"))
-    sidecar.write_text(_INTRO_LINE1 + NL_ + f"《{book_title}》" + NL_ +
+    # sidecar 写念读版书名 (1029 令: 与 TTS 口径一致, 后缀不出现)
+    sidecar.write_text(_INTRO_LINE1 + NL_ + f"《{_spoken_title(book_title)}》" + NL_ +
                        f"语速 atempo {_INTRO_SPEED}" + NL_, encoding="utf-8")
     logger.info("[opening] 开场白素材 ✓ (source=%s): %s / %s", src, v1.name, v2.name)
     return {"1": str(v1), "2": str(v2), "source": src}
