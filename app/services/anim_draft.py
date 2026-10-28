@@ -71,17 +71,16 @@ _CAP_SHADOW = draft_mod.TextShadow(alpha=0.55, color=(0.0, 0.0, 0.0), diffuse=12
 _CAP_SPLIT_LIMIT = 30  # 横屏断句上限 (J线 job_draft 横屏同款; >30 字拆多条滚动)
 
 # ── 86万赞打字卡 1:1 (0916 用户令; 锚=.tmp/s6top_open_0_5s_8fps.png 逐帧判读) ──
-# 白字居中偏上两行 · 三承重词同字号金黄 · 逐字 ~0.25s 起 ~1.9s 满 无光标 ·
-# 2-3s 定格 · 打字音效同帧 (打字（字幕专用）1416ms 与打字窗严丝合缝)
-# (1023 曾撤, 1029 复令恢复 — 撤后流量下跌加剧, git 1ee1406 面包屑复原)
+# 白字居中偏上两行 · 两承重词同字号金黄 · 逐字 ~0.25s 起 ~1.5s 满 无光标 ·
+# 定格至 2s (1029 两秒令: 整卡 3s→2s, 骨架缩至~30字适配速读; 1023 曾撤 1029 复)
 _TYPE_BASE = (1.0, 1.0, 1.0)          # 正文白 (锚点实况)
 _TYPE_HL = (1.0, 0.75, 0.09)          # 承重词黄 (jy_style_palette 关键词黄, 53期 mined)
-_TYPE_SIZE = 6.8                      # 44字骨架两行装下 (30字×5号口径: chars/line=150/size)
+_TYPE_SIZE = 6.8                      # ~33字骨架两行装下 (30字×5号口径: chars/line=150/size)
 _TYPE_Y = 0.45                        # 画面上四分之一带 (锚点实况)
 _TYPE_SHADOW = draft_mod.TextShadow(alpha=0.45, color=(0.0, 0.0, 0.0), diffuse=8, distance=2)
 _TYPE_SFX = "打字（字幕专用）"
 _TYPE_START_S = 0.25                  # 首字出现 (锚点 ~0.25s)
-_TYPE_END_S = 1.9                     # 打满 (锚点 ~1.9s)
+_TYPE_END_S = 1.5                     # 打满 (1029 两秒令: 原 1.9, 卡压至 2s → 提前满留定格)
 
 # ── 选书后 2s 版式 (0916 模板令, 64-商业认知 拆解) ──
 _FONT_SIYUAN = "674043984025433344"   # 思源黑体 (模板明文实测 id)
@@ -186,26 +185,27 @@ def _book_author_short(book_id: str) -> str:
 
 
 def _typing_emph_spans(text: str) -> list[tuple[int, int]]:
-    """打字卡三承重词区间 (骨架锚定): 坚持每晚睡前 / 收益主体槽 / 超过90%.
+    """打字卡两承重词区间 (1029 两秒令): 收益主体槽 / 超过90%.
 
-    骨架书级冻结 (0914 定稿): "如果你能坚持每晚睡前看一集，一个月后，
-    {收益主体}，会超过90%的{对比人群}。" — 槽位用冻结锚词定位, 缺锚即跳 (宁缺毋滥)。
+    骨架书级冻结 (1029 两秒版): "每晚睡前看一集，一个月后，{收益主体}，
+    超过90%的{对比人群}。" — 槽位用冻结锚词定位, 缺锚即跳 (宁缺毋滥)。
+    (0914 原版三承重含"坚持每晚睡前"; 1029 提亮缩至两段 — 2s 内黄字=信息全部.)
     """
     spans = []
-    for w in ("坚持每晚睡前", "超过90%"):
-        i = text.find(w)
-        if i >= 0:
-            spans.append((i, i + len(w)))
-    m = re.search(r"一个月后，(.+?)，会超过", text)
+    m = re.search(r"一个月后，(.+?)，超过", text)
     if m:
         spans.append((m.start(1), m.end(1)))
+    i = text.find("超过90%")
+    if i >= 0:
+        spans.append((i, i + len("超过90%")))
     return sorted(spans)
 
 
 def _typing_split_lines(text: str) -> list[str]:
-    """打字卡按冻结骨架切行 (0916 行槽制): 三句 = 三行, 槽位随书但切点冻结.
+    """打字卡按冻结骨架切行 (0916 行槽制; 1029 两秒版默认两行): 行槽随书但切点冻结.
 
-    "如果你能坚持每晚睡前看一集，" | "一个月后，{X}，" | "会超过90%的{Y}。"
+    两秒版 (1029): "每晚睡前看一集，" | "一个月后，{X}，超过90%的{Y}。" — 无"，会超过"
+    时 i2 失配走 i1 回退, 恰好落两行. 旧三句版 (含"，会超过") 仍切三行 (历史卡兼容).
     切点 = 看一集后的逗号 + 「，会超过」前的逗号; 骨架不合 (极端改写) 回退整句一行.
     """
     i2 = text.find("，会超过")
@@ -1433,8 +1433,8 @@ def _intro_voice(book_title: str, base: Path) -> dict[str, Any] | None:
     装配只读 _资产/开场白_{书}_{1,2}.wav, **不现场合成** (旧径每集装配期现调
     IndexTTS2.5, 服务未在线即静默缺段 — ep4 装配实锤两连). 缺素材 → None +
     明确日志; 生成走 produce_opening (POST /api/anim/ep/{book}/{ep}/opening,
-    书级一次全系列复用). 落位不变: 拆解句 @3.00 书墙首帧 (0916 令; 1029 打字
-    卡复令恢复, 1023 曾撤改 @0.00), 书名 @ 滴声半程.
+    书级一次全系列复用). 落位不变: 拆解句 @2.00 书墙首帧 (1029 两秒令, 原
+    @3.00), 书名 @ 滴声半程.
     """
     v1, v2 = _opening_asset_paths(book_title)
     if not (v1.exists() and v2.exists()):
@@ -1564,15 +1564,15 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
         # 未对齐时规划轴无 tc 预留, 强加会与 s01 重叠 — 标题卡只随对齐出现
         with_title_card = aligned
         # ── 开场链 v3 预计算 (0916 人声令): 滚动+滴声+人声 → tc 推轴 ──
-        # 滚动 3.0→rev_start (齿轮音对齐滚动; 1029 打字卡复令: 0-3s 还给打字卡,
-        # 1023 曾撤改 0 起) → reveal+滴声;
+        # 滚动 2.0→rev_start (齿轮音对齐滚动; 1029 两秒令: 0-2s 给打字卡, 原 3s) →
+        # reveal+滴声;
         # 书名 @ rev_start+滴声半程; 拆解句收在书名前; 书名念完 +0.5s 静止 = 新 tc (全镜平移).
         from app.services.anim_pipeline import covers as covers_mod
         tc0 = float(cfg.brand_card.opening_sec)
         intro = _intro_voice(book_title, base) if with_title_card else None
         scroll = covers_mod.render_wall_scroll(book_title) if with_title_card else None
         scroll_s = _sfx_dur(str(scroll)) if scroll else 0.0
-        rev_start = 3.0 + scroll_s if scroll else 4.0
+        rev_start = 2.0 + scroll_s if scroll else 3.0
         drop_half = _sfx_dur(_INTRO_SFX_DROP) / 2
         t_shift = 0.0
         if intro:
@@ -1830,8 +1830,9 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
         # R9 同帧音效自动挂 (0916 attach_sound 平移; 缺文件/密度闸门自动跳过)
         sfx_stats = _attach_sound_cues(script, _sound_cues(doc))
 
-        # 开场套件 (剪辑层 5.5s 预留, 素材拼贴非生成 — 与生成动画不抢时间):
-        # S00 打字卡 0-2s (逐字) + S00b 定格 2-3s + S00c 书封墙 3-4.2s + S00d 主书封 4.2-5.5s
+        # 开场套件 (剪辑层预留, 素材拼贴非生成 — 与生成动画不抢时间):
+        # S00 打字卡 0-2s (逐字至~1.5s+定格; 1029 两秒令: 原3s) + S00c 书封墙 2s起
+        # + S00d 主书封 reveal (相对节拍不变, 整体前移 1s)
         # (S00/S00b 1023 曾撤, 1029 复令恢复 — 撤后流量下跌加剧)
         # 飞入/扫描/收敛动画与音效 = 剪映后期位 (素材就位, 特效剪映里套)
         typing_text = ""
@@ -1843,18 +1844,18 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                 {"shot_id": "标题卡", "t_start": 0, "t_end": 2,
                  "narration": typing_text or book_title}, cards_dir / "title_bg.png")
             # 0915 用户定: 标题底图 mp4 与系统生成动画同夹 (anim/) — 与 s27 等同源同位
-            _t_src = _as_video_path(bg, base, 3.0)
+            _t_src = _as_video_path(bg, base, 2.0)
             _t_dst = base / "anim" / _t_src.name
             if _t_src != _t_dst:
                 _t_dst.parent.mkdir(parents=True, exist_ok=True)
                 if not _t_dst.exists() or _t_dst.stat().st_mtime < _t_src.stat().st_mtime:
                     shutil.copy2(_t_src, _t_dst)
             script.add_segment(draft_mod.VideoSegment(
-                draft_mod.VideoMaterial(str(_t_dst)), trange(0, 3 * _US), volume=0), "main")  # S00+S00b
+                draft_mod.VideoMaterial(str(_t_dst)), trange(0, 2 * _US), volume=0), "main")  # S00 (1029 两秒令: 原 3s)
             if typing_text:
                 # 86万赞 1:1 · 0916 定稿四改 (验收: 原生打字动画管不住首行, 首行
-                # 直接整行直出): 行1 静态常驻 0→3s; 行2+3 单常驻元素 + 居中打字
-                # 1.65s (0.25 起 1.9 满); 字在元素内累加永不清空; 三承重金黄不变.
+                # 直接整行直出): 行1 静态常驻 0→2s; 行2+3 单常驻元素 + 居中打字
+                # (0.25 起 1.5 满, 1029 两秒令); 字在元素内累加永不清空; 两承重金黄.
                 emph = _typing_emph_spans(typing_text)
                 lines = _typing_split_lines(typing_text)
                 ys = _typing_line_ys(len(lines))
@@ -1880,11 +1881,11 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                         shadow=_TYPE_SHADOW,
                         clip_settings=ClipSettings(transform_y=y))
 
-                # 行1: 静态直出 (无动画), 常驻整卡 0→3s
+                # 行1: 静态直出 (无动画), 常驻整卡 0→2s
                 l1_spans = [(max(s - offs[0], 0), min(e - offs[0], len(line1)))
                             for s, e in emph if min(e, offs[0] + len(line1)) > max(s, offs[0])]
                 try:
-                    script.add_segment(_type_seg(line1, 0, 3 * _US, ys[0], l1_spans),
+                    script.add_segment(_type_seg(line1, 0, 2 * _US, ys[0], l1_spans),
                                        "typing")
                 except Exception as exc:  # noqa: BLE001
                     logger.warning("[draft] 打字卡行1失败: %s", exc)
@@ -1903,7 +1904,7 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                     _anim = next((a for a in ("打字机_I", "打字机_II", "打字机III")
                                   if hasattr(TextIntro, a)), None)
                     seg = _type_seg(rest_txt, int(_TYPE_START_S * _US),
-                                    int((3.0 - _TYPE_START_S) * _US), rest_y, r_spans)
+                                    int((2.0 - _TYPE_START_S) * _US), rest_y, r_spans)
                     if _anim:
                         try:
                             seg.add_animation(getattr(TextIntro, _anim),
@@ -1924,12 +1925,12 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
             if scroll:
                 script.add_segment(draft_mod.VideoSegment(
                     draft_mod.VideoMaterial(str(scroll)),
-                    trange(3 * _US, int(scroll_s * _US)), volume=0), "main")
-                _attach_sfx(script, _INTRO_SFX_GEAR, 3.0, max_sec=scroll_s)
+                    trange(2 * _US, int(scroll_s * _US)), volume=0), "main")
+                _attach_sfx(script, _INTRO_SFX_GEAR, 2.0, max_sec=scroll_s)
             else:
                 _wv = _as_video_path(s00c, base, 1.5)
-                seg_c = draft_mod.VideoSegment(   # 兜底: 静态书封墙 3-4.0s 飞入
-                    draft_mod.VideoMaterial(str(_wv)), trange(3 * _US, int(1.0 * _US)), volume=0)
+                seg_c = draft_mod.VideoSegment(   # 兜底: 静态书封墙 2-3.0s 飞入
+                    draft_mod.VideoMaterial(str(_wv)), trange(2 * _US, int(1.0 * _US)), volume=0)
                 seg_c.add_animation(draft_mod.IntroType.向上滑动, 400_000)
                 script.add_segment(seg_c, "main")
                 _endf = None
@@ -1962,13 +1963,13 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
             _attach_sfx(script, _INTRO_SFX_DROP, rev_start)
             if intro:
                 _title_at = rev_start + drop_half
-                # 拆解句 @3.00 与书墙首帧对齐 (0916 令; 1029 打字卡复令恢复, 1023 曾撤改 @0.00); 不越书名点
+                # 拆解句 @2.00 与书墙首帧对齐 (1029 两秒令, 原 @3.00); 不越书名点
                 _d1 = min(max(int(intro["d1"] * _US) - 2000, 200_000),
-                          int((_title_at - 3.0) * _US))
+                          int((_title_at - 2.0) * _US))
                 _d2 = max(int(intro["d2"] * _US) - 2000, 200_000)
                 try:
                     script.add_segment(draft_mod.AudioSegment(
-                        str(intro["v1"]), trange(3 * _US, _d1)), "voice")
+                        str(intro["v1"]), trange(2 * _US, _d1)), "voice")
                     script.add_segment(draft_mod.AudioSegment(
                         str(intro["v2"]), trange(int(_title_at * _US), _d2)), "voice")
                 except Exception as exc:  # noqa: BLE001

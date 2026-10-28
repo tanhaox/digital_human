@@ -150,14 +150,15 @@ def test_typing_card_and_opening_order():
         ep1_opening_order_issues,
         typing_card_issues,
     )
-    good = "如果你能坚持每晚睡前看一集，一个月后，让用户一直愿意掏钱的本事，会超过90%的做内容的人。"
+    good = "每晚睡前看一集，一个月后，让用户掏钱的本事，超过90%的做内容的人。"  # 1029 两秒版骨架
     assert typing_card_issues(good) == []
     # 冻结卡 → 逐字一致才过
     assert typing_card_issues(good.replace("90%", "89%"), frozen_card=good)
     assert typing_card_issues(good, frozen_card=good) == []
-    # 自产骨架违规: 缺行为锚 / 缺量化 / 内部词 / 缺卡
+    # 自产骨架违规: 缺行为锚 / 缺量化 / 内部词 / 缺卡 / 超两秒上限
     assert typing_card_issues("九集一集一件工具，拿回定价权")
     assert typing_card_issues("如果你能坚持每晚看一集，一个月后，财商会超过九成人")  # 缺 每晚睡前+超过90%
+    assert typing_card_issues("如果你能坚持每晚睡前看一集，一个月后，让用户一直愿意掏钱的本事，会超过90%的做内容的人")  # 旧版45字, 1029 两秒令超长
     assert typing_card_issues("")
     # 开场秩序: 报书名先于逐字段
     p1 = "四十多年前，HBO在北美刚刚起步的时候，手里只有365户订阅用户。"

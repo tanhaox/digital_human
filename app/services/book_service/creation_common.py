@@ -300,10 +300,10 @@ def persona_anchor_issues(text: str) -> list[str]:
 
 
 def typing_card_issues(card: str, frozen_card: str = "") -> list[str]:
-    """打字卡骨架校验 (0914): 冻结卡→逐字一致; 自产卡→骨架三件套。
+    """打字卡骨架校验 (0914; 1029 两秒版): 冻结卡→逐字一致; 自产卡→骨架两件套.
 
-    骨架: 含 每晚睡前(行为频率) + 超过90%(量化) + 15~60字 + 零内部词
-    (集数词/系列/工具/判定/行动册 — 零上下文位)。违规打回重试。
+    骨架: 含 每晚睡前(行为频率) + 超过90%(量化) + 15~40字 (1029 两秒令: 原 15~60)
+    + 零内部词 (集数词/系列/工具/判定/行动册 — 零上下文位)。违规打回重试。
     """
     c = (card or "").strip()
     if not c:
@@ -314,13 +314,13 @@ def typing_card_issues(card: str, frozen_card: str = "") -> list[str]:
         return []
     issues = []
     if "每晚睡前" not in c:
-        issues.append("打字卡缺行为频率锚 ('每晚睡前' 式) — 骨架: 如果你能坚持每晚睡前看一集，一个月后，{收益}，会超过90%的{人群}")
+        issues.append("打字卡缺行为频率锚 ('每晚睡前' 式) — 骨架 (1029 两秒版): 每晚睡前看一集，一个月后，{收益}，超过90%的{人群}")
     if "超过90%" not in c:
         issues.append("打字卡缺量化对比 ('超过90%' 式)")
     if re.search(r"[二三四五六七八九十\d]{1,2}集|系列|工具|判定|行动册|秘籍", c):
         issues.append("打字卡混入系列内部词汇 (零上下文位, 冷观众秒不懂 — 集数/工具/判定✗; '一集'行为单位可用)")
-    if not 15 <= len(c) <= 60:
-        issues.append(f"打字卡长度 {len(c)} 不在 15~60")
+    if not 15 <= len(c) <= 40:
+        issues.append(f"打字卡长度 {len(c)} 不在 15~40 (1029 两秒令: 2s 速读上限)")
     return issues
 
 
