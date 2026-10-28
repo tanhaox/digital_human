@@ -3013,6 +3013,13 @@ def _build_doc(book_id: str, book_title: str, ep: int, ep_title: str,
         g_kf = str(g.get("keyframe_zh") or "").strip()
         g_camera = g.get("camera") or "固定"
         inner = g.get("shots") or [g]  # 无镜数组: 组即镜
+        # 1026 密度闸 (用户令"重点花字密度太高, 每镜都有"): 补字回填不再每镜必填 —
+        # 场级配额 特区场 ⌈n/2⌉ / 普通场 ⌈n/4⌉ (min 1); writer 已申报/迁移的事件
+        # 同样计数 (先到先得, 超配停填 — 剩余关键词归 overlay 大字轨, 信息不丢)
+        _gn = max(len(inner), 1)
+        _hook_scene = (gt0 - tc) < CST.zone_end()
+        _ev_quota = max(1, -(-_gn // (2 if _hook_scene else 4)))
+        _ev_n = 0
         g_shot_ids: list[str] = []
         for raw in inner:
             if not isinstance(raw, dict):
@@ -3092,7 +3099,12 @@ def _build_doc(book_id: str, book_title: str, ep: int, ep_title: str,
                     shot[_k] = raw[_k]
             # 0920 浮字军规: LLM 违规浮字当场下沉 overlay + text_layer 同步补登记
             _gate_motion_text(shot)
-            _ensure_motion_text(shot)  # 0920 补字回填 (军规逆操作)
+            _ev = shot.get("h3_text_event") or {}
+            if isinstance(_ev, dict) and str(_ev.get("text") or "").strip():
+                _ev_n += 1  # writer 申报/迁移所得, 占配额
+            # 0920 补字回填 (军规逆操作; 1026 密度闸: 配额内才补)
+            if _ensure_motion_text(shot, allow=(_ev_n < _ev_quota)):
+                _ev_n += 1
             shots_out.append(shot)
             g_shot_ids.append(sid)
         groups_meta.append({
@@ -3348,14 +3360,17 @@ def _gate_motion_text(shot: dict[str, Any]) -> bool:
 # H3 补字层整层蒸发, 视频全无文字 (用户实锤"一镜都没有"). 提示词劝不住 →
 # 落盘前确定性补 (同军规教义, 方向相反).
 
-def _ensure_motion_text(shot: dict[str, Any]) -> bool:
+def _ensure_motion_text(shot: dict[str, Any], allow: bool = True) -> bool:
     """从 text_layer 挑最强合规短标注入 motion_zh 文字事件 + beats 英文段.
 
     候选优先级 hero_number > impact > overlay (同 kind 取 t_start 最早);
     合规口径同军规: ≤2 字中文或纯短 ASCII、单 token、非花体、时间可达.
     注入子句自身必过 _gate_motion_text (幂等共存). brand_card 直通镜 /
     motion_zh 已有浮字事件 / 无 anim.beats → 不动. 返回是否改写.
-    """
+    allow (1026 密度闸, 用户令"重点花字密度太高"): False = 本镜跳过回填
+    (场级配额用尽; 已有事件的幂等守卫仍在前面)."""
+    if not allow:
+        return False
     if shot.get("brand_card"):
         return False
     span = round(float(shot.get("t_end") or 0) - float(shot.get("t_start") or 0), 2)
