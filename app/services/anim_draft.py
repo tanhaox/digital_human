@@ -202,28 +202,30 @@ def _typing_emph_spans(text: str) -> list[tuple[int, int]]:
 
 
 def _typing_split_lines(text: str) -> list[str]:
-    """打字卡按冻结骨架切行 (0916 行槽制; 1029 两秒版默认两行): 行槽随书但切点冻结.
+    """打字卡按冻结骨架切行 (1029 断行改版, 两行):
 
-    两秒版 (1029): "每晚睡前看一集，" | "一个月后，{X}，超过90%的{Y}。" — 无"，会超过"
-    时 i2 失配走 i1 回退, 恰好落两行. 旧三句版 (含"，会超过") 仍切三行 (历史卡兼容).
-    切点 = 看一集后的逗号 + 「，会超过」前的逗号; 骨架不合 (极端改写) 回退整句一行.
+    行1 "每晚睡前看一集，一个月后" (起始静态直出) | 行2 "{收益主体}，超过90%的{人群}。"
+    (逐字打字, 文字不变) — 切点 = 「一个月后」后的逗号, **断行处逗号不显示**
+    (大字排版惯例); 骨架不合 (无「一个月后」) 回退整句一行.
     """
-    i2 = text.find("，会超过")
-    i1 = text.find("，", text.find("看一集"))
-    if i1 > 0 and i2 > i1:
-        return [text[:i1 + 1], text[i1 + 1:i2 + 1], text[i2 + 1:]]
-    if i1 > 0:
-        return [text[:i1 + 1], text[i1 + 1:]]
+    i = text.find("一个月后")
+    if i > 0:
+        j = i + len("一个月后")
+        rest = text[j:]
+        if rest[:1] in ("，", ","):
+            rest = rest[1:]
+        return [text[:j], rest] if rest.strip() else [text[:j]]
     return [text]
 
 
 def _typing_line_ys(n: int) -> tuple[float, ...]:
-    """行槽 y. 0916 定稿: 行1 上提 (0.32 独立元素), 行2+3 块下移 (0.10/-0.03,
-    块中心 0.035 — 行间距 6 撑高块后与行1 两元素防叠, 用户验收调)."""
+    """行槽 y. 1029 断行改版 (n=2, 用户令'行距再拉开+整块上移一行'):
+    (0.25, 0.08) — 行距 0.13→0.17, 块中心 0.035→0.165 (上移一行);
+    旧 0916 版 (0.10, -0.03). n≥3 旧三行制保留 (历史卡回退位)."""
     if n >= 3:
         return (0.32,) + tuple(round(0.10 - 0.13 * i, 3) for i in range(n - 1))
     if n == 2:
-        return (0.10, -0.03)
+        return (0.25, 0.08)
     return (0.32,)
 
 
@@ -1883,8 +1885,27 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                 for L in lines:
                     offs.append(acc)
                     acc += len(L)
+                # 全文提亮 → 显示坐标 (1029 断行改版: 断行处逗号不显示, 原文与
+                # 显示坐标错位 — 顺次对齐走一遍, 丢弃字符无显示位 → -1)
+                disp_of = [-1] * len(typing_text)
+                _fi = _di = 0
+                for L in lines:
+                    for ch in L:
+                        while _fi < len(typing_text) and typing_text[_fi] != ch:
+                            _fi += 1
+                        if _fi < len(typing_text):
+                            disp_of[_fi] = _di
+                            _fi += 1
+                            _di += 1
+                emph_d: list[tuple[int, int]] = []
+                for s, e in emph:
+                    ds = next((disp_of[k] for k in range(s, e) if disp_of[k] >= 0), -1)
+                    de = next((disp_of[k] + 1 for k in range(e - 1, s - 1, -1)
+                               if disp_of[k] >= 0), -1)
+                    if 0 <= ds < de:
+                        emph_d.append((ds, de))
                 line1, rest = lines[0], lines[1:]
-                rest_off = len(line1)  # rest 元素内坐标 = 全文坐标 - 行1长度
+                rest_off = len(line1)  # rest 元素内坐标 = 显示坐标 - 行1长度
 
                 def _type_seg(txt: str, start_us: int, dur_us: int, y: float,
                               hl_spans: list[tuple[int, int]]):
@@ -1901,20 +1922,20 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                         shadow=_TYPE_SHADOW,
                         clip_settings=ClipSettings(transform_y=y))
 
-                # 行1: 静态直出 (无动画), 常驻整卡 0→2s
+                # 行1: 静态直出 (无动画), 常驻整卡 0→2s (1029 断行改版: 至「一个月后」)
                 l1_spans = [(max(s - offs[0], 0), min(e - offs[0], len(line1)))
-                            for s, e in emph if min(e, offs[0] + len(line1)) > max(s, offs[0])]
+                            for s, e in emph_d if min(e, offs[0] + len(line1)) > max(s, offs[0])]
                 try:
                     script.add_segment(_type_seg(line1, 0, 2 * _US, ys[0], l1_spans),
                                        "typing")
                 except Exception as exc:  # noqa: BLE001
                     logger.warning("[draft] 打字卡行1失败: %s", exc)
-                # 行2+3: 常驻元素 + 原生打字 (元素内坐标换算, \n 偏移逐行累计)
+                # 行2: 常驻元素 + 原生打字 (元素内坐标换算, \n 偏移逐行累计)
                 if rest:
                     rest_txt = chr(10).join(rest)
                     r_spans: list[tuple[int, int]] = []
                     for li in range(1, len(lines)):
-                        for s, e in emph:
+                        for s, e in emph_d:
                             ls = max(s - offs[li], 0)
                             le = min(e - offs[li], len(lines[li]))
                             if le > ls:
