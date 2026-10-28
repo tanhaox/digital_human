@@ -3013,12 +3013,11 @@ def _build_doc(book_id: str, book_title: str, ep: int, ep_title: str,
         g_kf = str(g.get("keyframe_zh") or "").strip()
         g_camera = g.get("camera") or "固定"
         inner = g.get("shots") or [g]  # 无镜数组: 组即镜
-        # 1026 密度闸 (用户令"重点花字密度太高, 每镜都有"): 补字回填不再每镜必填 —
-        # 场级配额 特区场 ⌈n/2⌉ / 普通场 ⌈n/4⌉ (min 1); writer 已申报/迁移的事件
-        # 同样计数 (先到先得, 超配停填 — 剩余关键词归 overlay 大字轨, 信息不丢)
+        # 1026 密度闸 v2 (用户令"7镜出1镜"): 补字回填场级配额统一 ⌈n/7⌉ (min 1,
+        # 不再分特区加倍 — v1 的 n/2·n/4 用户判仍太密); writer 已申报/迁移的事件
+        # 同样计数先到先得, 超配停填 (关键词归 overlay 大字轨, 信息不丢)
         _gn = max(len(inner), 1)
-        _hook_scene = (gt0 - tc) < CST.zone_end()
-        _ev_quota = max(1, -(-_gn // (2 if _hook_scene else 4)))
+        _ev_quota = max(1, -(-_gn // 7))
         _ev_n = 0
         g_shot_ids: list[str] = []
         for raw in inner:
