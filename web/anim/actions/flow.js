@@ -56,7 +56,7 @@ export function wireFlowActions({ store, runner, refresh, getSt, startJob }) {
     planScenes: () => startJob('/plan-scenes', {},
       '▶️ 分镜续跑: 按已确认的立意.md 逐场分镜 (每场 1-2 分钟 LLM, 零 GPU)。\n续跑前请先人工过目 立意.md (隐喻撞车警告在内)。继续?'),
     enhance: () => startJob('/enhance', {},
-      '🖌 手动增强 (1013 P0: 单写者直接产散文, 增强只作修复; 已增强的镜自动跳过)。继续?'),
+      '🖌 手动增强 (1101 治理版): 只修非 writer 镜 (fallback/器层) 的画面丰富度与动画层 — writer 五件套镜默认跳过 (修复走单镜🔁), 多拍镜只跟锚不动拍; 触及已生成镜会清媒体回 planned 重跑。继续?'),
     k2: () => startJob('/k2', {},
       '🎨 K2 批生图: 只生 planned 状态的镜 (~15s/镜), 已有图/视频不动。继续?'),
     // retry_failed 读 store (复选框 change 即写入), 不回读 DOM — 单向数据流

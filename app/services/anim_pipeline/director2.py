@@ -4093,11 +4093,22 @@ def _enhance_pass1(doc, book_title: str, only: set[str] | None,
     arcs = {str(a.get("arc_id") or ""): a for a in doc.get("arcs") or []}
     groups = {str(g.get("group_id") or ""): g for g in doc.get("groups") or []}
     n = 0
+    _wskip = 0
     for s in doc.get("shots") or []:
         if s.get("brand_card") or s.get("_enhanced1"):
             continue
         if only is not None and s["shot_id"] not in only:
             continue
+        # 1101 批2 单写者保护 (AUDIT A2): writer 五件套镜默认不入增强 — 手动增强是
+        # 旧人格多写者入口, 不再覆写 writer 产物; 修复走单镜🔁 (plan_shot 同契约)。
+        # only 显式点名 = 人工放行逃生口。
+        if s.get("writer_source") == "writer":
+            if only is not None:
+                logger.warning("[enhance1] %s writer 镜被显式点名 — 放行增强 (单写者保护例外)",
+                               s["shot_id"])
+            else:
+                _wskip += 1
+                continue
         base = str(s.get("keyframe_zh") or "").strip()
         if len(base) < 20:
             continue
@@ -4147,6 +4158,9 @@ def _enhance_pass1(doc, book_title: str, only: set[str] | None,
                                s.get("shot_id"), ratio, len(base), len(enhanced))
         except Exception as exc:  # noqa: BLE001 — 单镜失败不断批
             logger.warning("[enhance1] %s 失败用原句: %s", s.get("shot_id"), exc)
+    if _wskip:
+        logger.info("[enhance1] %d writer 镜按单写者保护跳过 (修复走单镜🔁; only= 点名可放行)",
+                    _wskip)
     return n
 
 
@@ -4159,14 +4173,34 @@ def _enhance_pass2(doc, only: set[str] | None, touched: set[str]) -> int:
     """
     from app.services.llm_service import get_llm_service as _llm, _parse_json
     n = 0
+    _wskip = 0
     for s in doc.get("shots") or []:
         if s.get("brand_card") or s.get("_enhanced2"):
             continue
         if only is not None and s["shot_id"] not in only:
             continue
+        # 1101 批2 单写者保护 (同 pass1): writer 五件套镜默认不入, only= 点名放行
+        if s.get("writer_source") == "writer":
+            if only is not None:
+                logger.warning("[enhance2] %s writer 镜被显式点名 — 放行增强 (单写者保护例外)",
+                               s["shot_id"])
+            else:
+                _wskip += 1
+                continue
         scene = str(s.get("keyframe_zh") or "").strip()
         base_motion = str(s.get("motion_zh") or "").strip()
         if len(scene) < 20 or len(base_motion) < 8:
+            continue
+        # 1101 批2 保拍版 (AUDIT A2): beats_enrich 多拍成果不塌 — ≥2 拍说明拍级
+        # motion 已按图真锚编排, pass2 单 motion 重写必然 flatten; 让位只跟锚
+        # (opening_desc 逐字 keyframe_en, 0917 图视失配教训), 拍结构/motion 不动。
+        _beats = (s.get("anim") or {}).get("beats") or []
+        if len(_beats) >= 2:
+            _kf_en = str(s.get("keyframe_en") or "").strip()
+            if _kf_en and str(s["anim"].get("opening_desc") or "") != _kf_en:
+                s["anim"] = {**s["anim"], "opening_desc": _kf_en}
+                touched.add(s["shot_id"])
+            s["_enhanced2"] = True
             continue
         beats_motion = ""
         try:
@@ -4220,6 +4254,8 @@ def _enhance_pass2(doc, only: set[str] | None, touched: set[str]) -> int:
             n += 1
         except Exception as exc:  # noqa: BLE001 — 单镜失败不断批
             logger.warning("[enhance2] %s 失败, motion/anim 留原: %s", s.get("shot_id"), exc)
+    if _wskip:
+        logger.info("[enhance2] %d writer 镜按单写者保护跳过 (同 pass1)", _wskip)
     return n
 
 
