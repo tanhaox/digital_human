@@ -50,7 +50,7 @@
 
 ## 七、关键上下文
 
-- pytest 基线：`pytest tests/ -m "not real_api"` → **6 failed / 376 passed / 6 deselected**（1021~22 看板 +13; 1026 风格栈/立意宪法/负提示词前置批 +22; 失败集不变=历史债）。
+- pytest 基线：`pytest tests/ -m "not real_api"` → **6 failed / 430 passed / 6 deselected**（1101 统一架构升级 +44 / TTS交接面处置 +10; 此前 1021~26 批 +35; 失败集不变=历史债）。
   已知失败项（历史债，与本轮重构无关）：
   - test_module_map ×3（AssertionError×2 / IndexError）
   - test_tts_chunk_semantic ×2
