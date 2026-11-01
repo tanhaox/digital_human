@@ -521,6 +521,42 @@ def get_job(job_id: str, db: Session = Depends(get_db)):
     return job
 
 
+@router.post("/jobs/{job_id}/adopt")
+def adopt_job(job_id: str, db: Session = Depends(get_db)):
+    """✔验收采用 (1101 U8): 人耳确认+版本钉选一体 — episode.audio_job_id 落库后,
+    动画工坊只吃这一版 (再生成/reroll 不再静默换轨, 顶栏提示换轨直到重新采用)。
+
+    返回包数/选中段数/whisper 未解决回听行数 — 人闸信息充分 (未解决行>0 可采用
+    但 toast 亮出, 不硬拦, 人闸哲学)。
+    """
+    job = db.query(AudioJob).filter(AudioJob.id == job_id).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Audio job not found")
+    if job.status != "completed":
+        raise HTTPException(status_code=422, detail=f"只有 completed 任务可验收采用 (当前 {job.status})")
+    ep = db.query(Episode).filter(Episode.script_id == job.script_id).first()
+    if not ep:
+        raise HTTPException(status_code=404, detail="该任务不属于任何集 (Episode 未绑定 script)")
+    ep.audio_job_id = job.id
+    db.commit()
+    packs = 0
+    unresolved = 0
+    try:
+        m = json.loads((Path(job.output_dir) / "manifest.json").read_text(encoding="utf-8"))
+        packs = sum(1 for e in m.get("segments") or [] if str(e.get("text") or "").strip())
+    except Exception:  # noqa: BLE001 — manifest 读失败只影响提示数字
+        logger.warning("[adopt] manifest 读取失败 (提示数字缺失): %s", job.id[:8])
+    try:
+        vr = json.loads((Path(job.output_dir) / "verify_report.json").read_text(encoding="utf-8"))
+        unresolved = len(vr.get("unresolved") or [])
+    except Exception:  # noqa: BLE001 — 回听报告缺=视为无未解决
+        logger.debug("[adopt] verify_report 缺失, 未解决计 0: %s", job.id[:8])
+    logger.info("[adopt] ep%d 验收采用 job %s (%d 包, 回听未解决 %d 行)",
+                ep.ep_index, job.id[:8], packs, unresolved)
+    return {"episode_id": ep.id, "ep_index": ep.ep_index, "audio_job_id": job.id,
+            "packs": packs, "unresolved_whisper": unresolved}
+
+
 @router.post("/jobs/{job_id}/cancel", response_model=AudioJobOut)
 def cancel_job(job_id: str, db: Session = Depends(get_db)):
     """请求停止 TTS 任务 (段间软取消, 已生成段保留断点续传).

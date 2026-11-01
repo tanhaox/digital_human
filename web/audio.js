@@ -811,6 +811,40 @@ async function loadAudioFiles(jobId) {
     prependCombinedAudio(combined);
   }
   files.filter(f => f.segment_id).forEach(f => appendAudioItem(f));
+  prependAdoptBar(jobId);  // 1101 U8: ✔验收采用 (拆书动画线)
+}
+
+// 1101 U8 ✔验收采用: 人耳确认+版本钉选一体 — 工坊只吃钉选版 (episode.audio_job_id),
+// 再生成/reroll 不再静默换轨; 未钉选=旧行为 (最新 completed) 不变。
+function prependAdoptBar(jobId) {
+  const container = document.getElementById('audio-list');
+  if (!container) return;
+  const prev = document.getElementById('adopt-bar');
+  if (prev) prev.remove();
+  const ctx = _pptBookCtx();
+  if (!ctx.book_id || !ctx.ep_index || window._IS_BS1_BOOK) return;  // 仅拆书动画线
+  const bar = document.createElement('div');
+  bar.id = 'adopt-bar';
+  bar.className = 'audio-item';
+  bar.style.borderLeft = '3px solid #16a34a';
+  bar.innerHTML = `<div style="padding:.35rem 0">
+    <button class="sm" style="background:#16a34a;color:#fff;border:none;padding:4px 14px;border-radius:6px;cursor:pointer"
+      onclick="adoptAudio('${jobId}')">✔ 验收采用本版</button>
+    <span id="adopt-note" style="margin-left:.6rem;color:#94a3b8;font-size:.85rem">人耳听过没问题就钉选 — 动画工坊从此只吃这一版 (再生成/reroll 不再静默换轨)</span>
+  </div>`;
+  container.prepend(bar);
+}
+
+async function adoptAudio(jobId) {
+  try {
+    const r = await api('POST', `/audio/jobs/${jobId}/adopt`);
+    const note = document.getElementById('adopt-note');
+    const warn = r.unresolved_whisper > 0
+      ? ` · <b style="color:#f87171">⚠回听未解决 ${r.unresolved_whisper} 行</b> (已采用, 建议回头听一遍)` : '';
+    if (note) note.innerHTML = `<b style="color:#4ade80">✓ 已验收采用</b> (第${r.ep_index}集 · ${r.packs} 包${warn}) — 工坊从此只吃这一版`;
+  } catch (e) {
+    setStatus('status-audio', '验收采用失败: ' + e.message, true);
+  }
 }
 
 // ── 音频加工 → 视觉导演衔接: 倒计时跳转, 携带 script/audio ID ──

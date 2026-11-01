@@ -80,6 +80,9 @@ class Episode(Base):
     # 进产线桥接 (2026-08-19): 确认后生成 Script+segments, 复用 TTS/导演/合成/JY 全链
     script_id: Mapped[str | None] = mapped_column(String(36), default=None)
     director_job_id: Mapped[str | None] = mapped_column(String(36), default=None)
+    # 1101 U8 音频钉选 (验收采用): 人耳确认+采用一体的版本锚 — 钉了的 AudioJob
+    # 是工坊唯一真相 (再生成/reroll 不再静默换轨); NULL=最新 completed (旧行为)。
+    audio_job_id: Mapped[str | None] = mapped_column(String(36), default=None)
     # bs1 页单快照 (2026-09-08 老谭读书产线): 确认后的页单 (含字段/配图/时长),
     # [{type, narration, fields, img_query, img_cap, img_file, img_pexels_id, png, est_sec}]
     bs1_pages_json: Mapped[list[Any] | None] = mapped_column(JSON, default=None)

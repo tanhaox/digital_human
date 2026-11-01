@@ -129,6 +129,15 @@ def _apply_manual_migrations(engine) -> None:
                     conn.execute(text("ALTER TABLE audio_jobs ADD COLUMN tts_cache_key VARCHAR(64)"))
                 logger.info("[db] migrated: audio_jobs.tts_cache_key column added")
 
+        # book_episodes.audio_job_id (2026-11-01, 1101 U8): 音频钉选 (验收采用) —
+        # 人耳确认+采用一体的版本锚, 钉了的 job 是动画工坊唯一音频真相。
+        if "book_episodes" in tables:
+            cols = {c["name"] for c in inspector.get_columns("book_episodes")}
+            if "audio_job_id" not in cols:
+                with engine.begin() as conn:
+                    conn.execute(text("ALTER TABLE book_episodes ADD COLUMN audio_job_id VARCHAR(36)"))
+                logger.info("[db] migrated: book_episodes.audio_job_id column added")
+
         # personas 整合账号字段 (2026-08-08): 人物即账号.
         # Persona 吸收品牌/开结尾/显式 host_id 绑定, 洗稿页选人物即选账号.
         if "personas" in tables:

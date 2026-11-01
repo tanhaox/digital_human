@@ -640,23 +640,41 @@ def timeline_violations(book_ref: str, ep: int, tol: float = 0.06) -> list[str]:
 
 
 def fetch_episode_audio(book_id: str, ep: int) -> dict[str, Any]:
-    """episode.script_id → 最新 completed AudioJob 的音频包.
+    """episode → 验收采用版 (1101 U8 钉选优先) / 最新 completed AudioJob 的音频包.
 
-    返回 {files: [{file: 绝对路径, text, dur_s}], job_id, output_dir}.
-    优先 manifest.json (0913 包化: 一个 wav=一整包文本, 合成输入的真相);
-    老行级产物回退 AudioFile 行 + Segment 单行文本.
+    返回 {files: [{file: 绝对路径, text, dur_s}], job_id, output_dir,
+    pinned, pinned_lost}。manifest.json 是包文本/时长真相 (0913 包化);
+    老行级回退已删 (1101 D9: 史前无 manifest job 明确报错)。
     """
     with closing(get_session_maker()()) as db:
         episode = db.query(Episode).filter(
             Episode.book_id == book_id, Episode.ep_index == ep).first()
         if not episode or not episode.script_id:
-            raise AnimNotFound(f"第 {ep} 集没有产线 script_id (先在讲书页产出/进产线)")
-        job = (db.query(AudioJob)
-               .filter(AudioJob.script_id == episode.script_id,
-                       AudioJob.status == "completed")
-               .order_by(AudioJob.created_at.desc()).first())
+            raise AnimNotFound(
+                f"第 {ep} 集没有产线 script_id — 刚点过 🔊重建音频工位? "
+                "去讲书页生成音频并 ✔验收采用, 再回工坊")
+        pinned = bool(getattr(episode, "audio_job_id", None))
+        job = None
+        pinned_lost = False
+        if pinned:
+            job = (db.query(AudioJob)
+                   .filter(AudioJob.id == episode.audio_job_id,
+                           AudioJob.status == "completed").first())
+            if job is None:
+                # 验收版被重建删除/标 stale — 回退最新并亮牌 (A4 分型)
+                pinned_lost = True
+                logger.warning("[audio] ep%d 验收采用的 job %s 已不存在 (被重建删除?) — "
+                               "回退最新 completed, 建议重新验收采用",
+                               ep, str(episode.audio_job_id)[:8])
+        if job is None:
+            job = (db.query(AudioJob)
+                   .filter(AudioJob.script_id == episode.script_id,
+                           AudioJob.status == "completed")
+                   .order_by(AudioJob.created_at.desc()).first())
         if not job:
-            raise AnimNotFound("该集没有已完成的 TTS 音频 (先在音频页生成)")
+            raise AnimNotFound("该集没有已完成的 TTS 音频 (先在音频页生成并 ✔验收采用)")
+        if pinned and job.id != episode.audio_job_id:
+            pinned = False   # 钉选失效回退态 (pinned_lost 已亮)
         rows = (db.query(AudioFile)
                 .filter(AudioFile.audio_job_id == job.id)
                 .order_by(AudioFile.filename).all())
@@ -677,14 +695,13 @@ def fetch_episode_audio(book_id: str, ep: int) -> dict[str, Any]:
                 # 三层不一致元凶)。规划/对齐一律吃 manifest。
                 seg_durs = {e.get("file"): float(e.get("duration") or 0)
                             for e in data.get("segments") or [] if e.get("file")}
-            except Exception:  # noqa: BLE001 — manifest 坏则回退行级
-                logger.warning("[align] manifest.json 解析失败, 回退 Segment 文本: %s", mf)
+            except Exception:  # noqa: BLE001 — manifest 坏按缺失处理 (D9: 行级回退已删)
+                logger.warning("[audio] manifest.json 解析失败: %s", mf)
         if not texts:
-            from app.models import Segment
-            seg_ids = [f.segment_id for f in rows if f.segment_id]
-            seg_texts = {s.id: s.text for s in db.query(Segment).filter(
-                Segment.id.in_(seg_ids or [""])).all()} if seg_ids else {}
-            texts = {f.filename: seg_texts.get(f.segment_id or "", "") for f in rows}
+            # 1101 D9: 老行级回退删除 — 0913 包化后 manifest 是唯一真相, 史前
+            # 无 manifest 的 job 直接指路重生成 (静默降级会污染时间轴)。
+            raise AnimNotFound(
+                f"音频 job {job.id[:8]} 无 manifest.json (史前 job) — 在音频页重新生成")
         files = []
         for f in rows:
             # full_paragraph.wav = 整段拼接试听产物 (播放器用), 非合成包 —
@@ -701,7 +718,8 @@ def fetch_episode_audio(book_id: str, ep: int) -> dict[str, Any]:
                           "module_id": mod_ids.get(f.filename)})
         if not files:
             raise AnimNotFound(f"音频 job {job.id} 没有可用 wav")
-        return {"files": files, "job_id": job.id, "output_dir": job.output_dir}
+        return {"files": files, "job_id": job.id, "output_dir": job.output_dir,
+                "pinned": pinned, "pinned_lost": pinned_lost}
 
 
 def concat_voice(files: list[dict[str, Any]], out_wav: Path) -> Path:
