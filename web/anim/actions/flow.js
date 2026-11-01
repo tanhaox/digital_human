@@ -60,12 +60,30 @@ export function wireFlowActions({ store, runner, refresh, getSt, startJob }) {
     k2: () => startJob('/k2', {},
       '🎨 K2 批生图: 只生 planned 状态的镜 (~15s/镜), 已有图/视频不动。继续?'),
     // retry_failed 读 store (复选框 change 即写入), 不回读 DOM — 单向数据流
-    h3: () => startJob('/h3', { retry_failed: store.get().h3Retry },
-      '🎬 H3 批量 (保留规划+图): 清除全部已生成视频, 重新生视频 (~100s/镜)。继续?'),
+    h3: () => {
+      const { h3Retry, h3Reset } = store.get();
+      if (h3Reset) {
+        // 1101 D1: 全量重渲露出为显式动作 (reset 语义 UI 此前发不出来, confirm
+        // 文案却一直声称会清全部 — 文案与行为不符实锤)。二次确认钉死破坏面。
+        if (!confirm('💥 全量重渲: 清除全部已生成视频历史 (anim_done 一并回 approved 重跑),\n'
+          + '图保留 · ~100s/镜 · 全集重烧 GPU。确定?')) return;
+        return startJob('/h3', { reset: true });
+      }
+      return startJob('/h3', { retry_failed: h3Retry },
+        '🎬 H3 批生视频: 只生成「已过审」镜 (~100s/镜); 已成片 (anim_done) 不动;\n'
+        + (h3Retry ? '勾选了⚡连带重试败镜: anim_fail 一并重跑 (换seed)。\n' : '')
+        + '要重做成片镜: 单镜🎲重roll / 购物篮♻️ / 勾选💥全量重渲。继续?');
+    },
     brand: () => startJob('/brand', {},
       '🏔 生成本书品牌卡: 骨架冻结(登山客三拍) + 本书动画风格与色板 (~2min GPU, 一次生成全系列复用)。\n旧全局卡将被本书卡取代 (仪式句改后期金字)。继续?'),
     alignDry: () => doAlign(true),
-    align: () => doAlign(false),
+    // 1101 D2: 对齐落盘是重写相位 (重钉/归真/拆镜/媒体裁决), 不是纯体检 — confirm 说清
+    align: async () => {
+      if (!confirm('🎚 对齐落盘: 槽镜重钉 + 句级归真 + 拆镜重设计 (LLM) + 失效媒体裁决\n'
+        + '(文案变/漂移镜清图或清片) + beats 自愈 + 音效清单刷新。\n'
+        + '这是重写相位不是纯体检 — 试算不跑这些步骤。继续?')) return;
+      await doAlign(false);
+    },
     async approveAll() {
       if (!confirm('全部 img_done 镜过审?')) return;
       const r = await api('/approve', { ok: 'all' });

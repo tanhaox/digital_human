@@ -7,7 +7,7 @@ import { media, BOOK } from './context.js';
 const STORY_URL = `/web/books_story.html?book_id=${encodeURIComponent(BOOK)}`;
 
 /**
- * @param {{st: object|null, h3Retry: boolean}} state
+ * @param {{st: object|null, h3Retry: boolean, h3Reset: boolean}} state
  */
 export function topbarView(state) {
   const st = state.st;
@@ -15,7 +15,7 @@ export function topbarView(state) {
   $('#title').textContent = `${st.book_title} · 第${st.ep}集`;
   $('#sub').innerHTML = sublineHtml(st);
   renderCounts(st.counts || {});
-  renderButtons(st, state.h3Retry);
+  renderButtons(st, state.h3Retry, state.h3Reset);
   renderBrandPreview(st);
   $('#qc-link').hidden = !st.planned;
   $('#qc-link').href = fileUrl('qc_sheet.html', media.ver);
@@ -53,7 +53,7 @@ function renderCounts(c) {
       + ` data-st="${esc(k)}" title="点击定位: 依次跳到「${esc(stLabel(k))}」的镜 (连点轮换)">${stLabel(k)} ${v}</button>`).join('');
 }
 
-function renderButtons(st, h3Retry) {
+function renderButtons(st, h3Retry, h3Reset) {
   const c = st.counts || {};
   const busy = !!st.running_job;
   const noAudio = !st.audio_ready;
@@ -65,8 +65,10 @@ function renderButtons(st, h3Retry) {
   $('#btn-concept-open').hidden = !((st.arcs || []).length);  // 1005 具象化改判: 有骨架即可唤起立意面板
   $('#btn-k2').disabled = busy || !(c.planned > 0);
   $('#btn-approve-all').disabled = !(c.img_done > 0);
+  // 1101 D1: h3Reset 模式下全集可重渲 (reset 清历史后全镜回 approved)
   $('#btn-h3').disabled = busy ||
-    !((c.approved || 0) > 0 || (h3Retry && c.anim_fail > 0));
+    !((c.approved || 0) > 0 || (h3Retry && c.anim_fail > 0)
+      || (h3Reset && (st.total || 0) > 0));
   $('#btn-align-dry').disabled = $('#btn-align').disabled = busy || !st.planned;
   $('#btn-draft').disabled = busy || !st.planned;
 }

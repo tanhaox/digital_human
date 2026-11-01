@@ -16,8 +16,8 @@ import { initCart } from './cart.js';
 // 0924 撤回 confirm 覆写 — 它永远 return true, 绕过了"全清重来"等破坏性操作的安全确认
 // (两次误清 38 镜视频实锤)。原生 confirm 虽然丑但保命, 恢复原版。
 
-// h3Retry 入 store: 按钮态/请求体都读 store, 不再回读 DOM (单向数据流)
-const store = createStore({ st: null, h3Retry: false });
+// h3Retry/h3Reset 入 store: 按钮态/请求体都读 store, 不再回读 DOM (单向数据流)
+const store = createStore({ st: null, h3Retry: false, h3Reset: false });
 
 /** 任务终点: 刷媒体版本 (防旧图, 见 context.media) → 重拉状态 */
 const runner = createJobRunner({
@@ -58,6 +58,7 @@ initCart({ store });
 // 页面级资源回收站: 输入监听 + 页面隐藏时的通道拆除
 const pageDeps = createDisposer();
 pageDeps.on($('#h3-retry'), 'change', e => store.set({ h3Retry: e.target.checked }));
+pageDeps.on($('#h3-reset'), 'change', e => store.set({ h3Reset: e.target.checked }));
 pageDeps.on(window, 'pagehide', () => { pageDeps.dispose(); runner.detach(); }, { once: true });
 pageDeps.on(window, 'pageshow', () => refresh());   // bfcache 返回: 重挂任务通道
 
