@@ -271,6 +271,10 @@ async function saveScript() {
     return;
   }
   const text = document.getElementById('script-text').value.trim();
+  // 1101 B5: 整稿保存会把旧音频标记过期, 下次生成=全量重合成 — 改个别字
+  // 请去音频页行内 ✎编辑 (单行重合成, 四处同步不动其他包)。
+  if (!confirm('保存整稿? 旧音频将标记过期 — 下次「生成音频」全量重合成。\n'
+    + '只改个别字: 取消后去音频页用行内 ✎编辑 (单行重合成)。确定保存整稿?')) return;
   try {
     // 2026-08-12: 改造后编辑区显示改造稿, 保存写回 boosted_text (TTS 用改造稿)
     const hasBoosted = !!currentScript.boosted_text;
