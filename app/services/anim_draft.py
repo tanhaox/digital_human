@@ -271,6 +271,20 @@ def _collect_text_events(shots: list[dict[str, Any]]) -> tuple[list[dict[str, An
                 heroes.append(ev)
             else:
                 caps.append(ev)
+        # 1101 U6 事件字统一出口 (AUDIT B1 根治): h3 工位镜的 h3_text_event 由装配层
+        # 渲金色大字 — 1021 镜内渲字下线后该字段在 h3 镜零出口; r2v 人物镜视频内渲
+        # 艺术字 (1024 R2/R3 实证) 不双渲; 品牌镜定卡时已确定性剥除 (双保险再挡)。
+        _evd = s.get("h3_text_event") or {}
+        _ev_txt = str(_evd.get("text") or "").strip()
+        if (_ev_txt and not s.get("brand_card")
+                and str(s.get("video_station") or "h3") != "r2v"):
+            _s0 = float(s.get("t_start") or 0)
+            _s1 = float(s.get("t_end") or 0) or _s0 + 2.5
+            _at = _evd.get("at_s")
+            _a0 = _s0 + (float(_at) if isinstance(_at, (int, float)) else 0.3)
+            heroes.append({"a0": _a0, "a1": min(_a0 + 2.5, _s1),
+                           "text": _ev_txt, "kind": "h3_event", "sid": s["shot_id"],
+                           "zone": str(_evd.get("zone") or "")})
     for evs in (caps, heroes, impacts):
         evs.sort(key=lambda e: e["a0"])
         for i, ev in enumerate(evs):
@@ -281,12 +295,44 @@ def _collect_text_events(shots: list[dict[str, Any]]) -> tuple[list[dict[str, An
     return caps, heroes + impacts
 
 
+def _h3_event_y(zone: str) -> float:
+    """事件字落点 zone → hero 轨 y 偏移 (1101 U6; 未识别 zone 默认上方)。"""
+    z = str(zone or "")
+    for k, v in (("头顶", -0.45), ("上方", -0.45), ("上部", -0.45),
+                 ("中部", 0.0), ("中部偏下", 0.2), ("下方", 0.42), ("底部", 0.42)):
+        if k in z:
+            return v
+    return -0.4
+
+
 def _render_hero(script: Any, events: list[dict[str, Any]]) -> int:
     """标题层渲染 (0916 降维令后仅剩 title; hero_number/impact/logo_note 全降维进
-    字幕行内高亮 — 0917 补 logo_note: 独立层只产出孤岛浮字, 见 _render_captions)."""
+    字幕行内高亮 — 0917 补 logo_note: 独立层只产出孤岛浮字, 见 _render_captions)。
+
+    1101 U6: h3_event 分支 — h3 工位镜的事件字渲金色大字 (字体保真零乱码,
+    替代 1021 下线的 H3 镜内渲字; r2v 人物镜视频内渲不进此流)。"""
     n = 0
     for ev in events:
         kind = ev["kind"]
+        if kind == "h3_event":
+            dur_us = max(int(round((ev["a1"] - ev["a0"]) * _US)), 1_200_000)
+            try:
+                seg = TextSegment(
+                    ev["text"],
+                    trange(int(round(ev["a0"] * _US)), dur_us),
+                    style=TextStyle(size=14, bold=True, color=_GOLD, max_line_width=0.6),
+                    clip_settings=ClipSettings(transform_y=_h3_event_y(ev.get("zone"))))
+                _anim = getattr(draft_mod.TextIntro, "逐字显影", None)
+                if _anim is not None:
+                    try:
+                        seg.add_animation(_anim, min(500_000, dur_us))
+                    except Exception:  # 动效失败字照上 (观察级)
+                        logger.debug("[draft] 事件字显影动效失败 (字照上)", exc_info=True)
+                script.add_segment(seg, "hero")
+                n += 1
+            except Exception as exc:  # noqa: BLE001 — 单条失败不炸草稿
+                logger.warning("[draft] 事件字大字失败 %s: %s", ev.get("sid"), exc)
+            continue
         if kind != "title":
             continue
         style, ty = TextStyle(size=16, bold=True, color=_GOLD,

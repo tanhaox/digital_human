@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """huazi_pass — 段落级花字提炼+分配 (1016 用户令 → 1017 W3 入管线).
 
-文字总路由的 h3_text_event 唯一写者 (规划收尾 _finalize_doc 自动执行;
+文字总路由的 h3_text_event 弧级仲裁者 (1101 U6 口径: writer 镜级稀疏申报在先,
+本 pass 规划收尾重排终案并覆盖; 规划收尾 _finalize_doc 自动执行;
 beats/motion 旧内嵌路由已由 director2 收敛于此)。两段式:
   A 段 (每弧一次 LLM, fail-open): 喂料首选弧主旨 metaphor_core (立意单一源,
      缺失才自推导), 提炼 0-3 个 ≤4 字完整关键词 + 口播原词锚 spoken。
@@ -63,7 +64,9 @@ def _best_shot(kw: dict[str, Any], arc_shots: list[dict[str, Any]]) -> str | Non
 
 
 def enrich_text_route(doc: dict[str, Any]) -> dict[str, str]:
-    """弧级花字 pass: 写 h3_text_event (唯一写者) + text_layer 同词去重。
+    """弧级花字 pass: 写 h3_text_event (弧级仲裁, 覆盖 writer 镜级申报 — 1101 U6
+    口径: writer 镜级稀疏申报 ~1/7 密度, huazi 弧级在规划收尾重排终案) +
+    text_layer 同词去重。
 
     返回 {sid: 花字} 终案; LLM 失败 fail-open (弧跳过, 不炸 finalize)。"""
     from .config import load as _anim_load

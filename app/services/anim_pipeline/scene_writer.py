@@ -20,7 +20,11 @@ import re
 from typing import Any
 
 from . import constitution as CST
-from .law_blocks import CAMERA_LAW_BULLET, CAMERA_LAW_CONTRACT  # 1101 U1 军规单一真源
+from .law_blocks import (  # 1101 U1 军规单一真源
+    CAMERA_LAW_BULLET,
+    CAMERA_LAW_CONTRACT,
+    TEXT_ROUTE_CHANNEL,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +90,7 @@ WRITER_SYS = """你是顶级动画短片的导演兼电影摄影师 (Writer-Dire
 3. **文字三路由** (每个文字元素必须三选一, 绝不混用; motion_zh/en 散文里**永不描述文字**):
    - **H3 事件字** (动画中浮现, 如头顶浮出「太棒了」): 申报字段 `h3_text_event`
      {"text": "≤4字", "at_s": 秒, "zone": "落点(如 头顶上方)"}; 画面句必须在对应落点**留白预留**
-     (写「头顶上方留出干净空背景」类描述); H3 渲染它。
+     (写「头顶上方留出干净空背景」类描述); @@TEXT_ROUTE_CHANNEL@@。
    - **K2 图内字** (t=0 就在画面上, 标签/匾额/牌面): 画面句写**空白载体** + 申报 `in_image_text`
      (≤4行) — 系统二段合成, 禁止画面句直接写「写着XX/黑字/手写体」。
    - **花字** (后期叠字): 只进 `text_layer`。
@@ -115,7 +119,8 @@ WRITER_SYS = """你是顶级动画短片的导演兼电影摄影师 (Writer-Dire
    含动物/器物, "画面外一匹马摆尾"型幻影实体=废稿），主体写**动作过程**（谁从哪到哪/
    什么因果在发生）优先于氛围描述，并给出秒级事件（"第1.0秒…"）；motion_en 是它的
    英文同源版，**每镜必填** (纯英文环境微动, **永不描述文字事件** — 1021 视频模型渲字
-   乱码实锤, 镜内字通道下线, 事件字只进 h3_text_event 字段交后期)，漏填任一镜 = 整场废稿。
+   乱码实锤, 镜内字通道下线, 事件字只进 h3_text_event 字段: @@TEXT_ROUTE_CHANNEL@@)，
+   漏填任一镜 = 整场废稿。
 4. 每镜 200-250 字中文画面句：景别角度开头，然后是空间、光线现象（禁色温/补光比等术语）、
    主体（人物带造型括注）、动作、可画细节。散文，不是参数表。
 5. 人物多样性：同一场里出现的人物在姿态/景别/构图上必须各异；人物统一=书级冻结 —
@@ -183,7 +188,9 @@ WRITER_SYS = """你是顶级动画短片的导演兼电影摄影师 (Writer-Dire
 """
 
 # 1101 U1 军规单一真源: 运镜条款从 law_blocks 注入 (同 director2 占位符惯例)
-WRITER_SYS = WRITER_SYS.replace("@@CAMERA_LAW@@", CAMERA_LAW_BULLET)
+WRITER_SYS = (WRITER_SYS
+              .replace("@@CAMERA_LAW@@", CAMERA_LAW_BULLET)
+              .replace("@@TEXT_ROUTE_CHANNEL@@", TEXT_ROUTE_CHANNEL))  # 1101 U6 通道句注入
 
 
 def writer_blocks(arc: dict[str, Any], zones: list[str],

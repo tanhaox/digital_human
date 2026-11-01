@@ -757,6 +757,9 @@ def run_batch(doc: dict[str, Any], only: set[str] | None = None, retry_failed: b
                 for s in doc["shots"]:
                     s["_book_title"] = doc["book_title"]
                 station = _pick_video_station(shot)
+                # 1101 U6 事件字出口戳: 装配层据此判 h3_text_event 渲不渲金字
+                # (r2v 视频内渲艺术字, h3 工位由装配层渲 — 不双渲不丢失)
+                shot["video_station"] = station
                 if station == "r2v":
                     _r2v_mod.run_shot(shot, doc)
                     logger.info("[r2v] %s done (工位路由→r2v)", shot["shot_id"])

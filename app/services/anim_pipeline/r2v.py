@@ -255,6 +255,7 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
     接口同 h3.run_shot (编排器可直换). 产线配方=⑤b 定稿 (4步弹匣 44s/镜).
     """
     t0 = time.monotonic()
+    shot["video_station"] = "r2v"  # 1101 U6 出口戳 (双保险: 直调本工位也落戳)
     base_dir = shots_mod.ep_dir(doc["book_title"], doc["ep"])
     dest = base_dir / "anim" / f"{shot['shot_id']}.mp4"
 
