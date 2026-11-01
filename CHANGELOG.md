@@ -4,6 +4,16 @@
 > 2026-07 ~ 2026-09 历史条目已归档至 `docs/changelog/`（见下方切片索引），
 > 历史条目零改动，docs/... 路径以项目根为基准。
 
+## 2026-11-01(六)｜运镜升级断链根修 — writer 主路注入 + 短槽剥词闸
+
+### 做了什么
+**症状**: B-CAM1 运镜升级 (1024) 后, ♻️ 列队重做偶尔触发运镜, 🧭 全清→分镜续跑几乎无效。**根因**: 升级 (bd6ac30+4cbe2fa) 只注入旧导演人格 DIRECTOR_SYS, 没注入产线主路单写者 — 续跑链 `_scenes_flow → dispatch_scene (writer_enabled=true) → plan_scene(mode="writer") → WRITER_SYS` 全程零运镜条款, 契约仅"camera/scene_tag 照旧"+示例钉死"固定" → writer 镜运镜 0/108 命中 (顾问 ep1-3 实查); ♻️ 走 `plan_shot → DIRECTOR_SYS`(有解锁条款) 是唯一偶尔生效来源; fallback 链 STRUCT 枚举有六词无规则 → 乱撒短槽 (ep3 s10=3.1s/s12=4.9s/s45=5.2s 全违 ≥6s 铁律)。**修**: ① WRITER_SYS 第 11 条运镜白名单 + writer_blocks 契约明确 camera 词表 (双向配额: 含 ≥6s 槽的场 ≥1 镜、每场 ≤2 镜、单镜单运镜、大幅配慢速、揭示物写 motion 末拍); ② DIRECTOR_SYS 两处 + STRUCT 第四步运镜词纪律同步配额; ③ 新增确定性出口闸 `enforce_camera_span` (槽 <5.95s 命中六词→按分隔段剥词, 保留景别词, 剩空回"固定", 不驱动重写), 挂 plan_scene 合并尾/plan_shot/redesign_split_clones 尾三处, 罩 writer/fallback/拆镜继承三来源。
+### 验证
+新测试 tests/test_camera_span_gate.py 5 测 (剥词/保景别/≥6s 不动/非运镜词不动/三提示静态断言防再断链) 全绿; pytest **6f/381p** (基线 6f/376p, +5 全为本批, 失败集=历史债原样); ruff 24 条=HEAD 24 条零新增。生效=重启后端。
+### 遗留
+存量四镜 (ep2 s60 / ep3 s10/s12/s45) 不回刷 (用户令: 补丁须规划后打, 翻新走 ♻️); 军规 §10 执法点地图已补三行。
+案卷: 见本条 (improvements 案卷随下批归类)
+
 ## 2026-10-29(四)｜顾问ep1 开场链补全 + s72 品牌镜尾缺补片 (零代码, 纯生成+装配)
 
 ### 做了什么
