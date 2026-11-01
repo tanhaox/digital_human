@@ -102,6 +102,9 @@ def enrich_text_route(doc: dict[str, Any]) -> dict[str, str]:
                             _TPL.format(thesis=thesis, passage=passage,
                                         shots=shots_desc))
         except Exception as exc:  # noqa: BLE001 — fail-open, 不炸规划
+            # 1101 F3: 失败留痕 (旧版静默跳过 — 弧级花字缺失无人知)
+            doc.setdefault("_huazi_warnings", []).append(
+                f"{arc}: 弧级花字 LLM 失败跳过 ({str(exc)[:60]})")
             logger.warning("[huazi] arc %s LLM 失败 (跳过): %s", arc, str(exc)[:80])
             continue
         taken: set[int] = set()

@@ -302,17 +302,9 @@ def _phase_plan(job: dict[str, Any]) -> None:
         if str(doc.get("planner_flow", "")).startswith("director2"):
             # v2 时间轴原生对齐 manifest (含 opening 预留) — 只备整集口播, 不再归真
             from app.services import anim_draft
-            voice = shots_mod.ep_dir(job["book_title"], job["ep"]) / "voice_full.wav"
-            # 0918 改字陈旧实锤: voice_full 只在"不存在"时拼接 — 用户改字 reroll 后
-            # manifest 变旧 voice 永不重建 (三层时长不一致元凶之一)。包 wav 任一比
-            # voice 新 → 重建。
-            _stale = voice.exists() and any(
-                Path(f["file"]).stat().st_mtime > voice.stat().st_mtime
-                for f in audio["files"][:8])
-            if not voice.exists() or _stale:
-                if _stale:
-                    logger.info("[plan] voice_full 比包 wav 旧 (改字后未重建) — 重新拼接")
-                anim_draft.concat_voice(audio["files"], voice)
+            # 1101 U4: voice_full 单口 (mtime+时长差双检; 0918 改字陈旧实锤的统一口径)
+            anim_draft.ensure_voice_full(job["book_id"], job["ep"],
+                                         job["book_title"], audio["files"])
             n_arcs = len(doc.get("arcs") or [])
             # 立意人闸停止路径 (concept_only): 骨架无镜 — 取尾镜时长会 IndexError
             # (0918 job 1770330f 实锤), 人闸停止属正常态非崩溃
@@ -460,6 +452,27 @@ def mark_viewed(book_ref: str, ep: int, sid: str) -> dict[str, Any]:
     if had:
         _save_review_flags(book_title, ep, flags)
     return {"cleared": had}
+
+
+# ── 立意写路径锁收口 (1101 U5, AUDIT G1) ─────────────────────
+# 旧版路由直调 director2.save_concept / reroll_concept — 全库唯一不持 ep 锁的
+# shots.json 写路径: 批量任务逐镜落盘期间编辑立意 = load→mutate→save 丢更新。
+
+def save_concept_locked(book_ref: str, ep: int, payload: dict[str, Any]) -> dict[str, Any]:
+    """立意保存 (ep_guard 内调 director2.save_concept — 写路径全锁纪律归一)。"""
+    book_id, book_title = resolve_ep(book_ref, ep)
+    from app.services.anim_pipeline import director2
+    with ep_guard(book_id, ep):
+        return director2.save_concept(book_title, ep, payload)
+
+
+def reroll_concept_locked(book_ref: str, ep: int, arc_id: str,
+                          direction: str = "") -> dict[str, Any]:
+    """单场立意重掷 (同上收口; 场不存在抛 SystemExit 由路由转 422)。"""
+    book_id, book_title = resolve_ep(book_ref, ep)
+    from app.services.anim_pipeline import director2
+    with ep_guard(book_id, ep):
+        return director2.reroll_concept(book_id, book_title, ep, arc_id, direction)
 
 
 def _reset_states(doc: dict[str, Any], phase: str) -> int:
@@ -1436,6 +1449,8 @@ def status_view(book_ref: str, ep: int) -> dict[str, Any]:
             "face_fixed": bool(s.get("face_fixed")),
             "h3_text_event": s.get("h3_text_event") or {},    # H3 事件字 (文字三路由)
             "slots_source": s.get("slots_source"),           # 默认槽降级可见 (同族)
+            "prompt_gate": s.get("prompt_gate"),             # 1101 B3: K2 终串机检观察层上屏
+            "video_station": s.get("video_station"),         # 1101 U6: 事件字出口归属
             # 1006 修 (ep1 审阅实锤): [:200] 视图截断误导逐镜细审 ("19/45 断在200"=
             # 全文被砍的假象, H3 吃盘上全文零影响) — 视图不再截, 交前端按需折行
             "motion_zh": (s.get("motion_zh") or ""),

@@ -406,6 +406,8 @@ def _finalize_doc(doc: dict[str, Any], segs: list[dict[str, Any]], tag: str) -> 
                         " ".join(f"{k}「{v}」" for k, v in list(_hz.items())[:8]))
     except Exception as exc:  # noqa: BLE001 — 花字 pass 失败不挡规划
         logger.warning("[%s] 弧级花字 pass 失败 (跳过): %s", tag, exc)
+    # 1101 F3: huazi fail-open 留痕并入软警告 (页面 plan_warnings 可见)
+    _hz_warn = [str(x) for x in (doc.pop("_huazi_warnings", None) or [])]
     _tl = director2.text_layer_lint(doc)
     if _tl:
         logger.warning("[%s] text_layer 去污 %d 处: %s", tag, len(_tl), "; ".join(_tl[:6]))
@@ -417,6 +419,7 @@ def _finalize_doc(doc: dict[str, Any], segs: list[dict[str, Any]], tag: str) -> 
     warns += [str(x) for x in (doc.pop("_concept_warnings", None) or [])]
     # 1013 夜修: 装配后人物终审结果并入软警告 (页面 plan_warnings 可见)
     warns += [str(x) for x in (doc.pop("_post_asm_warnings", None) or [])]
+    warns += _hz_warn  # 1101 F3: huazi fail-open 留痕 (页面可见)
     try:
         audit = director2.duration_audit(doc, segs)
         director2.write_duration_sheet(doc, audit)

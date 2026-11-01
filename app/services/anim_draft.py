@@ -726,6 +726,38 @@ def concat_voice(files: list[dict[str, Any]], out_wav: Path) -> Path:
     return out_wav
 
 
+def ensure_voice_full(book_id: str, ep: int, book_title: str,
+                      files: list[dict[str, Any]] | None = None) -> Path | None:
+    """voice_full 单口 (1101 U4, AUDIT E3): mtime 对包 wav + 时长差>2s 双检重建。
+
+    旧三处各持一套口径 (plan=mtime / align=只看缺失 / draft=时长差) — 等长改字
+    (时长差<2s) 在后两条漏网。concat 内部滤空包, 预期时长=非空包和 (同口径)。
+    返回整轨路径; 无音频包时返回已存轨或 None。"""
+    base = shots_mod.ep_dir(book_title, ep)
+    voice = base / "voice_full.wav"
+    if files is None:
+        files = fetch_episode_audio(book_id, ep)["files"]
+    packs = [f for f in (files or []) if str(f.get("text") or "").strip()]
+    if not packs:
+        return voice if voice.exists() else None
+    _expect = sum(float(f.get("dur_s") or 0) for f in packs)
+    stale = voice.exists() and any(
+        Path(f["file"]).stat().st_mtime > voice.stat().st_mtime for f in packs[:8])
+    if voice.exists():
+        try:
+            _out = subprocess.run(
+                ["ffprobe", "-v", "error", "-show_entries", "format=duration",
+                 "-of", "csv=p=0", str(voice)], capture_output=True, text=True, timeout=30)
+            if abs(float(_out.stdout.strip() or 0) - _expect) > 2.0:
+                stale = True
+        except Exception:  # noqa: BLE001 — 探测失败保守重建
+            stale = True
+    if not voice.exists() or stale:
+        logger.info("[voice-full] 重建 (%s)", "陈旧: 包比轨新/时长漂移" if voice.exists() else "缺失")
+        concat_voice(files, voice)
+    return voice
+
+
 # ── 文本对齐 (字符流 → 音频时间轴) ────────────────────────────
 
 def _char_time_map(files: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]], float]:
@@ -1044,9 +1076,7 @@ def align_episode(book_ref: str, ep: int, dry_run: bool = False, stretch: bool =
             coverage = round(last_end - manifest_end, 2)
             cue_n = 0
             if not dry_run:
-                voice = shots_mod.ep_dir(book_title, ep) / "voice_full.wav"
-                if not voice.exists():
-                    concat_voice(audio["files"], voice)
+                ensure_voice_full(book_id, ep, book_title, audio["files"])  # 1101 U4 单口
                 try:
                     cues = _sound_cue_manifest(doc)
                     (shots_mod.ep_dir(book_title, ep) / "音效提示.md").write_text(cues, encoding="utf-8")
@@ -2045,28 +2075,12 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
         # voice 轨: 逐包口播段 (0916 用户令: 逐条音频让字幕/动画对齐内容更直观;
         # 空文本包不入轨=concat 同口径; 每段 -2ms 防 pyJYD 毫秒取整越界).
         # 失败/缺料兜底回整段 voice_full.wav. (audio 已在装配预计算处取好)
-        voice = base / "voice_full.wav"
-        # 陈旧检测 (0915 空包幻影实锤): 旧 voice_full 可能含 226s 静音尾巴
-        if voice.exists():
-            _expect = sum(float(f.get("dur_s") or 0) for f in audio["files"]
-                          if str(f.get("text") or "").strip())
-            _probe = subprocess.run(["ffprobe", "-v", "error", "-show_entries",
-                                     "format=duration", "-of", "csv=p=0", str(voice)],
-                                    capture_output=True, text=True, timeout=30)
-            try:
-                _real = float(_probe.stdout.strip() or 0)
-            except ValueError:
-                _real = 0.0
-            if abs(_real - _expect) > 2.0:
-                logger.warning("[draft] voice_full 陈旧 (%.1fs ≠ 预期 %.1fs) — 重造", _real, _expect)
-                concat_voice(audio["files"], voice)
-        if not voice.exists():
-            try:
-                if audio["files"]:
-                    concat_voice(audio["files"], voice)
-            except (AnimNotFound, RuntimeError) as exc:
-                logger.warning("[draft] 口播轨缺失: %s", exc)
-                voice = None
+        # 1101 U4: 陈旧检测收口单口 ensure_voice_full (mtime+时长差双检, 0915 空包幻影同防)
+        try:
+            voice = ensure_voice_full(book_id, ep, book_title, audio["files"])
+        except (AnimNotFound, RuntimeError) as exc:
+            logger.warning("[draft] 口播轨缺失: %s", exc)
+            voice = None
         voice_segs = 0
         _packs = [f for f in audio["files"] if str(f.get("text") or "").strip()]
         if _packs and aligned:

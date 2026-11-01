@@ -135,13 +135,10 @@ class ConceptSaveBody(BaseModel):
 
 @router.post("/ep/{book_id}/{ep}/concept-save")
 def ep_concept_save(book_id: str, ep: int, body: ConceptSaveBody):
-    """立意编辑保存 (0918 立意模块 v2): 页面编辑 → 回写骨架 arcs + 投影立意.md."""
-    from app.services.anim_pipeline import director2
-    from app.services.anim_pipeline.config import load as _aload
-    from app.services.anim_pipeline.planner import resolve_book
+    """立意编辑保存 (0918 立意模块 v2): 页面编辑 → 回写骨架 arcs + 投影立意.md.
+    1101 U5: 走 anim_service 锁收口 (原直调 director2 无 ep 锁, 批量并发丢更新)。"""
     try:
-        _, book_title = resolve_book(_aload().db_path, book_id)
-        return director2.save_concept(book_title, ep, body.model_dump())
+        return anim_service.save_concept_locked(book_id, ep, body.model_dump())
     except AnimNotFound as exc:
         raise _not_found(exc)
 
@@ -178,14 +175,10 @@ def ep_concept_get(book_id: str, ep: int):
 
 @router.post("/ep/{book_id}/{ep}/concept-reroll")
 def ep_concept_reroll(book_id: str, ep: int, body: ConceptRerollBody):
-    """单场立意重掷 (0918 人闸闭环): 只重出该场隐喻 (LLM 同步, ~30s), 其余场不动."""
-    from app.services.anim_pipeline import director2
-    from app.services.anim_pipeline.config import load as _aload
-    from app.services.anim_pipeline.planner import resolve_book
+    """单场立意重掷 (0918 人闸闭环): 只重出该场隐喻 (LLM 同步, ~30s), 其余场不动.
+    1101 U5: 走 anim_service 锁收口 (同 concept-save)。"""
     try:
-        _, book_title = resolve_book(_aload().db_path, book_id)
-        return director2.reroll_concept(book_id, book_title, ep,
-                                        body.arc_id, body.direction)
+        return anim_service.reroll_concept_locked(book_id, ep, body.arc_id, body.direction)
     except AnimNotFound as exc:
         raise _not_found(exc)
     except SystemExit as exc:
