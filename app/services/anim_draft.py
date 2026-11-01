@@ -941,6 +941,56 @@ def restamp_slots(doc: dict[str, Any], sent_table: list[dict[str, Any]],
     return {"moved": moved, "skipped": skipped, "comma": comma_n}
 
 
+def clamp_brand_slots(doc: dict[str, Any], sent_segs: list[dict[str, Any]], tc: float) -> int:
+    """品牌镜槽长钳制 (1101 I1, 拍板=归真层钳制·差额并邻镜): 槽 > 品牌片实测+0.3s
+    → 槽界钳到首个合法句边 (≥ t0+片长), 释放窗并给**下一镜** (t_start 前移, 自身
+    t_end 不动); 被并镜 beats 走 heal_beats_span。
+
+    合法性护栏 (缺一不钳, 装配端尾缺卡兜底仍在):
+    - 新边界必须落在句边/槽镜界上 (timeline_violations 同口径, 不破时间纪律);
+    - 必须有相邻下一镜可吸收 (尾镜无 next → 挂账: 装包器级拆槽, 仅警告);
+    - 品牌镜口播须是纯仪式句 (is_brand_text) — 长文案镜不钳 (口播归属未定)。
+    口径: 品牌镜槽位=仪式句包锚定 (brand_pack_spans), 钳制=回归包界而非新造槽。"""
+    from app.services.anim_pipeline import brand as brand_mod
+    from app.services.anim_pipeline.shots import is_brand_text, norm_for_match
+    edges = sorted({round(tc + float(s["t_start"]), 2) for s in sent_segs}
+                   | {round(tc + float(s["t_end"]), 2) for s in sent_segs}
+                   | {round(float(s.get("t_start") or 0), 2) for s in doc.get("shots") or []
+                      if s.get("zone") or s.get("packed")}
+                   | {round(float(s.get("t_end") or 0), 2) for s in doc.get("shots") or []
+                      if s.get("zone") or s.get("packed")})
+    ordered = sorted(doc.get("shots") or [], key=lambda s: float(s.get("t_start") or 0))
+    dur = brand_mod.brand_duration(str(doc.get("book_title") or ""))
+    n = 0
+    for i, s in enumerate(ordered):
+        if not s.get("brand_card"):
+            continue
+        t0, t1 = float(s.get("t_start") or 0), float(s.get("t_end") or 0)
+        if t1 - t0 <= dur + 0.3:
+            continue
+        if not is_brand_text(norm_for_match(str(s.get("narration") or ""))):
+            logger.info("[brand-clamp] %s 口播含非仪式句 (长文案镜, 装包器归属未定) — 不钳",
+                        s.get("shot_id"))
+            continue
+        nxt = ordered[i + 1] if i + 1 < len(ordered) else None
+        if nxt is None or abs(float(nxt.get("t_start") or 0) - t1) > 0.05:
+            logger.warning("[brand-clamp] %s 槽 %.1fs > 片 %.1fs 但无相邻下镜可吸收 "
+                           "(尾镜类 — 挂账装包器拆槽; 装配端定格兜底)", s.get("shot_id"), t1 - t0, dur)
+            continue
+        cand = next((e for e in edges if e >= t0 + dur - 0.05), None)
+        if cand is None or cand >= t1 - 0.05:
+            logger.warning("[brand-clamp] %s 槽 %.1fs > 片 %.1fs 但窗口内无合法句边 — 不钳",
+                           s.get("shot_id"), t1 - t0, dur)
+            continue
+        s["t_end"] = round(cand, 2)
+        nxt["t_start"] = round(cand, 2)
+        shots_mod.heal_beats_span(nxt)
+        n += 1
+        logger.info("[brand-clamp] %s 槽 %.1fs→%.1fs (片 %.1fs), %.1fs 并入下镜 %s",
+                    s.get("shot_id"), t1 - t0, cand - t0, dur, t1 - cand, nxt.get("shot_id"))
+    return n
+
+
 def align_episode(book_ref: str, ep: int, dry_run: bool = False) -> dict[str, Any]:
     """音画对齐归真 (v2 原生轴): 槽镜重钉 + 句级归真 + 拆镜重设计 + beats 自愈 +
     媒体失效裁决 + 体检报告 (轴隙/覆盖/时长窗)。1101 H3: v1 字符流分支退役删除。"""
@@ -1009,6 +1059,14 @@ def align_episode(book_ref: str, ep: int, dry_run: bool = False) -> dict[str, An
                         _healed.append(f"{_s['shot_id']}(槽≠beats清片)")
                 if _healed:
                     logger.warning("[align] beats 漂移自愈 %d 镜: %s", len(_healed), _healed)
+                # 1101 I1: 品牌镜槽长钳制 (拍板=归真层钳制; 合法性护栏内执行,
+                # 不合法即不钳交装配端定格兜底) — 治 s72 类 尾缺诊断卡
+                try:
+                    _bc = clamp_brand_slots(doc, segs, tc)
+                    if _bc:
+                        logger.warning("[align] 品牌槽长钳制 %d 镜 (差额并入下镜)", _bc)
+                except Exception as exc:  # noqa: BLE001 — 钳制失败不炸归真
+                    logger.warning("[align] 品牌槽长钳制失败 (忽略): %s", exc)
                 # 品牌镜: align 一律不碰 (0920 用户令修死循环实锤).
                 # 旧 0916 块在此强制"迁移逐镜生成" (video_file 非 anim/ 开头即
                 # 判旧固定资产 → 注入骨架+清素材+回 planned) — 与现行"定稿资产

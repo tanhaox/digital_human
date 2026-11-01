@@ -11,7 +11,9 @@
 """
 from __future__ import annotations
 
+import json
 import logging
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -19,6 +21,36 @@ from . import comfy, h3, k2
 from . import shots as shots_mod
 
 logger = logging.getLogger(__name__)
+
+
+def brand_duration(book_title: str) -> float:
+    """定稿品牌片实测时长 (1101 I1 槽长钳制的目标值)。
+
+    兜底链: sidecar 品牌卡_{safe}.dur.json (生成时写/首探缓存) → ffprobe 实测
+    mp4 → BRAND_SPAN 设计值。1029 实测 5.17s ≠ 设计 5.0s — 钳制必须吃实测。"""
+    paths = brand_paths(book_title)
+    cache = paths["video"].with_suffix(".dur.json")
+    if cache.exists():
+        try:
+            return float(json.loads(cache.read_text(encoding="utf-8"))["dur_s"])
+        except Exception:  # 损坏缓存当无
+            logger.debug("[brand] 时长 sidecar 损坏, 重探", exc_info=True)
+    if paths["video"].exists():
+        try:
+            out = subprocess.run(
+                ["ffprobe", "-v", "quiet", "-show_entries", "format=duration",
+                 "-of", "csv=p=0", str(paths["video"])],
+                capture_output=True, text=True, timeout=30)
+            d = round(float(out.stdout.strip() or 0), 2)
+            if d > 0.5:
+                try:
+                    cache.write_text(json.dumps({"dur_s": d}), encoding="utf-8")
+                except Exception:  # 缓存失败不挡读数
+                    logger.debug("[brand] 时长 sidecar 写失败 (忽略)", exc_info=True)
+                return d
+        except Exception:  # 探测失败退设计值
+            logger.debug("[brand] 时长探测失败, 用设计值 %.1fs", BRAND_SPAN, exc_info=True)
+    return float(BRAND_SPAN)
 
 # 冻结骨架: 角色三件套 + 场景 (0923 用户令: 坐山顶看书=首帧; 红色冲锋衣; H3: 收书→站→走)
 SKELETON_SCENE_ZH = (
@@ -82,6 +114,11 @@ def generate(book_title: str, bible: dict[str, Any] | None = None) -> dict[str, 
     vwf = h3.build_workflow(image_name, anim, BRAND_SEED,
                             f"video/anim/{safe}/brand/{safe}", book_title=book_title)
     comfy.run_workflow(vwf, dest=paths["video"], timeout_sec=600, label=f"brand-h3 {safe}")
+    # 1101 I1: 生成即落实测时长 sidecar (首探自动缓存, 槽长钳制免每集 ffprobe)
+    try:
+        brand_duration(book_title)
+    except Exception:  # 时长探测失败不挡生成
+        logger.debug("[brand] 生成后时长探测失败 (忽略)", exc_info=True)
     logger.info("[brand] %s 视频 ✓ (5s 三拍, 无文字 — 仪式句走后期字幕)", safe)
     return {"keyframe": str(paths["keyframe"]), "video": str(paths["video"])}
 
