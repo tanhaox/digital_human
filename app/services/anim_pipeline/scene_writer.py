@@ -20,6 +20,7 @@ import re
 from typing import Any
 
 from . import constitution as CST
+from .law_blocks import CAMERA_LAW_BULLET, CAMERA_LAW_CONTRACT  # 1101 U1 军规单一真源
 
 logger = logging.getLogger(__name__)
 
@@ -155,11 +156,7 @@ WRITER_SYS = """你是顶级动画短片的导演兼电影摄影师 (Writer-Dire
     **零申报不合法** (出口闸执法); 本场核心概念/标题/金句值得上画, 安排空白载体+申报
     (如「空白白板」+in_image_text ≤4行); 口径是每场各 1-2, 不是全集 1-2 (ep1-7 实况
     全集 0-2 镜 = 口径跑偏实锤); 「干脆不画载体」只适用于本场其余镜, 不得全场逃逸。
-11. 运镜白名单 (1024 B-CAM1 解锁, 双向配额 1101 注入): 仅当本镜槽 ≥6s 且为场景揭示/
-    规模揭示时刻, camera 才可点名六词之一 左摇/右摇/上摇/下摇/拉近/拉远 — 单镜单运镜、
-    大幅配慢速、揭示物(锚)写进 motion_zh 末拍; 本场含 ≥6s 槽时至少 1 镜点名运镜,
-    每场至多 2 镜; 其余一律 固定机位/极轻微推拉 — 横移/跟拍/平移追踪仍全禁
-    (槽时长见槽位表括号; 系统落盘闸会剥 <6s 槽的运镜词)。
+11. 运镜白名单 (军规 @@CAMERA_LAW@@ 槽时长见槽位表括号)
 
 ## 写法（HBO 级散文范型）
 好句长这样：「平视中景，一条发光的青蓝色管道从画面左侧蜿蜒铺向右侧地平线，
@@ -184,6 +181,9 @@ WRITER_SYS = """你是顶级动画短片的导演兼电影摄影师 (Writer-Dire
 5. **锚定链与纪律**: keyframe_en 与 zh 同批实体同构图; 人物镜画面句明写脸向;
    motion 只动画面句已有实体、永不描述文字; 留白预留落在 h3_text_event 的 zone。
 """
+
+# 1101 U1 军规单一真源: 运镜条款从 law_blocks 注入 (同 director2 占位符惯例)
+WRITER_SYS = WRITER_SYS.replace("@@CAMERA_LAW@@", CAMERA_LAW_BULLET)
 
 
 def writer_blocks(arc: dict[str, Any], zones: list[str],
@@ -226,8 +226,7 @@ def writer_blocks(arc: dict[str, Any], zones: list[str],
         "标签/便签/白板/牌匾/招牌/标语/横幅/铭牌/海报/屏幕等载体时必须申报文字内容"
         "并把载体写\"空白\" — 系统二段合成, 漏申报=白标签孤儿废镜); "
         "可选 \"h3_text_event\" (H3事件字: {\"text\":\"≤4字\",\"at_s\":秒,\"zone\":\"落点\"}, 画面句须在落点写留白预留); "
-        "camera 默认 固定/机位词 (平视/低角度/俯瞰/特写/空拍/缓推); 仅 ≥6s 槽的场景揭示/规模揭示镜可点名 "
-        "左摇/右摇/上摇/下摇/拉近/拉远 之一 (每场 1-2 镜, 单镜单运镜, 大幅配慢速, 揭示物写进 motion 末拍); "
+        + CAMERA_LAW_CONTRACT + "; "
         "scene_tag 照旧。"
         "系统将 opening_desc 逐字取 keyframe_en — 中英两句必须同构。\n"
         "【示例镜 (格式精确模仿; 1022 修: 此前全契约零申报正例, 模型学不会申报的根因之一)】\n"

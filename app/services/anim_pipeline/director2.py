@@ -25,6 +25,7 @@ from pathlib import Path
 from typing import Any
 
 from . import constitution as CST
+from . import law_blocks  # 1101 U1 军规单一真源: 词表/条款/枚举唯一源
 from . import shots as shots_mod
 from .chain_law import VISUAL_CHAIN_LAW
 from .config import load, resolve_style
@@ -83,10 +84,7 @@ DIRECTOR_SYS = """你是顶级动画短片的导演 (Motion Director)。你的�
 - **环境物品原地动**：画面里已有的东西尽管动 — 汽车驶过、行人走动、炊烟、
   窗帘轻摆、霓虹闪烁、水面波光、光线流转。生活气息越足越沉浸
 - **运镜白名单：固定 / 极轻微推拉为默认**（0915 用户实锤 a2p4 横移废）—
-  场景揭示镜可显式运镜：camera 字段点名 左摇/右摇/上摇/下摇/拉近/拉远 之一，
-  单镜单运镜、大幅配慢速、**槽长 ≥6s 才可用**（<5s 幅度出不来，1024 实测）、每场 ≤2 镜且
-  含 ≥6s 槽的场至少 1 镜点名（1101 双向配额）、揭示物（锚）写进动作层末拍（1024 B-CAM1 解锁，
-  依据 docs/guides/h3_camera_language_guide.md）；横移/跟拍/平移追踪仍全禁
+  场景揭示镜可显式运镜：@@CAMERA_LAW@@
 - **主体位移纪律**：主体人物不横穿画面（横移+追着人重绘=抖废片）。人物若要移动：
   短距离、放在镜内**前段**完成、到位后**静止**；大特效只在人物静止时触发
 - **特效时序铁律**：先移动→后静止→再触发特效，移动和特效**绝不同时发生**；
@@ -266,7 +264,7 @@ DIRECTOR_SYS = """你是顶级动画短片的导演 (Motion Director)。你的�
 - 文字全部走: H3 动画层浮出（英文/数字/短标志）或 text_layer 后期（中文长句）
 
 ### H3 动画层约束 (0915 a2p4 实锤: 横移+边走边变身 = 抖废片)
-- **运镜白名单**: 固定 / 极轻微推近 / 极轻微拉远为默认; 场景揭示镜可 camera 字段点名运镜 (左摇/右摇/上摇/下摇/拉近/拉远): 单镜单运镜 + 大幅配慢速 + 揭示物写进动作层末拍, 槽长 ≥6s 才可用 (幅度天花板=时长), 每场 ≤2 镜且含 ≥6s 槽的场至少 1 镜点名 (1101 双向配额) — **横移/跟拍/平移追踪仍全禁** (1024 B-CAM1 解锁)
+- **运镜白名单**: 固定 / 极轻微推近 / 极轻微拉远为默认; @@CAMERA_LAW@@
 - **环境动效不限**: 远处车流/行人/烟/旗/光/水/云尽管动 (原地环境级, 不带镜头跟)
 - **主体移动短距先行**: 人物移动 = 短距离 + 镜内前段完成 + 到位静止; 移动期间无特效
 - **特效只在静止主体上触发** (用户定式: 走到画面中央→站定→光效扫过→触发变身)
@@ -330,7 +328,7 @@ DIRECTOR_SYS = """你是顶级动画短片的导演 (Motion Director)。你的�
       "arc_id": "A1",
       "t_start": 0.0, "t_end": 4.9,
       "narration": "这一场的完整口播文本",
-      "camera": "空拍|平视|低角度|俯瞰|特写|缓推|固定|左摇|右摇|上摇|下摇|拉近|拉远",
+      "camera": "@@CAMERA_ENUM@@",
       "keyframe_zh": "场的场景定调（真实地点/年代/环境一句话, 中文）",
       "motion_zh": "场内什么在动（车流/人群/光线变化, 中文）",
       "shots": [
@@ -341,7 +339,7 @@ DIRECTOR_SYS = """你是顶级动画短片的导演 (Motion Director)。你的�
           "keyframe_en": "English keyframe description, same composition, no text",
           "motion_zh": "动画层: 背景什么在动 + 主体动作过程 + 轻微运镜 (散文永不描述文字, 事件字走 h3_text_event)",
           "motion_en": "English: ambient object motion + slight camera + text appearance events (H3 renders short text)",
-          "camera": "空拍|平视|低角度|俯瞰|特写|缓推|固定|左摇|右摇|上摇|下摇|拉近|拉远",
+          "camera": "@@CAMERA_ENUM@@",
           "text_layer": [{"kind":"hero_number","text":"365户","t_start":0.5,"t_end":2.0}]
         }
       ]
@@ -372,6 +370,10 @@ def _substitution_block() -> str:
 
 
 DIRECTOR_SYS = DIRECTOR_SYS + _substitution_block()
+# 1101 U1 军规单一真源: 人格条款/枚举从 law_blocks 注入 (占位符替换, 改军规只改 law_blocks)
+DIRECTOR_SYS = (DIRECTOR_SYS
+                .replace("@@CAMERA_LAW@@", law_blocks.CAMERA_LAW_BULLET)
+                .replace("@@CAMERA_ENUM@@", law_blocks.CAMERA_ENUM))
 
 # ── 1009 P1 宪法拆双版本 (设计 §3.2, docs/design/kimi基座-token根治与写者收口-设计方案.md) ──
 # STRUCT = 结构规划版 (plan_scene / plan_arcs / reroll_concept 用; 三个活路径都挂术/器下游):
@@ -452,9 +454,8 @@ DIRECTOR_SYS_STRUCT = """你是顶级动画短片的导演 (Motion Director)。�
 - 相邻镜必须换构图 (camera 机位/时刻至少一项不同); 严禁「同一场景 机位不变」式续镜
 - 每场固定一组（组 = 场的容器，组不再有独立画面语义）
 - 相邻镜是机位/距离/时刻的推进（空拍的下一镜给街道平视），禁跳场景
-- **运镜词纪律 (1024 B-CAM1, 1101 补)**: camera 默认机位词 (空拍/平视/低角度/俯瞰/特写/缓推/固定);
-  左摇/右摇/上摇/下摇/拉近/拉远 仅限槽 ≥6s 的场景揭示镜 (每场 ≤2 镜, 含 ≥6s 槽的场至少
-  1 镜点名; 单镜单运镜, 大幅配慢速); 横移/跟拍/平移仍禁 (槽时长见槽位表括号)
+- **运镜词纪律 (1024 B-CAM1)**: camera 默认机位词 (空拍/平视/低角度/俯瞰/特写/缓推/固定);
+  @@CAMERA_LAW@@ (槽时长见槽位表括号)
 
 ### 清单/导览段铁律 (0916 卡牌事故 + 0917 拍板, 用户最不想要)
 口播逐条列举时 (第X集/工具清单/多条测试), **严禁把条目物化成卡牌/卡片/图鉴式陈列**
@@ -538,14 +539,14 @@ keyframe_zh/keyframe_en/motion_zh/motion_en 四字段已退役, 输出会被丢�
       "arc_id": "A1",
       "t_start": 0.0, "t_end": 4.9,
       "narration": "这一场的完整口播文本",
-      "camera": "空拍|平视|低角度|俯瞰|特写|缓推|固定|左摇|右摇|上摇|下摇|拉近|拉远",
+      "camera": "@@CAMERA_ENUM@@",
       "keyframe_zh": "场的场景定调（真实地点/年代/环境一句话, 中文 — 下游画面的空间锚）",
       "motion_zh": "场内什么在动（车流/人群/光线变化, 中文）",
       "shots": [
         {
           "t_start": 0.0, "t_end": 4.9,
           "narration": "该镜对应的口播片段（原句或句段）",
-          "camera": "空拍|平视|低角度|俯瞰|特写|缓推|固定|左摇|右摇|上摇|下摇|拉近|拉远",
+          "camera": "@@CAMERA_ENUM@@",
           "text_layer": [{"kind":"hero_number","text":"365户","t_start":0.5,"t_end":2.0}]
         }
       ]
@@ -555,6 +556,9 @@ keyframe_zh/keyframe_en/motion_zh/motion_en 四字段已退役, 输出会被丢�
 """
 
 DIRECTOR_SYS_STRUCT = DIRECTOR_SYS_STRUCT + _substitution_block()
+DIRECTOR_SYS_STRUCT = (DIRECTOR_SYS_STRUCT   # 1101 U1 军规注入 (同 DIRECTOR_SYS)
+                       .replace("@@CAMERA_LAW@@", law_blocks.CAMERA_LAW_BULLET)
+                       .replace("@@CAMERA_ENUM@@", law_blocks.CAMERA_ENUM))
 
 
 # ── 美术圣经 (书级资产, 缓存复用) ─────────────────────────────
@@ -588,7 +592,7 @@ _MOTION_LAW_SPEC = (
     "1013 教义: 动画律全句纯正向, 否定词一律不出现); "
     "风格家族只管'怎么动'的质感, 不管场景是什么 ('国风'风格名≠古装宫殿); "
     "③相机纪律 — 用模型听得懂的镜头语言 (如'相机固定, 仅极轻微缓推, 不横移不跟拍'); "
-    "场景揭示镜可在 camera 字段点名 左摇/右摇/上摇/下摇/拉近/拉远 (单镜单运镜, 大幅配慢速), "
+    "场景揭示镜可在 camera 字段点名 " + "/".join(law_blocks.MOVE_WORDS) + " (单镜单运镜, 大幅配慢速), "
     "禁用百分比/帧数等模型无法执行的量化词; "
     "④禁的运动现象 — 从 雾气弥漫/材质融化/人物液化/皮肤透明发光/风格漂移 里挑"
     "本风格真风险禁 (3D 卡通风险≠剪纸风险)。禁空泛 ('自然流畅'不算军规)。"
@@ -2964,11 +2968,8 @@ def plan_scene(book_id: str, book_title: str, ep: int, arc_id: str,
     return doc
 
 
-# 1101 运镜断链根修: 槽长 ≥6s 才可用运镜 (1024 ep6 实测: 幅度天花板=时长);
-# 0.05 容差同 H3_MAX_SPAN 口径。六词与 h3._CAM_MOVE_KINDS 同源两持 (h3 侧需
-# 英文 kind 映射) — 改词表两处同步 (军规 §2)。
-_CAM_SPAN_MIN = 5.95
-_CAM_MOVE_WORDS = ("左摇", "右摇", "上摇", "下摇", "拉近", "拉远")
+# 1101 运镜断链根修 → U1 单源化: 槽长下限与六词改引 law_blocks (宪法 duration 表
+# cam_move_min_span - 0.05 容差; 词表唯一源, h3 侧映射同步断言在 test_law_propagation)。
 
 
 def enforce_camera_span(doc: dict[str, Any]) -> int:
@@ -2978,14 +2979,15 @@ def enforce_camera_span(doc: dict[str, Any]) -> int:
     (保留景别词, 剩空回 固定)。罩 writer/fallback/拆镜继承三来源; 调用方:
     plan_scene 合并尾 / plan_shot / redesign_split_clones 尾。返回处理镜数。
     """
+    _min = law_blocks.cam_move_min_span()
     n = 0
     for s in doc.get("shots") or []:
         span = float(s.get("t_end") or 0) - float(s.get("t_start") or 0)
         cam = str(s.get("camera") or "")
-        if span >= _CAM_SPAN_MIN or not any(w in cam for w in _CAM_MOVE_WORDS):
+        if span >= _min or not any(w in cam for w in law_blocks.MOVE_WORDS):
             continue
         segs = [p.strip() for p in re.split(r"[|｜，,、/;；]", cam) if p.strip()]
-        kept = [p for p in segs if not any(w in p for w in _CAM_MOVE_WORDS)]
+        kept = [p for p in segs if not any(w in p for w in law_blocks.MOVE_WORDS)]
         s["camera"] = "，".join(kept) if kept else "固定"
         n += 1
         logger.info("[cam-span] %s 槽 %.1fs 运镜词剥除 (幅度天花板=时长): %r → %r",
@@ -3536,7 +3538,7 @@ def redesign_split_clones(doc: dict[str, Any], bible: dict[str, Any] | None = No
             "年代/场景/色调与父镜完全一致; ② 每个分身与父镜、与其他分身在景别/机位/画面时刻"
             "至少一项显著不同 (如 远景全景→中景→近景特写 的推进), 画面随口播推进一拍; "
             "③ 首帧全灭字 — 禁任何可读文字/数字/字母/标志; ④ 一镜一事, 运镜=固定或极轻微推拉 "
-            "(场景揭示镜可 camera 点名 左/右/上/下摇/拉近/拉远, 单镜单运镜), 禁横移跟拍。" + chr(10) + "【圣经】" + bible_block + chr(10) + chr(10)
+            "(场景揭示镜可 camera 点名 " + "/".join(law_blocks.MOVE_WORDS) + ", 单镜单运镜), 禁横移跟拍。" + chr(10) + "【圣经】" + bible_block + chr(10) + chr(10)
             + chr(10).join(blocks) + chr(10) + chr(10)
             + "【输出】严格 JSON: {\"redesigns\": [{\"shot_id\": \"原样带回\", "
               "\"keyframe_zh\": \"首帧(具象+视角锁死+信息完备)\", \"keyframe_en\": \"English, no text\", "
@@ -4019,7 +4021,7 @@ _ENHANCE2_SYS = (
     "阴影缓缓移动/蒸汽袅袅上升/光晕轻微呼吸/布帘轻轻摆动 — 只选画面里已有的元素。"
     "三，导演原动画层的主体动作与文字出场事件一条不丢，只在其基础上追加环境微动；"
     "禁改主体动作、禁新增画面里没有的元素、禁大面积重绘。"
-    "四，运镜：固定 或 极轻微推拉为默认；场景揭示镜可 camera 字段点名 左摇/右摇/上摇/下摇/拉近/拉远 (单镜单运镜, 大幅配慢速)；横移/跟拍/平移仍禁。"
+    "四，运镜：固定 或 极轻微推拉为默认；场景揭示镜可 camera 字段点名 " + "/".join(law_blocks.MOVE_WORDS) + " (单镜单运镜, 大幅配慢速)；横移/跟拍/平移仍禁。"
     "五，主体位移短距离、镜内前段完成、到位静止；特效只在静止后触发。"
     "六，文字出场：只有英文/数字/不超过2字的中文可进动画层；3字及以上中文词交给后期字幕。"
     "七，人物一致性 (1006 卓有ep1 混穿实锤): 人物比例与服饰必须与首帧描述一致; "
@@ -4186,8 +4188,8 @@ def _enhance_pass2(doc, only: set[str] | None, touched: set[str]) -> int:
             from app.services import compliance as _cmp2p2
             _mzh_ban = bool(mzh) and bool(_cmp2p2.check_visual(mzh))
             if (len(mzh) >= len(base_motion) * 0.8
-                    and not any(w in mzh for w in ("横移", "跟拍", "摇镜", "平移"))
-                    and not re.search(r"(?i)\b(pan|panning|tracking|truck)\b", men)
+                    and not any(w in mzh for w in law_blocks.MOTION_BAN_ZH)
+                    and not re.search(law_blocks.MOTION_BAN_EN_RE, men)
                     and not _mzh_ban):
                 s["motion_zh"] = mzh[:400]
                 men_eff = men or beats_motion or shots_mod.SINGLE_BEAT_FALLBACK

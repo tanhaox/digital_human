@@ -148,6 +148,7 @@
       "shot_floor": 1.5,
       "shot_min_span": 4.0,
       "h3_max_span": 10.0,
+      "cam_move_min_span": 6.0,
       "long_shot_policy": "soft_overrun"
     },
     "text_law": {

@@ -25,6 +25,7 @@ from . import (
 from . import ledger as _ledger
 from . import shots as shots_mod
 from .config import load, resolve_style
+from .law_blocks import MOVE_WORDS as _LAW_MOVE_WORDS  # 1101 U1 军规词表唯一源
 
 logger = logging.getLogger(__name__)
 
@@ -379,8 +380,11 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
 # → 横摇每 24 帧顿跳 (Wan2GP#2279, okkazoo 24 renders), 预裁 1024:608 纵横比出
 # 雷区; ② prompt 三暗坑对抗运镜 (军规句禁摇 / era lock 禁画外新内容 /
 # locked-off camera); ③ 缺 I2VA 首行则与官方两段式不对齐。步数 8 不动 (已实证)。
-_CAM_MOVE_KINDS = (("左摇", "pan_left"), ("右摇", "pan_right"), ("上摇", "tilt_up"),
-                   ("下摇", "tilt_down"), ("拉近", "push_in"), ("拉远", "pull_back"))
+# 1101 U1 单源化: 词面以 law_blocks.MOVE_WORDS 为准 (改词表只改 law_blocks);
+# 本表只补英文 kind 映射 — law 新增词无映射会当场 KeyError, 漂移不可能静默。
+_CAM_KIND_MAP = {"左摇": "pan_left", "右摇": "pan_right", "上摇": "tilt_up",
+                 "下摇": "tilt_down", "拉近": "push_in", "拉远": "pull_back"}
+_CAM_MOVE_KINDS = tuple((w, _CAM_KIND_MAP[w]) for w in _LAW_MOVE_WORDS)
 _CAM_BAN = (
     "the camera viewpoint stays locked to Picture 1; only a very slight push-in or "
     "pull-back is allowed; strictly no lateral panning or tracking; no large-area "

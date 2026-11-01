@@ -103,6 +103,7 @@ def duration_table() -> dict[str, float]:
         "shot_floor": float(d.get("shot_floor", 1.5)),
         "shot_min_span": float(d.get("shot_min_span", 4.0)),
         "h3_max_span": float(d.get("h3_max_span", 10.0)),
+        "cam_move_min_span": float(d.get("cam_move_min_span", 6.0)),  # 1101 U1: 运镜槽长下限 (law_blocks 消费)
     }
 
 
