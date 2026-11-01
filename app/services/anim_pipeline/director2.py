@@ -1724,6 +1724,9 @@ def save_concept(book_title: str, ep: int, payload: dict[str, Any]) -> dict[str,
         if old_banned:
             a["banned_motifs"] = old_banned
         a["visual_metaphor"] = _project_visual_metaphor(a)
+        # 1101 E2 立意版本戳: 每次保存 = 该场立意换代, 旧分镜成过期产物
+        # (stale_concept 可见, 🔁 重规划后重新对齐) — 治改立意不失效旧分镜。
+        a["concept_rev"] = int(a.get("concept_rev") or 0) + 1
         touched += 1
     if payload.get("ep_summary"):
         doc["ep_summary"] = str(payload["ep_summary"]).strip()
@@ -1813,6 +1816,8 @@ def reroll_concept(book_id: str, book_title: str, ep: int, arc_id: str,
         arcs, arc, str(g.get("narration") or ""),
         [str(w) for w in (doc.get("world_library") or [])],
         _audience_block(*_audience_rows(book_id)), banned, direction, dom_line=_dom)
+    # 1101 E2: 重掷 = 立意换代 (旧分镜 stale_concept)
+    arcs[idx]["concept_rev"] = int(arcs[idx].get("concept_rev") or 0) + 1
     # 1013 一把尺: 重掷后重算审计 — 单场换世界可能消/生相邻警告, 旧快照不再残留
     doc["_concept_warnings"] = _audit_concept(arcs)
     shots_mod.save(doc)
@@ -2247,6 +2252,7 @@ def plan_shot(book_id: str, book_title: str, ep: int, shot_id: str,
     # 一处清 — text_passed/face_fixed 随图作废, 打回重出图后压字修脸不再被静默跳过)
     shots_mod.invalidate_media(s, to_status="planned",
                                reset_attempts=("k2", "h3"), reason="单镜重规划")
+    s["concept_rev"] = int(arc.get("concept_rev") or 0)  # 1101 E2: 立意版本戳随新设计
     s.pop("overrun_s", None)
     _clamp_motion_events(s)
     _gate_motion_text(s)  # 单镜重规划同为新 LLM 产出 — 浮字军规同闸
@@ -2899,6 +2905,10 @@ def plan_scene(book_id: str, book_title: str, ep: int, arc_id: str,
     doc["groups"] = remaining + sg
     doc["shots"] = sorted([s for s in doc["shots"] if s["group_id"] not in old_gids] + ss,
                           key=lambda s: float(s["t_start"]))
+    # 1101 E2: 新分镜落立意版本戳 — 之后立意再改 (concept_rev+1) 该场镜显 stale
+    _rev = int(arc.get("concept_rev") or 0)
+    for s in ss:
+        s["concept_rev"] = _rev
     first, last = doc["shots"][0]["shot_id"], doc["shots"][-1]["shot_id"]
     for s in doc["shots"]:
         s["page_type"] = "C" if s["shot_id"] in (first, last) else "B"

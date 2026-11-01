@@ -625,6 +625,14 @@ def _phase_gpu(job: dict[str, Any]) -> None:
         # 1013 P0: 降级链可见性 — fallback 场/默认槽进 GPU 前显著记录 (页面/人检)
         _fb = sum(1 for s in doc.get("shots") or [] if str(s.get("writer_source") or "") == "fallback")
         _df = sum(1 for s in doc.get("shots") or [] if s.get("slots_source") == "default")
+        # 1101 E2: 立意过期镜进 GPU 前警告 (不阻断, 人闸哲学 — 页面立意✱徽标同源)
+        _ar = {str(a.get("arc_id") or ""): int(a.get("concept_rev") or 0)
+               for a in doc.get("arcs") or []}
+        _stale = [s["shot_id"] for s in doc.get("shots") or []
+                  if _ar.get(str(s.get("arc_id") or ""), 0) > int(s.get("concept_rev") or 0)]
+        if _stale:
+            logger.warning("[gpu] ⚠ 立意过期 %d 镜 (旧立意分镜, 🔁重规划可消): %s",
+                           len(_stale), ",".join(_stale[:8]))
         if _fb or _df:
             logger.warning("[gpu] ⚠ 降级产物入 GPU: fallback场镜=%d 默认槽镜=%d (人检)", _fb, _df)
             # 1015 修 (ep4 K2 两连崩实锤): job.result 初始为 None, k2 相位到达此行前
@@ -1463,17 +1471,23 @@ def status_view(book_ref: str, ep: int) -> dict[str, Any]:
         return view
     base = ep_base_dir(book_title, ep)
     r_flags = _load_review_flags(book_title, ep)   # 1010 R 标: 重做待复查
+    # 1101 E2: 立意版本戳 → 镜级过期位 (立意改过而分镜还是旧立意产物)
+    _arc_rev = {str(a.get("arc_id") or ""): int(a.get("concept_rev") or 0)
+                for a in doc.get("arcs") or []}
     counts: dict[str, int] = {}
     shots_out = []
     for s in doc["shots"]:
         counts[s["status"]] = counts.get(s["status"], 0) + 1
         img_rel = s.get("image_file") if s.get("image_file") and (base / s["image_file"]).exists() else None
         vid_rel = s.get("video_file") if s.get("video_file") and (base / s["video_file"]).exists() else None
+        _stale = (_arc_rev.get(str(s.get("arc_id") or ""), 0)
+                  > int(s.get("concept_rev") or 0))
         shots_out.append({
             "shot_id": s["shot_id"], "label": s.get("label", ""), "page_type": s.get("page_type"),
             "status": s["status"], "brand_card": bool(s.get("brand_card")),
             "arc_id": s.get("arc_id"), "group_id": s.get("group_id"),
             "camera": s.get("camera", ""),
+            "stale_concept": _stale,  # 1101 E2: 立意过期 (旧隐喻分镜, 🔁可消)
             "redo_review": s["shot_id"] in r_flags,  # 1010 R 标: 重做待复查
             # 1015 修 (UI 实锤: FB 红标从未显示 — 投影白名单漏字段, 前端
             # s.writer_source==='fallback' 永假): 写侧契约字段必须同步读侧投影
