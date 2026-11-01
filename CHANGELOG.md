@@ -4,6 +4,16 @@
 > 2026-07 ~ 2026-09 历史条目已归档至 `docs/changelog/`（见下方切片索引），
 > 历史条目零改动，docs/... 路径以项目根为基准。
 
+## 2026-11-01(六)｜TTS→工坊 交接面处置 — 音频钉选+工坊指纹 (5 commits)
+
+### 做了什么
+盘查 🔊TTS音频→🎬动画工坊 交接面 (文本/时长真相链健康, 断链集中版本/验收语义) 后处置: **U8 音频钉选** — `episodes.audio_job_id` 单列 (验收+采用一体动作), 音频页 completed job 顶部 [✔验收采用本版] (返回包数+whisper 未解决行数, 未解决不硬拦的人闸哲学); fetch 钉选优先 (钉的 job 被🔊force 级联删 → 回退最新+pinned_lost 亮牌), 错误分型 (无 script_id 提示重建/无 completed 指路生成采用)。**U9 工坊音频指纹** — `doc["audio_stamp"]` 四元组 (job_id/文本sha/包数/总时长) plan·续跑·对齐三写入点, reroll 时长变/改字/换轨/部分重生成全检出; 顶栏 ⚠音频已换轨 横幅 + 🎧验收版钉选态 + 验收版被删回退警示; 无音频时 K2/H3/对齐/装配 一并 disabled (旧版只挡 plan, K2 点了才在闸上炸且文案误导)。顺带: C8 脏词表入库 (1028 回听候选 点|DIAN2); D9 fetch 行级回退删除; B5 整稿保存 confirm 补全量重合成代价 (落点=writing 页, audio 页本无整稿保存入口 — 盘查前提修正)。
+### 验证
+pytest 6f/430p (基线+10 全新测: test_audio_pin x5 sqlite 全真模型 / test_audio_stamp x5); ruff 各文件 HEAD 持平; DB 迁移幂等; 前端 node --check 过。生效=重启后端。
+### 遗留
+GPU 排队 UX / stale 全量重合成语义 / 部分勾选硬拦 — 三项明示不处置 (案卷列明)。实弹: 音频页验收采用→工坊顶栏钉选态→reroll 一行→换轨横幅→对齐落盘消。
+案卷: docs/improvements/已完成-20261101-TTS工坊交接面处置.md
+
 ## 2026-11-01(六)｜统一架构升级 — 全流程审计处置 (9 commits)
 
 ### 做了什么
