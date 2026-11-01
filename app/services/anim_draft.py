@@ -963,35 +963,14 @@ def align_episode(book_ref: str, ep: int, dry_run: bool = False, stretch: bool =
                 if _st:
                     logger.warning("[align] 文案变→媒体失效 %d 镜: %s", len(_st), _st)
                 # 状态型自愈 (0916 粉卡差额根治): 槽≠beats 的镜一律重拉 beats;
-                # 有视频且槽比 beats 长>0.3s = 出片必然短缺 → 清视频回 approved
-                # (图保留, H3 按新 beats 重出). 事件钩子只抓"正在变", 这里抓
-                # "既成漂移" (改槽后 beats 没跟的存量病).
-                from app.services.anim_pipeline.director2 import H3_MAX_SPAN as _CAP
+                # 有视频且真漂移 → 清视频回 approved (图保留, H3 按新 beats 重出).
+                # 事件钩子只抓"正在变", 这里抓"既成漂移" (改槽后 beats 没跟的存量病)。
+                # 1101 U3: 三重豁免 (品牌/H3上限/静音垫) 收编进 shots.heal_beats_span 单写者
                 _healed = []
                 for _s in doc["shots"]:
-                    _span = float(_s["t_end"]) - float(_s["t_start"])
-                    if not isinstance(_s.get("anim"), dict) or _span <= 0:
-                        continue
-                    _dur = float(_s["anim"].get("duration_s") or 0)
-                    if abs(_span - _dur) <= 0.05:
-                        continue
-                    shots_mod.stretch_beats(_s, min(round(_span, 2), _CAP))
-                    # 品牌镜豁免 (0920): 其视频=定稿资产, 与 beats 时长无关 —
-                    # 清了就是又一次"品牌卡被对齐冲掉"; 长度差草稿端定格吸收
-                    # 0921 修 s30b 无限打回 (ep6 实锤: 槽10.44/beats10.0 恒差
-                    # 0.44s, 每次对齐清视频→重生成还是10.0→再清): beats 已在
-                    # H3 上限 (_dur≥CAP) 的槽溢出是设计内 (H3_MAX_SPAN 注释
-                    # "超出草稿定格吸收"), 重生成不变长, 清了永不收敛; 只有
-                    # 未到上限却槽长出 >0.6s (超草稿微降速带宽, 0918) 才真漂移;
-                    # 1001 修: restamp 静音垫量 (_silence_pad_s) 豁免 — 槽长出的
-                    # 部分是气口静音, 视频定格可过, 清片=白烧 GPU
-                    _pad = float(_s.get("_silence_pad_s") or 0)
-                    if (_s.get("video_file") and not _s.get("brand_card")
-                            and _dur < _CAP and _span > _dur + 0.6 + _pad):
-                        _s.pop("video_file")
-                        _s["status"] = "approved"
-                        _s.pop("gen_narr_sha", None)
-                        _healed.append(f"{_s['shot_id']}(槽{_span:.1f}≠beats{_dur:.1f}s)")
+                    _r = shots_mod.heal_beats_span(_s)
+                    if _r == "stripped":
+                        _healed.append(f"{_s['shot_id']}(槽≠beats清片)")
                 if _healed:
                     logger.warning("[align] beats 漂移自愈 %d 镜: %s", len(_healed), _healed)
                 # 品牌镜: align 一律不碰 (0920 用户令修死循环实锤).

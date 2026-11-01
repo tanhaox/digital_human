@@ -27,6 +27,18 @@ SCHEMA_VERSION = 1
 STATUSES = ("planned", "img_done", "approved", "anim_done", "anim_fail")
 PAGE_TYPES = ("B", "C")  # A 层不进 shots
 
+# 1101 U3 状态迁移表 (AUDIT C1, 拍板=迁移表+警告): 合法迁移白名单 —
+# 非法迁移 logger.warning 放行不炸 (warn-first, 存量/未知路径不翻车), 测试断言表全绿。
+# 语义: img_done→planned=打回换seed; approved→planned=文案变/全失效;
+# anim_done→approved=重roll/修字回炉; anim_fail→anim_done=孤儿回收领养。
+_ALLOWED_TRANSITIONS: dict[str, frozenset[str]] = {
+    "planned": frozenset({"img_done"}),
+    "img_done": frozenset({"approved", "planned"}),
+    "approved": frozenset({"anim_done", "anim_fail", "planned"}),
+    "anim_done": frozenset({"approved", "planned"}),
+    "anim_fail": frozenset({"approved", "planned", "anim_done"}),
+}
+
 
 def _safe(name: str) -> str:
     """文件名清洗 (对齐 book_service/l0.py 的做法)."""
@@ -167,11 +179,55 @@ def find_shot(doc: dict[str, Any], shot_id: str) -> dict[str, Any]:
     raise KeyError(f"shot_id 不存在: {shot_id}")
 
 
-def transition(shot: dict[str, Any], new_status: str) -> None:
+def transition(shot: dict[str, Any], new_status: str, *, force: bool = False) -> None:
+    """状态迁移 (1101 U3: 迁移表执法, 非法迁移警告放行 — warn-first 拍板)。
+
+    force=True: 登记过的特例直通 (如手工修数据); 生产代码禁用。"""
     if new_status not in STATUSES:
         raise ValueError(f"非法状态: {new_status}")
+    old = str(shot.get("status") or "")
+    if (not force and old in STATUSES and old != new_status
+            and new_status not in _ALLOWED_TRANSITIONS[old]):
+        logger.warning("[status] %s 非法迁移 %s→%s (放行, 请核对写者 — 迁移表 shots.py)",
+                       shot.get("shot_id"), old, new_status)
     shot["status"] = new_status
     shot["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+
+
+def invalidate_media(shot: dict[str, Any], *, keep_image: bool = False,
+                     to_status: str = "planned",
+                     reset_attempts: tuple[str, ...] = (),
+                     reason: str = "") -> list[str]:
+    """媒体失效单写者 (1101 U2, AUDIT B2/C2 根治): 清生成产物与衍生旗标。
+
+    旧版 5 处 (打回/reset/文案变/增强重置/对齐自愈) 各自散写字段 — text_passed/
+    face_fixed 复位缺口 = 打回重出图后压字/修脸被幂等闸静默跳过 (实锤)。
+    生命周期口径: 图换 → 压字/修脸/观察旗标随图作废; 视频换 → gen_narr_sha 作废;
+    keep_image=True 只清视频 (画面内容未变, H3 重出即可)。返回清理项清单。
+    """
+    cleared: list[str] = []
+    if not keep_image and shot.get("image_file"):
+        shot.pop("image_file", None)
+        cleared.append("image")
+        for k in ("text_passed", "face_fixed", "prompt_gate"):
+            if shot.pop(k, None) is not None:
+                cleared.append(k)
+    if shot.get("video_file"):
+        shot.pop("video_file", None)
+        cleared.append("video")
+    if shot.pop("gen_narr_sha", None) is not None:
+        cleared.append("gen_narr_sha")
+    if reset_attempts:
+        at = dict(shot.get("attempts") or {"k2": 0, "h3": 0})
+        for k in reset_attempts:
+            at[k] = 0
+        shot["attempts"] = at
+    if cleared or str(shot.get("status") or "") != to_status:
+        transition(shot, to_status)
+        if reason:
+            logger.info("[media] %s 失效 (%s): %s", shot.get("shot_id"), reason,
+                        "/".join(cleared) or to_status)
+    return cleared
 
 
 # 1017 W4: 单拍兜底 motion 唯一常量 (旧三版漂移: 'Gentle ambient motion, very
@@ -205,6 +261,33 @@ def stretch_beats(shot: dict[str, Any], seg_len: float) -> None:
     anim["duration_s"] = seg_len
 
 
+def heal_beats_span(shot: dict[str, Any]) -> str:
+    """beats=槽 不变量单写者 (1101 U7, AUDIT C3): 槽≠beats 一律重拉 stretch;
+    有视频且"真漂移"(未到 H3 上限却槽长出 >0.6s+静音垫) → 清视频回 approved。
+
+    豁免表单处维护 (原散在 align 内联的三重豁免收编):
+    - 品牌镜: 视频是定稿资产与 beats 无关, 一律不碰 (0920 用户令);
+    - beats 已在 H3 上限 (溢出=草稿定格吸收, 重生成不变长, 清了永不收敛 0921);
+    - restamp 静音垫 (_silence_pad_s): 槽长出部分是气口静音, 定格可过 (1001)。
+    返回 "healed"(只重拉) / "stripped"(真漂移清视频) / ""(无事)。"""
+    span = float(shot.get("t_end") or 0) - float(shot.get("t_start") or 0)
+    if not isinstance(shot.get("anim"), dict) or span <= 0:
+        return ""
+    dur = float(shot["anim"].get("duration_s") or 0)
+    if abs(span - dur) <= 0.05:
+        return ""
+    from .director2 import H3_MAX_SPAN as _CAP  # 函数级导入防环
+    stretch_beats(shot, min(round(span, 2), _CAP))
+    if not shot.get("video_file") or shot.get("brand_card"):
+        return "healed"
+    _pad = float(shot.get("_silence_pad_s") or 0)
+    if dur < _CAP and span > dur + 0.6 + _pad:
+        invalidate_media(shot, keep_image=True, to_status="approved",
+                         reason=f"槽{span:.1f}≠beats{dur:.1f}s")
+        return "stripped"
+    return "healed"
+
+
 def strip_media_on_narr_change(old_doc: dict[str, Any] | None, doc: dict[str, Any]) -> list[str]:
     """文案变/槽漂移 → 媒体失效 (0916 错配根治, 两轮强化).
 
@@ -233,9 +316,7 @@ def strip_media_on_narr_change(old_doc: dict[str, Any] | None, doc: dict[str, An
             # <0.55 = 真文案变 (reroll/重规划), 照剥不误
             import difflib
             if difflib.SequenceMatcher(None, prev_n, cur_n).ratio() < 0.55:
-                if s.pop("video_file", None) or s.pop("image_file", None):
-                    s["status"] = "planned"
-                    s.pop("gen_narr_sha", None)
+                if invalidate_media(s, to_status="planned", reason="文案变"):
                     stripped.append(f"{sid}(文案变)")
         elif abs(cur_span - prev_span) > 0.05 and isinstance(s.get("anim"), dict):
             from .director2 import H3_MAX_SPAN as _CAP  # 函数级导入防环
@@ -244,19 +325,22 @@ def strip_media_on_narr_change(old_doc: dict[str, Any] | None, doc: dict[str, An
             old_dur = float(s["anim"].get("duration_s") or 0)
             stretch_beats(s, min(round(cur_span, 2), _CAP))
             if s.get("video_file") and cur_span > old_dur + 0.3:
-                s.pop("video_file", None)   # 图保留: 内容没变, 只需 H3 按新 beats 重出
-                s["status"] = "approved"
-                s.pop("gen_narr_sha", None)
+                # 图保留: 内容没变, 只需 H3 按新 beats 重出
+                invalidate_media(s, keep_image=True, to_status="approved",
+                                 reason=f"槽{prev_span:.1f}→{cur_span:.1f}")
                 stripped.append(f"{sid}(槽{prev_span:.1f}→{cur_span:.1f}, 旧片{old_dur:.1f}s)")
     return stripped
 
 
 def reject_for_reroll(shot: dict[str, Any], note: str = "") -> None:
-    """人检打回: 换 seed (节点缓存坑: 同 prompt+seed 直接回旧图), 回 planned."""
+    """人检打回: 换 seed (节点缓存坑: 同 prompt+seed 直接回旧图), 回 planned.
+
+    1101 U2: 媒体失效走单写者 — 旧版不清 image_file (幽灵图隐患) 也不清
+    text_passed/face_fixed (重出净图后压字/修脸被幂等闸静默跳过, B2 实锤)。"""
     shot["seed"] = new_seed()
     shot["attempts"]["k2"] += 1
     shot["reject_note"] = note
-    transition(shot, "planned")
+    invalidate_media(shot, to_status="planned", reason=f"打回:{note[:40]}")
 
 
 def retry_anim(shot: dict[str, Any]) -> None:

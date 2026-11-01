@@ -2301,11 +2301,12 @@ def plan_shot(book_id: str, book_title: str, ep: int, shot_id: str,
         },
         "seed": shots_mod.new_seed(),
         "h3_seed": shots_mod.new_seed(),
-        "status": "planned",
-        "image_file": None, "video_file": None,
-        "attempts": {"k2": 0, "h3": 0},
         "error": None, "reject_note": "",
     })
+    # 1101 U2: 生命周期字段走媒体失效单写者 (status/image/video/attempts/衍生旗标
+    # 一处清 — text_passed/face_fixed 随图作废, 打回重出图后压字修脸不再被静默跳过)
+    shots_mod.invalidate_media(s, to_status="planned",
+                               reset_attempts=("k2", "h3"), reason="单镜重规划")
     s.pop("overrun_s", None)
     _clamp_motion_events(s)
     _gate_motion_text(s)  # 单镜重规划同为新 LLM 产出 — 浮字军规同闸
@@ -4278,10 +4279,9 @@ def enhance_keyframes(doc, book_title, only: set[str] | None = None):
         if s["shot_id"] not in touched:
             continue
         if str(s.get("status") or "") != "planned":
-            s["status"] = "planned"
-            s["image_file"] = None
-            s["video_file"] = None
-            s["attempts"] = {"k2": 0, "h3": 0}
+            # 1101 U2: 媒体失效单写者 (新提示词配旧媒体=图视失配; 衍生旗标随图作废)
+            shots_mod.invalidate_media(s, to_status="planned",
+                                       reset_attempts=("k2", "h3"), reason="enhance改写")
             s["error"] = None
             s["reject_note"] = ""
             n_reset += 1

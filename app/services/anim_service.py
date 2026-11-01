@@ -480,10 +480,9 @@ def _reset_states(doc: dict[str, Any], phase: str) -> int:
         for s in doc["shots"]:
             if s.get("image_file") or s.get("video_file") or s["status"] != "planned":
                 n += 1
-            s["image_file"] = None
-            s["video_file"] = None
-            s["status"] = "planned"
-            s["attempts"] = {"k2": 0, "h3": 0}
+            # 1101 U2: 媒体失效单写者 — 衍生旗标 (压字/修脸/观察/指纹) 随图作废
+            shots_mod.invalidate_media(s, to_status="planned",
+                                       reset_attempts=("k2", "h3"), reason=f"reset-{phase}")
             s["error"] = None
             s["reject_note"] = ""
             s.pop("overrun_s", None)
@@ -491,9 +490,9 @@ def _reset_states(doc: dict[str, Any], phase: str) -> int:
         for s in doc["shots"]:
             if s["status"] in ("anim_done", "anim_fail") or s.get("video_file"):
                 n += 1
-                s["status"] = "approved"
-                s["video_file"] = None
-                s["attempts"]["h3"] = 0
+                # 图保留 (keep_image): 压字/修脸旗标随图有效, 只清视频侧
+                shots_mod.invalidate_media(s, keep_image=True, to_status="approved",
+                                           reset_attempts=("h3",), reason=f"reset-{phase}")
                 s["error"] = None
     logger.info("[reset-%s] %d 镜历史已清 (规划%s保留)", phase, n,
                 "+图" if phase == "h3" else "")
@@ -1011,10 +1010,10 @@ def replan_shot(book_ref: str, ep: int, sid: str) -> dict[str, Any]:
                         s2 = next(x for x in doc.get("shots") or [] if x["shot_id"] == sid)
                         s2["writer_source"] = "writer"  # 保持单写者身份
                         # 1014 修 (redo K2 待跑0镜实锤): 重设计成功必须回 planned 清媒体
-                        s2["status"] = "planned"
-                        s2["image_file"] = None
-                        s2["video_file"] = None
-                        s2.pop("text_passed", None)  # 新设计须重新入字
+                        # 1101 U2: 单写者收口 (衍生旗标一并清)
+                        shots_mod.invalidate_media(s2, to_status="planned",
+                                                   reset_attempts=("k2", "h3"),
+                                                   reason="单镜重设计(writer)")
                         shots_mod.save(doc)
                         logger.info("[replan-shot] %s ✓ (单写者全字段重设计, plan_shot)", sid)
                         return {"shot_id": sid, "path": "plan_shot", "backup": bak.name}
@@ -1096,14 +1095,15 @@ def replan_shot(book_ref: str, ep: int, sid: str) -> dict[str, Any]:
             logger.warning("[narr-change] 文案变→媒体失效: %s", _st)
         # 1016 修 (s01 实锤): 重设计成功必须回 planned 清媒体 — 1014 修只落在
         # writer 分支; 槽/兜底路线 "✓" 后状态原样 anim_done → K2 待跑 0 镜。
+        # 1101 U2: 走媒体失效单写者 (衍生旗标 text_passed/face_fixed/prompt_gate/
+        # gen_narr_sha 随图作废, B2 复位缺口根治)。
         _tgt = next((x for x in doc.get("shots") or [] if x["shot_id"] == sid), None)
         if _tgt is not None:
-            _tgt["status"] = "planned"
-            _tgt["image_file"] = None
-            _tgt["video_file"] = None
-            _tgt.pop("text_passed", None)
-            _tgt.pop("face_fixed", None)
             _tgt.pop("text_erased", None)
+            shots_mod.invalidate_media(_tgt, to_status="planned",
+                                       reset_attempts=("k2", "h3"), reason="单镜重设计")
+            _tgt["error"] = None
+            _tgt["reject_note"] = ""
         shots_mod.save(doc)
         logger.info("[replan-shot] %s ✓ → planned (旧版备份 %s)", sid, bak.name)
         return {"shot_id": sid, "summary": f"{sid} 已重设计 (图待生成)",

@@ -665,6 +665,9 @@ def _reroll_shot_writer(doc: dict[str, Any], s: dict[str, Any], bible: dict,
         },
         "status": "planned", "error": None, "reject_note": "",
     })
+    # 1101 U2: 媒体失效单写者 (手重掷=新设计, 衍生旗标随图作废 — 与 plan_shot 同口)
+    from .shots import invalidate_media as _inv
+    _inv(s, to_status="planned", reset_attempts=("k2", "h3"), reason="手术重掷")
     director2._clamp_motion_events(s)
     director2._gate_motion_text(s)
     return True
