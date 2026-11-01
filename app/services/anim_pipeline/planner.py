@@ -358,25 +358,12 @@ def plan(book_ref: str, ep: int, teardown_file: str | None = None, force: bool =
 
     # 全新集 (无既有 doc) → 两级化同款 (0917: 两级化=规划正身, 单窗退役 —
     # ep2 实测单窗 25K 大包两连毙: 边界断裂+终点失配, 581s 长集必摊薄)
+    # 1101 H1: 旧单窗直跑块 (director2.plan + _finalize_doc(tag=plan)) 删除 —
+    # 四条入路 (无force+existing→SystemExit / force+scorched / force+!scorched /
+    # 无doc) 全部提前分流, 该块 0917 起不可达, 徒增主路误读。
     if not existing.exists():
         return _scorched_flow(book_id, book_title, ep, ep_row, manifest, bible)
-
-    doc = None
-    problems: list[str] = []
-    for attempt in (1, 2):  # LLM 偶发违反禁令/解析失败 — 自动重试一次, 零 GPU
-        try:
-            doc = director2.plan(book_id, book_title, ep, ep_row["title"],
-                                 ep_row["script_text"], manifest, bible)
-            problems = director2.validate_doc(doc)  # 硬校验: 结构问题才拦截
-        except (SystemExit, ValueError) as exc:  # ValueError 含 JSON 解析失败
-            problems = [str(exc)[:200]]
-        if not problems:
-            break
-        for p in problems:
-            logger.error("[plan] 校验不过 (第%d次): %s", attempt, p)
-    if problems:
-        raise SystemExit(f"规划产物校验失败 {len(problems)} 处 — 重跑 plan 即可 (零 GPU)")
-    return _finalize_doc(doc, _manifest_segs(manifest), "plan")
+    raise SystemExit(f"已存在 {existing} (--force 覆盖; 已有产物状态会丢失)")
 
 
 def _manifest_segs(manifest: dict) -> list[dict[str, Any]]:

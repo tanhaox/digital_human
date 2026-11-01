@@ -320,14 +320,12 @@ def _phase_plan(job: dict[str, Any]) -> None:
             logger.info("[plan] v2 完成: %d 场 · %d 组 · %d 镜%s", n_arcs,
                         len(doc.get("groups") or []), len(doc.get("shots") or []),
                         f" · 全集成片 ≈ {_ep_len:.0f}s" if _ep_len else " · 🛑 立意人闸待确认")
-            # 1013 P0: 自动增强退役 (同上)
         else:
-            report = anim_draft.align_episode(job["book_id"], job["ep"], dry_run=False)
-            job["result"] = {
-                "shots_json": str(path), "audio_job": audio["job_id"],
-                "ep_len_s": report["ep_len_s"], "align_stats": report["stats"],
-                "overrun": [r["shot_id"] for r in report["shots"] if r.get("class") == "段超8s"],
-            }
+            # 1101 H3: 非 director2 的 legacy 收尾分支 (align_episode 强制落盘) 删除 —
+            # 26/26 存量 doc 全 director2, v1 对齐已退役; 非 v2 文档明确报错不静默。
+            raise SystemExit(
+                f"非 director2 规划产物 (planner_flow={doc.get('planner_flow')!r}) — "
+                "v1 链路已退役 (1101), 请重跑 🧭 规划")
 
 
 def _phase_replan(job: dict[str, Any]) -> None:
@@ -658,6 +656,7 @@ def _phase_gpu(job: dict[str, Any]) -> None:
                     "reroll" if job.get("reroll") else "",
                     "chain" if job.get("chain_h3") else ""]))
                 if job["phase"] in ("k2", "redo"):
+                    _adopt_orphan_images(doc)  # 1101 G2: K2 断链/重启孤儿图回收 (同视频机制)
                     res = k2_mod.run_batch(doc, only=job["only"],
                                            on_shot_done=on_shot, stop_check=stop)
                     # 1018 用户令: 修脸/入字摘出自动链 — 四按钮 (重绘/生视频/修脸/
@@ -773,6 +772,43 @@ def _adopt_orphan_videos(doc: dict[str, Any]) -> int:
         s["error"] = None
         adopted += 1
         logger.info("[adopt] %s 孤儿视频回收: %s (%.1fs)", sid, latest.name, dur)
+    if adopted:
+        shots_mod.save(doc)
+    return adopted
+
+
+def _adopt_orphan_images(doc: dict[str, Any]) -> int:
+    """孤儿图回收 (1101 G2, 与视频同机制): K2 提交后进程重启/断链 → 产物躺
+    ComfyUI output/anim/{书}/ep{n}/k2/ 无人搬, 镜停 planned 白烧一次 GPU。
+
+    扫该目录, 凡镜 planned 且无 image_file 且 output 有其前缀最新 png
+    (非空图) → 搬回 img/{sid}.png 挂账 img_done (交标准人检)。"""
+    import shutil as _sh
+
+    from app.services.anim_pipeline import config as _acfg
+    img_root = Path(_acfg.load().comfy.output_dir) / "anim" / \
+        shots_mod._safe(str(doc.get("book_title"))) / f"ep{doc.get('ep')}" / "k2"
+    if not img_root.exists():
+        return 0
+    ep_dir = shots_mod.ep_dir(str(doc.get("book_title")), int(doc.get("ep")))
+    adopted = 0
+    for s in doc["shots"]:
+        if s.get("image_file") or s.get("status") != "planned" or s.get("brand_card"):
+            continue
+        sid = str(s["shot_id"])
+        cands = sorted(img_root.glob(f"{sid}_*.png"))
+        if not cands:
+            continue
+        latest = cands[-1]
+        if latest.stat().st_size < 10_000:   # 坏产物/半张图不入账
+            continue
+        dst = ep_dir / "img" / f"{sid}.png"
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        _sh.copy2(latest, dst)
+        s["image_file"] = f"img/{sid}.png"
+        shots_mod.transition(s, "img_done")
+        adopted += 1
+        logger.info("[adopt] %s 孤儿图回收: %s", sid, latest.name)
     if adopted:
         shots_mod.save(doc)
     return adopted

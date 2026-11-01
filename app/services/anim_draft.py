@@ -758,46 +758,8 @@ def ensure_voice_full(book_id: str, ep: int, book_title: str,
     return voice
 
 
-# ── 文本对齐 (字符流 → 音频时间轴) ────────────────────────────
-
-def _char_time_map(files: list[dict[str, Any]]) -> tuple[str, list[dict[str, Any]], float]:
-    """音频包文本 → 规范化字符流 + 每包 [char_lo, char_hi, t_lo, dur]."""
-    parts: list[str] = []
-    spans: list[dict[str, Any]] = []
-    t = 0.0
-    offset = 0
-    for f in files:
-        norm = norm_for_match(f["text"])
-        if norm:
-            spans.append({"lo": offset, "hi": offset + len(norm), "t": t, "dur": f["dur_s"]})
-            parts.append(norm)
-            offset += len(norm)
-        t += f["dur_s"]
-    stream = "".join(parts)
-    return stream, spans, t
-
-
-def _char_to_time(pos: int, spans: list[dict[str, Any]]) -> float:
-    for sp in spans:
-        if sp["lo"] <= pos < sp["hi"]:
-            frac = (pos - sp["lo"]) / max(sp["hi"] - sp["lo"], 1)
-            return sp["t"] + frac * sp["dur"]
-    return spans[-1]["t"] + spans[-1]["dur"] if spans else 0.0
-
-
-def _locate(stream: str, needle: str, cursor: int) -> int | None:
-    """规范化文本定位: 全串 → 头 12 字锚; 找不到返回 None."""
-    if not needle:
-        return None
-    p = stream.find(needle, cursor)
-    if p >= 0:
-        return p
-    head = needle[:12]
-    if len(head) >= 6:
-        p = stream.find(head, cursor)
-        if p >= 0:
-            return p
-    return None
+# 1101 H3: v1 字符流对齐三件套 (_char_time_map/_char_to_time/_locate) 随 v1
+# 对齐分支一并退役删除 — 唯一调用方是已删分支; v2 原生轴走句级 segs。
 
 
 def restamp_slots(doc: dict[str, Any], sent_table: list[dict[str, Any]],
@@ -979,13 +941,9 @@ def restamp_slots(doc: dict[str, Any], sent_table: list[dict[str, Any]],
     return {"moved": moved, "skipped": skipped, "comma": comma_n}
 
 
-def align_episode(book_ref: str, ep: int, dry_run: bool = False, stretch: bool = True) -> dict[str, Any]:
-    """音画对齐归真: 主线音频实测时长 → 重写 shots t_start/t_end + 漂移审计.
-
-    stretch=True (音频先行令): 未生成视频的镜同时把 anim.beats 按真实音频重排
-    (H3 首次生成的时长即正确时长); anim_done 镜不动 beats (视频已在, 重排会失配,
-    交给漂移审计人决策重roll)。段超 8s 的镜标 overrun_s (草稿定格吸收或人重切)。
-    """
+def align_episode(book_ref: str, ep: int, dry_run: bool = False) -> dict[str, Any]:
+    """音画对齐归真 (v2 原生轴): 槽镜重钉 + 句级归真 + 拆镜重设计 + beats 自愈 +
+    媒体失效裁决 + 体检报告 (轴隙/覆盖/时长窗)。1101 H3: v1 字符流分支退役删除。"""
     book_id, book_title = resolve_ep(book_ref, ep)
     audio = fetch_episode_audio(book_id, ep)
     cfg = anim_cfg_load()
@@ -1092,78 +1050,12 @@ def align_episode(book_ref: str, ep: int, dry_run: bool = False, stretch: bool =
                               "音效点": cue_n},
                     "issues": issues[:6], "gaps": gaps[:6], "dry_run": dry_run}
 
-        base = shots_mod.ep_dir(book_title, ep)
-        stream, spans, total_audio = _char_time_map(audio["files"])
-        if not stream:
-            raise AnimNotFound("音频包文本全空, 无法对齐")
-
-        shots = sorted(doc["shots"], key=lambda s: float(s.get("t_start", 0)))
-        cursor = 0
-        rows: list[dict[str, Any]] = []
-        for s in shots:
-            norm = norm_for_match(s.get("narration", ""))
-            if not norm:
-                rows.append({"shot_id": s["shot_id"], "matched": False, "class": "无口播"})
-                continue
-            p = _locate(stream, norm, cursor)
-            if p is None:
-                # 兜底: 从当前 cursor 起按字符比例估 (LLM 改写/漏配), 审计里标出;
-                # 近似推进 cursor 防下一镜匹配落进本镜区间 (时间轴重叠)
-                t0, t1 = _char_to_time(cursor, spans), _char_to_time(cursor + len(norm), spans)
-                cursor += len(norm)
-                matched = False
-            else:
-                t0, t1 = _char_to_time(p, spans), _char_to_time(p + len(norm), spans)
-                cursor = p + len(norm)
-                matched = True
-            if "t_start_orig" not in s:
-                s["t_start_orig"], s["t_end_orig"] = s.get("t_start"), s.get("t_end")
-            dur = t1 - t0
-            s["t_start"] = round(tc + t0, 2)
-            s["t_end"] = round(tc + t1, 2)
-            s["audio_dur_s"] = round(dur, 3)
-            # 音频先行令: 未生成视频的镜 beats 按真实音频重排 — H3 首次生成即正确时长
-            if not dry_run and stretch and s["status"] != "anim_done" and dur > 0.3:
-                seg = min(round(dur, 2), 8.0)  # H3 单镜上限 8s, 超出部分草稿定格吸收
-                if abs(float((s.get("anim") or {}).get("duration_s", 0)) - seg) > 0.05:
-                    shots_mod.stretch_beats(s, seg)
-                if dur > 8.05:
-                    s["overrun_s"] = round(dur - 8.0, 2)  # 供人决策: extend 重切 or 定格吸收
-                else:
-                    s.pop("overrun_s", None)
-            old_span = (s["t_end_orig"] or 0) - (s["t_start_orig"] or 0)
-            drift = dur - old_span
-            if dur > 8.0:
-                cls = "段超8s"
-            elif abs(drift) > 0.5:
-                cls = "H3重跑"
-            elif abs(drift) > 0.25:
-                cls = "吸收"
-            else:
-                cls = "OK"
-            if not matched and cls == "OK":
-                cls = "未匹配"
-            rows.append({"shot_id": s["shot_id"], "matched": matched, "class": cls,
-                         "old_span": round(old_span, 2), "audio_span": round(dur, 2),
-                         "drift": round(drift, 2),
-                         "t_start": s["t_start"], "t_end": s["t_end"]})
-
-        ep_len = tc + total_audio
-        stats: dict[str, int] = {}
-        for r in rows:
-            stats[r["class"]] = stats.get(r["class"], 0) + 1
-        report = {"audio_job": audio["job_id"], "packages": len(audio["files"]),
-                  "audio_total_s": round(total_audio, 1), "ep_len_s": round(ep_len, 1),
-                  "title_card_s": tc, "stats": stats, "shots": rows, "dry_run": dry_run}
-        (base / "align_report.json").write_text(
-            json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")
-        if not dry_run:
-            shots_mod.save(doc)
-            concat_voice(audio["files"], base / "voice_full.wav")
-        logger.info("[align] %s ep%d: 口播 %.0fs, 全集成片 ≈ %.0fs, %s%s",
-                    book_title, ep, total_audio, ep_len, stats,
-                    " (dry-run 未落盘)" if dry_run else "")
-        return report
+        # 1101 H3: v1 字符流对齐分支删除 — 26/26 存量 doc 全 director2 (v2 原生轴),
+        # 非 director2 文档已不存在; 旧分支硬编码 8s 上限 (宪法已是 10s) 与
+        # align_report.json 产物随之退役。防御兜底: 非 v2 文档明确报错指路。
+        raise AnimNotFound(
+            f"非 director2 规划产物 (planner_flow={doc.get('planner_flow')!r}) — "
+            "v1 对齐分支已退役 (1101), 请重跑 🧭 规划")
 
 
 # ── 剪映草稿装配 ─────────────────────────────────────────────

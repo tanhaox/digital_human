@@ -379,9 +379,10 @@ DIRECTOR_SYS = (DIRECTOR_SYS
 # STRUCT = 结构规划版 (plan_scene / plan_arcs / reroll_concept 用; 三个活路径都挂术/器下游):
 #   只出 场/视觉世界/隐喻/切镜节奏/机位类型/文字层 — 画面句(keyframe/motion)归术器层,
 #   逐镜四字段从输出契约退役 (~11.9k → ~5k, 单场 1-2min 延迟大头砍半)。
-#   plan (单窗 legacy, planner.py:366 角落可达且无术/器下游) 保持全典不切 — 降级不裸砍。
-# DIRECTOR_SYS = 单镜全典 (plan / plan_shot / redesign_split_clones / consistency_review 用;
-#   P4 写者收口后按拍板 D4 退役, 巡检换专用精简 prompt)。
+# DIRECTOR_SYS = 单镜全典。1101 H4 注记实况: plan 单窗直跑块已删 (planner 不可达),
+#   现役用途 = plan_shot (单镜重设计: ♻️列队重做/单镜🔁) / redesign_split_clones
+#   (拆镜分身) / consistency_review (全片巡检) — 三用途共享单镜级宪法; P4 退役令
+#   悬置 (三用途皆活跃, 拆分属 B20 级长期挂账)。
 DIRECTOR_SYS_STRUCT = """你是顶级动画短片的导演 (Motion Director)。你的任务不是给台词"配插图"，
 而是把口播变成有结构的画面规划：切场、视觉世界、隐喻、切镜节奏、机位类型、文字层。
 画面句（首帧/动画描述）不归你写 — 下游按你的结构确定性生成。你写得好不好，看结构。
@@ -2114,70 +2115,9 @@ def plan_arcs(book_id: str, book_title: str, ep: int, ep_title: str,
     return doc
 
 
-def plan(book_id: str, book_title: str, ep: int, ep_title: str,
-         script: str, manifest: dict, bible: dict) -> dict[str, Any]:
-    """导演规划 (弧+运动+分镜, LLM) → 完整 doc (含产线生产字段)."""
-    from app.config import load_config, set_config
-    set_config(load_config())
-    from app.services.llm_service import get_llm_service as _llm, _parse_json
-
-    segs = []
-    t_cursor = 0.0
-    for s in manifest.get("segments") or []:
-        dur = float(s.get("duration") or 0)
-        txt = str(s.get("text") or "").strip()
-        segs.append({"t_start": round(t_cursor, 2), "t_end": round(t_cursor + dur, 2),
-                     "duration": round(dur, 2), "text": txt})  # 全文 (prompt 侧截, 对账用全量
-        t_cursor += dur
-
-    bible_block = ""
-    if bible:
-        bible_block = (f"\n【美术圣经 (全片统一, 每镜必须继承)】\n"
-                       f"- 风格前缀: {bible.get('style_prefix', '')}\n"
-                       f"- 色彩: {bible.get('color_palette', '')}\n"
-                       f"- 质感: {bible.get('texture', '')}\n"
-                       f"- 角色策略: {bible.get('character_policy', '')}\n"
-                       f"- 氛围: {bible.get('mood_keywords', '')}\n"
-                       + _domain_line(bible))
-        # 0923 修 (用户实锤 货不对版): 本站点漏了角色锁定卡 — 规划层 look 串全丢
-        chars = bible.get("characters") or []
-        if chars:
-            _lines = "\n".join(f"- {c.get('name')}（{c.get('role', '')}）: {c.get('look', '')}"
-                               for c in chars if isinstance(c, dict) and c.get("look"))
-            if _lines:
-                bible_block += ("【角色锁定卡 (出场角色的 keyframe_zh 必须原样携带其 look 关键词串, "
-                                "禁只写名字不写造型 — 服装+脸+道具一起入画)】\n" + _lines + "\n")
-    user = (f"【稿件】\n{script[:3000]}\n\n"
-            f"【TTS manifest (时间骨架, 精确到 0.1s)】\n"
-            + "\n".join(json.dumps({"t_start": s["t_start"], "t_end": s["t_end"],
-                                    "duration": s["duration"], "text": s["text"][:120]},
-                                   ensure_ascii=False) for s in segs)
-            + bible_block
-            + _series_lock_block(book_title, ep))
-    logger.info("[plan] 导演规划中… (LLM pro 链, 整集一次大调用, 2-4 分钟无中间输出属正常)")
-    raw = _llm().chat(DIRECTOR_SYS, user, model="pro", temperature=0.5, tag="plan")
-    logger.info("[plan] 导演返回 %d 字符, 建档展开…", len(raw or ""))
-    data = _parse_json(raw) or {}
-    if not (data.get("groups") or data.get("shots")):
-        raise SystemExit("导演产出不可解析 (无 groups/shots) — 重跑 plan 即可 (零 GPU)")
-    doc = _build_doc(book_id, book_title, ep, ep_title, data, bible)
-    # 0916: 句级 segs (巨型多句包的包内插值=漂移/劈句之源; 与 align/本场重规划同源)
-    try:
-        from app.services import anim_draft as _ad
-        _files = _ad.fetch_episode_audio(book_id, ep)["files"]
-        _sseg = _ad._sentence_segs(_files)
-        if _sseg:
-            segs = _sseg
-    except Exception as exc:  # noqa: BLE001
-        # 0919 弃包级回退 (同 plan_scene: 包级吸附=剔镜漂组窗破坏模式)
-        raise SystemExit(f"句级 segs 失败 (包级回退已废): {exc}") from exc
-    _realign_narrations(doc, segs)  # 字符级对账: 时间/narration 按 manifest 确定性重切
-    # 0917: 拆镜分身不是复印机 — 克隆家系当场批量换构图 (失败=保持克隆, 软警告亮灯)
-    try:
-        redesign_split_clones(doc, bible)
-    except Exception as exc:  # noqa: BLE001 — 重设计失败不炸整集规划 (克隆+警告兜底)
-        logger.warning("[plan] 拆镜分身重设计失败 (保持克隆, 软警告亮灯): %s", exc)
-    return doc
+# 1101 H4: 整集单窗 plan() (direct2.plan) 已删 — 0917 两级化后仅 planner 死块
+# 引用, 1101 死块删除后零调用方; 现役规划入口 = plan_arcs (切场) + plan_scene
+# (逐场, writer/struct 双模) + plan_shot (单镜)。删前全文见 git 5234cbb^。
 
 
 def _norm_iit(v) -> list:

@@ -9,14 +9,9 @@ import { toast } from '../ui.js';
  * @returns {Record<string, Function>} handler 表
  */
 export function wireFlowActions({ store, runner, refresh, getSt, startJob }) {
-  /** 对齐: v3 原生对齐 (stats['镜数']) 与旧版协议双兼容 */
+  /** 对齐: v3 原生对齐单协议 (1101 H3: v1 legacy 双协议随 v1 分支退役删除) */
   async function doAlign(dry) {
     const r = await api('/align', { dry_run: dry });
-    if (r.stats && r.stats['镜数'] !== undefined) alignV3(r, dry);
-    else alignLegacy(r, dry);
-  }
-
-  function alignV3(r, dry) {
     if (dry) {
       const iss = (r.issues || []).map(x => '  ⚠ ' + x).join('\n');
       const gps = (r.gaps || []).map(x => `  ⚠ 轴隙 ${x.from}→${x.to} ${x.gap_s}s`).join('\n');
@@ -26,20 +21,6 @@ export function wireFlowActions({ store, runner, refresh, getSt, startJob }) {
         (r.stats['硬校验问题'] + r.stats['轴隙']) > 0);
     } else {
       toast(`落盘 ✓ v3 原生对齐 · 备音轨 + 音效清单 ${r.stats['音效点']} 点 · 问题 ${r.stats['硬校验问题']}`);
-      refresh();
-    }
-  }
-
-  function alignLegacy(r, dry) {
-    if (dry) {
-      const bad = (r.shots || []).filter(x => x.class !== 'OK');
-      const lines = bad.slice(0, 15).map(x =>
-        `  ${x.shot_id} ${x.class}${x.matched ? '' : '(未匹配)'} ${x.audio_span}s (漂移${x.drift > 0 ? '+' : ''}${x.drift}s)`).join('\n');
-      runner.appendLog(`== 对齐试算 ==\n口播 ${Math.round(r.audio_total_s || 0)}s → 全集成片 ≈ ${Math.round(r.ep_len_s || 0)}s\n`
-        + `${JSON.stringify(r.stats)}\n${lines || '  全部 OK'}`);
-      toast('试算完成: ' + JSON.stringify(r.stats) + ' — 详情见日志区', !(r.stats && r.stats.OK));
-    } else {
-      toast(`对齐落盘 ✓ ${r.ep_len_s ? '全集成片 ≈ ' + Math.round(r.ep_len_s) + 's' : ''}`);
       refresh();
     }
   }

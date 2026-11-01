@@ -2,8 +2,8 @@
 """beats_enrich — K2 批尾 beats 多拍化 pass (1017 W3 S2, 用户令后处理固化).
 
 治"贴首帧但动画单一"与"beats 与图冻结瞬间错位"两族病 (s04 干晃 / s09 重排
-实锤)。输入吃**已渲 K2 图的 VLM 冻结瞬间描述** (图真锚; VLM 不可用退画面句
-动作描述), LLM 产多拍 beats。军规内嵌:
+实锤)。输入吃**画面句锚** (1021 图真锚撤: VLM 读图慢且抢卡, 画面句锚实况
+质量够用 — 1101 H2 死路已清), LLM 产多拍 beats。军规内嵌:
   ID-100 锁构图动画密度律: 相机全程固定禁急推重构图; 每拍 ≥2 画框内可见变化;
     第一拍必须从图的冻结姿势续写, 禁发明前置动作。
   ID-101 跨镜上下文: 前镜尾口播 + 后镜头口播随行。
@@ -14,7 +14,6 @@ from __future__ import annotations
 import logging
 import re
 import time
-from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -28,7 +27,7 @@ _TPL = """# 镜头数据
 前镜尾口播(上下文): {prev}
 后镜头口播(上下文): {next}
 画面句(规划描述): {keyframe}
-首帧图冻结瞬间(VLM 实看): {frozen}
+起始瞬间锚: {frozen}
 本镜时长: {duration:.1f} 秒
 书级运动律: {motion}
 
@@ -53,30 +52,10 @@ _TPL = """# 镜头数据
 
 _STATIC_RE = re.compile(r"stays still|nothing moves|no object moves", re.I)
 
-
 # 1021 用户令: 图真锚撤 — 读图锚 (1328px 过本地 VLM) 慢且要与 ComfyUI 抢大卡,
-# ep7 全集 VLM 不可用退画面句锚照样每镜 ✓3-4拍, 实况证明退路质量够用;
-# 再小的图和纯文字比都大 → 恒走画面句锚。翻回 True 即恢复读图锚。
-_VLM_ANCHOR = False
-
-
-def _frozen_desc(img_path: Path, vlm_ok: list[bool]) -> str:
-    """VLM 看图取冻结瞬间 (一次失败即熔断退画面句, 免批内反复等超时).
-
-    1021 起 _VLM_ANCHOR=False 恒退画面句锚 (用户令, 见上方开关注释)。"""
-    if not _VLM_ANCHOR:
-        return ""
-    if not vlm_ok or not vlm_ok[0]:
-        return ""
-    try:
-        from tools.vision import analyze
-        return analyze([str(img_path)],
-                       "描述这张定格画面的人物姿势/道具状态/构图取景, 作为动画"
-                       "起始瞬间。两行内, 客观只述可见。")
-    except Exception as exc:  # noqa: BLE001 — VLM 不可用退画面句
-        vlm_ok[0] = False
-        logger.warning("[beats-enrich] VLM 不可用 (本批退画面句锚): %s", str(exc)[:80])
-        return ""
+# ep7 全集退画面句锚照样每镜 ✓3-4拍, 实况证明退路质量够用。
+# 1101 H2: _VLM_ANCHOR 死开关与 _frozen_desc 读图死路删除 — 恒走画面句锚
+# (军规 §4 已同步改口径: 画面句锚=正路, 不再以 VLM 锚为正述)。
 
 
 def _validate(out: dict[str, Any], dur: float) -> str | None:
@@ -108,7 +87,6 @@ def _validate(out: dict[str, Any], dur: float) -> str | None:
 
 def enrich_beats(doc: dict[str, Any], only: set[str] | None = None) -> int:
     """批量多拍化: img_done 且未 enrich 的镜。返回成功数 (失败保单拍不计数)."""
-    from . import shots as shots_mod
     from .config import load as _anim_load
     from .h3 import motion_style
     from .llm import chat_json
@@ -116,7 +94,6 @@ def enrich_beats(doc: dict[str, Any], only: set[str] | None = None) -> int:
     llm_cfg = _anim_load().llm
     _ms = motion_style(str(doc.get("book_title") or ""))
     shots = doc.get("shots") or []
-    vlm_ok = [True]
     n = 0
     for i, s in enumerate(shots):
         if s.get("beats_enriched") or s.get("brand_card"):
@@ -129,10 +106,7 @@ def enrich_beats(doc: dict[str, Any], only: set[str] | None = None) -> int:
         dur = float(anim.get("duration_s") or 0)
         if dur <= 0:
             continue
-        img = shots_mod.ep_dir(str(doc.get("book_title")), int(doc.get("ep") or 0)) \
-            / str(s.get("image_file") or "")
-        frozen = _frozen_desc(img, vlm_ok) if img.exists() else ""
-        anchor = frozen or f"(按画面句推断起始瞬间) {str(s.get('keyframe_zh') or '')[:120]}"
+        anchor = f"(按画面句推断起始瞬间) {str(s.get('keyframe_zh') or '')[:120]}"
         prev = (shots[i - 1].get("narration") or "")[-24:] if i > 0 else "(全集开头)"
         nxt = (shots[i + 1].get("narration") or "")[:24:] if i + 1 < len(shots) else "(全集结尾)"
         user = _TPL.format(narration=(s.get("narration") or "").strip(),
@@ -164,8 +138,7 @@ def enrich_beats(doc: dict[str, Any], only: set[str] | None = None) -> int:
         anim["ending"] = str(out.get("ending") or "").strip()[:200]
         s["beats_enriched"] = True
         n += 1
-        logger.info("[beats-enrich] %s ✓ %d拍%s", s["shot_id"], len(anim["beats"]),
-                    "(VLM锚)" if frozen else "(画面句锚)")
+        logger.info("[beats-enrich] %s ✓ %d拍 (画面句锚)", s["shot_id"], len(anim["beats"]))
     return n
 
 
