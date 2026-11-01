@@ -639,6 +639,21 @@ def timeline_violations(book_ref: str, ep: int, tol: float = 0.06) -> list[str]:
     return bad
 
 
+def audio_stamp(doc: dict[str, Any], audio: dict[str, Any]) -> dict[str, Any]:
+    """工坊音频指纹 (1101 U9): plan/续跑/对齐 落盘时写 doc["audio_stamp"]。
+
+    status_view 用当前 fetch 结果现场重算比对 — job 换轨/包文本改/reroll 时长变
+    任一命中即 stale, 顶栏提示直到 🎚对齐落盘 (重写 stamp) 或重新验收采用。"""
+    import hashlib
+    files = audio.get("files") or []
+    texts = "".join(str(f.get("text") or "") for f in files)
+    return {"job_id": str(audio.get("job_id") or ""),
+            "text_sha": hashlib.sha1(texts.encode("utf-8"),
+                                     usedforsecurity=False).hexdigest()[:16],
+            "packs": len(files),
+            "total_s": round(sum(float(f.get("dur_s") or 0) for f in files), 1)}
+
+
 def fetch_episode_audio(book_id: str, ep: int) -> dict[str, Any]:
     """episode → 验收采用版 (1101 U8 钉选优先) / 最新 completed AudioJob 的音频包.
 
@@ -1095,6 +1110,8 @@ def align_episode(book_ref: str, ep: int, dry_run: bool = False) -> dict[str, An
                 # 草稿端兜底链 本书资产→全局资产→占位卡.
                 realigned = sum(1 for s in doc["shots"]
                                 if _before.get(s["shot_id"]) != (s.get("t_start"), s.get("t_end")))
+                # 1101 U9: 对齐落盘即更新音频指纹 (顶栏换轨提示由此消)
+                doc["audio_stamp"] = audio_stamp(doc, audio)
                 shots_mod.save(doc)
             # v2 时间轴体检: 轴隙/覆盖/时长窗硬校验 + 真实集长核对 + 音效清单刷新
             issues = _d2.validate_doc(doc)

@@ -292,6 +292,10 @@ def _phase_plan(job: dict[str, Any]) -> None:
         if job.get("continue_scenes"):
             # ▶️ 分镜续跑 (0917 立意人闸第二段): 立意确认后从骨架续跑逐场
             path = planner.resume_scenes(job["book_id"], job["ep"])
+            # 1101 U9: 落盘音频指纹 (换轨检测的基准)
+            _doc0 = shots_mod.load_doc(job["book_title"], job["ep"])
+            _doc0["audio_stamp"] = anim_draft.audio_stamp(_doc0, audio)
+            shots_mod.save(_doc0)
             # 1013 P0: 自动增强退役 (单写者直接产散文; 手动修复走 enhance 相位/端点)
             job["result"] = {"shots_json": str(path), "scenes_resumed": True}
             return
@@ -305,6 +309,9 @@ def _phase_plan(job: dict[str, Any]) -> None:
             # 1101 U4: voice_full 单口 (mtime+时长差双检; 0918 改字陈旧实锤的统一口径)
             anim_draft.ensure_voice_full(job["book_id"], job["ep"],
                                          job["book_title"], audio["files"])
+            # 1101 U9: 落盘音频指纹 (换轨检测基准; concept_only 骨架也落 — 续跑同轨)
+            doc["audio_stamp"] = anim_draft.audio_stamp(doc, audio)
+            shots_mod.save(doc)
             n_arcs = len(doc.get("arcs") or [])
             # 立意人闸停止路径 (concept_only): 骨架无镜 — 取尾镜时长会 IndexError
             # (0918 job 1770330f 实锤), 人闸停止属正常态非崩溃
@@ -603,6 +610,16 @@ def _phase_gpu(job: dict[str, Any]) -> None:
                 raise ValueError(
                     f"时间纪律未过: {_viol[0]} 等 {len(_viol)} 处镜界脱离句边 — "
                     "先按 🎚对齐落盘 再生成 (防按乱纪文案烧 GPU)")
+            # 1101 U9: 音频换轨可见性 (reroll/再生成后 stamp 失配 — 不阻断,
+            # timeline 闸已硬拦镜界漂移; 此处提醒人 🎚对齐落盘 或 重新验收采用)
+            try:
+                _au = _ad.fetch_episode_audio(job["book_id"], job["ep"])
+                _stamp = doc.get("audio_stamp")
+                if _stamp and _ad.audio_stamp(doc, _au) != _stamp:
+                    logger.warning("[gpu] ⚠ 音频已换轨 (reroll/再生成) — 当前分镜按旧音频"
+                                   "规划, 建议 🎚对齐落盘 拉齐 或 音频页重新验收采用")
+            except Exception as exc:  # noqa: BLE001 — 指纹比对失败不挡批
+                logger.debug("[gpu] 音频指纹比对跳过: %s", exc)
             # 0917 政治敏感画面禁区 (用户令): 中国地图/国旗/国徽/领导人画像 —
             # 卡通/剪影/变形同禁; 0924 升级: 自动修复禁区词 → 修不了才跳过
             from app.services.anim_pipeline import director2 as _d2
@@ -1454,10 +1471,13 @@ def status_view(book_ref: str, ep: int) -> dict[str, Any]:
     book_id, book_title = resolve_ep(book_ref, ep)
     view: dict[str, Any] = {"book_id": book_id, "book_title": book_title, "ep": ep,
                             "planned": False, "running_job": None, "audio_ready": False}
-    # 音频先行门控信号: 无已验收口播 → 规划禁用 (动画线动线: 文字→音频→分镜→动画)
+    # 音频先行门控信号: 无已验收/完成口播 → 规划禁用 (动画线动线: 文字→音频→分镜→动画)
+    # 1101 U9: fetch 结果留下供尾部音频指纹比对 (stale/pinned 投影)
+    _audio = None
     try:
         from app.services import anim_draft
-        view["audio_ready"] = bool(anim_draft.fetch_episode_audio(book_id, ep).get("files"))
+        _audio = anim_draft.fetch_episode_audio(book_id, ep)
+        view["audio_ready"] = bool(_audio.get("files"))
     except Exception:  # noqa: BLE001 — 音频未就绪是合法状态, 不是错误
         view["audio_ready"] = False
     with _JOBS_LOCK:
@@ -1535,4 +1555,16 @@ def status_view(book_ref: str, ep: int) -> dict[str, Any]:
         "opening_sec": anim_cfg_load().brand_card.opening_sec,
         "ep_dir": str(base),
     })
+    # 1101 U9: 音频指纹比对 — 换轨 (reroll/再生成/钉选丢失) 顶栏可见
+    if _audio is not None and doc.get("audio_stamp"):
+        try:
+            view["audio"] = {
+                "pinned": bool(_audio.get("pinned")),
+                "pinned_lost": bool(_audio.get("pinned_lost")),
+                "job_id": _audio.get("job_id"),
+                "packs": len(_audio.get("files") or []),
+                "stale": (anim_draft.audio_stamp(doc, _audio) != doc.get("audio_stamp")),
+            }
+        except Exception:  # 指纹比对失败不挡看板
+            logger.debug("[status] 音频指纹比对跳过", exc_info=True)
     return view

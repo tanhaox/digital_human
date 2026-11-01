@@ -38,12 +38,18 @@ function renderBrandPreview(st) {
 
 function sublineHtml(st) {
   const back = `<a href="${STORY_URL}">← 讲书页</a>`;
+  // 1101 U9: 音频换轨横幅 (stale=分镜按旧音频规划 — reroll/再生成过)
+  const au = st.audio;
+  const auLine = au && au.stale
+    ? ` · <b style="color:#f87171">⚠ 音频已换轨</b> (reroll/再生成) — <b>🎚对齐落盘</b> 拉齐 或 音频页重新验收采用`
+    : (au && au.pinned ? ` · 🎧验收版 (钉选 ${au.packs} 包)` : '');
+  const lost = au && au.pinned_lost ? ` · <b style="color:#f87171">验收版已被重建删除 (回退最新)</b>` : '';
   if (st.planned) {
-    return `${esc(st.ep_title || '')} · ${st.total} 镜${st.aligned ? ' · 已对齐' : ''} · ${back}`;
+    return `${esc(st.ep_title || '')} · 第${st.ep}集 · ${st.total} 镜${st.aligned ? ' · 已对齐' : ''}${auLine}${lost} · ${back}`;
   }
   return st.audio_ready
-    ? `音频已就绪 ✓ 可规划 · ${back}`
-    : `音频先行: 先到讲书页「🔊 TTS音频」生成并人耳验收口播 · ${back}`;
+    ? `音频已就绪 ✓ 可规划${auLine} · ${back}`
+    : `音频先行: 先到讲书页「🔊 TTS音频」生成并 ✔验收采用口播 · ${back}`;
 }
 
 function renderCounts(c) {
@@ -57,18 +63,25 @@ function renderButtons(st, h3Retry, h3Reset) {
   const c = st.counts || {};
   const busy = !!st.running_job;
   const noAudio = !st.audio_ready;
+  // 1101 A4: 无音频禁用全部吃音频的相位 (旧版只挡 plan — K2 点了才在闸上炸误导排障)
+  const audioGate = noAudio ? '音频先行: 先到讲书页生成并 ✔验收采用口播' : '';
   $('#btn-plan').disabled = busy || noAudio;
-  $('#btn-plan').title = noAudio ? '音频先行 (0912 架构令): 先在讲书页生成口播并人耳验收' : '';
+  $('#btn-plan').title = audioGate || (noAudio ? '音频先行 (0912 架构令)' : '');
   $('#btn-plan').textContent = st.planned ? '🧭 重新规划-全清(立意闸)' : '🧭 规划(立意闸)';
   $('#btn-plan-scenes').hidden = !scenesReady(st);
-  $('#btn-plan-scenes').disabled = busy;
+  $('#btn-plan-scenes').disabled = busy || noAudio;
+  $('#btn-plan-scenes').title = audioGate;
   $('#btn-concept-open').hidden = !((st.arcs || []).length);  // 1005 具象化改判: 有骨架即可唤起立意面板
-  $('#btn-k2').disabled = busy || !(c.planned > 0);
+  $('#btn-k2').disabled = busy || !(c.planned > 0) || noAudio;
+  $('#btn-k2').title = audioGate;
   $('#btn-approve-all').disabled = !(c.img_done > 0);
   // 1101 D1: h3Reset 模式下全集可重渲 (reset 清历史后全镜回 approved)
-  $('#btn-h3').disabled = busy ||
+  $('#btn-h3').disabled = busy || noAudio ||
     !((c.approved || 0) > 0 || (h3Retry && c.anim_fail > 0)
       || (h3Reset && (st.total || 0) > 0));
+  $('#btn-h3').title = audioGate;
   $('#btn-align-dry').disabled = $('#btn-align').disabled = busy || !st.planned;
+  $('#btn-align-dry').title = $('#btn-align').title = audioGate;
   $('#btn-draft').disabled = busy || !st.planned;
+  $('#btn-draft').title = audioGate;
 }
