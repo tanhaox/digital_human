@@ -84,7 +84,7 @@ def week_buckets(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             order.append(monday)
         b = buckets[monday]
         b["to"] = max(b["to"], d)
-        b["net"] += r["fan_net"]
+        b["net"] += r["fan_net"] or 0  # 新版逐日无粉丝列的日期按 0 入桶 (汇总只喂图表)
     out = [
         {
             "week_no": b["week_no"],
@@ -172,11 +172,16 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def dashboard_payload() -> dict[str, Any]:
-    """GET /api/analytics/daily 的载荷: 逐日行 + 摘要; 无数据时 rows=[] summary=None."""
+    """GET /api/analytics/daily 的载荷: 逐日行 + 摘要; 无数据时 rows=[] summary=None.
+
+    1026 改版逐日导出无粉丝列 → 粉丝侧聚合 (summary/milestones/lag) 只吃有 fan_net 的日子,
+    避免把"缺数据"当 0 净增算进基线/失速/ETA。"""
     rows = fetch_daily()
     if not rows:
         return {"range": None, "rows": [], "summary": None}
-    summary = summarize(rows)
+    fan_rows = [r for r in rows if r.get("fan_net") is not None]
+    summary = summarize(fan_rows) if fan_rows else None
+    end_total = summary["end_total_fans"] if summary else None
     return {
         "range": {"from": rows[0]["date"], "to": rows[-1]["date"], "days": len(rows)},
         "rows": rows,
@@ -185,10 +190,10 @@ def dashboard_payload() -> dict[str, Any]:
                                     fetch_videos(), fetch_factors()),
         "video": video_summary(rows),
         "weekday": weekday_dist(rows),
-        "lag": lag_table(rows),
+        "lag": lag_table(fan_rows),
         "milestones": milestone_rows(
-            summary["end_total_fans"], summary["baseline_avg"]["net"],
-            summary["avg"]["net"], str(rows[-1]["date"])),
+            end_total, summary["baseline_avg"]["net"], summary["avg"]["net"],
+            str(fan_rows[-1]["date"])) if end_total is not None else [],
         "alerts": build_alerts(rows),
         "freshness": freshness(rows),
         "portrait": fetch_portrait(),
@@ -251,7 +256,7 @@ def episodes_table(rows: list[dict], links: list[dict],
     by_date = {r["date"]: r for r in rows}
     vid_by_date = {v["publish_date"]: v for v in (videos or [])}
     order = [r["date"] for r in rows]
-    anom = {a["date"] for a in summary["anomaly_days"]}
+    anom = {a["date"] for a in summary["anomaly_days"]} if summary else set()
     out = []
     for lk in links:
         d = lk["date"]
@@ -308,12 +313,14 @@ def video_summary(rows: list[dict]) -> dict[str, Any]:
 
     def grp(g: list[dict]) -> dict[str, Any]:
         views = sum(r.get("views") or 0 for r in g)
+        new_known = [r["fan_new"] for r in g if r.get("fan_new") is not None]
         return {
             "days": len(g),
             "views_total": views,
             "avg_views": _r2(views / len(g)) if g else 0,
             "fan_new_total": sum(r.get("fan_new") or 0 for r in g),
-            "avg_fan_new": _r2(sum(r.get("fan_new") or 0 for r in g) / len(g)) if g else 0,
+            # 均值只除有数据的日子 (新版逐日无粉丝列的日子不计入分母)
+            "avg_fan_new": _r2(sum(new_known) / len(new_known)) if new_known else None,
             "sec5_rate": _wavg(g, "sec5_rate"),
             "sec2_bounce": _wavg(g, "sec2_bounce"),
         }
@@ -337,7 +344,11 @@ def video_summary(rows: list[dict]) -> dict[str, Any]:
 
 
 def weekday_dist(rows: list[dict]) -> list[dict[str, Any]]:
-    """周内分布: 天数 / 日均播放 / 日均净增 (xlsx 原表同口径)."""
+    """周内分布: 天数 / 日均播放 / 日均净增 (xlsx 原表同口径; 粉丝均值只算有数据的日子)."""
+    def _kavg(g: list[dict], k: str) -> float | None:
+        vals = [r[k] for r in g if r.get(k) is not None]
+        return _r2(sum(vals) / len(vals)) if vals else None
+
     out = []
     for wd in range(1, 8):
         g = [r for r in rows if (r.get("weekday") or date.fromisoformat(str(r["date"])).isoweekday()) == wd]
@@ -346,8 +357,8 @@ def weekday_dist(rows: list[dict]) -> list[dict[str, Any]]:
         out.append({
             "weekday": wd, "label": _WEEK_LABELS[wd - 1], "days": len(g),
             "avg_views": _r2(sum(r.get("views") or 0 for r in g) / len(g)),
-            "avg_net": _r2(sum(r.get("fan_net") or 0 for r in g) / len(g)),
-            "avg_fan_new": _r2(sum(r.get("fan_new") or 0 for r in g) / len(g)),
+            "avg_net": _kavg(g, "fan_net"),
+            "avg_fan_new": _kavg(g, "fan_new"),
         })
     return out
 
@@ -398,7 +409,10 @@ def build_alerts(rows: list[dict], today: date | None = None) -> list[dict[str, 
                        "text": f"数据停在 {last:%m-%d}, 已 {stale} 天 — 该从抖音后台导出新表入库了"})
     streak = 0
     for r in reversed(rows):
-        if (r.get("fan_net") or 0) <= 0:
+        v = r.get("fan_net")
+        if v is None:
+            break  # 缺粉丝列 ≠ 失速, 断链不计连击
+        if v <= 0:
             streak += 1
         else:
             break
@@ -406,6 +420,10 @@ def build_alerts(rows: list[dict], today: date | None = None) -> list[dict[str, 
         tail = [str(r["date"])[5:] for r in rows[-streak:]]
         alerts.append({"level": "bad", "kind": "stall",
                        "text": f"连续 {streak} 天净增≤0 ({('、'.join(tail))}) — 干预机制触发: 调整发布频率/选题"})
+    last_fan_date = next((str(r["date"]) for r in reversed(rows) if r.get("fan_net") is not None), None)
+    if last_fan_date is not None and str(rows[-1]["date"]) != last_fan_date:
+        alerts.append({"level": "warn", "kind": "fan_gap",
+                       "text": f"粉丝侧数据停在 {last_fan_date[5:]} — 最近导出为无粉丝列的新版格式, 请另导《粉丝数据》补齐"})
     return alerts
 
 

@@ -6,8 +6,14 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from app.services.analytics_service import (
-    build_alerts, lag_table, milestone_rows, pearson, summarize,
-    video_summary, week_buckets, weekday_dist,
+    build_alerts,
+    lag_table,
+    milestone_rows,
+    pearson,
+    summarize,
+    video_summary,
+    week_buckets,
+    weekday_dist,
 )
 
 
@@ -139,6 +145,7 @@ def test_build_alerts_stale_and_stall():
 
 def test_import_num_coercion_and_detect(tmp_path):
     import openpyxl
+
     from app.services.analytics_import import _num, detect_kind
 
     assert _num("2847") == 2847 and _num("0.005727") == 0.005727
@@ -192,3 +199,63 @@ def test_factor_window_and_stats():
     assert st["nopost_views_delta_pct"] == -50.0
     assert st["post_fannew_in"] == 20 and st["post_fannew_out"] == 10
     assert st["nopost_days"] == [{"date": "2026-10-01", "net": 1}]
+
+
+def test_import_daily_lite_preserves_fan_cols(tmp_path):
+    """1026 改版《短视频全量指标》(10列/百分比字符串/无粉丝列): 重叠日旧粉丝列必须保留, 派生列正确."""
+    import openpyxl
+
+    from app.services import analytics_import as ai
+
+    old = ai.DB_PATH
+    try:
+        ai.DB_PATH = tmp_path / "analytics.db"
+        # 第一份: 老全量格式 (含粉丝列)
+        wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Sheet1"
+        ws.append(["日期", "投稿量", "总播放量", "总点赞量", "总分享量", "总评论量",
+                   "5秒完播率", "2秒跳出率", "总粉丝量", "粉丝净增", "吸粉量", "脱粉量"])
+        ws.append(["2026-10-01", 1, 1000, 10, 1, 1, 0.22, 0.48, 100, 8, 9, 1])
+        f1 = tmp_path / "full.xlsx"; wb.save(f1)
+        r1 = ai.import_any(f1)
+        assert r1["kind"] == "daily" and r1["end_total_fans"] == 100
+
+        # 第二份: 新版 lite 格式, 重叠 10-01 + 新增 10-02 (率为 "22.02%" 字符串, 时长带 s)
+        wb2 = openpyxl.Workbook(); ws2 = wb2.active; ws2.title = "Sheet1"
+        ws2.append(["日期", "投稿量", "总播放量", "总点赞量", "总分享量", "总评论量",
+                    "5秒完播率", "2秒跳出率", "封面点击率", "平均播放时长"])
+        ws2.append(["2026-10-01", 1, 1200, 12, 2, 2, "22.02%", "48.38%", "10.00%", "8.55s"])
+        ws2.append(["2026-10-02", 0, 300, 3, 0, 0, "28.63%", "47.58%", "0.00%", "12.09s"])
+        f2 = tmp_path / "lite.xlsx"; wb2.save(f2)
+        r2 = ai.import_any(f2)
+        assert any("无粉丝列" in w for w in r2["warns"])
+
+        import sqlite3
+        con = sqlite3.connect(ai.DB_PATH)
+        rows = {r[0]: r for r in con.execute(
+            "SELECT date, views, interactions, interaction_rate, sec5_rate, avg_watch_sec, "
+            "total_fans, fan_net FROM douyin_daily ORDER BY date")}
+        con.close()
+        # 重叠日: 播放被新导出覆盖, 粉丝列保留旧值 (不被抹成 NULL)
+        assert rows["2026-10-01"][1] == 1200
+        assert rows["2026-10-01"][6] == 100 and rows["2026-10-01"][7] == 8
+        # 派生: 互动量=赞+评+转, 互动率=互动/播; 百分比/秒数字符串解析
+        assert rows["2026-10-01"][2] == 16 and abs(rows["2026-10-01"][3] - 16 / 1200) < 1e-9
+        assert abs(rows["2026-10-01"][4] - 0.2202) < 1e-9 and rows["2026-10-01"][5] == 8.55
+        # 新增日: 粉丝列留空
+        assert rows["2026-10-02"][6] is None and rows["2026-10-02"][7] is None
+        # 期末总粉取最后一个有值日, 不取 None
+        assert r2["end_total_fans"] == 100
+    finally:
+        ai.DB_PATH = old
+
+
+def test_alerts_fan_gap_and_no_false_stall():
+    """尾部缺粉丝列: 不误报失速, 出 fan_gap 预警."""
+    from datetime import date
+    rows = [
+        _row("2026-10-01", 100, 5, 5, 0, 1),
+        _row("2026-10-02", 105, None) | {"posts": 1, "views": 500},
+        _row("2026-10-03", None, None) | {"posts": 0, "views": 100},
+    ]
+    kinds = {x["kind"] for x in build_alerts(rows, today=date(2026, 10, 3))}
+    assert "stall" not in kinds and "fan_gap" in kinds

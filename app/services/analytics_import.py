@@ -29,7 +29,9 @@ HEADER_MAP = {
     "5秒完播率": "sec5_rate",
     "2秒跳出率": "sec2_bounce",
     "封面点击率": "cover_ctr",
+    # "平均播放时长" = 1026 改版《短视频全量指标》列名 (值带 s 后缀), 老表叫 "平均播放时长(s)"
     "平均播放时长(s)": "avg_watch_sec",
+    "平均播放时长": "avg_watch_sec",
     "播放/投稿": "views_per_post",
     "总粉丝量": "total_fans",
     "粉丝净增": "fan_net",
@@ -38,6 +40,13 @@ HEADER_MAP = {
     "回访粉丝量": "revisit_fans",
     "吸粉效率(粉/万播放)": "fan_efficiency",
 }
+
+# 1026 抖音改版: 《数据表现_短视频全量指标》仅 10 列 (无粉丝列, 率为 "22.02%" 字符串)。
+# 只硬性要求三根柱, 其余列按表头在则读; 互动量/互动率/播放比缺失时由已有列派生 (互动量=赞+评+转, 与老表口径一致)。
+REQUIRED_DAILY = ("日期", "投稿量", "总播放量")
+RATE_COLS = ("interaction_rate", "sec5_rate", "sec2_bounce", "cover_ctr", "fan_efficiency")
+INT_COLS = ("posts", "views", "likes", "shares", "comments", "interactions",
+            "total_fans", "fan_net", "fan_new", "fan_lost", "revisit_fans")
 
 DDL = """
 CREATE TABLE IF NOT EXISTS douyin_daily (
@@ -98,6 +107,22 @@ def _num(v):
     return float(str(v).replace(",", ""))
 
 
+def _cell(v, col: str):
+    """逐日单元格 → 库值: 率列剥 '%'/100, 时长剥 's' 后缀, 整数列剥逗号; 空返 None."""
+    if v is None or v == "":
+        return None
+    if col in RATE_COLS:
+        if isinstance(v, str):
+            s = v.strip()
+            return float(s[:-1]) / 100 if s.endswith("%") else float(s)
+        return float(v)
+    if col == "avg_watch_sec":
+        return float(v.strip().rstrip("s")) if isinstance(v, str) else float(v)
+    if col in INT_COLS:
+        return int(_num(v))
+    return v
+
+
 def _norm_date(v: Any) -> str:
     if isinstance(v, datetime):
         return v.date().isoformat()
@@ -116,7 +141,7 @@ def _iter_rows(wb, source_name: str) -> list[dict[str, Any]]:
     ws = wb["合并明细"] if "合并明细" in wb.sheetnames else wb[wb.sheetnames[0]]
     rows = list(ws.iter_rows(values_only=True))
     header = {h: i for i, h in enumerate(rows[0])}
-    missing = [h for h in HEADER_MAP if h not in header]
+    missing = [h for h in REQUIRED_DAILY if h not in header]
     if missing:
         raise ValueError(f"xlsx 缺列: {missing}")
     colmap = {HEADER_MAP[h]: header[h] for h in header if h in HEADER_MAP}
@@ -125,10 +150,16 @@ def _iter_rows(wb, source_name: str) -> list[dict[str, Any]]:
     for line in rows[1:]:
         if line[header["日期"]] is None:
             continue
-        r = {c: line[i] for c, i in colmap.items()}
+        r = {c: _cell(line[i], c) for c, i in colmap.items()}
         d = date.fromisoformat(_norm_date(r["date"]))
         r["date"] = d.isoformat()
         r["weekday"] = d.isoweekday()
+        if r.get("interactions") is None and None not in (r.get("likes"), r.get("shares"), r.get("comments")):
+            r["interactions"] = r["likes"] + r["shares"] + r["comments"]
+        if r.get("interaction_rate") is None and r.get("interactions") is not None and r.get("views"):
+            r["interaction_rate"] = r["interactions"] / r["views"]
+        if r.get("views_per_post") is None and r.get("views") is not None and r.get("posts"):
+            r["views_per_post"] = r["views"] / r["posts"]
         r["source"] = source_name
         r["updated_at"] = now
         out.append(r)
@@ -142,6 +173,9 @@ def import_xlsx(xlsx: Path, source_name: str | None = None) -> dict[str, Any]:
         raise ValueError("xlsx 无数据行 (合并明细 sheet 为空)")
 
     warns: list[str] = []
+    if all(r.get("total_fans") is None for r in rows):
+        warns.append("本次导出无粉丝列 (1026 改版《短视频全量指标》): fan_* / total_fans / revisit 留空, "
+                     "重叠日旧值保留 — 粉丝侧请另导《粉丝数据》表")
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     con = sqlite3.connect(DB_PATH)
     try:
@@ -149,12 +183,20 @@ def import_xlsx(xlsx: Path, source_name: str | None = None) -> dict[str, Any]:
         existing = {r[0] for r in con.execute("SELECT date FROM douyin_daily")}
         new_days = [r["date"] for r in rows if r["date"] not in existing]
         placeholders = ",".join("?" * len(COLUMNS))
+        # 重叠日: 新导出缺的列 (如新版无粉丝列) 保留旧值, 在则覆盖 (COALESCE(excluded.x, x))
+        update_sets = ",".join(
+            f"source=excluded.source" if c == "source" else
+            f"updated_at=excluded.updated_at" if c == "updated_at" else
+            f"{c}=COALESCE(excluded.{c}, {c})"
+            for c in COLUMNS if c != "date"
+        )
         for r in rows:
             if r.get("fan_net") is not None and None not in (r.get("fan_new"), r.get("fan_lost")):
                 if r["fan_net"] != r["fan_new"] - r["fan_lost"]:
                     warns.append(f"{r['date']} 净增{r['fan_net']} ≠ 吸粉{r['fan_new']}−脱粉{r['fan_lost']}")
             con.execute(
-                f"INSERT OR REPLACE INTO douyin_daily ({','.join(COLUMNS)}) VALUES ({placeholders})",
+                f"INSERT INTO douyin_daily ({','.join(COLUMNS)}) VALUES ({placeholders}) "
+                f"ON CONFLICT(date) DO UPDATE SET {update_sets}",
                 [r.get(c) for c in COLUMNS],
             )
         con.commit()
@@ -172,8 +214,10 @@ def import_xlsx(xlsx: Path, source_name: str | None = None) -> dict[str, Any]:
 
         n_days, d_min, d_max = con.execute(
             "SELECT COUNT(*), MIN(date), MAX(date) FROM douyin_daily").fetchone()
-        end_total = con.execute(
-            "SELECT total_fans FROM douyin_daily ORDER BY date DESC LIMIT 1").fetchone()[0]
+        end_row = con.execute(
+            "SELECT total_fans FROM douyin_daily WHERE total_fans IS NOT NULL "
+            "ORDER BY date DESC LIMIT 1").fetchone()
+        end_total = end_row[0] if end_row else None
     finally:
         con.close()
 
