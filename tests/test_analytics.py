@@ -272,3 +272,52 @@ def test_fan_anchor_picks_latest_total():
     assert _fan_anchor(rows) == ("2026-11-03", 737)
     assert _fan_anchor(rows[:1]) == ("2026-10-20", 411)
     assert _fan_anchor([]) is None
+
+
+def test_unified_table_merges_daily_and_videos(tmp_path):
+    """douyin_unified 沉淀总表: 逐日+视频按日期一行合并; 同日多视频计数求和/率按播放加权."""
+    import openpyxl
+
+    from app.services import analytics_import as ai
+
+    old = ai.DB_PATH
+    try:
+        ai.DB_PATH = tmp_path / "analytics.db"
+        # 逐日: 老全量格式两天 (10-01 带粉丝列)
+        wb = openpyxl.Workbook(); ws = wb.active; ws.title = "Sheet1"
+        ws.append(["日期", "投稿量", "总播放量", "总点赞量", "总分享量", "总评论量",
+                   "总粉丝量", "粉丝净增", "吸粉量", "脱粉量"])
+        ws.append(["2026-10-01", 1, 1000, 10, 1, 1, 100, 8, 9, 1])
+        ws.append(["2026-10-02", 2, 2000, 20, 2, 2, 108, 8, 9, 1])
+        f1 = tmp_path / "d.xlsx"; wb.save(f1)
+        r1 = ai.import_any(f1)
+        assert r1["unified_rows"] == 2
+
+        # 视频: 10-01 一条 + 10-02 两条 (同日双视频)
+        wb2 = openpyxl.Workbook(); ws2 = wb2.active; ws2.title = "Sheet1"
+        ws2.append(["作品名称", "发布时间", "体裁", "审核状态", "播放量", "完播率", "5s完播率",
+                    "封面点击率", "2s跳出率", "平均播放时长", "点赞量", "分享量", "评论量",
+                    "收藏量", "主页访问量", "粉丝增量"])
+        ws2.append(["甲", "2026-10-01 20:02:00", "3-5min视频", "公开", 900, 0.01, 0.2, 0, 0.5, 8, 9, 1, 1, 5, 3, 7])
+        ws2.append(["乙", "2026-10-02 12:00:00", "3-5min视频", "公开", 1500, 0.02, 0.3, 0, 0.5, 9, 15, 1, 1, 6, 4, 10])
+        ws2.append(["丙", "2026-10-02 20:02:00", "3-5min视频", "公开", 500, 0.04, 0.5, 0, 0.5, 7, 5, 0, 0, 2, 1, 3])
+        f2 = tmp_path / "v.xlsx"; wb2.save(f2)
+        r2 = ai.import_any(f2)
+        assert r2["unified_rows"] == 2  # 仍是两行 (按日)
+
+        import sqlite3
+        con = sqlite3.connect(ai.DB_PATH)
+        rows = {r[0]: r for r in con.execute(
+            "SELECT date, views, total_fans, v_count, v_titles, v_views, v_completion_rate, "
+            "v_fan_growth, v_collects FROM douyin_unified ORDER BY date")}
+        con.close()
+        d1, d2 = rows["2026-10-01"], rows["2026-10-02"]
+        # 逐日侧与视频侧同排一行; 粉丝列沉淀保留
+        assert d1[1] == 1000 and d1[2] == 100 and d1[3] == 1
+        assert d1[4] == "甲" and d1[5] == 900 and d1[6] == 0.01 and d1[7] == 7 and d1[8] == 5
+        # 同日双视频: 计数求和 / 完播率按播放加权 (0.02*1500+0.04*500)/2000=0.025 / 标题拼接
+        assert d2[3] == 2 and d2[4] == "乙｜丙"
+        assert d2[5] == 2000 and d2[7] == 13 and d2[8] == 8
+        assert abs(d2[6] - 0.025) < 1e-9
+    finally:
+        ai.DB_PATH = old

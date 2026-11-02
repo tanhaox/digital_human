@@ -211,6 +211,7 @@ def dashboard_payload() -> dict[str, Any]:
         "freshness": freshness(rows),
         "portrait": fetch_portrait(),
         "videos": fetch_videos(),
+        "unified": fetch_unified(),
         "factors": factor_stats(rows, fetch_factors()),
     }
 # ---------- 看板 v2 (1021): 视频侧 / 周内 / 领先性 / 里程碑 / 预警 / 集数挂钩 ----------
@@ -258,6 +259,24 @@ def fetch_videos() -> list[dict[str, Any]]:
         return [dict(zip(cols, row)) for row in cur.fetchall()]
     except sqlite3.OperationalError:
         return []  # 表未导
+    finally:
+        con.close()
+
+
+def fetch_unified() -> list[dict[str, Any]]:
+    """沉淀总表 douyin_unified (逐日+视频按日期合并; 导入时自动重建, 1103 用户令)."""
+    if not DB_PATH.exists():
+        return []
+    try:
+        con = sqlite3.connect(f"file:{DB_PATH.as_posix()}?mode=ro", uri=True)
+    except sqlite3.Error:
+        return []
+    try:
+        cur = con.execute("SELECT * FROM douyin_unified ORDER BY date")
+        cols = [d[0] for d in cur.description]
+        return [dict(zip(cols, row)) for row in cur.fetchall()]
+    except sqlite3.OperationalError:
+        return []  # 表未建 (导入前)
     finally:
         con.close()
 

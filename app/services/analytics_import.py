@@ -64,6 +64,38 @@ CREATE TABLE IF NOT EXISTS douyin_daily (
 
 COLUMNS = list(HEADER_MAP.values()) + ["source", "updated_at"]
 
+# 沉淀总表 (1103 用户令: 两张导出按日期合并成一张表; 同日口径澄清亦 1103 用户令) —
+# 逐日侧 = 《数据表现》当日**全账号**口径 (当天所有在播作品的长尾+新发, 总和进这一天);
+# 视频侧 = 《作品列表》该日发布作品的**终身累计**口径 (自发到导出时点)。
+# 两口径理论近似但视角不同, 不可同行直接相减比较 (1103 用户令: "理论上数据表现≈作品列表, 但可能不完全一致")。
+# 逐日侧来自 30 天滚动窗 (重叠 COALESCE 合并, 旧段沉淀), 视频侧全历史按发布日折叠;
+# 同日多视频: 计数列求和 / 率列按播放加权 / 标题'｜'拼接 / v_count 计数。
+UNIFIED_DDL = """
+CREATE TABLE IF NOT EXISTS douyin_unified (
+  date TEXT PRIMARY KEY,
+  weekday INTEGER,
+  posts INTEGER, views INTEGER, likes INTEGER, shares INTEGER, comments INTEGER,
+  interactions INTEGER, interaction_rate REAL, sec5_rate REAL, sec2_bounce REAL,
+  cover_ctr REAL, avg_watch_sec REAL, views_per_post REAL,
+  total_fans INTEGER, fan_net INTEGER, fan_new INTEGER, fan_lost INTEGER,
+  revisit_fans INTEGER, fan_efficiency REAL,
+  v_count INTEGER, v_titles TEXT, v_genre TEXT,
+  v_views INTEGER, v_completion_rate REAL, v_sec5_rate REAL, v_avg_watch_sec REAL,
+  v_likes INTEGER, v_shares INTEGER, v_comments INTEGER, v_collects INTEGER,
+  v_profile_visits INTEGER, v_fan_growth INTEGER,
+  source TEXT, updated_at TEXT
+)
+"""
+_UNIFIED_DAILY_COLS = (
+    "weekday", "posts", "views", "likes", "shares", "comments", "interactions",
+    "interaction_rate", "sec5_rate", "sec2_bounce", "cover_ctr", "avg_watch_sec",
+    "views_per_post", "total_fans", "fan_net", "fan_new", "fan_lost",
+    "revisit_fans", "fan_efficiency",
+)
+_UNIFIED_COUNT_COLS = ("v_views", "v_likes", "v_shares", "v_comments",
+                       "v_collects", "v_profile_visits", "v_fan_growth")
+_UNIFIED_RATE_COLS = ("v_completion_rate", "v_sec5_rate", "v_avg_watch_sec")
+
 # 《作品列表导出》(单条作品真值: 官方完播/收藏/主页访问/单视频吸粉; 次日12点更新)
 VIDEO_HEADER_MAP = {
     "作品名称": "title",
@@ -166,6 +198,56 @@ def _iter_rows(wb, source_name: str) -> list[dict[str, Any]]:
     return out
 
 
+def rebuild_unified(con: sqlite3.Connection) -> int:
+    """重建 douyin_unified 沉淀总表 (douyin_daily + douyin_videos 按日期合并); 返回行数.
+
+    幂等全量重建 (数据量=天数级, 无增量复杂度); 两次导入后各调一次。"""
+    con.execute(UNIFIED_DDL)
+    con.execute(VIDEO_DDL)  # 仅 daily 导入过的新库尚无 videos 表, 先确保再查
+    cur = con.execute(f"SELECT date, {','.join(_UNIFIED_DAILY_COLS)} FROM douyin_daily ORDER BY date")
+    daily = {r[0]: dict(zip(_UNIFIED_DAILY_COLS, r[1:])) for r in cur.fetchall()}
+    vids: dict[str, list[dict]] = {}
+    for r in con.execute(
+        "SELECT publish_date, title, genre, views, completion_rate, sec5_rate, avg_watch_sec, "
+        "likes, shares, comments, collects, profile_visits, fan_growth FROM douyin_videos ORDER BY publish_time"
+    ):
+        vids.setdefault(r[0], []).append(dict(zip(
+            ("title", "genre", "views", "completion_rate", "sec5_rate", "avg_watch_sec",
+             "likes", "shares", "comments", "collects", "profile_visits", "fan_growth"), r[1:])))
+    now = datetime.now().isoformat(timespec="seconds")
+    cols = ("date",) + _UNIFIED_DAILY_COLS + ("v_count", "v_titles", "v_genre") + \
+        _UNIFIED_COUNT_COLS + _UNIFIED_RATE_COLS + ("source", "updated_at")
+    placeholders = ",".join("?" * len(cols))
+    n = 0
+    for d in sorted(set(daily) | set(vids)):
+        day = daily.get(d, {})
+        g = vids.get(d, [])
+        row = {c: day.get(c) for c in _UNIFIED_DAILY_COLS}
+        if g:
+            row["v_count"] = len(g)
+            row["v_titles"] = "｜".join(v["title"].split(" ")[0] for v in g)
+            row["v_genre"] = next((v["genre"] for v in g if v["genre"]), None)
+            for c, k in zip(_UNIFIED_COUNT_COLS, ("views", "likes", "shares", "comments",
+                                                  "collects", "profile_visits", "fan_growth")):
+                row[c] = sum(v[k] or 0 for v in g)
+            tv = sum(v["views"] or 0 for v in g)
+            for c, k in zip(_UNIFIED_RATE_COLS, ("completion_rate", "sec5_rate", "avg_watch_sec")):
+                vals = [(v[k], v["views"]) for v in g if v[k] is not None]
+                row[c] = (sum(x * w for x, w in vals) / sum(w for _, w in vals)) if vals and tv else None
+        else:
+            row["v_count"] = 0
+        con.execute(
+            f"INSERT OR REPLACE INTO douyin_unified ({','.join(cols)}) VALUES ({placeholders})",
+            [d] + [row.get(c) for c in _UNIFIED_DAILY_COLS] +
+            [row.get("v_count"), row.get("v_titles"), row.get("v_genre")] +
+            [row.get(c) for c in _UNIFIED_COUNT_COLS] + [row.get(c) for c in _UNIFIED_RATE_COLS] +
+            [f"daily+videos@{now}", now],
+        )
+        n += 1
+    con.commit()
+    return n
+
+
 def import_xlsx(xlsx: Path, source_name: str | None = None) -> dict[str, Any]:
     """导入一份导出 xlsx, 返回报告 dict (不抛业务异常外的意外)."""
     rows = load_rows(xlsx, source_name or xlsx.name)
@@ -218,12 +300,14 @@ def import_xlsx(xlsx: Path, source_name: str | None = None) -> dict[str, Any]:
             "SELECT total_fans FROM douyin_daily WHERE total_fans IS NOT NULL "
             "ORDER BY date DESC LIMIT 1").fetchone()
         end_total = end_row[0] if end_row else None
+        unified_rows = rebuild_unified(con)
     finally:
         con.close()
 
     report = {
         "imported": len(rows), "new": len(new_days), "refreshed": len(rows) - len(new_days),
         "backfilled_total_fans": backfilled, "db_days": n_days,
+        "unified_rows": unified_rows,
         "range": {"from": d_min, "to": d_max}, "end_total_fans": end_total, "warns": warns,
     }
     return report
@@ -285,12 +369,14 @@ def import_videos_xlsx(xlsx: Path, source_name: str | None = None) -> dict[str, 
         con.commit()
         n, d_min, d_max = con.execute(
             "SELECT COUNT(*), MIN(publish_date), MAX(publish_date) FROM douyin_videos").fetchone()
+        unified_rows = rebuild_unified(con)
     finally:
         con.close()
     return {
         "kind": "videos", "imported": len(rows), "new": new_n, "refreshed": len(rows) - new_n,
-        "db_videos": n, "range": {"from": d_min, "to": d_max},
-        "note": "单视频真值 (官方完播/收藏/主页访问/吸粉), 次日12点更新昨日",
+        "db_videos": n, "unified_rows": unified_rows,
+        "range": {"from": d_min, "to": d_max},
+        "note": "单视频真值 (官方完播/收藏/主页访问/吸粉), 次日12点更新昨日; 导入后已重建 douyin_unified 沉淀总表",
     }
 
 
