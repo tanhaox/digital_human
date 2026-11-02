@@ -259,3 +259,16 @@ def test_alerts_fan_gap_and_no_false_stall():
     ]
     kinds = {x["kind"] for x in build_alerts(rows, today=date(2026, 10, 3))}
     assert "stall" not in kinds and "fan_gap" in kinds
+
+
+def test_fan_anchor_picks_latest_total():
+    """口述锚点行 (total_fans 有值/fan_net 空) 应被选为期末锚点, 而非逐日粉丝尾日."""
+    from app.services.analytics_service import _fan_anchor
+    rows = [
+        _row("2026-10-20", 411, 38),
+        _row("2026-10-21", None, None),
+        {"date": "2026-11-03", "total_fans": 737},
+    ]
+    assert _fan_anchor(rows) == ("2026-11-03", 737)
+    assert _fan_anchor(rows[:1]) == ("2026-10-20", 411)
+    assert _fan_anchor([]) is None

@@ -171,17 +171,30 @@ def summarize(rows: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _fan_anchor(rows: list[dict]) -> tuple[str, int] | None:
+    """最新粉丝锚点: 最后一个有 total_fans 的日子 (真导出日 或 口述锚点行)."""
+    for r in reversed(rows):
+        if r.get("total_fans") is not None:
+            return str(r["date"]), r["total_fans"]
+    return None
+
+
 def dashboard_payload() -> dict[str, Any]:
     """GET /api/analytics/daily 的载荷: 逐日行 + 摘要; 无数据时 rows=[] summary=None.
 
     1026 改版逐日导出无粉丝列 → 粉丝侧聚合 (summary/milestones/lag) 只吃有 fan_net 的日子,
-    避免把"缺数据"当 0 净增算进基线/失速/ETA。"""
+    避免把"缺数据"当 0 净增算进基线/失速/ETA; 期末总粉/里程碑另取最新 total_fans 锚点
+    (口述锚点行 source=manual), 让看板与主页实数对齐。"""
     rows = fetch_daily()
     if not rows:
         return {"range": None, "rows": [], "summary": None}
     fan_rows = [r for r in rows if r.get("fan_net") is not None]
     summary = summarize(fan_rows) if fan_rows else None
+    anchor = _fan_anchor(rows)
+    if summary and anchor and anchor[1] != summary["end_total_fans"]:
+        summary["end_total_fans"] = anchor[1]  # 口述/新锚点比逐日粉丝尾日新 → 期末用锚点
     end_total = summary["end_total_fans"] if summary else None
+    ms_date = anchor[0] if anchor else (str(fan_rows[-1]["date"]) if fan_rows else None)
     return {
         "range": {"from": rows[0]["date"], "to": rows[-1]["date"], "days": len(rows)},
         "rows": rows,
@@ -193,7 +206,7 @@ def dashboard_payload() -> dict[str, Any]:
         "lag": lag_table(fan_rows),
         "milestones": milestone_rows(
             end_total, summary["baseline_avg"]["net"], summary["avg"]["net"],
-            str(fan_rows[-1]["date"])) if end_total is not None else [],
+            ms_date) if end_total is not None else [],
         "alerts": build_alerts(rows),
         "freshness": freshness(rows),
         "portrait": fetch_portrait(),
@@ -421,9 +434,11 @@ def build_alerts(rows: list[dict], today: date | None = None) -> list[dict[str, 
         alerts.append({"level": "bad", "kind": "stall",
                        "text": f"连续 {streak} 天净增≤0 ({('、'.join(tail))}) — 干预机制触发: 调整发布频率/选题"})
     last_fan_date = next((str(r["date"]) for r in reversed(rows) if r.get("fan_net") is not None), None)
+    anchor = _fan_anchor(rows)
     if last_fan_date is not None and str(rows[-1]["date"]) != last_fan_date:
+        tip = f", 最新锚点 {anchor[1]}粉@{anchor[0][5:]}" if anchor and anchor[0] != last_fan_date else ""
         alerts.append({"level": "warn", "kind": "fan_gap",
-                       "text": f"粉丝侧数据停在 {last_fan_date[5:]} — 最近导出为无粉丝列的新版格式, 请另导《粉丝数据》补齐"})
+                       "text": f"粉丝逐日明细停在 {last_fan_date[5:]}{tip} — 最近导出为无粉丝列的新版格式, 请另导《粉丝数据》补齐"})
     return alerts
 
 
