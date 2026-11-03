@@ -261,7 +261,12 @@ def clean_episode_script(script_text: str) -> tuple[str, list[str]]:
         if ordered != base_order:
             issues.append("时间标签顺序异常 (建议重新生成)")
 
+    # 1103 S4: Markdown 星号剥除 — 与生成线 episode_gen 确定性收尾同款 (ep2 实锤
+    # ** 错位对进 segments 被念出); 此处盖住修稿/produce 旁路渗入, 口播稿星号无
+    # 合法用途
     cleaned = "\n".join(kept).strip()
+    if "*" in cleaned or "＊" in cleaned:
+        cleaned = cleaned.replace("＊", "").replace("*", "")
     return cleaned, issues
 
 

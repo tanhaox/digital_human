@@ -1971,6 +1971,13 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
             tail = tail[: m.start()].rstrip()
         out = tail + "\n" + _ending
 
+    # 1103 S4: Markdown 星号剥除 — ep2 实锤「**专业的门槛是懂行。/**信任的门槛是被
+    # 需要。」跨行错位对 3 处进 segments, TTS 三层清洗均不剥会念出 (对照 -0.3s-
+    # 控制符先例); 星号在口播稿无合法用途, 全量剥。位次=终检 snapshot 前, 校验与
+    # 落库所见即剥后稿。
+    if "**" in out or "*" in out or "＊" in out:
+        out = out.replace("＊", "").replace("*", "")
+        logger.info("[book] ep%d Markdown星号剥除 ✓", ep.ep_index)
     # 1019 字幕限流词主闸 (用户令: LLM 一对一比抖音公开传播松, 出口确定性替换是
     # 唯一安全边界): 平台名缓冲词+暴力词书面化, 命中静默替换+日志; 与操控→借用
     # 同款确定性编辑层位, 且在终检 snapshot 之前 — 校验与落库所见即替换后稿。

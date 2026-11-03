@@ -469,6 +469,14 @@ _SENT_MARKS = ("叫", "拆成", "分成")
 # 「章」排除 — 书里第X章引用合法)。实锤: ep2「第一档×3 + 这一步」档/步两轴并存,
 # "档"是 writer 现场自造 (排程设计词=拆解三步的"步")。
 _MODULE_COUNT_RE = re.compile(r"(?:第[一二三四五六七八九十\d]+|这一|该)([档步招层式])")
+# 1103 S4 叠词听感废句: ABAB 型叠词白名单外的疑似结巴 (「教授教授统计学」实锤);
+# AABB (认认真真/世世代代中"家家户户"式) 天然不中 — \1 须整块重复。
+_REDUP_RE = re.compile(r"([一-龥]{2,4})\1")
+_REDUP_WHITELIST = {
+    "考虑", "研究", "琢磨", "商量", "交流", "沟通", "体验", "感受", "尝试",
+    "练习", "打听", "整理", "收拾", "打扮", "打量", "比划", "拾掇", "说道",
+    "溜达", "热闹", "客气", "高兴", "放松", "回味", "世代", "雪白", "通红", "碧绿",
+}
 
 
 def _listen_feel_issues(text: str, series_word: str | None = None) -> list[str]:
@@ -537,6 +545,13 @@ def _listen_feel_issues(text: str, series_word: str | None = None) -> list[str]:
                        + " — 说人话 (config/listen_terms.json)")
     except Exception:  # noqa: BLE001 — 词库坏不炸校验
         pass
+    # ⑤ 叠词听感废句 (1103 S4): ABAB 白名单外 = 疑似口误/结巴 — 听感歧义=废句
+    # (北斗星令#21); ep2「一个教授教授统计学」实锤。只报首个, 一稿一处即够修。
+    for _ab in sorted(set(_REDUP_RE.findall(t))):
+        if _ab not in _REDUP_WHITELIST:
+            out.append(f"叠词听感废句: 「{_ab}{_ab}」疑似口误/结巴 — ABAB 叠词仅限"
+                       "考虑考虑/研究研究式口语软化白名单, 名词叠用改单说")
+            break
     return out
 
 
@@ -687,6 +702,11 @@ def validate_script(text: str, target: float, book_title: str = "",
     _ctrl = re.search(r"-\d+(\.\d+)?s-|\|\d+(\.\d+)?s\||【?A/B?选项", text or "")
     if _ctrl:
         issues.append(f"控制符渗稿: 「{_ctrl.group(0)}」— 时序/选项标记禁入口播稿 (TTS 会念)")
+    # 1103 S4: Markdown 星号残留 (阻断) — 同上 TTS 会念先例 (ep2 ** 错位对 3 处实锤);
+    # 生成线/清洗线双剥 (含全角＊) 后仍残留 = 旁路渗入, 阻断级
+    if "*" in (text or "") or "＊" in (text or ""):
+        issues.append("Markdown星号残留(阻断): 星号会被TTS念出 — 口播稿无合法星号用途 "
+                      "(生成/清洗线已剥, 残留=旁路渗入; 修稿保存复检清零)")
     # 1018 C2 书名错写闸 (R1): 书名提及只许 全名 或 冒号前主名; 与真名用字重叠
     # ≥0.5 的意译名 (《被信任的专业顾问》vs《值得信赖的顾问》— fdopen 无书名字段
     # 意译实锤, 字集重叠 4/7=0.57) → 打回。工具名/他书引用与真名字集重叠低, 不误伤。
