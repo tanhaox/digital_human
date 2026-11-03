@@ -268,6 +268,9 @@ def clean_episode_script(script_text: str) -> tuple[str, list[str]]:
         if ordered != base_order:
             issues.append("时间标签顺序异常 (建议重新生成)")
 
+    # 1103 Z+: 金句标记剥前缀 (writer 注释非口播, 同打字卡层; ep4 "金句：把选择
+    # 递过去"被 TTS 念出实锤) — 只剥行首"金句："前缀, 金句内容保留为口播
+    kept = [re.sub(r"^金句[：:]\s*", "", l) for l in kept]
     # 1103 S4: Markdown 星号剥除 — 与生成线 episode_gen 确定性收尾同款 (ep2 实锤
     # ** 错位对进 segments 被念出); 此处盖住修稿/produce 旁路渗入, 口播稿星号无
     # 合法用途
