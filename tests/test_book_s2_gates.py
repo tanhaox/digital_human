@@ -104,3 +104,28 @@ def test_hook_without_promise_passes():
                      "这集就给你补上后半截。")
     iss = [i for i in hook_position_issues(t, _HOOK) if "开环" in i]
     assert iss == [], iss
+
+
+# ── 1103 U: 注释污染/轻归一/作为分段/系列词实测 ──
+
+def test_concept_note_parenthesis_stripped():
+    """总编剧概念带「（四维打分）」注解 — 剥注解后按正式名比对."""
+    from app.services.book_service.creation_common import concept_speakable
+    assert concept_speakable("信任等式（四维打分）") == "信任等式"
+    assert concept_speakable("行动册装订（不引入新概念）") == "行动册装订"
+    assert concept_speakable("责任归己转换") == "责任归己"
+
+
+def test_coverage_keeps_deliverable_name():
+    """交付物名 (信任等式) 不剥 — 全稿只写「信任」不算覆盖 (真失配不放走)."""
+    iss = concept_coverage_issues("信任是分水岭，别的都是装饰。", ["信任等式（四维打分）"])
+    assert len(iss) == 1 and "信任等式" in iss[0], iss
+
+
+def test_coverage_zuowei_segment_fallback():
+    """「自我导向作为分母」式描述性概念 — 作为切段最长段在稿即算."""
+    assert concept_coverage_issues("这集盯死分母：自我导向。", ["自我导向作为分母"]) == []
+
+
+def test_redup_enumerative_adverb_whitelisted():
+    assert _listen_feel_issues("咱们一条一条讲，一项一项过。") == []

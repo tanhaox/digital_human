@@ -55,16 +55,36 @@ def word_band(target: float) -> tuple[int, int, int, int]:
 # 实锤: 「包容的专业精神」(ep2) vs「包容的专业主义」(ep6) 两字之差逃过精确交集,
 # 同一概念两集 claim → 正文必然串味 (ep2 核心任务 0 落地)。归一剥类后缀后比核心词。
 _CONCEPT_TYPE_SUFFIXES = ("主义", "精神", "论", "性", "感", "等式", "方法", "式",
-                          "法则", "原则", "模型", "阶段", "清单")
+                          "法则", "原则", "模型", "阶段", "清单", "转换")
+# 概念字段注释污染 (1103 U): 总编剧会在概念里塞「（四维打分）」式舞台说明 —
+# 匹配前剥掉, 概念本体才可比对
+_CONCEPT_NOTE_RE = re.compile(r"[（(【][^）)】]*[）)】]")
 
 
 def concept_core(c: str) -> str:
-    """概念 → 归一核心词: 剥尾部类后缀 (剥后须 ≥2 字, 否则概念本身就是后缀词保留原样).
+    """概念 → 归一核心词 (S1 排重用·重归一): 剥注释括号 + 剥尾部类后缀.
 
-    「包容的专业精神」→「包容的专业」;「技术至上论」→「技术至上」;「信任感」→「信任」。
-    """
-    s = str(c or "").strip()
+    「包容的专业精神」→「包容的专业」;「信任等式（四维打分）」→「信任」;
+    「技术至上论」→「技术至上」。"""
+    s = _CONCEPT_NOTE_RE.sub("", str(c or "").strip())
     for suf in _CONCEPT_TYPE_SUFFIXES:
+        if s.endswith(suf) and len(s) - len(suf) >= 2:
+            return s[: -len(suf)]
+    return s
+
+
+# S2 覆盖闸轻后缀 (1103 U): 只剥论文腔类词 — 交付物名本身 (信任等式/期望管理清单) 是
+# 观众要记住的词, 剥了就把真失配放走 (重归一 vs 轻归一两档, 各伺候各的闸)
+_CONCEPT_COVER_SUFFIXES = ("主义", "精神", "论", "转换")
+
+
+def concept_speakable(c: str) -> str:
+    """概念 → 可口播正式名 (S2 覆盖用·轻归一): 剥注释括号 + 轻类后缀.
+
+    「信任等式（四维打分）」→「信任等式」;「责任归己转换」→「责任归己」;
+    「行动册装订（不引入新概念）」→「行动册装订」。"""
+    s = _CONCEPT_NOTE_RE.sub("", str(c or "").strip())
+    for suf in _CONCEPT_COVER_SUFFIXES:
         if s.endswith(suf) and len(s) - len(suf) >= 2:
             return s[: -len(suf)]
     return s
@@ -87,8 +107,16 @@ def concept_coverage_issues(text: str, concepts: list | None) -> list[str]:
         s = str(c or "").strip()
         if not s:
             continue
-        core = concept_core(s)
-        if core and core not in t and core.replace("的", "").replace("性", "") not in t_glue:
+        core = concept_speakable(s)
+        hit = core in t
+        if not hit:
+            hit = core.replace("的", "").replace("性", "") in t_glue
+        if not hit:
+            # 「作为」分段回退 (1103 U): 「自我导向作为分母」式描述性概念 —
+            # 取作为/与/和 切出的最长段 (≥3字) 在稿即算 (概念本体=左段)
+            _segs = [x for x in re.split(r"作为|与|和", core) if len(x) >= 3]
+            hit = any(seg in t for seg in sorted(_segs, key=len, reverse=True)[:1])
+        if not hit:
             out.append(f"概念未覆盖(阻断): 「{s}」核心词「{core}」全稿未出现 — "
                        "集型使命未落地, 概念表是排程契约 (补进正文或换概念重排)")
     return out
@@ -476,6 +504,7 @@ _REDUP_WHITELIST = {
     "考虑", "研究", "琢磨", "商量", "交流", "沟通", "体验", "感受", "尝试",
     "练习", "打听", "整理", "收拾", "打扮", "打量", "比划", "拾掇", "说道",
     "溜达", "热闹", "客气", "高兴", "放松", "回味", "世代", "雪白", "通红", "碧绿",
+    "一条", "一项",  # 1103 U: 枚举副词「一条一条讲/一项一项过」合法 (ep4/ep7 实跑误报)
 }
 
 
@@ -565,13 +594,21 @@ def resolve_series_word(book) -> str | None:
         _w = str(_soul.get("系列框架词") or "").strip()
         if _w:
             return _w
-    fa = fb = 0
+    fa_hits: list[str] = []
+    fb_hits: list[str] = []
     for e in (getattr(book, "episodes", None) or []):
         blob = str(getattr(e, "roadmap_json", None) or {}) + str(getattr(e, "title", None) or "")
-        fa += len(_FRAME_FAM_A.findall(blob))
-        fb += len(_FRAME_FAM_B.findall(blob))
-    if fa or fb:
-        return "五步转型" if fa > fb else "五件工具"
+        fa_hits += _FRAME_FAM_A.findall(blob)
+        fb_hits += _FRAME_FAM_B.findall(blob)
+    if fa_hits or fb_hits:
+        # 1103 U: 族内取「计数声明」多数词 (数字≥三, 滤序数"上一件/下一件"), 不再
+        # 硬编码五件 — 新总纲六件工具被钦定成五件 (ep7 说六件 vs 钦定五件打架实锤),
+        # 数字跟书走; 无计数声明回规范词 (老书兼容)
+        _is_a = len(fa_hits) >= len(fb_hits)
+        _pool = fa_hits if _is_a else fb_hits
+        _counting = [w for w in _pool if re.search(r"[三四五六七八九十\d]", w[:1])]
+        return (max(set(_counting), key=_counting.count) if _counting
+                else ("五步转型" if _is_a else "五件工具"))
     return None
 
 

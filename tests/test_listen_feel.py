@@ -139,3 +139,13 @@ def test_repeat_true_7char_still_flagged():
     s += "第二段补证据：连续五六个小时初稿才能出来，这是硬门槛。"
     ok, issues = validate_script(s, 600, "测试书")
     assert any("复读段" in i for i in issues)
+
+
+def test_resolve_series_word_count_follows_book():
+    """1103 U: 族内计数声明多数 (数字跟书走) — 六件工具书不钦成五件; 序数不污染."""
+    from types import SimpleNamespace as NS
+    from app.services.book_service.creation_common import resolve_series_word
+    b = NS(input_json={"灵魂三问": {}}, episodes=[
+        NS(roadmap_json={"秘籍": "全系列六件套导览", "启下": "下一件工具"}, title="六件工具一页一件"),
+        NS(roadmap_json={"承上": "上一件工具", "启下": "预告"}, title="u")])
+    assert resolve_series_word(b) == "六件工具"
