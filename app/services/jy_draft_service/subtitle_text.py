@@ -74,6 +74,9 @@ def wash_subtitle_text(text: str) -> str:
     t = text.strip()
     t = strip_pinyin_marks(t)
     t = re.sub(r"\[[a-zA-Z]+\]\s*", "", t)  # 剥 [calm]/[serious] 等情绪标签
+    # 1103 W2: 剥句中停顿标记 -Xs- (稿内手写气口, 只给 TTS 垫秒; 卡层 _CARD_PAUSE_RE
+    # 同款, 字幕层此前漏剥 — 实锤源: ep2 "可核心的会-0.3s-从不叫你" 听感手术)
+    t = re.sub(r"(?<![A-Za-z0-9])-\d+(?:\.\d+)?s-", "", t)
     t = _num_to_cn_pattern(t)
     # latin + 中文数字 → latin + 空格 + 阿拉伯
     def _latin_num(m):

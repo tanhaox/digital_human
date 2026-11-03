@@ -137,3 +137,18 @@ def test_ban_list_scoring_range_not_flagged():
     iss = validate_script("翻出你最近3个客户，把四格各打1到5分，让他照着打一遍。评论区聊聊你最低那格。",
                           240.0, book_title="值得信赖的顾问")[1]
     assert not any("反套路" in i and "打" in i for i in iss), iss
+
+
+def test_pause_mark_legit_not_flagged():
+    """1103 W2: 手写气口 -Xs- 后贴汉字 = 合法 (ep2 听感手术实锤); 时序标记仍拦."""
+    from app.services.book_service.creation_common import validate_script
+    ok_legit = validate_script("可核心的会-0.3s-从不叫你。", 240.0, book_title="X")[1]
+    assert not any("控制符" in i for i in ok_legit), ok_legit
+    ok_time = validate_script("分段 -0.3s-A： 开场白。", 240.0, book_title="X")[1]
+    assert any("控制符" in i for i in ok_time), ok_time
+
+
+def test_subtitle_wash_strips_pause_and_pinyin():
+    """1103 W2: 字幕层剥 -Xs- 与拼音标注 (观众只见裸字)."""
+    from app.services.jy_draft_service.subtitle_text import wash_subtitle_text
+    assert wash_subtitle_text("可核心的会-0.3s-从不叫你。全<中|ZHONG4>。") == "可核心的会从不叫你。全中。"

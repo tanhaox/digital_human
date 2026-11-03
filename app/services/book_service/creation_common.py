@@ -736,8 +736,11 @@ def validate_script(text: str, target: float, book_title: str = "",
         if _tbl:
             issues.append(f"视听不一致·表: 「{_tbl.group(0)}」— 画面无表格, 口播禁用'表'指称工具 "
                           "(改'这套问话/这三句/这条口诀'; 工具命名不带表)")
-    # 1018: 控制符/时序标记渗稿 (定位 ep5 上线实锤: '-0.3s-A：' 被 TTS 念出)
-    _ctrl = re.search(r"-\d+(\.\d+)?s-|\|\d+(\.\d+)?s\||【?A/B?选项", text or "")
+    # 1018: 控制符/时序标记渗稿 (定位 ep5 上线实锤: '-0.3s-A：' 被 TTS 念出);
+    # 1103 W2: -Xs- 后贴汉字/标点 = 合法手写气口 (ep2 "可核心的会-0.3s-从不叫你"
+    # 听感手术实锤), 后贴 ASCII = 时序/选项标记才拦
+    _ctrl = re.search(r"-\d+(?:\.\d+)?s-(?![一-龥，。！？；、\s]|$)"
+                      r"|\|\d+(?:\.\d+)?s\||【?A/B?选项", text or "")
     if _ctrl:
         issues.append(f"控制符渗稿: 「{_ctrl.group(0)}」— 时序/选项标记禁入口播稿 (TTS 会念)")
     # 1103 S4: Markdown 星号残留 (阻断) — 同上 TTS 会念先例 (ep2 ** 错位对 3 处实锤);
