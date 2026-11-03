@@ -262,9 +262,10 @@ def find_para_walls(script_text: str, lines: list[str]) -> tuple[set[int], list[
         if not want:
             continue
         # 下一锚的最早可能位 = 当前锚位之后 — 用剩余锚数放宽窗口防中间失配连环
+        # (末锚 limit=len(lines), range 上界须夹回 len(lines) — 1103 ep5 越界实锤)
         limit = len(lines) - (len(starts) - k - 1)
         hit = -1
-        for j in range(cursor, max(cursor, limit + 1)):
+        for j in range(cursor, min(len(lines), max(cursor, limit + 1))):
             n = norm_tail(lines[j])
             if n == want or (len(want) >= 6 and n.endswith(want)):
                 hit = j
