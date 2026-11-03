@@ -206,3 +206,11 @@ def test_pin_marks_terminal_defense_in_tts():
     """1103 W5: TTS 入口兜底剥钉标记(【】新语法+⟪⟫遗留) — 句中渗入也不出口播."""
     from app.services.tts_service import _PIN_MARK_BRACKET_RE
     assert _PIN_MARK_BRACKET_RE.sub("", "口播【图:信任公式】继续说。【卡】钉行。") == "口播继续说。钉行。"
+
+
+def test_cross_language_gag_transcreation_lint():
+    """1103 W6: 引号他/她对比=英文代词梗直译 (中文同音梗消失) — lint 命中; 转译后放行."""
+    iss = _listen_feel_issues('外科医生把女孩叫成"他"，被纠正也漫不经心。')
+    assert any("跨语梗直译" in i for i in iss), iss
+    ok = _listen_feel_issues('客户的名字，他见过三回还叫错，人家纠正他笑笑接着讲。')
+    assert not any("跨语梗直译" in i for i in ok), ok
