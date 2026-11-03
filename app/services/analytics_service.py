@@ -457,7 +457,8 @@ def build_alerts(rows: list[dict], today: date | None = None) -> list[dict[str, 
     if last_fan_date is not None and str(rows[-1]["date"]) != last_fan_date:
         tip = f", 最新锚点 {anchor[1]}粉@{anchor[0][5:]}" if anchor and anchor[0] != last_fan_date else ""
         alerts.append({"level": "warn", "kind": "fan_gap",
-                       "text": f"粉丝逐日明细停在 {last_fan_date[5:]}{tip} — 最近导出为无粉丝列的新版格式, 请另导《粉丝数据》补齐"})
+                       "text": f"粉丝逐日明细停在 {last_fan_date[5:]}{tip} — 抖音已无《粉丝数据》导出, "
+                               f"粉丝侧=作品吸粉自动求和 (douyin_unified.fan_growth_cum) + 主页锚点"})
     return alerts
 
 

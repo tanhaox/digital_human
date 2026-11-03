@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS douyin_unified (
   v_views INTEGER, v_completion_rate REAL, v_sec5_rate REAL, v_avg_watch_sec REAL,
   v_likes INTEGER, v_shares INTEGER, v_comments INTEGER, v_collects INTEGER,
   v_profile_visits INTEGER, v_fan_growth INTEGER,
+  fan_growth_cum INTEGER,
   source TEXT, updated_at TEXT
 )
 """
@@ -204,6 +205,9 @@ def rebuild_unified(con: sqlite3.Connection) -> int:
     幂等全量重建 (数据量=天数级, 无增量复杂度); 两次导入后各调一次。"""
     con.execute(UNIFIED_DDL)
     con.execute(VIDEO_DDL)  # 仅 daily 导入过的新库尚无 videos 表, 先确保再查
+    have = {r[1] for r in con.execute("PRAGMA table_info(douyin_unified)")}
+    if "fan_growth_cum" not in have:  # 旧表迁移 (ADD COLUMN 非破坏)
+        con.execute("ALTER TABLE douyin_unified ADD COLUMN fan_growth_cum INTEGER")
     cur = con.execute(f"SELECT date, {','.join(_UNIFIED_DAILY_COLS)} FROM douyin_daily ORDER BY date")
     daily = {r[0]: dict(zip(_UNIFIED_DAILY_COLS, r[1:])) for r in cur.fetchall()}
     vids: dict[str, list[dict]] = {}
@@ -216,9 +220,10 @@ def rebuild_unified(con: sqlite3.Connection) -> int:
              "likes", "shares", "comments", "collects", "profile_visits", "fan_growth"), r[1:])))
     now = datetime.now().isoformat(timespec="seconds")
     cols = ("date",) + _UNIFIED_DAILY_COLS + ("v_count", "v_titles", "v_genre") + \
-        _UNIFIED_COUNT_COLS + _UNIFIED_RATE_COLS + ("source", "updated_at")
+        _UNIFIED_COUNT_COLS + _UNIFIED_RATE_COLS + ("fan_growth_cum", "source", "updated_at")
     placeholders = ",".join("?" * len(cols))
     n = 0
+    fan_cum = 0  # 视频吸粉累计求和 (发布日归属口径; 1103 用户令: 粉丝增量列自动求和)
     for d in sorted(set(daily) | set(vids)):
         day = daily.get(d, {})
         g = vids.get(d, [])
@@ -236,12 +241,14 @@ def rebuild_unified(con: sqlite3.Connection) -> int:
                 row[c] = (sum(x * w for x, w in vals) / sum(w for _, w in vals)) if vals and tv else None
         else:
             row["v_count"] = 0
+        fan_cum += row.get("v_fan_growth") or 0
+        row["fan_growth_cum"] = fan_cum
         con.execute(
             f"INSERT OR REPLACE INTO douyin_unified ({','.join(cols)}) VALUES ({placeholders})",
             [d] + [row.get(c) for c in _UNIFIED_DAILY_COLS] +
             [row.get("v_count"), row.get("v_titles"), row.get("v_genre")] +
             [row.get(c) for c in _UNIFIED_COUNT_COLS] + [row.get(c) for c in _UNIFIED_RATE_COLS] +
-            [f"daily+videos@{now}", now],
+            [fan_cum, f"daily+videos@{now}", now],
         )
         n += 1
     con.commit()
@@ -357,6 +364,10 @@ def import_videos_xlsx(xlsx: Path, source_name: str | None = None) -> dict[str, 
     con = sqlite3.connect(DB_PATH)
     try:
         con.execute(VIDEO_DDL)
+        # 粉丝增量列自动求和 (1103 用户令: 抖音已无《粉丝数据》导出, 粉丝侧以此为源) —
+        # 导入前后各求一次, 差分=本窗内作品渠道吸粉增量
+        prev_growth = con.execute(
+            "SELECT COALESCE(SUM(fan_growth), 0) FROM douyin_videos").fetchone()[0]
         existing = {r[0] for r in con.execute("SELECT publish_time FROM douyin_videos")}
         new_n = sum(1 for r in rows if r["publish_time"] not in existing)
         cols = list(VIDEO_HEADER_MAP.values()) + ["publish_date", "source", "updated_at"]
@@ -369,14 +380,18 @@ def import_videos_xlsx(xlsx: Path, source_name: str | None = None) -> dict[str, 
         con.commit()
         n, d_min, d_max = con.execute(
             "SELECT COUNT(*), MIN(publish_date), MAX(publish_date) FROM douyin_videos").fetchone()
+        growth_total = con.execute(
+            "SELECT COALESCE(SUM(fan_growth), 0) FROM douyin_videos").fetchone()[0]
         unified_rows = rebuild_unified(con)
     finally:
         con.close()
     return {
         "kind": "videos", "imported": len(rows), "new": new_n, "refreshed": len(rows) - new_n,
         "db_videos": n, "unified_rows": unified_rows,
+        "fan_growth_total": growth_total, "fan_growth_delta": growth_total - prev_growth,
         "range": {"from": d_min, "to": d_max},
-        "note": "单视频真值 (官方完播/收藏/主页访问/吸粉), 次日12点更新昨日; 导入后已重建 douyin_unified 沉淀总表",
+        "note": "单视频真值 (官方完播/收藏/主页访问/吸粉), 次日12点更新昨日; "
+                "粉丝增量列已自动求和 (合计/差分), 导入后已重建 douyin_unified 沉淀总表",
     }
 
 

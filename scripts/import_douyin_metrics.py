@@ -30,7 +30,10 @@ def main() -> None:
         print(f"[ok] DB 现存 {r['db_days']} 行, 范围 {r['range']['from']} ~ {r['range']['to']}, "
               f"期末总粉 {r['end_total_fans']}, 回填总粉 {r['backfilled_total_fans']} 天")
     else:
-        print(f"[ok] 作品现存 {r['db_videos']} 条, 发布范围 {r['range']['from']} ~ {r['range']['to']}")
+        print(f"[ok] 作品现存 {r['db_videos']} 条, 发布范围 {r['range']['from']} ~ {r['range']['to']}, "
+              f"沉淀总表 {r['unified_rows']} 行")
+        print(f"[ok] 粉丝增量列自动求和: 合计 {r['fan_growth_total']} (较上次导出 {'+' if r['fan_growth_delta'] >= 0 else ''}"
+              f"{r['fan_growth_delta']}) — 抖音已无《粉丝数据》导出, 粉丝侧以此为源")
     for w in r.get("warns", []):
         print(f"[warn] {w}")
 

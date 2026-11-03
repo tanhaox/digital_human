@@ -304,12 +304,13 @@ def test_unified_table_merges_daily_and_videos(tmp_path):
         f2 = tmp_path / "v.xlsx"; wb2.save(f2)
         r2 = ai.import_any(f2)
         assert r2["unified_rows"] == 2  # 仍是两行 (按日)
+        assert r2["fan_growth_total"] == 20 and r2["fan_growth_delta"] == 20  # 粉丝增量列自动求和
 
         import sqlite3
         con = sqlite3.connect(ai.DB_PATH)
         rows = {r[0]: r for r in con.execute(
             "SELECT date, views, total_fans, v_count, v_titles, v_views, v_completion_rate, "
-            "v_fan_growth, v_collects FROM douyin_unified ORDER BY date")}
+            "v_fan_growth, v_collects, fan_growth_cum FROM douyin_unified ORDER BY date")}
         con.close()
         d1, d2 = rows["2026-10-01"], rows["2026-10-02"]
         # 逐日侧与视频侧同排一行; 粉丝列沉淀保留
@@ -319,5 +320,7 @@ def test_unified_table_merges_daily_and_videos(tmp_path):
         assert d2[3] == 2 and d2[4] == "乙｜丙"
         assert d2[5] == 2000 and d2[7] == 13 and d2[8] == 8
         assert abs(d2[6] - 0.025) < 1e-9
+        # 粉丝增量累计求和曲线: 10-01 累计 7 → 10-02 累计 20
+        assert d1[9] == 7 and d2[9] == 20
     finally:
         ai.DB_PATH = old
