@@ -132,10 +132,11 @@ class TTSService:
         # 1103 W4 终端防御: 钉卡/钉图标记若经任何旁路渗入 segment (标记贴在句中而非
         # 独占一行时 produce 整行剥除不认), TTS 入口兜底剥净 — ⟪…⟫ 永不出口播。
         seg_pairs = [(sid, _PIN_MARK_BRACKET_RE.sub("", txt)) for sid, txt in seg_pairs]
-        # 1103 Z+T: writer 注释前缀兜底剥 (金句：/口诀：/结论：/标题： — ≤4字+全角
-        # 冒号开头、后跟≥6字内容的行首标签; produce 主剥, 此处防旁路渗入被念;
-        # ep4 "金句：把选择递过去"被念实锤)
-        seg_pairs = [(sid, re.sub(r"^[金口结标提总][句诀论题示结][：:]\s*(?=\S{6})", "", txt))
+        # 1103 Z+T: writer 注释前缀兜底剥 (金句/口诀/结论/标题/提示/总结/收尾/
+        # 本集一句复盘 — ≤4字+全角冒号开头的行首标签; produce 主剥, 此处防旁路)
+        seg_pairs = [(sid, re.sub(
+            r"^[金口结标提总收本][句诀论题示结尾集][：:]\s*(?=\S{6})"
+            r"|^本集一句复盘[：:]\s*(?=\S{6})", "", txt))
                      for sid, txt in seg_pairs]
 
         # Build text preserving line breaks and control chars.

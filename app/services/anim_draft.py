@@ -1691,11 +1691,12 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                                 ",".join(p.get("image") or "-" for p in _pinned))
             except Exception as _pexc:  # noqa: BLE001 — 钉卡失败不炸装配
                 logger.warning("[draft] 钉卡接入失败 (跳过): %s", _pexc)
-            # 1103 Z+T: 金句标记自动上卡 (writer 注释即锚 — "金句：内容" 中的内容
-            # 洗剥后自动上屏, 确定性零 LLM; ep4 "金句：把选择递过去"实锤)
+            # 1103 Z+T: 金句/口诀标记自动上卡 (writer 注释即锚 — 前缀洗剥后内容
+            # 上屏, 确定性零 LLM; "金句：内容"/"口诀：内容"/"本集一句复盘：内容")
             try:
                 for _si, _sg in enumerate(_sent_segs):
-                    _m = re.match(r"^金句[：:]\s*(.+)$", str(_sg.get("text") or "").strip())
+                    _m = re.match(r"^(金句|口诀|本集一句复盘)[：:]\s*(.+)$",
+                                  str(_sg.get("text") or "").strip())
                     if _m and len(_m.group(1).strip()) >= 6:
                         _a0 = tc_us + int(round(float(_sg["t_start"]) * _US))
                         _a1 = tc_us + int(round(
