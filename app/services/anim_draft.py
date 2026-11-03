@@ -1664,13 +1664,44 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                 is_pure_list_card,
                 wash_card_lines,
             )
-            # 1025 实锤: 每次装配重判洗牌 (用户要的模板卡被判丢) → 稿指纹缓存
-            for _c in detect_quote_cards_smart([sg["text"] for sg in _sent_segs],
-                                              cache_path=base / "quote_cards.json"):
+            # 1025 稿指纹缓存 (钉卡优先于自动卡 — 冲突时自动卡让位)
+            _auto_cards = [dict(_c) for _c in detect_quote_cards_smart(
+                [sg["text"] for sg in _sent_segs], cache_path=base / "quote_cards.json")]
+            # 1103 W8: 钉卡/钉图 (稿内【卡】/【图:名】) — 拆书线装配消费 (首接误在
+            # J 线 job_draft, 拆书装配走本线实锤): 钉先上, 冲突自动卡让位,
+            # 带图卡出图不出文字卡 (渲染层)
+            _pinned: list[dict[str, Any]] = []
+            try:
+                from contextlib import closing as _closing
+                from app.database import get_session_maker as _gsm
+                from app.models import BookProject as _Bp, Episode as _Ep
+                from app.services.jy_draft_service.quote_card import pinned_card_intervals
+                with _closing(_gsm()()) as _db:
+                    _eprow = (_db.query(_Ep).join(_Bp)
+                              .filter(_Bp.id == book_id, _Ep.ep_index == ep).first())
+                    _script_text = str(_eprow.script_text) if _eprow else ""
+                for _p in pinned_card_intervals(_script_text, [sg["text"] for sg in _sent_segs]):
+                    _a0 = tc_us + int(round(float(_sent_segs[_p["start"]]["t_start"]) * _US))
+                    _a1 = tc_us + int(round(
+                        (float(_sent_segs[_p["end"] - 1]["t_end"]) + QUOTE_CARD_TAIL_SEC) * _US))
+                    _pinned.append({**_p, "kind": "pinned",
+                                    "a0_us": _a0, "a1_us": max(_a1, _a0 + 800_000)})
+                if _pinned:
+                    logger.info("[draft] 钉卡 ×%d (图:%s)", len(_pinned),
+                                ",".join(p.get("image") or "-" for p in _pinned))
+            except Exception as _pexc:  # noqa: BLE001 — 钉卡失败不炸装配
+                logger.warning("[draft] 钉卡接入失败 (跳过): %s", _pexc)
+            for _c in _auto_cards:
                 _a0 = tc_us + int(round(float(_sent_segs[_c["start"]]["t_start"]) * _US))
                 _a1 = tc_us + int(round(
                     (float(_sent_segs[_c["end"] - 1]["t_end"]) + QUOTE_CARD_TAIL_SEC) * _US))
-                quote_cards.append({**_c, "a0_us": _a0, "a1_us": max(_a1, _a0 + 800_000)})
+                _c.update({"a0_us": _a0, "a1_us": max(_a1, _a0 + 800_000)})
+                # 与钉窗重叠的自动卡让位 (钉是人定的, 优先级最高)
+                if any(_c["a0_us"] < _p["a1_us"] and _c["a1_us"] > _p["a0_us"]
+                       for _p in _pinned):
+                    continue
+                quote_cards.append(_c)
+            quote_cards.extend(_pinned)
             # 1025 LLM 主判可出相邻卡 (ep6 实锤: 断言[33]+模板[34], 1.5s 停留尾
             # 压进下一卡起点, pyJianYingDraft 拒重叠段丢卡) → 排序后尾裁到下一卡
             # 起点; 起点贴脸 (<800ms) 挤不下两张, 保前丢后
@@ -2102,6 +2133,30 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
         _QC_INTRO = getattr(draft_mod.TextIntro, "逐字显影", None)
         for _c in quote_cards:
             try:
+                # 1103 W8: 带图钉卡出图不出文字卡 (信任公式.png 用户令实锤) —
+                # 素材 data/l0/{书名}/cards/, 缺图回退文字卡
+                if _c.get("image"):
+                    try:
+                        from app.services.jy_draft_service.quote_card import cards_dir as _cd
+                        _img = _cd(book_title) / (_c["image"] + ".png")
+                        if _img.exists():
+                            from PIL import Image as _PIL
+                            with _PIL.open(_img) as _im:
+                                _iw, _ih = _im.size
+                            _sc = min(0.92 * 1920 / _iw, 0.46 * 1080 / _ih)
+                            script.add_segment(draft_mod.VideoSegment(
+                                draft_mod.VideoMaterial(str(_img)),
+                                trange(_c["a0_us"], _c["a1_us"] - _c["a0_us"]),
+                                volume=0,
+                                clip_settings=ClipSettings(
+                                    scale_x=_sc, scale_y=_sc,
+                                    transform_x=0.0, transform_y=0.18)), "quote_card")
+                            logger.info("[draft] 钉图卡 ✓ %s @%.1fs",
+                                        _c["image"], _c["a0_us"] / _US)
+                            continue
+                        logger.warning("[draft] 钉图缺素材回退文字卡: %s", _img)
+                    except Exception as _iexc:  # noqa: BLE001 — 图失败回退文字卡
+                        logger.warning("[draft] 钉图失败回退文字卡: %s", _iexc)
                 from pyJianYingDraft import TextBackground
                 # 1025 验收实锤: 卡上文字必须干净上屏文 — 停顿标记(-0.8s-)/
                 # 报幕引子句/拼音/markdown 全剥 (洗涤出口闸在 wash_card_lines,
