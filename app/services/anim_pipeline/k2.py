@@ -575,6 +575,43 @@ def _scene_eff(shot: dict[str, Any], book_title: str) -> str:
     return scene
 
 
+def _scene_eff_k2(shot: dict[str, Any], book_title: str) -> str:
+    """K2 终版中文源串 (组装唯一源): _scene_eff + 申报镜二段空白指令。
+
+    1103 Y1: 预翻译与渲染循环必须同源 (sha 一致才命中缓存) — 之前二段尾内联在
+    run_shot, 抽出共用。"""
+    s = _scene_eff(shot, book_title)
+    # 1015 二段质量 (s37 实锤: 申报镜的一段仍渗漏自绘乱字): 申报镜加空白面硬指令
+    if shot.get("in_image_text"):
+        s += ("，所有文字载体（标签/便签/白板/牌匾）完全空白无字，文字将由后续工序"
+              "添加，本层绝不绘制任何文字笔画; all text-bearing surfaces are completely "
+              "blank, draw absolutely no letters or characters")
+    return s
+
+
+def pretranslate(doc: dict[str, Any], only: set[str] | None = None) -> dict:
+    """批前预翻译 (1103 Y1 用户令: 批量压上, GPU 零等待) — 渲染循环开始前把全部
+    未缓存镜的 EN 一次压上 (每次 LLM 调用带一小批, 坏的走单发补), 渲染期间
+    ensure_en_prompt 全缓存命中, 出图间隙零 LLM 往返。"""
+    from . import k2_lang
+    items: list[tuple[dict, str]] = []
+    for shot in doc["shots"]:
+        if shot.get("political_flag") or shot.get("brand_card"):
+            continue
+        if only is not None and shot["shot_id"] not in only:
+            continue
+        if shot["status"] != "planned":
+            continue
+        zh = _scene_eff_k2(shot, doc["book_title"])
+        cached = shot.get("image_prompt_en")
+        if isinstance(cached, dict) and cached.get("sha") == k2_lang._sha(zh) and cached.get("en"):
+            continue
+        items.append((shot, zh))
+    if not items:
+        return {"pending": 0, "ok": 0, "fail": 0}
+    return k2_lang.translate_batch(items)
+
+
 def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
     """跑单镜 K2, 产物 move 到管线目录 img/{shot_id}.png, 状态 → img_done.
 
@@ -587,12 +624,7 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
     out_dir = shots_mod.ep_dir(doc["book_title"], doc["ep"]) / "img"
     dest = out_dir / f"{shot['shot_id']}.png"
     prefix = f"anim/{shots_mod._safe(doc['book_title'])}/ep{doc['ep']}/k2/{shot['shot_id']}"
-    scene_eff = _scene_eff(shot, doc["book_title"])
-    # 1015 二段质量 (s37 实锤: 申报镜的一段仍渗漏自绘乱字): 申报镜加空白面硬指令
-    if shot.get("in_image_text"):
-        scene_eff += ("，所有文字载体（标签/便签/白板/牌匾）完全空白无字，文字将由后续工序"
-                      "添加，本层绝不绘制任何文字笔画; all text-bearing surfaces are completely "
-                      "blank, draw absolutely no letters or characters")
+    scene_eff = _scene_eff_k2(shot, doc["book_title"])
     # 0927 终串机检 (观察模式, prompt_gate): 扫描对象=真正发给 CLIPTextEncode 的
     # 拼装串 (补 visual_ban_scan 只扫 doc 字段的盲区); 只标记不阻断
     _gate = prompt_gate.scan(build_prompt(scene_eff, doc["book_title"], page="k2"),
@@ -904,6 +936,14 @@ def run_batch(doc: dict[str, Any], only: set[str] | None = None,
         if s["status"] == "planned" and (only is None or s["shot_id"] in only)
     )
     logger.info("[k2] 待跑 %d 镜 (2ST 配方, ~15s/镜)", pending)
+    # 1103 Y1: 批前预翻译 (批量压上, GPU 零等待 — 用户令; 串行"出一张停一下再llm"废除)
+    try:
+        _pt = pretranslate(doc, only)
+        if _pt.get("pending"):
+            logger.info("[k2-en] 预翻译落位: ✓%d / 退中文%d — GPU 循环零 LLM",
+                        _pt.get("ok", 0), _pt.get("fail", 0))
+    except Exception as _pt_exc:  # noqa: BLE001 — 预翻译失败回退渲染循环内逐镜 (旧行为)
+        logger.warning("[k2-en] 预翻译整体失败 (回退逐镜): %s", _pt_exc)
     done = 0
     _consec_fail = 0  # 1004 修 (ep5 实锤): GPU 病态 (驱动楔死/落错卡) 每镜必炸同错 —
     _last_err = ""    # 连败早停+诊断, 不陪全批烧 (重启后端无用, 须查驱动/重启机器)

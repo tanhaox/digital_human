@@ -85,6 +85,60 @@ def ensure_en_prompt(shot: dict[str, Any], zh_scene: str) -> str:
     return en
 
 
+# ── 1103 Y1 批前预翻译 (用户令: 批量压上, GPU 零等待 — 出一张停一下再 llm 的
+# 串行排布废除; 每次调用带一小批, 坏的走单发补一次) ─────────────────────
+_BATCH_SYS = (
+    "你是图像提示词批量翻译器。输入 {\"items\":[{\"id\":\"镜号\",\"zh\":\"中文提示词\"}]}, "
+    "输出严格 JSON {\"t\":[{\"id\":\"镜号\",\"en\":\"完整英译\"}]} — 每条都要完整翻译, "
+    "不省略不截断不加注释, 风格词/镜头语言/人物 look 原样保留。"
+)
+
+
+def translate_batch(items: list[tuple[dict, str]], group: int = 5) -> dict:
+    """批翻译未缓存镜 [(shot, zh_source)] → 写 image_prompt_en 缓存。
+
+    每组一次 LLM 调用 (group 镜/调); 组内漏译/组失败的单发补一次
+    (ensure_en_prompt 单条通道); 单发也坏 → 留空, 渲染循环内退中文兜底 (现状行为)。"""
+    import json as _json
+    from .config import load as _anim_load
+    ok = 0
+    retry: list[tuple[dict, str]] = []
+    for i in range(0, len(items), group):
+        chunk = items[i:i + group]
+        got: dict[str, str] = {}
+        try:
+            from .llm import chat_json
+            raw = chat_json(_anim_load().llm, _BATCH_SYS,
+                            _json.dumps({"items": [{"id": s["shot_id"], "zh": zh}
+                                                   for s, zh in chunk]}, ensure_ascii=False))
+            got = {str(t.get("id")): str(t.get("en") or "")
+                   for t in ((raw or {}).get("t") or [])}
+        except Exception as exc:  # noqa: BLE001 — 组失败进单发补
+            logger.warning("[k2-en] 批翻译组失败 (%s 组%d镜): %s",
+                           chunk[0][0].get("shot_id"), len(chunk), str(exc)[:80])
+        for s, zh in chunk:
+            en = got.get(s["shot_id"], "")
+            if en and len(en) >= 20:
+                s["image_prompt_en"] = {"sha": _sha(zh), "en": en}
+                ok += 1
+            else:
+                retry.append((s, zh))
+    fail = 0
+    rescued = 0
+    for s, zh in retry:  # 坏的单发补一次 (有需要的才走一次)
+        before = s.get("image_prompt_en")
+        ensure_en_prompt(s, zh)
+        after = s.get("image_prompt_en")
+        if after and after != before:
+            rescued += 1
+        else:
+            fail += 1
+    ok += rescued
+    logger.info("[k2-en] 预翻译批: ✓%d (批%d+单发补%d) / 退中文%d (共%d)",
+                ok, ok - rescued, rescued, fail, len(items))
+    return {"pending": len(items), "ok": ok, "fail": fail}
+
+
 def style_head_en(book_title: str) -> str:
     """风格头 EN 投影 (进程缓存 + sha 失效; 圣经/风格卡中文主权不动)."""
     from .config import resolve_style
