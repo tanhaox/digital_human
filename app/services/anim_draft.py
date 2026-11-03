@@ -1691,6 +1691,24 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                                 ",".join(p.get("image") or "-" for p in _pinned))
             except Exception as _pexc:  # noqa: BLE001 — 钉卡失败不炸装配
                 logger.warning("[draft] 钉卡接入失败 (跳过): %s", _pexc)
+            # 1103 Z+T: 金句标记自动上卡 (writer 注释即锚 — "金句：内容" 中的内容
+            # 洗剥后自动上屏, 确定性零 LLM; ep4 "金句：把选择递过去"实锤)
+            try:
+                for _si, _sg in enumerate(_sent_segs):
+                    _m = re.match(r"^金句[：:]\s*(.+)$", str(_sg.get("text") or "").strip())
+                    if _m and len(_m.group(1).strip()) >= 6:
+                        _a0 = tc_us + int(round(float(_sg["t_start"]) * _US))
+                        _a1 = tc_us + int(round(
+                            (float(_sg["t_end"]) + QUOTE_CARD_TAIL_SEC) * _US))
+                        _pinned.append({
+                            "start": _si, "end": _si + 1,
+                            "lines": [_m.group(1).strip()],
+                            "kind": "golden", "pinned": True, "image": None,
+                            "a0_us": _a0, "a1_us": max(_a1, _a0 + 800_000)})
+                        logger.info("[draft] 金句卡 ✓ %s @%.1fs",
+                                    _m.group(1).strip()[:16], _a0 / _US)
+            except Exception as _gq_exc:  # noqa: BLE001
+                logger.warning("[draft] 金句标记卡失败 (跳过): %s", _gq_exc)
             for _c in _auto_cards:
                 _a0 = tc_us + int(round(float(_sent_segs[_c["start"]]["t_start"]) * _US))
                 _a1 = tc_us + int(round(
