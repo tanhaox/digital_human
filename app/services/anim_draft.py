@@ -1913,8 +1913,11 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                 emph_by_sid.setdefault(ev["sid"], []).append((ev["text"], ev["kind"]))
         # 1023 截屏卡字幕退避 (用户令: 卡在屏时字幕全部不上屏 — 给截屏者清静画面;
         # 卡内容本就是口播原文, 字幕是复读)
+        # 1103 W8c: 图卡豁免 — 图不承载口播原文 (公式图≠文字稿), 该窗字幕是引导
+        # 不是复读, 必须回归 (公式段 16 条字幕被撤实锤, 用户令: 加回来)
         if quote_cards:
-            _qc_wins = [(c["a0_us"] / _US, c["a1_us"] / _US) for c in quote_cards]
+            _qc_wins = [(c["a0_us"] / _US, c["a1_us"] / _US) for c in quote_cards
+                        if not c.get("image")]
             _before_caps = len(cap_events)
             cap_events = [ev for ev in cap_events
                           if not any(ev["a0"] < _w1 and ev["a1"] > _w0
