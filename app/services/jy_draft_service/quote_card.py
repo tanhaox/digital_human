@@ -67,54 +67,77 @@ def _qc_norm(s: str) -> str:
 def pinned_card_intervals(script_text: str, seg_texts: list[str]) -> list[dict]:
     """稿内 【卡】 行 → manifest 段区间 (文本锚双向包含匹配, 与自动卡同构).
 
-    相邻钉行 (段索引连续) 合并为一张跨段卡 — 公式整卡上屏 (ep1 截图卡口径)。
-    【图:名称】 独立行绑定最近钉段 (钉段后=贴前段, 钉段前=挂下段) — 带图钉卡
-    由 job_draft 出图不出文字卡 (1103 W4, 公式真分式图实锤)。"""
-    spans: list[dict] = []          # {"lines": [钉行文本], "image": 名称|None}
-    _pending_img: list[str] = []
+    区=稿序连续的钉行/图标记行 (普通行隔断); 图随区走 (ep2 实锤: 金句+【图】+公式
+    三行是连续区=一张卡一个窗口)。TTS 合包会把多句打进同包 — 行锚定允许多行同包,
+    区间相邻或重叠并一张卡 (1103 W7: ep2 真跑 manifest 四钉行全落段3, 旧 used 排他
+    丢失三行 + 图误绑前区 实锤)。"""
+    # 1) 稿序分区: 连续 pin/img 条目成一个区, 普通行隔断
+    regions: list[dict] = []      # {"pins": [...], "img": None|str, "closed": bool}
     for l in (script_text or "").splitlines():
         s = l.strip()
         m = _IMG_PIN_RE.match(s)
         if m:
-            if spans:
-                spans[-1]["image"] = spans[-1]["image"] or m.group(1)
+            cur = regions[-1] if regions and not regions[-1]["closed"] else None
+            if cur is None:
+                regions.append({"pins": [], "img": m.group(1), "closed": False})
             else:
-                _pending_img.append(m.group(1))
+                cur["img"] = cur["img"] or m.group(1)
             continue
         if s.startswith(_PIN_MARK):
             content = _PIN_RE.sub("", s).strip()
-            if content:
-                spans.append({"lines": [content],
-                              "image": _pending_img.pop(0) if _pending_img else None})
-    used: set[int] = set()
-    mapped: list[dict] = []
-    for sp in spans:
-        pairs: list[tuple[int, str]] = []
-        for pl in sp["lines"]:
+            if not content:
+                continue
+            cur = regions[-1] if regions and not regions[-1]["closed"] else None
+            if cur is None:
+                regions.append({"pins": [content], "img": None, "closed": False})
+            else:
+                cur["pins"].append(content)
+        elif s:
+            if regions:
+                regions[-1]["closed"] = True
+    # 2) 孤立图区 (有图无钉行) 归属: 图在钉区前 → 挂下一区 (图先行写法);
+    # 图在钉区后 → 挂上一区 (尾饰写法); 无任何钉区 → 丢弃
+    fixed: list[dict] = []
+    _pend_img: list[str] = []
+    for r in regions:
+        if r["pins"]:
+            if _pend_img:
+                r["img"] = r["img"] or _pend_img.pop(0)
+            fixed.append(r)
+        elif r.get("img"):
+            if fixed and not fixed[-1].get("img"):
+                fixed[-1]["img"] = r["img"]
+            else:
+                _pend_img.append(r["img"])
+    if _pend_img and fixed:
+        fixed[-1]["img"] = fixed[-1].get("img") or _pend_img[-1]
+    regions = fixed
+    # 3) 行→段锚 (多行可同包), 区间=该区全部命中段的 min..max+1
+    out: list[dict] = []
+    for r in regions:
+        idxs: list[int] = []
+        lines: list[str] = []
+        for pl in r["pins"]:
             npl = _qc_norm(pl)[:30]
             idx = next((i for i, s2 in enumerate(seg_texts)
-                        if i not in used and npl and npl in _qc_norm(s2)), None)
+                        if npl and npl in _qc_norm(s2)), None)
             if idx is None:
                 idx = next((i for i, s2 in enumerate(seg_texts)
-                            if i not in used and _qc_norm(s2) and _qc_norm(s2) in npl), None)
+                            if _qc_norm(s2) and _qc_norm(s2) in npl), None)
             if idx is not None:
-                pairs.append((idx, pl))
-                used.add(idx)
-        if pairs:
-            mapped.append({"pairs": pairs, "image": sp.get("image")})
-    mapped.sort(key=lambda x: x["pairs"][0][0])
-    out: list[dict] = []
-    for m_ in mapped:
-        st = min(i for i, _ in m_["pairs"])
-        en = max(i for i, _ in m_["pairs"]) + 1
-        lts = [pl for _, pl in m_["pairs"]]
-        if out and st == out[-1]["end"]:
-            out[-1]["end"] = en
-            out[-1]["lines"].extend(lts)
-            out[-1]["image"] = out[-1].get("image") or m_["image"]
+                idxs.append(idx)
+                lines.append(pl)
+        if not idxs:
+            continue
+        st, en = min(idxs), max(idxs) + 1
+        img = r.get("img")
+        if out and st <= out[-1]["end"]:  # 相邻或同包重叠 → 并卡
+            out[-1]["end"] = max(out[-1]["end"], en)
+            out[-1]["lines"].extend(lines)
+            out[-1]["image"] = out[-1].get("image") or img
         else:
-            out.append({"start": st, "end": en, "lines": lts,
-                        "pinned": True, "image": m_["image"]})
+            out.append({"start": st, "end": en, "lines": lines,
+                        "pinned": True, "image": img})
     return out
 
 # 截屏窗: 末行念完后卡片再停留的秒数 (静置截屏窗口)
