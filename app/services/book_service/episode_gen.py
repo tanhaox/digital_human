@@ -284,6 +284,37 @@ def _coverage_dup_issues(book: BookProject, ep: Episode) -> list[str]:
     return out
 
 
+def _teaser_repeat_issues(book: BookProject, ep: Episode, text: str) -> list[str]:
+    """预告复读上集预告 (1103 T2, 提示级): 承接问句被原样当预告甩给下一集.
+
+    实锤: ep2 重生成稿预告「下一集聊：为什么越急着给答案，客户越把嘴闭上？」≈ep1
+    给 ep2 的接续问句 (bigram J≈0.74), 而 ep3 真题材是信任等式 — 观众按错预期等下集。
+    首集 (无上集预告) 豁免; 收官集预告已被确定性删除, 自然不触发。
+    """
+    out: list[str] = []
+    if ep.ep_index <= 1:
+        return out
+    _tease_re = re.compile(r"下[一]?集[预要聊说讲][^。！？\n]{4,60}|下期[预要][^。！？\n]{4,60}")
+
+    def _bg(s: str) -> set[str]:
+        return {s[i:i + 2] for i in range(len(s) - 1)} if len(s) > 1 else set()
+
+    mine = _tease_re.findall(text or "")
+    if not mine:
+        return out
+    prev = next((e2 for e2 in book.episodes if e2.ep_index == ep.ep_index - 1), None)
+    prev_teases = _tease_re.findall((prev and prev.script_text) or "")
+    for m in mine:
+        bm = _bg(m)
+        for p in prev_teases:
+            bp = _bg(p)
+            if bm and bp and len(bm & bp) / len(bm | bp) >= 0.5:
+                return [f"预告复读上集预告: 「{m[:40]}」≈上集预告「{p[:40]}」— "
+                        "承接问句被当预告甩给下一集; 预告须讲下集真题材 "
+                        f"(本集启下: {str((ep.roadmap_json or {}).get('启下') or '')[:40]})"]
+    return out
+
+
 def _story_dup_issues(book: BookProject, ep: Episode, script: str) -> list[str]:
     """兜底闸: 新稿锚中的故事条目已被兄弟集讲过 → 工具集(2..N-1)阻断, ep1/末集提示
     (集型使命: 头尾集点名前集案例是合法导览, 只提醒不拦)。"""
@@ -484,6 +515,22 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
         if _used_cases:
             _hook_extra += ("案例跨集去重: 前集已用案例 " + "、".join(_used_cases)
                             + " 禁原案重讲 (要提只许换角度半句带过, 篇幅留给本集新案例)。\n")
+        # 1103 T1: 兄弟集 coverage 占坑注入 — 案例库名单外的书内案例 (梅斯特/柯波兰德
+        # 式) 此前只在终检 _coverage_dup 拦, 生成层看不见 (ep2 乱序重生成撞 ep4/ep6
+        # ×4 阻断实锤); 先喂禁用清单, 顺生成序时后集尚无 coverage = 自然空转
+        _sib_cov = [str(c)[:24] for e2 in book.episodes
+                    if e2.ep_index != ep.ep_index
+                    for c in (e2.coverage_json or []) if str(c).strip()]
+        if _sib_cov:
+            _hook_extra += ("案例跨集去重(知识点占坑): 兄弟集已讲知识点/故事 "
+                            + "、".join(dict.fromkeys(_sib_cov)[:30])
+                            + " 禁整案重讲 (换案例, 或换角度半句带过)。\n")
+        # 1103 T3: 概念表逐个点名明令 — ep2 重生成「排他性的专业主义」被技术至上论
+        # 近义顶替 0 次 (阻断实锤); L0 facing 只给论证位置, 无点名要求
+        _concept_list = [str(c) for c in (_rm.get("概念") or []) if str(c).strip()]
+        if _concept_list:
+            _hook_extra += ("本集概念表 (正文须逐个点名讲到, 用原词, 近义替换不算): "
+                            + "、".join(_concept_list) + "\n")
         if _hook3:
             _hook_extra += (f"黄金三秒钩子(开头3秒必用, 1018 升级: 改疑问句式输出 — "
                             f"'为什么说，{ _hook3.rstrip('。！？')}？'式, 问句比陈述勾人往下听): {_hook3}\n")
@@ -2084,6 +2131,8 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
     # (收官集回收费五件工具=重灾区, R4 后置刷新才暴露真提示 ×2)
     ep.coverage_json = coverage
     issues += _coverage_dup_issues(book, ep)
+    # 1103 T2: 预告复读闸 (提示级) — 与双排重同位, 修稿复检同规
+    issues += _teaser_repeat_issues(book, ep, out)
     ok = not issues
     # 1019 清账: 删 theme_in_script/links_prev 死检查 — 总纲"主题"字段实为集标题,
     # 标题前8字逐字进稿恒 false (7集14项全 false 实锤), 人闸自检 tooltip 纯噪音;
