@@ -41,7 +41,8 @@ def review(t: str, concept_names: list[str] | None = None) -> list[tuple[str, st
     body = re.sub(r'\s+', '', t2)
     n = len(body)
 
-    hook1 = next((l.strip() for l in t2.split('\n') if l.strip()), '')
+    _lines = [l.strip() for l in t2.split("\n") if l.strip() and not l.strip().startswith("打字卡")]
+    hook1 = _lines[0] if _lines else ""
     R.append(('D1 3s钩子', f'{len(hook1)}字 ' + ('问句' if '？' in hook1[:40] else '非问句'),
               '？' in hook1[:40]))
     zone = (labeled.get('钩子', '') + labeled.get('回顾+引入', ''))[:170]
