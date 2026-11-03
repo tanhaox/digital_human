@@ -42,11 +42,22 @@ __all__ = ["detect_quote_cards", "detect_quote_cards_smart", "wash_card_lines",
 # 草稿导出时按文本锚映射回 manifest 段区间。
 _PIN_MARK = "⟪卡⟫"
 _PIN_RE = re.compile(r"^⟪卡⟫\s*")
+# 钉图 (1103 W4): ⟪图:名称⟫ 独立行 (非口播, 全链剥除) — 绑定最近钉卡区间,
+# 该区间出图不出文字卡。素材目录 data/l0/{书名}/cards/{名称}。
+# 实锤: 公式上屏要真分式排版 (2720x832 图), 三行文字卡是降级 (ep1 截图卡 +
+# 用户公式图实锤)。
+_IMG_PIN_RE = re.compile(r"^⟪图:([^⟩<>\"/\\|*?]+?)⟫\s*$")
 
 
 def strip_pin_marks(text: str) -> str:
     """剥行首钉卡标记 (防御层: 清洗/洗涤各点同剥)."""
     return "\n".join(_PIN_RE.sub("", l) for l in (text or "").split("\n"))
+
+
+def cards_dir(book_title: str) -> Path:
+    """钉图素材目录: data/l0/{书名}/cards/ (1103 W4)."""
+    from app.services.book_service.l0 import _l0_dir
+    return _l0_dir(book_title) / "cards"
 
 
 def _qc_norm(s: str) -> str:
@@ -56,34 +67,54 @@ def _qc_norm(s: str) -> str:
 def pinned_card_intervals(script_text: str, seg_texts: list[str]) -> list[dict]:
     """稿内 ⟪卡⟫ 行 → manifest 段区间 (文本锚双向包含匹配, 与自动卡同构).
 
-    相邻钉行 (段索引连续) 合并为一张跨段卡 — 公式整卡上屏实锤 (ep1 截图卡口径,
-    ep2 承接复述需 整卡: 公式+四定义三行一屏)。"""
-    pinned_lines = [_PIN_RE.sub("", l).strip() for l in (script_text or "").splitlines()
-                    if l.strip().startswith(_PIN_MARK)]
-    singles: list[dict] = []
-    used: set[int] = set()
-    for pl in pinned_lines:
-        if not pl:
+    相邻钉行 (段索引连续) 合并为一张跨段卡 — 公式整卡上屏 (ep1 截图卡口径)。
+    ⟪图:名称⟫ 独立行绑定最近钉段 (钉段后=贴前段, 钉段前=挂下段) — 带图钉卡
+    由 job_draft 出图不出文字卡 (1103 W4, 公式真分式图实锤)。"""
+    spans: list[dict] = []          # {"lines": [钉行文本], "image": 名称|None}
+    _pending_img: list[str] = []
+    for l in (script_text or "").splitlines():
+        s = l.strip()
+        m = _IMG_PIN_RE.match(s)
+        if m:
+            if spans:
+                spans[-1]["image"] = spans[-1]["image"] or m.group(1)
+            else:
+                _pending_img.append(m.group(1))
             continue
-        npl = _qc_norm(pl)[:30]
-        idx = next((i for i, s in enumerate(seg_texts)
-                    if i not in used and npl and npl in _qc_norm(s)), None)
-        if idx is None:
-            idx = next((i for i, s in enumerate(seg_texts)
-                        if i not in used and _qc_norm(s) and _qc_norm(s) in npl), None)
-        if idx is not None:
-            singles.append({"idx": idx, "line": pl})
-            used.add(idx)
-    # 段索引相邻 → 合并一张卡 (区间连成跨段, 行文本拼合)
-    singles.sort(key=lambda x: x["idx"])
+        if s.startswith(_PIN_MARK):
+            content = _PIN_RE.sub("", s).strip()
+            if content:
+                spans.append({"lines": [content],
+                              "image": _pending_img.pop(0) if _pending_img else None})
+    used: set[int] = set()
+    mapped: list[dict] = []
+    for sp in spans:
+        pairs: list[tuple[int, str]] = []
+        for pl in sp["lines"]:
+            npl = _qc_norm(pl)[:30]
+            idx = next((i for i, s2 in enumerate(seg_texts)
+                        if i not in used and npl and npl in _qc_norm(s2)), None)
+            if idx is None:
+                idx = next((i for i, s2 in enumerate(seg_texts)
+                            if i not in used and _qc_norm(s2) and _qc_norm(s2) in npl), None)
+            if idx is not None:
+                pairs.append((idx, pl))
+                used.add(idx)
+        if pairs:
+            mapped.append({"pairs": pairs, "image": sp.get("image")})
+    mapped.sort(key=lambda x: x["pairs"][0][0])
     out: list[dict] = []
-    for s in singles:
-        if out and s["idx"] == out[-1]["end"]:
-            out[-1]["end"] = s["idx"] + 1
-            out[-1]["lines"].append(s["line"])
+    for m_ in mapped:
+        st = min(i for i, _ in m_["pairs"])
+        en = max(i for i, _ in m_["pairs"]) + 1
+        lts = [pl for _, pl in m_["pairs"]]
+        if out and st == out[-1]["end"]:
+            out[-1]["end"] = en
+            out[-1]["lines"].extend(lts)
+            out[-1]["image"] = out[-1].get("image") or m_["image"]
         else:
-            out.append({"start": s["idx"], "end": s["idx"] + 1,
-                        "lines": [s["line"]], "pinned": True})
+            out.append({"start": st, "end": en, "lines": lts,
+                        "pinned": True, "image": m_["image"]})
     return out
 
 # 截屏窗: 末行念完后卡片再停留的秒数 (静置截屏窗口)

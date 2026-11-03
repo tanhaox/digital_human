@@ -216,6 +216,7 @@ def export_job_draft(db: Session, job_id: str) -> dict[str, Any]:
 
     # ── 1023 截屏卡预检: manifest 逐段文本 → 确定性检测 (清单/平行/断言), 段级时间窗 ──
     quote_cards: list[dict] = []
+    _ep = None  # 1103 W4: 钉图要书名定位 cards 目录 (manifest 空时不未定义)
     _qc_covered: set[int] = set()
     if manifest and manifest.get("segments"):
         _qc_texts: list[str] = []
@@ -334,6 +335,36 @@ def export_job_draft(db: Session, job_id: str) -> dict[str, Any]:
     #    清单逐行 \n 多行; 断言型单行同款。位置居中 (transform 默认), 与底部字幕分层 ──
     for _c in quote_cards:
         try:
+            # 1103 W4 钉图: 带图钉卡出图不出文字卡 (公式真分式图实锤 — 三行文字卡
+            # 是降级)。素材: data/l0/{书名}/cards/{图名}, 缺图回退文字卡。
+            _img_placed = False
+            if _c.get("image"):
+                try:
+                    from pyJianYingDraft import ClipSettings
+                    from app.services.jy_draft_service.quote_card import cards_dir as _cards_dir_fn
+                    _cards_dir = (_cards_dir_fn(_ep.book.book_title)
+                                  if _ep is not None else None)
+                    _img = (_cards_dir / (_c["image"] + ".png")) if _cards_dir else None
+                    if _img and _img.exists():
+                        from PIL import Image as _PILImage
+                        with _PILImage.open(_img) as _im:
+                            _iw, _ih = _im.size
+                        _scale = min(0.92 * width / _iw, 0.46 * height / _ih)
+                        _cs = ClipSettings(scale_x=_scale, scale_y=_scale,
+                                           transform_x=0.0, transform_y=0.18)
+                        _mat = draft_mod.VideoMaterial(str(_img))
+                        script.add_segment(draft_mod.VideoSegment(
+                            _mat, _trange_sec(_c["start_s"], _c["end_s"] - _c["start_s"]),
+                            volume=0, clip_settings=_cs), "quote_card")
+                        _img_placed = True
+                        logger.info("[jy_export] 钉图卡 ✓ %s @%.1fs",
+                                    _c["image"], _c["start_s"])
+                    else:
+                        logger.warning("[jy_export] 钉图缺素材, 回退文字卡: %s", _img)
+                except Exception as _iexc:  # noqa: BLE001 — 图失败回退文字卡
+                    logger.warning("[jy_export] 钉图失败, 回退文字卡: %s", _iexc)
+            if _img_placed:
+                continue
             # 1025 验收实锤: 卡文字干净上屏文 (洗行出口闸, 与 anim_draft 同源)
             _washed = wash_card_lines(_c["lines"])
             if not _washed:

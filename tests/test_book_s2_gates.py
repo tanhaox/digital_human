@@ -183,3 +183,20 @@ def test_pin_card_adjacent_lines_merge():
     assert len(pins) == 2
     assert pins[0]["start"] == 0 and pins[0]["end"] == 3 and len(pins[0]["lines"]) == 3
     assert pins[1]["start"] == 4
+
+
+def test_image_pin_binding_and_strip():
+    """1103 W4 钉图: ⟪图:名称⟫ 绑定最近钉段 (带图卡出图不出文字卡), 整行非口播剥除."""
+    from app.services.jy_draft_service.quote_card import pinned_card_intervals
+    from app.services.script_parser import clean_episode_script
+    script = ("⟪图:信任公式⟫\n"
+              "⟪卡⟫信任，等于可信度加可靠度加亲近感，再除以自我导向。\n"
+              "⟪卡⟫可信度是专不专业，可靠度是说到做到。\n"
+              "普通行。\n⟪卡⟫散钉。")
+    segs = ["信任，等于可信度加可靠度加亲近感，再除以自我导向。",
+            "可信度是专不专业，可靠度是说到做到。", "普通行。", "散钉。"]
+    pins = pinned_card_intervals(script, segs)
+    assert pins[0]["image"] == "信任公式" and pins[0]["end"] == 2
+    assert pins[1]["image"] is None
+    cleaned, _ = clean_episode_script("【0-25秒｜钩子】\n⟪图:信任公式⟫\n⟪卡⟫口播行。\n")
+    assert "⟪图" not in cleaned and "⟪卡" not in cleaned and "口播行" in cleaned
