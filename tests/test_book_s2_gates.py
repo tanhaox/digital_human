@@ -152,3 +152,18 @@ def test_subtitle_wash_strips_pause_and_pinyin():
     """1103 W2: 字幕层剥 -Xs- 与拼音标注 (观众只见裸字)."""
     from app.services.jy_draft_service.subtitle_text import wash_subtitle_text
     assert wash_subtitle_text("可核心的会-0.3s-从不叫你。全<中|ZHONG4>。") == "可核心的会从不叫你。全中。"
+
+
+def test_pin_card_marker_flow():
+    """1103 W3 钉卡: 稿内⟪卡⟫行→段区间映射 + 各层剥标记 (TTS/字幕/卡干净)."""
+    from app.services.jy_draft_service.quote_card import pinned_card_intervals, strip_pin_marks
+    from app.services.jy_draft_service.subtitle_text import wash_subtitle_text
+    from app.services.script_parser import clean_episode_script
+    script = "⟪卡⟫递出建议的权利，不是靠专业换的，是靠信任换的。\n普通口播行。"
+    segs = ["递出建议的权利，不是靠专业换的，是靠信任换的。", "普通口播行。"]
+    pins = pinned_card_intervals(script, segs)
+    assert len(pins) == 1 and pins[0]["start"] == 0 and pins[0]["pinned"], pins
+    assert strip_pin_marks(script).startswith("递出建议")
+    assert wash_subtitle_text("⟪卡⟫递出建议的权利。") == "递出建议的权利。"
+    cleaned, _ = clean_episode_script("【0-25秒｜钩子】\n⟪卡⟫递出建议的权利。\n")
+    assert "⟪卡⟫" not in cleaned and "递出建议的权利" in cleaned

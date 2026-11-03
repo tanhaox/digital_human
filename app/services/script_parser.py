@@ -261,6 +261,9 @@ def clean_episode_script(script_text: str) -> tuple[str, list[str]]:
         if ordered != base_order:
             issues.append("时间标签顺序异常 (建议重新生成)")
 
+    # 1103 W3: 钉卡标记剥前缀 (⟪卡⟫ 行内容仍是口播 — 只剥标记, 同 👉停顿 前缀层;
+    # 标记只活在 ep.script_text 人读层, TTS/segments 永远干净, 草稿导出按文本锚回钉)
+    kept = [re.sub(r"^⟪卡⟫\s*", "", l) for l in kept]
     # 1103 S4: Markdown 星号剥除 — 与生成线 episode_gen 确定性收尾同款 (ep2 实锤
     # ** 错位对进 segments 被念出); 此处盖住修稿/produce 旁路渗入, 口播稿星号无
     # 合法用途

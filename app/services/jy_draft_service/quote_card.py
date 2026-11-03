@@ -30,7 +30,48 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-__all__ = ["detect_quote_cards", "detect_quote_cards_smart", "wash_card_lines", "is_list_card", "is_pure_list_card", "QUOTE_CARD_TAIL_SEC"]
+__all__ = ["detect_quote_cards", "detect_quote_cards_smart", "wash_card_lines",
+           "is_list_card", "is_pure_list_card", "QUOTE_CARD_TAIL_SEC",
+           "pinned_card_intervals", "strip_pin_marks"]
+
+# ── 钉卡 (1103 W3): 稿内 ⟪卡⟫ 行前缀 = 强制上屏 ─────────────────────────
+# 机制缺口实锤: 自动选卡按"可截屏性"打分 (清单/口诀/干净断言), 而"绕但金贵"的
+# 反差金句 (听感负担重、恰需花字辅助认知) 选不中 — ep2 "递出建议的权利，不是靠
+# 专业换的，是靠信任换的" LLM 主判 4 张满额未中。钉子通道: 人钉或听感 pass 自动钉。
+# 标记只活在 ep.script_text (人读层); produce 清洗剥前缀 (TTS/segments 永远干净),
+# 草稿导出时按文本锚映射回 manifest 段区间。
+_PIN_MARK = "⟪卡⟫"
+_PIN_RE = re.compile(r"^⟪卡⟫\s*")
+
+
+def strip_pin_marks(text: str) -> str:
+    """剥行首钉卡标记 (防御层: 清洗/洗涤各点同剥)."""
+    return "\n".join(_PIN_RE.sub("", l) for l in (text or "").split("\n"))
+
+
+def _qc_norm(s: str) -> str:
+    return re.sub(r"[\s，。！？；、：…—·（）()\"'“”‘’「」『』《》*_-]", "", s or "")
+
+
+def pinned_card_intervals(script_text: str, seg_texts: list[str]) -> list[dict]:
+    """稿内 ⟪卡⟫ 行 → manifest 段区间 (文本锚双向包含匹配, 与自动卡同构)."""
+    pinned_lines = [_PIN_RE.sub("", l).strip() for l in (script_text or "").splitlines()
+                    if l.strip().startswith(_PIN_MARK)]
+    out: list[dict] = []
+    used: set[int] = set()
+    for pl in pinned_lines:
+        if not pl:
+            continue
+        npl = _qc_norm(pl)[:30]
+        idx = next((i for i, s in enumerate(seg_texts)
+                    if i not in used and npl and npl in _qc_norm(s)), None)
+        if idx is None:
+            idx = next((i for i, s in enumerate(seg_texts)
+                        if i not in used and _qc_norm(s) and _qc_norm(s) in npl), None)
+        if idx is not None:
+            out.append({"start": idx, "end": idx + 1, "lines": [pl], "pinned": True})
+            used.add(idx)
+    return out
 
 # 截屏窗: 末行念完后卡片再停留的秒数 (静置截屏窗口)
 QUOTE_CARD_TAIL_SEC = 1.5
@@ -199,7 +240,8 @@ def wash_card_lines(lines: list[str]) -> list[str]:
     """
     out: list[str] = []
     for l in lines:
-        t = _CARD_PAUSE_RE.sub("", l or "")
+        t = re.sub(r"^⟪卡⟫\s*", "", l or "")  # 1103 W3: 钉卡标记防御剥
+        t = _CARD_PAUSE_RE.sub("", t)
         t = _CARD_PINYIN_RE.sub(lambda m: m.group(1), t)
         t = _CARD_LEAD_RE.sub("", t)
         t = _CARD_MD_RE.sub("", t).strip()

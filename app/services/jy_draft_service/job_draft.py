@@ -226,7 +226,24 @@ def export_job_draft(db: Session, job_id: str) -> dict[str, Any]:
                               else (_s.get("text") or "")).strip())
             _qc_t0.append(_qc_cum)
             _qc_cum += float(_s.get("duration") or 0)
+        # 1103 W3 钉卡: 稿内 ⟪卡⟫ 行先上 (绕而金贵句强制花字 — 自动选卡选不中),
+        # 自动卡补满配额 (钉卡占额, 总数仍守 QUOTE_CARD_MAX 防稀释)
+        try:
+            from app.models import Episode as _Ep
+            from app.services.jy_draft_service.quote_card import pinned_card_intervals
+            _ep = db.query(_Ep).filter(_Ep.script_id == job.script_id).first()
+            for _p in pinned_card_intervals((_ep.script_text if _ep else "") or "", _qc_texts):
+                _ws = _qc_t0[_p["start"]]
+                _we = (_qc_t0[_p["end"] - 1]
+                       + float(manifest["segments"][_p["end"] - 1].get("duration") or 0)
+                       + QUOTE_CARD_TAIL_SEC)
+                quote_cards.append({**_p, "start_s": round(_ws, 2), "end_s": round(_we, 2)})
+                _qc_covered.update(range(_p["start"], _p["end"]))
+        except Exception as _pexc:  # noqa: BLE001 — 钉卡失败不炸导出
+            logger.warning("[jy] 钉卡映射失败 (跳过): %s", _pexc)
         for _c in detect_quote_cards_smart(_qc_texts):
+            if len(quote_cards) >= QUOTE_CARD_MAX:
+                break
             _ws = _qc_t0[_c["start"]]
             _we = (_qc_t0[_c["end"] - 1]
                    + float(manifest["segments"][_c["end"] - 1].get("duration") or 0)
