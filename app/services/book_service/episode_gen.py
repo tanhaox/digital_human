@@ -284,6 +284,69 @@ def _coverage_dup_issues(book: BookProject, ep: Episode) -> list[str]:
     return out
 
 
+def _flow_smooth_pass(out: str, *, ep, book, req_cta: bool, series_word: str,
+                      figure: str, flow_check: bool, gen_dir) -> str:
+    """顺稿 pass (1103 V1): 模块串烧 → 全文一条线。
+
+    用户实锤: 每模块单独为算法维度优化 (钩子/30s/停留/收藏), 拼起来是七篇小文章
+    — ep2 六类缝编目 (案例双讲/挂空点名/例证轴错位/起势无展开/仪式句不统一/
+    起势堆叠) 全在现有闸射程外 (bigram 够不着"两遍起势", 承接闸只看相邻两句)。
+    LLM 只修承接/案例单讲/指代链/仪式句四类, 验收不过弃用保原稿 (同去重 pass 骨架)。
+    """
+    try:
+        base = passes_mod.snap_issues(passes_mod.snapshot(
+            out, target=ep.target_duration_sec, book_title=book.book_title,
+            require_cta=req_cta, series_word=series_word or "",
+            ep_index=ep.ep_index, flow_check=flow_check, figure=figure,
+            include=("validate", "flow", "fig")))
+        _seam_keys = ("复读段", "车轱辘话", "承接断层", "贯穿人物")
+        base_seam = [i for i in base if any(k in i for k in _seam_keys)]
+        flowed = _llm().chat(
+            "你是口播稿顺稿编辑。这篇稿按模块生成, 每段单看都达标, 串起来却是七篇小文章。"
+            "只修四类病, 其它任何句子禁改: "
+            "①段界承接: 每个时间标签段的首句要么接住上一段尾句的话头, 要么路标式推进"
+            "(先看X/再看X); 只有起势没有展开的残句 ('先说句反调。'式) 直接删。"
+            "②案例单讲: 同一人物/公司全稿只完整讲一次 — 第二次出现改半句回指"
+            "('就是前面那位外科医生'式)或删; 有点名没有下文的挂空句删掉或补一句。"
+            "③指代链: 上文已建立的词 (四格/尺子/分母) 下文直接用, 禁每段重新介绍。"
+            "④仪式句统一: 互动仪式 (镜子/钉子/对照) 全稿只用一套, 编号连贯。"
+            "铁律: 段落标签【…】一字不动, ⟦⟧原话一字不动, 钩子段 (第一个标签段) 前150字"
+            "不动, CTA句/数字/工具名/件序词不动; 总字数只许增不许减, 增量≤120。"
+            "直接输出顺后的完整稿。",
+            "稿件:\n" + out, model="pro", temperature=0.3, tag="epgen:flow")
+        flowed = (flowed or "").strip()
+        after = passes_mod.snap_issues(passes_mod.snapshot(
+            flowed, target=ep.target_duration_sec, book_title=book.book_title,
+            require_cta=req_cta, series_word=series_word or "",
+            ep_index=ep.ep_index, flow_check=flow_check, figure=figure,
+            include=("validate", "flow", "fig")))
+        after_seam = [i for i in after if any(k in i for k in _seam_keys)]
+        _new = passes_mod.family_new(after, base)
+        # Δ对称±150: 顺稿删双讲/挂空残句天然是减法 (ep2 首跑 -20 被旧"只许增"误拒
+        # 实锤), 但砍内容仍是压缩 pass 的活 — 顺稿只许小刀
+        if (flowed and len(after_seam) <= len(base_seam) and not _new
+                and abs(len(flowed) - len(out)) <= 150):
+            logger.info("[book] ep%d 顺稿 pass ✓ (缝 %d→%d, +%d字)",
+                        ep.ep_index, len(base_seam), len(after_seam), len(flowed) - len(out))
+            try:
+                (gen_dir / "05h_flow.txt").write_text(flowed, encoding="utf-8")
+            except Exception:
+                pass
+            return flowed
+        logger.warning("[book] ep%d 顺稿 pass 未过 (新问题=%s, 缝 %d→%d, Δ%d), 保留原稿",
+                       ep.ep_index, _new or [], len(base_seam), len(after_seam),
+                       len(flowed) - len(out))
+        try:
+            (gen_dir / "05h_flow_rejected.txt").write_text(
+                f"未过原因: 新问题={_new or []} 缝{len(base_seam)}→{len(after_seam)} "
+                f"Δ{len(flowed) - len(out)}\n\n{flowed or '(空返回)'}", encoding="utf-8")
+        except Exception:
+            pass
+    except Exception as _exc:  # noqa: BLE001 — 顺稿失败不炸生成链
+        logger.warning("[book] ep%d 顺稿 pass 异常: %s", ep.ep_index, _exc)
+    return out
+
+
 def _teaser_repeat_issues(book: BookProject, ep: Episode, text: str) -> list[str]:
     """预告复读上集预告 (1103 T2, 提示级): 承接问句被原样当预告甩给下一集.
 
@@ -1945,6 +2008,13 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
                         pass
         except Exception as _exc10:  # noqa: BLE001
             logger.warning("[book] ep%d 幽默 pass 异常: %s", ep.ep_index, _exc10)
+
+    # 1103 V1: 顺稿 pass — 全部内容改动 pass 跑完后统一顺一遍 (其后只剩确定性
+    # 编辑, 不会再破坏顺滑度); 无条件触发, 不过弃用保原稿
+    if _is_laotan:
+        out = _flow_smooth_pass(out, ep=ep, book=book, req_cta=_req_cta,
+                                series_word=_series_word or "", figure=_figure,
+                                flow_check=_is_tool_ep, gen_dir=_gen_dir)
 
     # 2026-08-23: 编辑层口语化 — 生成层专注创作, 编辑层专职改口语 (身份激活真人口播语感)
     # 0912 合并 (用户令): 独立编辑层调用取消 — 口语化规则已全量在系统栈口播8条, 分层留档
