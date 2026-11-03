@@ -76,7 +76,7 @@ class Episode(Base):
     # 书摘金句 3 句 (2026-09-05 B-Q1 卡): [{text, key}×3] — L0 原句池逐字选取,
     # 全书 6 集不重复, 句长 ≥12 字; 由创作层 episode_gen 选取落库
     quotes_json: Mapped[list[Any] | None] = mapped_column(JSON, default=list)
-    target_duration_sec: Mapped[float] = mapped_column(Float, default=600.0)  # 弹性标签基准
+    target_duration_sec: Mapped[float] = mapped_column(Float, default=240.0)  # 1103 精简令: 3-5min 档中值 4:00 (旧 600 判修; 平台带 180-330)
     # 进产线桥接 (2026-08-19): 确认后生成 Script+segments, 复用 TTS/导演/合成/JY 全链
     script_id: Mapped[str | None] = mapped_column(String(36), default=None)
     director_job_id: Mapped[str | None] = mapped_column(String(36), default=None)

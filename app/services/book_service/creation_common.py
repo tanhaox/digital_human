@@ -28,22 +28,24 @@ __all__ = ["elastic_labels", "validate_script", "source_context", "persona_ancho
 # ep7 4.90 → median 4.974。旧 4.6 (0912 锚) 偏慢 8%: 300s 按 4.6 预算 1380 字
 # 实际只出 ~276s (4:36)。设计值取 5.0, 包络校验用实测两端。
 SPEECH_RATE = 5.0    # 字/秒 设计值 (median 4.974)
-RATE_FAST = 5.31     # 实测最快 — 包络下限用 (最快语速下仍 >4:30)
-RATE_SLOW = 4.82     # 实测最慢 — 包络上限用 (最慢语速下仍 <7:00)
-# 平台带 (北斗星第5条): 单条视频 >4:30 且 <7:00
-PLATFORM_DURATION_BAND = (270.0, 420.0)
-# 字数绝对包络: 下限 ceil(270×5.31)=1434 (n/5.31 > 270), 上限 floor(420×4.82)=2024 (n/4.82 < 420)
-_WORD_ENV = (1434, 2024)
+RATE_FAST = 5.31     # 实测最快 — 包络下限用 (最快语速下仍 >3:00)
+RATE_SLOW = 4.82     # 实测最慢 — 包络上限用 (最慢语速下仍 <5:30)
+# 平台带 (1103 用户令⑤ 精简令: 5+min → 3-5min 档; 旧 270-420 "4:30-7:00" 判修 —
+# 时长越长越拿不到完播率标签, 24 正片均看仅 6-18s)。上界放 330 (5:30) 容差:
+# 存量全集 target=300s 须兼容 + 轻微超靶不炸; 目标档仍 180-300 (3-5min)。
+PLATFORM_DURATION_BAND = (180.0, 330.0)
+# 字数绝对包络: 下限 ceil(180×5.31)=956 (n/5.31 > 180), 上限 floor(330×4.82)=1590 (n/4.82 < 330)
+_WORD_ENV = (956, 1590)
 
 
 def word_band(target: float) -> tuple[int, int, int, int]:
-    """生效修复带 (lo, hi) 与硬线 (hlo, hhi) — 相对带 ∩ 平台包络 (1018 C4a)。
+    """生效修复带 (lo, hi) 与硬线 (hlo, hhi) — 相对带 ∩ 平台包络 (1018 C4a; 1103 带重标 3-5min)。
 
     相对: cap = target×SPEECH_RATE, 软带 [0.90, 1.08]×cap, 硬线 [0.80, 1.20]×cap;
     包络: _WORD_ENV (平台带按实测语速两端保真)。
-    target ∈ PLATFORM_DURATION_BAND 时带子必非空 (270s→[1434,1458], 420s→[1890,2024])。
+    target ∈ PLATFORM_DURATION_BAND 时带子必非空 (180s→[956,972], 330s→[1485,1590])。
     """
-    cap = int(float(target or 600) * SPEECH_RATE)
+    cap = int(float(target or 240) * SPEECH_RATE)
     lo, hi = max(int(cap * 0.90), _WORD_ENV[0]), min(int(cap * 1.08), _WORD_ENV[1])
     hlo, hhi = max(int(cap * 0.80), _WORD_ENV[0]), min(int(cap * 1.20), _WORD_ENV[1])
     return lo, hi, hlo, hhi
@@ -524,14 +526,14 @@ def validate_script(text: str, target: float, book_title: str = "",
     n = len(re.sub(r"\s", "", body))
     # 1018 C4a: 三档字数带 (软带→修复 / 硬线→重写级 / 包络=平台带保真); 文案保持"字数 N"前缀
     # (passes.issue_family/word_band_ok 的 `字数 (\d+)` 正则依赖)
-    _lo, _hi, _hlo, _hhi = word_band(target or 600)
-    # 1019 用户令① (字数执法降级): 超 7 分钟包络才算 — 超长只报 _WORD_ENV 上限;
+    _lo, _hi, _hlo, _hhi = word_band(target or 240)
+    # 1019 用户令① (字数执法降级): 超 5分半包络才算 — 超长只报 _WORD_ENV 上限;
     # 修复带/硬线上限停报。文案保留"超出"字样 — episode_gen 压缩 pass 靠它触发修复。
     # 1019 用户令② (时长松绑): 下限也停报 — 完播时长阈值不再约束稿子, 表达优先
     # (豆包重评 86 分制维度: 口播表达/逻辑起伏/人设/记忆点/专辑连贯, 无时长轴);
-    # >4:30 平台门槛风险归人闸自查, 生成口 target 带闸 (PLATFORM_DURATION_BAND) 仍守。
+    # >3:00 平台门槛风险归人闸自查, 生成口 target 带闸 (PLATFORM_DURATION_BAND) 仍守。
     if n > _WORD_ENV[1]:
-        issues.append(f"字数 {n} 超出7分钟包络 {_WORD_ENV[1]} (目标{target:.0f}s → 硬伤级: 过7分钟)")
+        issues.append(f"字数 {n} 超出5分半包络 {_WORD_ENV[1]} (目标{target:.0f}s → 硬伤级: 过5分半)")
     # 车轱辘话检测 (0912): ①近重复句 (字符 bigram 重叠 ≥65% 的句子对) ②高频复读词
     sents = [s.strip() for s in re.split(r"[。！？\n]", body) if len(s.strip()) >= 10]
     def _bg(s: str) -> set[str]:

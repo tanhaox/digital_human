@@ -430,7 +430,7 @@ function openEdit(n) {
   const e = BOOKS.cur.episodes.find(x => x.ep === n);
   $('#e-script').value = e.script_text || '';
   $('#e-ep-title').value = e.title || '';
-  $('#e-duration').value = e.target_duration_sec || 600;
+  $('#e-duration').value = e.target_duration_sec || 240;  // 1103 精简令: 3-5min 档
   $('#e-title').textContent = `第${n}集 修稿`;
   $('#edit-modal').classList.add('active');
 }

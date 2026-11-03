@@ -1,6 +1,6 @@
-"""拆书线字数带三档测试 (2026-10-18 C4a, 北斗星第3/5条):
-语速 5.0 实测锚 (《定位》7 集 full_paragraph.wav, median 4.974) + 平台包络 4:30-7:00。
-校准锚: 旧 4.6 带把 300s 集压到 1297-1380, 实测语速下只出 ~4:36 视频 (偏短)。
+"""拆书线字数带三档测试 (2026-10-18 C4a, 北斗星第3/5条; 1103 精简令带重标):
+语速 5.0 实测锚 (《定位》7 集 full_paragraph.wav, median 4.974) + 平台包络 3:00-5:30
+(1103 用户令⑤: 5+min→3-5min, 时长越长越拿不到完播率标签; 上界 330 容存量 300s)。
 """
 from __future__ import annotations
 
@@ -35,75 +35,76 @@ def _script(chars: int, title: str = "值得信赖的顾问：成为客户心中
 # ── word_band: 相对带 ∩ 平台包络 ──
 
 def test_band_300s():
-    """300s 集: cap=1500 → 软带 [1350,1620]∩包络[1434,2024] = [1434,1620]。"""
-    assert word_band(300) == (1434, 1620, 1434, 1800)
+    """300s 集: cap=1500 → 软带 [1350,1620]∩包络[956,1590] = [1350,1590] (上限吃包络)。"""
+    assert word_band(300) == (1350, 1590, 1200, 1590)
 
 
 def test_band_platform_envelope_floor_lifts_short_targets():
-    """短目标集 (275s): 相对下限 1237 被包络抬到 1434 — 最快语速 5.31 下仍 >4:30。"""
-    lo, hi, hlo, hhi = word_band(275)
-    assert lo == 1434 and hlo == 1434
-    assert lo / RATE_FAST > 270 and hhi / RATE_SLOW < 420
+    """短目标集 (195s): 相对下限 877 被包络抬到 956 — 最快语速 5.31 下仍 >3:00。"""
+    lo, hi, hlo, hhi = word_band(195)
+    assert lo == 956 and hlo == 956
+    assert lo / RATE_FAST > 180 and hhi / RATE_SLOW < 330
 
 
 def test_band_long_target_ceiling_capped_by_envelope():
-    """长目标集 (420s): 相对上限 2268 被包络压到 2024 — 最慢语速 4.82 下仍 <7:00。"""
-    lo, hi, hlo, hhi = word_band(420)
-    assert hi == 2024 and hhi == 2024
-    assert lo / RATE_FAST > 270 and hhi / RATE_SLOW < 420
+    """长目标集 (330s): 相对上限 1782 被包络压到 1590 — 最慢语速 4.82 下仍 <5:30。"""
+    lo, hi, hlo, hhi = word_band(330)
+    assert hi == 1590 and hhi == 1590
+    assert lo / RATE_FAST > 180 and hhi / RATE_SLOW < 330
 
 
 def test_band_nonempty_across_platform_band():
-    """平台带内任意目标, 修复带必非空 (270s 与 420s 两端点也成立)。"""
-    for t in (270.5, 300, 360, 419.5):
+    """平台带内任意目标, 修复带必非空 (180s 与 330s 两端点也成立)。"""
+    for t in (180.5, 210, 260, 329.5):
         lo, hi, _, _ = word_band(t)
         assert lo <= hi, f"target={t} 带子为空"
 
 
 def test_speech_rate_constants_match_measurement():
-    """实测锚: median 4.974≈5.0, 区间 [4.82, 5.31]; 平台带 (270, 420)s。"""
+    """实测锚: median 4.974≈5.0, 区间 [4.82, 5.31]; 平台带 (180, 330)s — 1103 精简令。"""
     assert SPEECH_RATE == 5.0 and RATE_FAST == 5.31 and RATE_SLOW == 4.82
-    assert PLATFORM_DURATION_BAND == (270.0, 420.0)
+    assert PLATFORM_DURATION_BAND == (180.0, 330.0)
 
 
 # ── validate_script: 三档判定 ──
 
-def test_validate_soft_over_band_1765():
-    """1019 用户令 (字数执法降级): 1765 字超 300s 软带 (1620) 但在 7 分钟包络内
-    (2024) → 不再报字数 issue (超带=板块预算弹性, 非硬伤)。"""
-    issues = validate_script(_script(1765), 300)[1]
+def test_validate_soft_over_band_1400_at_240s():
+    """1019 用户令① (字数执法降级) + 1103 带: 1400 字超 240s 软带 (1296) 但在硬线 (1440) 内
+    → 不报字数 issue (超带=板块预算弹性, 非硬伤)。300s 档软硬上限同吃包络 1590,
+    软带专区间只在 ≤~295s 目标存在, 故用 240s 验软带语义。"""
+    issues = validate_script(_script(1400), 240)[1]
     assert not [i for i in issues if i.startswith("字数")]
 
 
 def test_validate_hard_line_over_1800():
-    """1019 用户令: 1810 字 (超旧硬线 1800) 仍在包络 2024 内 → 不报;
-    2100 字破 7 分钟包络 → "超出7分钟包络" 硬伤 issue (压缩 pass 靠"超出"触发)。"""
-    issues = validate_script(_script(1810), 300)[1]
-    assert not [i for i in issues if i.startswith("字数")]
-    issues = validate_script(_script(2100), 300)[1]
+    """1019 用户令① + 1103 带重标: 1650 字 (300s) 破 5分半包络 (1590) → "超出5分半包络" 硬伤
+    issue (压缩 pass 靠"超出"触发); 2100 字同理。"""
+    issues = validate_script(_script(1650), 300)[1]
     wc = [i for i in issues if i.startswith("字数")]
-    assert len(wc) == 1 and "超出7分钟包络 2024" in wc[0]
+    assert len(wc) == 1 and "超出5分半包络 1590" in wc[0]
+    issues = validate_script(_script(2100), 300)[1]
+    assert len([i for i in issues if i.startswith("字数")]) == 1
 
 
 def test_validate_in_band_clean():
-    """1500 字 (300s cap) 落带内 → 无字数 issue。"""
+    """1500 字 (300s, 带 1350-1590) 落带内 → 无字数 issue。"""
     issues = validate_script(_script(1500), 300)[1]
     assert not [i for i in issues if i.startswith("字数")]
 
 
 def test_validate_under_envelope_floor():
-    """1019 用户令② (时长松绑): 1300 字破包络下限 → 不再报 (表达优先,
-    完播阈值不约束; >4:30 平台门归人闸自查)。"""
-    issues = validate_script(_script(1300), 300)[1]
+    """1019 用户令② (时长松绑): 900 字破包络下限 (956) → 不再报 (表达优先,
+    完播阈值不约束; >3:00 平台门归人闸自查)。"""
+    issues = validate_script(_script(900), 300)[1]
     assert not [i for i in issues if i.startswith("字数")]
 
 
 # ── word_band_ok: 距带比较用新带 ──
 
 def test_word_band_ok_uses_new_band():
-    """1600 (带内) 距带近于 1765 (带外) → True; 反向 False。"""
-    base = ["字数 1765 超出 1620 (目标300s → 1434-1620)"]
-    closer = ["字数 1600 超出 1620 (目标300s → 1434-1620)"]  # 假设文案, 只取数字
+    """1560 (带外近) 距带近于 1700 (带外远) → True; 反向 False。"""
+    base = ["字数 1700 超出 1590 (目标300s → 1350-1590)"]
+    closer = ["字数 1560 超出 1590 (目标300s → 1350-1590)"]  # 假设文案, 只取数字
     assert word_band_ok(closer, base, 300) is True
     assert word_band_ok(base, closer, 300) is False
 

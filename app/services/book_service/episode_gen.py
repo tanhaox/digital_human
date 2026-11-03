@@ -330,11 +330,13 @@ def _story_dup_issues(book: BookProject, ep: Episode, script: str) -> list[str]:
 def generate_episode(db: Session, ep: Episode) -> Episode:
     book = ep.book
     inp = book.input_json or {}
-    # 1018 C4a 北斗星第5条: 目标时长平台带闸 (270,420)s — 越带不代改 (target 是内容决策, 归人调)
+    # 1018 C4a 北斗星第5条: 目标时长平台带闸 — 1103 用户令⑤ 精简令重标 3-5min 档 (旧 270-420 判修);
+    # 越带不代改 (target 是内容决策, 归人调)
     if not PLATFORM_DURATION_BAND[0] < float(ep.target_duration_sec or 0) < PLATFORM_DURATION_BAND[1]:
         raise ValueError(
-            f"目标时长 {float(ep.target_duration_sec or 0):.0f}s 越北斗星平台带 "
-            f"({PLATFORM_DURATION_BAND[0]:.0f}-{PLATFORM_DURATION_BAND[1]:.0f}s, 单条视频须 >4:30 且 <7:00), "
+            f"目标时长 {float(ep.target_duration_sec or 0):.0f}s 越精简令平台带 "
+            f"({PLATFORM_DURATION_BAND[0]:.0f}-{PLATFORM_DURATION_BAND[1]:.0f}s, 单条视频须 >3:00 且 <5:30, "
+            "目标档 3-5min — 1103 精简令: 时长越长越拿不到完播率标签), "
             "请先调整本集 target_duration_sec 再生成")
     labels = elastic_labels(ep.target_duration_sec)
     label_table = "\n".join(f"【{a}-{b}秒｜{n}】" for a, b, n in labels)
