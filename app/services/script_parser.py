@@ -225,6 +225,13 @@ def clean_episode_script(script_text: str) -> tuple[str, list[str]]:
     kept: list[str] = []
     found: list[str] = []  # 按出现顺序记录标签段名 (规范化, 去空白)
     for line in lines:
+        _ls = line.strip()
+        # 1103 W5: 钉标记先于标签正则拦截 — 【图:…】整行非口播直接丢;
+        # 【卡】前缀剥标记留口播 (不拦截会被宽口径标签正则整行误剥)
+        if re.fullmatch(r"【图:[^】]+?】\s*", _ls):
+            continue
+        if _ls.startswith("【卡】"):
+            line = _ls[len("【卡】"):]
         m = _LABEL_RE.match(line.strip())
         if m:
             found.append(re.sub(r"\s+", "", m.group(1) if m.groups() else
@@ -261,11 +268,6 @@ def clean_episode_script(script_text: str) -> tuple[str, list[str]]:
         if ordered != base_order:
             issues.append("时间标签顺序异常 (建议重新生成)")
 
-    # 1103 W3: 钉卡标记剥前缀 (⟪卡⟫ 行内容仍是口播 — 只剥标记, 同 👉停顿 前缀层;
-    # 标记只活在 ep.script_text 人读层, TTS/segments 永远干净, 草稿导出按文本锚回钉)
-    kept = [re.sub(r"^⟪卡⟫\s*", "", l) for l in kept]
-    # 1103 W4: 钉图标记行整行剥 (⟪图:名称⟫ 非口播, 只在 ep.script_text 人读层)
-    kept = [l for l in kept if not re.match(r"^⟪图:[^⟩<>\"/\\|*?]+?⟫\s*$", l.strip())]
     # 1103 S4: Markdown 星号剥除 — 与生成线 episode_gen 确定性收尾同款 (ep2 实锤
     # ** 错位对进 segments 被念出); 此处盖住修稿/produce 旁路渗入, 口播稿星号无
     # 合法用途

@@ -125,6 +125,9 @@ def parse_modules(script_text: str) -> list[dict]:
     cur_tail: str | None = None
     cur_lines: list[str] = []  # 1019: 合名段拆分用 (仅总结段收集)
     for line in (script_text or "").splitlines():
+        # 1103 W5: 钉图标记行跳过 (fullmatch 会把它当非标准段名 → 终止当前段)
+        if re.fullmatch(r"【图:[^】]+?】\s*", line.strip()):
+            continue
         m = MODULE_LABEL_RE.fullmatch(line.strip())
         if m:
             if cur_name is not None:

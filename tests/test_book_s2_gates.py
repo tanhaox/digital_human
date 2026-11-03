@@ -155,27 +155,27 @@ def test_subtitle_wash_strips_pause_and_pinyin():
 
 
 def test_pin_card_marker_flow():
-    """1103 W3 钉卡: 稿内⟪卡⟫行→段区间映射 + 各层剥标记 (TTS/字幕/卡干净)."""
+    """1103 W3 钉卡: 稿内【卡】行→段区间映射 + 各层剥标记 (TTS/字幕/卡干净)."""
     from app.services.jy_draft_service.quote_card import pinned_card_intervals, strip_pin_marks
     from app.services.jy_draft_service.subtitle_text import wash_subtitle_text
     from app.services.script_parser import clean_episode_script
-    script = "⟪卡⟫递出建议的权利，不是靠专业换的，是靠信任换的。\n普通口播行。"
+    script = "【卡】递出建议的权利，不是靠专业换的，是靠信任换的。\n普通口播行。"
     segs = ["递出建议的权利，不是靠专业换的，是靠信任换的。", "普通口播行。"]
     pins = pinned_card_intervals(script, segs)
     assert len(pins) == 1 and pins[0]["start"] == 0 and pins[0]["pinned"], pins
     assert strip_pin_marks(script).startswith("递出建议")
-    assert wash_subtitle_text("⟪卡⟫递出建议的权利。") == "递出建议的权利。"
-    cleaned, _ = clean_episode_script("【0-25秒｜钩子】\n⟪卡⟫递出建议的权利。\n")
-    assert "⟪卡⟫" not in cleaned and "递出建议的权利" in cleaned
+    assert wash_subtitle_text("【卡】递出建议的权利。") == "递出建议的权利。"
+    cleaned, _ = clean_episode_script("【0-25秒｜钩子】\n【卡】递出建议的权利。\n")
+    assert "【卡】" not in cleaned and "递出建议的权利" in cleaned
 
 
 def test_pin_card_adjacent_lines_merge():
     """1103 W3+: 相邻钉行合并一张跨段卡 — 公式整卡 (ep1截图卡口径, 三行一屏)."""
     from app.services.jy_draft_service.quote_card import pinned_card_intervals
-    script = ("⟪卡⟫信任，等于可信度加可靠度加亲近感，再除以自我导向。\n"
-              "⟪卡⟫可信度是专不专业，可靠度是说到做到。\n"
-              "⟪卡⟫分母，是你想证明自己。\n"
-              "普通行。\n⟪卡⟫散钉一句。")
+    script = ("【卡】信任，等于可信度加可靠度加亲近感，再除以自我导向。\n"
+              "【卡】可信度是专不专业，可靠度是说到做到。\n"
+              "【卡】分母，是你想证明自己。\n"
+              "普通行。\n【卡】散钉一句。")
     segs = ["信任，等于可信度加可靠度加亲近感，再除以自我导向。",
             "可信度是专不专业，可靠度是说到做到。",
             "分母，是你想证明自己。", "普通行。", "散钉一句。"]
@@ -186,23 +186,23 @@ def test_pin_card_adjacent_lines_merge():
 
 
 def test_image_pin_binding_and_strip():
-    """1103 W4 钉图: ⟪图:名称⟫ 绑定最近钉段 (带图卡出图不出文字卡), 整行非口播剥除."""
+    """1103 W4 钉图: 【图:名称⟫ 绑定最近钉段 (带图卡出图不出文字卡), 整行非口播剥除."""
     from app.services.jy_draft_service.quote_card import pinned_card_intervals
     from app.services.script_parser import clean_episode_script
-    script = ("⟪图:信任公式⟫\n"
-              "⟪卡⟫信任，等于可信度加可靠度加亲近感，再除以自我导向。\n"
-              "⟪卡⟫可信度是专不专业，可靠度是说到做到。\n"
-              "普通行。\n⟪卡⟫散钉。")
+    script = ("【图:信任公式】\n"
+              "【卡】信任，等于可信度加可靠度加亲近感，再除以自我导向。\n"
+              "【卡】可信度是专不专业，可靠度是说到做到。\n"
+              "普通行。\n【卡】散钉。")
     segs = ["信任，等于可信度加可靠度加亲近感，再除以自我导向。",
             "可信度是专不专业，可靠度是说到做到。", "普通行。", "散钉。"]
     pins = pinned_card_intervals(script, segs)
     assert pins[0]["image"] == "信任公式" and pins[0]["end"] == 2
     assert pins[1]["image"] is None
-    cleaned, _ = clean_episode_script("【0-25秒｜钩子】\n⟪图:信任公式⟫\n⟪卡⟫口播行。\n")
-    assert "⟪图" not in cleaned and "⟪卡" not in cleaned and "口播行" in cleaned
+    cleaned, _ = clean_episode_script("【0-25秒｜钩子】\n【图:信任公式】\n【卡】口播行。\n")
+    assert "【图" not in cleaned and "【卡】" not in cleaned and "口播行" in cleaned
 
 
 def test_pin_marks_terminal_defense_in_tts():
-    """1103 W4+: TTS 入口兜底剥 ⟪…⟫ — 标记贴句中(旁路渗入)也不出口播."""
+    """1103 W5: TTS 入口兜底剥钉标记(【】新语法+⟪⟫遗留) — 句中渗入也不出口播."""
     from app.services.tts_service import _PIN_MARK_BRACKET_RE
-    assert _PIN_MARK_BRACKET_RE.sub("", "口播⟪图:信任公式⟫继续说。⟪卡⟫钉行。") == "口播继续说。钉行。"
+    assert _PIN_MARK_BRACKET_RE.sub("", "口播【图:信任公式】继续说。【卡】钉行。") == "口播继续说。钉行。"

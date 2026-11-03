@@ -424,6 +424,16 @@ def ep1_opening_order_issues(text: str, book_title: str, verbatim_paras: list[st
     return issues
 
 
+# 1103 W5: 扫描视图剥钉标记 — 段内 【卡】/【图:…】 会截断 (?=【) 段切片正则
+# (回顾段提取在第一个钉标记处断流实锤); 校验族入口统一先剥 (只影响扫描, 不改落库)
+_PIN_SCAN_RE = re.compile(r"^【图:[^】]+?】\s*$|^【卡】\s*", re.M)
+
+
+def strip_pin_marks_for_scan(text: str) -> str:
+    """校验扫描视图: 剥钉卡前缀与钉图行 (段切片正则友好)."""
+    return _PIN_SCAN_RE.sub("", text or "")
+
+
 def section_flow_issues(text: str, book_title: str = "",
                         *, max_tool_mentions: int = 2,
                         ep_index: int = 0,
@@ -440,6 +450,7 @@ def section_flow_issues(text: str, book_title: str = "",
     行动册集走工具页装订, 时间戳边界≠步骤边界, 段首设问/页名开头合法;
     传 None 时按旧规则 (仅 ep_index==1 豁免) 兼容。配额②③全集照查。
     """
+    text = strip_pin_marks_for_scan(text)  # 1103 W5: 钉标记截断段切片防御
     if flow_check is None:
         flow_check = ep_index != 1
     issues: list[str] = []
@@ -631,6 +642,7 @@ def validate_script(text: str, target: float, book_title: str = "",
     1018 C4c: finale — 非收官集收尾段禁集数计数收口 (ep1 实锤"这7集一集一件工具…
     第7集装订"穿透提示词禁令; 系列导览归导览拍, CTA 规格④只许"第X件")。
     """
+    text = strip_pin_marks_for_scan(text)  # 1103 W5: 钉标记截断段切片防御
     issues: list[str] = []
     body = _LABEL_RE.sub("", text or "")
     n = len(re.sub(r"\s", "", body))
@@ -804,6 +816,7 @@ def hook_position_issues(text: str, hook_ref: str) -> list[str]:
     六拍+打字卡扛前 3 秒; ep1 旧实锤: 痛点钩子埋到 ~25s 处无人管)。
     1018 钩子结构三律 (用户令, ep2-6 适用): ①首句疑问式 ②30s 内答案锚。
     """
+    text = strip_pin_marks_for_scan(text)  # 1103 W5: 钉标记截断段切片防御
     h = _STRIP_RE.sub("", hook_ref or "")[:12]
     if len(h) < 6:
         return []

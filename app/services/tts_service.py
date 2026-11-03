@@ -25,8 +25,9 @@ from ..models import AudioFile, AudioJob, Segment, Voice
 # 把 89/89 段全部成功的 job 直接炸成 failed (job afe22ba1 实锤)。
 logger = logging.getLogger(__name__)
 
-# 1103 W4 终端防御: 钉卡/钉图标记 ⟪…⟫ 兜底剥 (produce 主剥, 此处防旁路渗入被念)
-_PIN_MARK_BRACKET_RE = re.compile(r"⟪[^⟪⟩]*⟫")
+# 1103 W4 终端防御: 钉卡/钉图标记兜底剥 (produce 主剥, 此处防旁路渗入被念);
+# 1103 W5 语法改【】 (拆书产线书名号族生僻括号易bug, 用户令), ⟪⟫ 留遗留剥
+_PIN_MARK_BRACKET_RE = re.compile(r"⟪[^⟪⟩]*⟫|【卡】|【图:[^】]*】")
 
 
 

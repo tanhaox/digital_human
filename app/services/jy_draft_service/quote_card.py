@@ -34,19 +34,19 @@ __all__ = ["detect_quote_cards", "detect_quote_cards_smart", "wash_card_lines",
            "is_list_card", "is_pure_list_card", "QUOTE_CARD_TAIL_SEC",
            "pinned_card_intervals", "strip_pin_marks"]
 
-# ── 钉卡 (1103 W3): 稿内 ⟪卡⟫ 行前缀 = 强制上屏 ─────────────────────────
+# ── 钉卡 (1103 W3(1103 W5 改【】符: 书名号族生僻括号在拆书产线易 bug, 用户令)): 稿内 【卡】 行前缀 = 强制上屏 ─────────────────────────
 # 机制缺口实锤: 自动选卡按"可截屏性"打分 (清单/口诀/干净断言), 而"绕但金贵"的
 # 反差金句 (听感负担重、恰需花字辅助认知) 选不中 — ep2 "递出建议的权利，不是靠
 # 专业换的，是靠信任换的" LLM 主判 4 张满额未中。钉子通道: 人钉或听感 pass 自动钉。
 # 标记只活在 ep.script_text (人读层); produce 清洗剥前缀 (TTS/segments 永远干净),
 # 草稿导出时按文本锚映射回 manifest 段区间。
-_PIN_MARK = "⟪卡⟫"
-_PIN_RE = re.compile(r"^⟪卡⟫\s*")
-# 钉图 (1103 W4): ⟪图:名称⟫ 独立行 (非口播, 全链剥除) — 绑定最近钉卡区间,
+_PIN_MARK = "【卡】"
+_PIN_RE = re.compile(r"^【卡】\s*")
+# 钉图 (1103 W4): 【图:名称】 独立行 (非口播, 全链剥除) — 绑定最近钉卡区间,
 # 该区间出图不出文字卡。素材目录 data/l0/{书名}/cards/{名称}。
 # 实锤: 公式上屏要真分式排版 (2720x832 图), 三行文字卡是降级 (ep1 截图卡 +
 # 用户公式图实锤)。
-_IMG_PIN_RE = re.compile(r"^⟪图:([^⟩<>\"/\\|*?]+?)⟫\s*$")
+_IMG_PIN_RE = re.compile(r"^【图:([^】]+?)】\s*$")
 
 
 def strip_pin_marks(text: str) -> str:
@@ -65,10 +65,10 @@ def _qc_norm(s: str) -> str:
 
 
 def pinned_card_intervals(script_text: str, seg_texts: list[str]) -> list[dict]:
-    """稿内 ⟪卡⟫ 行 → manifest 段区间 (文本锚双向包含匹配, 与自动卡同构).
+    """稿内 【卡】 行 → manifest 段区间 (文本锚双向包含匹配, 与自动卡同构).
 
     相邻钉行 (段索引连续) 合并为一张跨段卡 — 公式整卡上屏 (ep1 截图卡口径)。
-    ⟪图:名称⟫ 独立行绑定最近钉段 (钉段后=贴前段, 钉段前=挂下段) — 带图钉卡
+    【图:名称】 独立行绑定最近钉段 (钉段后=贴前段, 钉段前=挂下段) — 带图钉卡
     由 job_draft 出图不出文字卡 (1103 W4, 公式真分式图实锤)。"""
     spans: list[dict] = []          # {"lines": [钉行文本], "image": 名称|None}
     _pending_img: list[str] = []
@@ -284,7 +284,7 @@ def wash_card_lines(lines: list[str]) -> list[str]:
     """
     out: list[str] = []
     for l in lines:
-        t = re.sub(r"^⟪卡⟫\s*", "", l or "")  # 1103 W3: 钉卡标记防御剥
+        t = re.sub(r"^【卡】\s*", "", l or "")  # 1103 W3(1103 W5 改【】符: 书名号族生僻括号在拆书产线易 bug, 用户令): 钉卡标记防御剥
         t = _CARD_PAUSE_RE.sub("", t)
         t = _CARD_PINYIN_RE.sub(lambda m: m.group(1), t)
         t = _CARD_LEAD_RE.sub("", t)
