@@ -308,20 +308,11 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
         soft_timeout_sec=_soft,
         interrupt_grace_sec=180)
 
-    # 同 h3: 状态推进 + 指纹 + 机检 + ledger
+    # 同 h3: 状态推进 + 指纹 + ledger (机检 1103 Y3 已后置 h3.run_batch 批尾成扫)
     shot["video_file"] = f"anim/{shot['shot_id']}.mp4"
     shot["gen_narr_sha"] = hashlib.md5(
         shots_mod.norm_for_match(shot.get("narration") or "").encode("utf-8")
     ).hexdigest()[:10]
-    shot.pop("video_suspect", None)
-    _sus = video_qc.check(dest, shot, doc)
-    if _sus:
-        shot["video_suspect"] = _sus
-        _r = shot.setdefault("qc_rejects", [])
-        _r.append({"kind": ",".join(_sus.get("kinds") or []),
-                   "what": str(_sus.get("what") or "")[:60],
-                   "ts": time.strftime("%Y-%m-%dT%H:%M:%S")})
-        del _r[:-8]
     shot["attempts"]["h3"] += 1
     shot["error"] = None
     shots_mod.transition(shot, "anim_done")
