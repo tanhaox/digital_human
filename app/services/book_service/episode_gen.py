@@ -351,6 +351,98 @@ def _listen_pass(out: str, *, ep, book, req_cta: bool, series_word: str,
     return out
 
 
+def _coverage_fidelity(text: str, coverage: list) -> tuple[list, list]:
+    """coverage 保真 (1103 Z2): 自报知识点必须在正文命中 — 幽灵申报清洗.
+
+    实锤: ep4 自报「海尔砸冰箱案例」正文 0 处 (LLM 虚报), 撞 ep3 占坑出假阻断,
+    靠人工直改库. 清洗规则: 归一后 (剥标点空白) 全串或 ≥4 字锚须命中正文;
+    短于 4 字的条目不可判, 保留 (宁可疑不误删)."""
+    import re as _re
+    _norm = lambda s: _re.sub(r"[\s，。！？；、：…—·（）()\"'“”‘’「」]", "", str(s or ""))
+    _bg = lambda s: {s[i:i + 2] for i in range(len(s) - 1)} if len(s) > 1 else set()
+    nt, nt_bg = _norm(text), _bg(_norm(text))
+    kept, dropped = [], []
+    for c in coverage or []:
+        nc = _norm(c)
+        if len(nc) < 4 or nc in nt or len(_bg(nc) & nt_bg) >= 2:
+            kept.append(c)  # 全串命中 / ≥2 bigram = 有真实文本依据 (措辞漂移容忍)
+        else:
+            dropped.append(c)
+    return kept, dropped
+
+
+def _dual_gate_pass(out: str, *, ep, book, req_cta: bool, series_word: str,
+                    figure: str, flow_check: bool, gen_dir,
+                    concepts: list | None = None) -> str:
+    """双维出厂闭环 (1103 Z1/Z3 用户令固化: 推池×听感全过才算出厂).
+
+    评审不过 → 未过项工单喂 LLM 定向编辑 (手术口径=ep4 三轮人工验证过的修法) →
+    复审; 两轮不过弃用保原稿留人闸。验收: 全过 + family_new=0 + 阻断不增 + |Δ|≤250。"""
+    from .dual_review import all_pass as _dp_all, failed_items as _dp_fail, review as _dp_review
+    try:
+        R = _dp_review(out, concepts)
+        fails = _dp_fail(R)
+        if not fails:
+            logger.info("[book] ep%d 双维评审一次过 ✓", ep.ep_index)
+            return out
+        _snap_kw = dict(target=ep.target_duration_sec, book_title=book.book_title,
+                        require_cta=req_cta, series_word=series_word or "",
+                        ep_index=ep.ep_index, flow_check=flow_check, figure=figure,
+                        concepts=concepts or None,
+                        include=("validate", "flow", "fig", "concepts"))
+        base = passes_mod.snap_issues(passes_mod.snapshot(out, **_snap_kw))
+        _base_blocks = sum(1 for i in base if "(阻断)" in i)
+        cur = out
+        for _attempt in (1, 2):
+            fixed = _llm().chat(
+                "你是口播稿出厂评审修复编辑。这份稿在双维评审有未过项, 只修列出的项, 其它禁改:\n"
+                + "\n".join(fails) +
+                "\n修法口径 (验证过的手术式):"
+                "D3 痒点=在【回顾+引入】段最末 (身份句之前) 补一句面向观众的对号问句"
+                "(含你、以？收尾); "
+                "D4 密度=在断层区间中部补一针短设问 (自问自答, ≤20字, 不打断案例); "
+                "L5 前置=把概念表正式名挪进/复述进【核心概念拆解（一）】引入段前两句; "
+                "L1 气口=>30字无逗号句在自然停顿处补逗号; "
+                "D7 时长=只许删冗句收带 (禁砍案例/数字/CTA); 其余项按说明对症改。"
+                "铁律: 段落标签【…】与【卡】【图:…】钉标记行与⟦⟧原话一字不动, 数字/案例"
+                "事实/钩子段前150字不动, 概念表词原词保留"
+                + (": " + "、".join(str(c) for c in concepts) if concepts else "")
+                + "; 总字数变化 ≤250。直接输出完整稿。",
+                "稿件:\n" + cur, model="pro", temperature=0.3, tag="epgen:dualgate")
+            fixed = (fixed or "").strip()
+            if not fixed:
+                break
+            after = passes_mod.snap_issues(passes_mod.snapshot(fixed, **_snap_kw))
+            _new = passes_mod.family_new(after, base)
+            _ab = sum(1 for i in after if "(阻断)" in i)
+            R2 = _dp_review(fixed, concepts)
+            fails2 = _dp_fail(R2)
+            if (not fails2 and not _new and _ab <= _base_blocks
+                    and abs(len(fixed) - len(out)) <= 250):
+                logger.info("[book] ep%d 双维出厂 ✓ (第%d轮, 提示 %d→%d)",
+                            ep.ep_index, _attempt, len(base), len(after))
+                try:
+                    (gen_dir / "05j_dualgate.txt").write_text(fixed, encoding="utf-8")
+                except Exception:
+                    pass
+                return fixed
+            if _new or _ab > _base_blocks or abs(len(fixed) - len(out)) > 250:
+                logger.warning("[book] ep%d 双维修复不安全 (新病族=%s 阻断%d→%d Δ%+d), 停",
+                               ep.ep_index, _new or [], _base_blocks, _ab,
+                               len(fixed) - len(out))
+                break
+            cur, fails = fixed, fails2  # 安全但未全过 → 带剩余工单修第二轮
+        logger.warning("[book] ep%d 双维未全过, 留人闸: %s", ep.ep_index, fails)
+        try:
+            (gen_dir / "05j_dualgate_rejected.txt").write_text(
+                f"未过: {fails}\n\n{cur}", encoding="utf-8")
+        except Exception:
+            pass
+    except Exception as _exc:  # noqa: BLE001 — 出厂闭环失败不炸生成链
+        logger.warning("[book] ep%d 双维评审异常: %s", ep.ep_index, _exc)
+    return out
+
+
 def _flow_smooth_pass(out: str, *, ep, book, req_cta: bool, series_word: str,
                       figure: str, flow_check: bool, gen_dir) -> str:
     """顺稿 pass (1103 V1): 模块串烧 → 全文一条线。
@@ -2087,6 +2179,11 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
                            series_word=_series_word or "", figure=_figure,
                            flow_check=_is_tool_ep, gen_dir=_gen_dir,
                            concepts=[str(c) for c in (_rm.get("概念") or [])])
+        # 1103 Z1/Z3: 双维出厂闭环 (推池×听感全过才算出厂, 未过项自动工单修复)
+        out = _dual_gate_pass(out, ep=ep, book=book, req_cta=_req_cta,
+                              series_word=_series_word or "", figure=_figure,
+                              flow_check=_is_tool_ep, gen_dir=_gen_dir,
+                              concepts=[str(c) for c in (_rm.get("概念") or [])])
 
     # 2026-08-23: 编辑层口语化 — 生成层专注创作, 编辑层专职改口语 (身份激活真人口播语感)
     # 0912 合并 (用户令): 独立编辑层调用取消 — 口语化规则已全量在系统栈口播8条, 分层留档
@@ -2271,7 +2368,13 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
     # 类通用名) 的确定性兜底 (梅斯特被解雇/遗嘱律师 ×3 集实锤)
     # 1019 修序: coverage 先落再查 — 旧序赋值在查重后, 本集新清单从不参战
     # (收官集回收费五件工具=重灾区, R4 后置刷新才暴露真提示 ×2)
-    ep.coverage_json = coverage
+    # 1103 Z2: coverage 保真清洗 — 自报未命中正文的幽灵申报剔除 (ep4 海尔砸冰箱
+    # 正文0处实锤; 申报干净, 排重比对才不作假)
+    _cov_kept, _cov_drop = _coverage_fidelity(out, coverage)
+    if _cov_drop:
+        logger.warning("[book] ep%d coverage 幽灵申报清洗 %d 项: %s",
+                       ep.ep_index, len(_cov_drop), _cov_drop[:4])
+    ep.coverage_json = _cov_kept
     issues += _coverage_dup_issues(book, ep)
     # 1103 T2: 预告复读闸 (提示级) — 与双排重同位, 修稿复检同规
     issues += _teaser_repeat_issues(book, ep, out)
