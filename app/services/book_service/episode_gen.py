@@ -284,6 +284,73 @@ def _coverage_dup_issues(book: BookProject, ep: Episode) -> list[str]:
     return out
 
 
+def _listen_pass(out: str, *, ep, book, req_cta: bool, series_word: str,
+                 figure: str, flow_check: bool, gen_dir,
+                 concepts: list | None = None) -> str:
+    """听感 pass (1103 W固化, ep2 十味配方过耳定版): 纸面逻辑外的耳朵问题。
+
+    用户令: 所有校验都从文章本身排查, 听感从语速/断句/语气听出来 — 信息密度大,
+    盯着稿听也云里雾里 (ep2 实锤)。配方 = 隐喻收敛一套 + 把手预算 + 气口 + 跨语
+    梗转译 + 框架词定义前置 + 挂账提示顺手清。钉卡/钉图【卡】【图:…】标记行不动
+    (人钉或后续迭代)。验收不过弃用保原稿 (同顺稿 pass 骨架)。"""
+    try:
+        base = passes_mod.snap_issues(passes_mod.snapshot(
+            out, target=ep.target_duration_sec, book_title=book.book_title,
+            require_cta=req_cta, series_word=series_word or "",
+            ep_index=ep.ep_index, flow_check=flow_check, figure=figure,
+            include=("validate", "flow", "fig")))
+        listen = _llm().chat(
+            "你是口播稿听感编辑。这篇稿文字逻辑已过关, 但要重新过一遍耳朵 — 观众是"
+            "闭着眼听的, 看不见稿子。只做听感手术, 案例事实禁改:"
+            "①隐喻收敛: 全稿只留一套核心比喻, 附加的比喻系统 (尺子/镜子/体检式)"
+            "全部翻成大白话;"
+            "②把手减量: 新词把手 (引号术语/自造标签) 每集≤6个, 引号只许用在工具本体"
+            "条目上, 其余新说法一律说人话; 一句话最多出现一个新词;"
+            "③气口: 超过30字没有逗号的句子, 在自然停顿处补逗号;"
+            "④跨语梗转译: 案例的梗若依赖英文特性 (he/she代词/拼写/双关/称谓), 中文"
+            "里听不见 — 保案例换载体, 转成中文耳朵秒懂的信号 (叫错名字式);"
+            "⑤框架词定义前置: 本集核心框架词 (公式/流程/清单名) 第一次使用前, 必须"
+            "已经用大白话说清它是什么; 若承接上集教过的框架, 用原口径复述一遍;"
+            "⑥挂账顺手清: 回顾段末缺面向观众的问句就补一句; 收尾缺转发号召就补一句"
+            "(对象+理由挂钩本集工具)。"
+            "铁律: 段落标签【数字-数字秒｜段名】一行不动, 【卡】开头和【图:…】整行"
+            "的钉标记行一字不动, ⟦⟧原话不动, 数字/案例事实/钩子段前150字不动; "
+            "概念表的词是排程契约, 原词一律保留 (洗掉概念词=阻断, ep5「边界前置」实锤)"
+            + (": " + "、".join(str(c) for c in concepts) if concepts else "") +
+            "; 总字数变化 ≤250。直接输出改后的完整稿。",
+            "稿件:\n" + out, model="pro", temperature=0.3, tag="epgen:listen")
+        listen = (listen or "").strip()
+        after = passes_mod.snap_issues(passes_mod.snapshot(
+            listen, target=ep.target_duration_sec, book_title=book.book_title,
+            require_cta=req_cta, series_word=series_word or "",
+            ep_index=ep.ep_index, flow_check=flow_check, figure=figure,
+            include=("validate", "flow", "fig")))
+        _new = passes_mod.family_new(after, base)
+        _blocks_base = [i for i in base if "(阻断)" in i]
+        _blocks_after = [i for i in after if "(阻断)" in i]
+        if (listen and not _new and len(_blocks_after) <= len(_blocks_base)
+                and abs(len(listen) - len(out)) <= 250):
+            logger.info("[book] ep%d 听感 pass ✓ (提示 %d→%d, Δ%+d)",
+                        ep.ep_index, len(base), len(after), len(listen) - len(out))
+            try:
+                (gen_dir / "05i_listen.txt").write_text(listen, encoding="utf-8")
+            except Exception:
+                pass
+            return listen
+        logger.warning("[book] ep%d 听感 pass 未过 (新问题=%s, 阻断 %d→%d, Δ%+d), 保留原稿",
+                       ep.ep_index, _new or [], len(_blocks_base), len(_blocks_after),
+                       len(listen) - len(out))
+        try:
+            (gen_dir / "05i_listen_rejected.txt").write_text(
+                f"未过原因: 新问题={_new or []} 阻断{len(_blocks_base)}→{len(_blocks_after)} "
+                f"Δ{len(listen) - len(out)}\n\n{listen or '(空返回)'}", encoding="utf-8")
+        except Exception:
+            pass
+    except Exception as _exc:  # noqa: BLE001 — 听感失败不炸生成链
+        logger.warning("[book] ep%d 听感 pass 异常: %s", ep.ep_index, _exc)
+    return out
+
+
 def _flow_smooth_pass(out: str, *, ep, book, req_cta: bool, series_word: str,
                       figure: str, flow_check: bool, gen_dir) -> str:
     """顺稿 pass (1103 V1): 模块串烧 → 全文一条线。
@@ -2015,6 +2082,11 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
         out = _flow_smooth_pass(out, ep=ep, book=book, req_cta=_req_cta,
                                 series_word=_series_word or "", figure=_figure,
                                 flow_check=_is_tool_ep, gen_dir=_gen_dir)
+        # 1103 W固化: 听感 pass (ep2 十味配方过耳定版) — 顺稿后追加
+        out = _listen_pass(out, ep=ep, book=book, req_cta=_req_cta,
+                           series_word=_series_word or "", figure=_figure,
+                           flow_check=_is_tool_ep, gen_dir=_gen_dir,
+                           concepts=[str(c) for c in (_rm.get("概念") or [])])
 
     # 2026-08-23: 编辑层口语化 — 生成层专注创作, 编辑层专职改口语 (身份激活真人口播语感)
     # 0912 合并 (用户令): 独立编辑层调用取消 — 口语化规则已全量在系统栈口播8条, 分层留档

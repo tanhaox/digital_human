@@ -71,3 +71,33 @@ def test_flow_pass_rejects_deep_shrink():
 def test_flow_pass_empty_return_keeps_original():
     got, _ = _run("", _LBL + "客户还是不点头。展开一句。")
     assert got.startswith(_LBL)
+
+
+def test_listen_pass_accepts_clean():
+    """1103 W固化: 听感 pass 验收 — 无新病族/阻断不增/|Δ|≤250 才收."""
+    from types import SimpleNamespace as NS
+    from unittest.mock import patch
+    from app.services.book_service import episode_gen as eg
+    base = "【0-28秒｜钩子】\n这集讲三件事。第一件是可信度打分。第二件是可靠度。第三件是亲近感。结尾。"
+    listened = base + "回顾段末补一句：你上回那单，折在哪一格？"
+    with patch.object(eg, "_llm") as m:
+        m.return_value.chat.return_value = listened
+        got = eg._listen_pass(base, ep=NS(ep_index=3, target_duration_sec=240.0, roadmap_json={}),
+                              book=NS(book_title="值得信赖的顾问"), req_cta=True,
+                              series_word="", figure="", flow_check=True, gen_dir=None)
+    assert got == listened
+    assert m.return_value.chat.call_args.kwargs.get("tag") == "epgen:listen"
+
+
+def test_listen_pass_rejects_new_block():
+    from types import SimpleNamespace as NS
+    from unittest.mock import patch
+    from app.services.book_service import episode_gen as eg
+    base = "【0-28秒｜钩子】\n普通口播一句。再来一句展开内容。"
+    bad = "【0-28秒｜钩子】\n普通口播一句。再来一句展开内容。**星号渗入。"
+    with patch.object(eg, "_llm") as m:
+        m.return_value.chat.return_value = bad
+        got = eg._listen_pass(base, ep=NS(ep_index=3, target_duration_sec=240.0, roadmap_json={}),
+                              book=NS(book_title="X"), req_cta=False,
+                              series_word="", figure="", flow_check=False, gen_dir=None)
+    assert got == base
