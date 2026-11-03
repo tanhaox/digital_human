@@ -43,6 +43,7 @@
 
 - 本文件
 - docs/INDEX.md（文档唯一入口）
+- docs/analytics/原则框架/令状登记簿.md（**令的唯一登记处** + 变更跟踪账本 — 1103 立, 改令先查簿）
 - docs/REFACTOR_PLAN.md（当前重构进度 + 冻结基线）
 - docs/status/项目状态总览.md + docs/status/backlog.md（状态与挂账观察项）
 - docs/AUDIT-系统地图.md / AUDIT-问题清单.md（如需）
@@ -50,7 +51,7 @@
 
 ## 七、关键上下文
 
-- pytest 基线：`pytest tests/ -m "not real_api"` → **6 failed / 430 passed / 6 deselected**（1101 统一架构升级 +44 / TTS交接面处置 +10; 此前 1021~26 批 +35; 失败集不变=历史债）。
+- pytest 基线：`pytest tests/ -m "not real_api"` → **6 failed / 434 passed / 6 deselected**（1103 数据链+制度批 +4: lite导入/锚点/沉淀总表/粉丝派生; 1101 +44; 失败集不变=历史债）。
   已知失败项（历史债，与本轮重构无关）：
   - test_module_map ×3（AssertionError×2 / IndexError）
   - test_tts_chunk_semantic ×2
