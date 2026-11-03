@@ -15,42 +15,42 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DB_PATH = ROOT / "data" / "analytics.db"
 
-SNAPSHOT_DATE = "2026-10-21"
+SNAPSHOT_DATE = "2026-11-03"
 SCOPE = "account"  # 账号级粉丝画像 (单集观众画像 scope=ep:N 另录)
 
 # (dimension, rank, label, pct, note)
 ROWS: list[tuple[str, int, str, float | None, str]] = [
-    # 年龄分布 (Σ=100.0 ✓)
-    ("age", 1, "<23", 5.0, ""),
-    ("age", 2, "24-30", 16.0, ""),
-    ("age", 3, "31-40", 61.0, "绝对主力"),
-    ("age", 4, "41-50", 14.0, ""),
-    ("age", 5, ">50", 4.0, ""),
-    # 粉丝兴趣 Top6 (随拍 35 ↔ 0929 ep6 观众随拍 36, 同构信号)
-    ("interest", 1, "随拍", 35.0, "↔0929 ep6 36% 同构"),
-    ("interest", 2, "社会时政", 12.0, ""),
-    ("interest", 3, "美食", 10.0, ""),
-    ("interest", 4, "财经", 9.0, ""),
-    ("interest", 5, "体育", 8.0, ""),
-    ("interest", 6, "亲子", 7.0, ""),
-    # 地域 Top6
-    ("region", 1, "山东", 14.0, ""),
-    ("region", 2, "广东", 9.0, ""),
-    ("region", 3, "江苏", 9.0, ""),
-    ("region", 4, "河南", 9.0, ""),
-    ("region", 5, "河北", 8.0, ""),
-    ("region", 6, "浙江", 8.0, ""),
-    # 设备 Top6 (苹果+华为=53%)
-    ("device", 1, "苹果", 27.0, ""),
-    ("device", 2, "华为", 26.0, ""),
-    ("device", 3, "荣耀", 9.0, ""),
-    ("device", 4, "OPPO", 8.0, ""),
+    # 年龄分布 (Σ=100.0 ✓) — 31-40 三档爬升 61→63→64
+    ("age", 1, "<23", 3.0, ""),
+    ("age", 2, "24-30", 17.0, "1021→1024→1103: 16→16→17"),
+    ("age", 3, "31-40", 64.0, "绝对主力, 三档 61→63→64"),
+    ("age", 4, "41-50", 13.0, "14→14→13"),
+    ("age", 5, ">50", 3.0, ""),
+    # 粉丝兴趣 Top6 — 随拍三档稳定#1 (35→36→36, 聚集的是泛流非垂直); 财经三连降 9→8→7
+    ("interest", 1, "随拍", 36.0, "三档 35→36→36 稳定#1; 判据①的'聚集'是泛流聚集"),
+    ("interest", 2, "社会时政", 13.0, "12→13→13"),
+    ("interest", 3, "美食", 11.0, "10→10→11"),
+    ("interest", 4, "亲子", 9.0, "7→9→9"),
+    ("interest", 5, "财经", 7.0, "⚠三连降 9→8→7 — 打标未向商业/财经收敛"),
+    ("interest", 6, "体育", 7.0, "8→7→7"),
+    # 地域 Top6 — 名次可读: 河北升第3, 广东降第5; 百分比截图过小未读出
+    ("region", 1, "山东", None, "名次可读%; 1024 时 13%"),
+    ("region", 2, "河南", None, "1024 时 8%"),
+    ("region", 3, "河北", None, "↑1024 第4→第3"),
+    ("region", 4, "江苏", None, "↑1024 第6→第4"),
+    ("region", 5, "广东", None, "↓1024 第3→第5"),
+    ("region", 6, "浙江", None, "1024 第5"),
+    # 设备 Top6 (华为 26→28→30 三连升)
+    ("device", 1, "华为", 30.0, "26→28→30 三连升"),
+    ("device", 2, "苹果", 23.0, "27→23→23"),
+    ("device", 3, "荣耀", 10.0, "9→11→10"),
+    ("device", 4, "OPPO", 8.0, "9→8"),
     ("device", 5, "VIVO", 6.0, ""),
     ("device", 6, "小米", 6.0, ""),
     # 环形图无数字 (截图不悬停不显示百分比)
-    ("gender", 1, "男性", None, "环形图无数字; 视觉男性显著占优; 0929 单集观众男95% 参照"),
-    ("gender", 2, "女性", None, "无数字"),
-    ("activity", 1, "重度", None, "环形图无数字; 视觉重度最大(目测~八成); 8折有效粉代理指标, 待悬停截图补真值"),
+    ("gender", 1, "男性", None, "环形图无数字; 1024 悬停读数 90%"),
+    ("gender", 2, "女性", None, "1024 悬停读数 10%"),
+    ("activity", 1, "重度", None, "环形图无数字; 8折有效粉代理指标, 待悬停截图补真值"),
     ("activity", 2, "中度", None, "无数字"),
     ("activity", 3, "轻度", None, "无数字"),
     ("activity", 4, "低活", None, "无数字"),
@@ -82,7 +82,7 @@ def main() -> None:
                 "INSERT OR REPLACE INTO fan_portrait "
                 "(snapshot_date, scope, dimension, rank, label, pct, note, source) VALUES (?,?,?,?,?,?,?,?)",
                 (SNAPSHOT_DATE, SCOPE, dim, rank, label, pct, note,
-                 "后台截图+glm-4.6v 切片转录 1021"),
+                 "后台截图+glm-4.6v 切片转录 1103"),
             )
         con.commit()
         n = con.execute("SELECT COUNT(*) FROM fan_portrait WHERE snapshot_date=? AND scope=?",
