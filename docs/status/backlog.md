@@ -2173,3 +2173,11 @@ laotan-tech 加【科技版专属约束】（高于通用规则）：
 - **开发周期**: M0
 - **描述**: 钉图机制目前只消费 cards/ 人产素材 (信任公式.png 用户手作实锤)。公式卡本质是排版非绘画: 钉行文本自带结构 (X等于A加B加C再除以D 句式确定性可解析), PIL 真分式渲染零幻觉, 配色对齐金句卡 (金字黑底半透明)。触发=钉卡无【图:名】时先试自动生图, 解不出回退文字卡。定制图 (【图:名】) 优先级更高。家底: ppt_pipeline._render_card_png + watermark PIL 先例
 - **涉及模块**: jy_draft_service.quote_card / job_draft
+
+### ID-130：【动画】gpu 卡卫兵存活实例认领 — 后端重启洗 tracked_pids 误报自家 ComfyUI
+
+- **状态**: pending
+- **优先级**: P2
+- **提出时间**: 2026-11-03
+- **描述**: 后端重启后 gpu_svc 登记册清空, 独立存活的 ComfyUI (E盘 portable) 被卡卫兵报"外来进程 未杀" (ep2 K2 批实锤 pid=2976 虚惊). 修法: 启动/预检时探活已知服务端口 (8188) 认领存活实例入册, 或路径白名单
+- **涉及模块**: gpu_service_manager/_card_guard.py
