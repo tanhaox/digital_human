@@ -54,10 +54,13 @@ def _qc_norm(s: str) -> str:
 
 
 def pinned_card_intervals(script_text: str, seg_texts: list[str]) -> list[dict]:
-    """稿内 ⟪卡⟫ 行 → manifest 段区间 (文本锚双向包含匹配, 与自动卡同构)."""
+    """稿内 ⟪卡⟫ 行 → manifest 段区间 (文本锚双向包含匹配, 与自动卡同构).
+
+    相邻钉行 (段索引连续) 合并为一张跨段卡 — 公式整卡上屏实锤 (ep1 截图卡口径,
+    ep2 承接复述需 整卡: 公式+四定义三行一屏)。"""
     pinned_lines = [_PIN_RE.sub("", l).strip() for l in (script_text or "").splitlines()
                     if l.strip().startswith(_PIN_MARK)]
-    out: list[dict] = []
+    singles: list[dict] = []
     used: set[int] = set()
     for pl in pinned_lines:
         if not pl:
@@ -69,8 +72,18 @@ def pinned_card_intervals(script_text: str, seg_texts: list[str]) -> list[dict]:
             idx = next((i for i, s in enumerate(seg_texts)
                         if i not in used and _qc_norm(s) and _qc_norm(s) in npl), None)
         if idx is not None:
-            out.append({"start": idx, "end": idx + 1, "lines": [pl], "pinned": True})
+            singles.append({"idx": idx, "line": pl})
             used.add(idx)
+    # 段索引相邻 → 合并一张卡 (区间连成跨段, 行文本拼合)
+    singles.sort(key=lambda x: x["idx"])
+    out: list[dict] = []
+    for s in singles:
+        if out and s["idx"] == out[-1]["end"]:
+            out[-1]["end"] = s["idx"] + 1
+            out[-1]["lines"].append(s["line"])
+        else:
+            out.append({"start": s["idx"], "end": s["idx"] + 1,
+                        "lines": [s["line"]], "pinned": True})
     return out
 
 # 截屏窗: 末行念完后卡片再停留的秒数 (静置截屏窗口)

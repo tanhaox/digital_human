@@ -167,3 +167,19 @@ def test_pin_card_marker_flow():
     assert wash_subtitle_text("⟪卡⟫递出建议的权利。") == "递出建议的权利。"
     cleaned, _ = clean_episode_script("【0-25秒｜钩子】\n⟪卡⟫递出建议的权利。\n")
     assert "⟪卡⟫" not in cleaned and "递出建议的权利" in cleaned
+
+
+def test_pin_card_adjacent_lines_merge():
+    """1103 W3+: 相邻钉行合并一张跨段卡 — 公式整卡 (ep1截图卡口径, 三行一屏)."""
+    from app.services.jy_draft_service.quote_card import pinned_card_intervals
+    script = ("⟪卡⟫信任，等于可信度加可靠度加亲近感，再除以自我导向。\n"
+              "⟪卡⟫可信度是专不专业，可靠度是说到做到。\n"
+              "⟪卡⟫分母，是你想证明自己。\n"
+              "普通行。\n⟪卡⟫散钉一句。")
+    segs = ["信任，等于可信度加可靠度加亲近感，再除以自我导向。",
+            "可信度是专不专业，可靠度是说到做到。",
+            "分母，是你想证明自己。", "普通行。", "散钉一句。"]
+    pins = pinned_card_intervals(script, segs)
+    assert len(pins) == 2
+    assert pins[0]["start"] == 0 and pins[0]["end"] == 3 and len(pins[0]["lines"]) == 3
+    assert pins[1]["start"] == 4
