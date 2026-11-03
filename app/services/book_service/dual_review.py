@@ -74,7 +74,9 @@ def review(t: str, concept_names: list[str] | None = None) -> list[tuple[str, st
     R.append(('L3 隐喻一套', str(metaphor) if metaphor else '零附加', True))
     qterms = re.findall(r'[「"“]([^」"”]{2,14})[」"”]', t2)
     coined = [x for x in qterms if x not in _TOOL_QUOTES and not re.search(r'[，。？！]$', x)
-              and not any(x in w or w in x for w in _TOOL_QUOTES)]
+              and not any(x in w or w in x for w in _TOOL_QUOTES)
+              # 1103 Z+: 含人称代词的短引语=对白不是自造把手 (我我我/这人懂我实锤)
+              and not (len(x) <= 6 and re.search(r'[你我他她]', x))]
     R.append(('L4 把手自造', f'{len(coined)}个 {coined[:4]}', len(coined) <= 2))
     fname = (concept_names or [None])[0]
     fd = t2.find(str(fname)) if fname else t2.find('低自我导向措辞')

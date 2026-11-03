@@ -540,10 +540,13 @@ def _listen_feel_issues(text: str, series_word: str | None = None) -> list[str]:
         elif "步转型" in series_word and _noun_b:
             out.append(f"非钦定框架词: 「{_noun_b.group(0)}」— 本书钦定「{series_word}」, "
                        "全稿统一'第X步'式, 其他系列计数词禁用")
-    if fam_a and fam_b:
+    # 1103 Z+: B1 令对齐 — 泛型第X步=工具内部步骤合法 (六步流程集实锤误报);
+    # 混用闸只认框架全称 (X步转型 vs X件工具), 序数不参战
+    _fa_frame = [x for x in fam_a if "步转型" in x]
+    if _fa_frame and fam_b:
         _hint = (f"本书钦定「{series_word}」, 其他族词全删" if series_word
                  else "全书单选一套 (五步转型 或 五件工具)")
-        out.append(f"计数体系混用: 「{fam_a[0]}」×{len(fam_a)} 与 「{fam_b[0]}」×{len(fam_b)} "
+        out.append(f"计数体系混用: 「{_fa_frame[0]}」与 「{fam_b[0]}」"
                    f"同稿并存 — {_hint}")
     # (a2) 模块计数同轴 (1103 S2): 模块级计数词全稿须一套量词 — ≥2 族且其中 ≥1 族
     # ≥2 次 (结构性枚举) 才报, 单发内容性提及 (如"高档产品") 不误伤

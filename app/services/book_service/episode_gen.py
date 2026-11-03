@@ -699,6 +699,7 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
         # 构件调度 (0910 受控多样性): 总纲分配四维构件, 生成器只执行禁自选
         _comp = str(_rm.get("构件") or "")
         _hook_extra = ""
+        _case_ban_text = ""  # 1103 Z+ 占坑硬禁令 (顶部注入)
         if _card:
             _hook_extra += f"首行固定输出「打字卡：{_card}」(书级固定卡, 全系列同一句, 一字不改)。\n"
         if _comp:
@@ -748,6 +749,17 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
             _hook_extra += ("案例跨集去重(知识点占坑): 兄弟集已讲知识点/故事 "
                             + "、".join(list(dict.fromkeys(_sib_cov))[:30])
                             + " 禁整案重讲 (换案例, 或换角度半句带过)。\n")
+        # 1103 Z+ 喂料硬化: 占坑黑名单同时升入 prompt 顶部硬禁区 — ep3 两连掷
+        # 遗嘱律师/三一重工照用实锤 (中段注入被 LLM 当耳旁风; 政治禁区同级才管住)
+        _case_ban_text = ""
+        _all_banned = list(dict.fromkeys(
+            [n for n in (_used_cases or []) if n]
+            + [str(c)[:24] for c in _sib_cov]))
+        if _all_banned:
+            _case_ban_text = ("【硬禁令·案例占坑 (与政治禁区同级, 违者废稿): 以下案例/知识点"
+                              "已被兄弟集占用, 本集禁整案重讲禁作为主案例 — 要提只许换角度"
+                              "半句带过, 主案例必须换没用过的: "
+                              + "、".join(_all_banned[:30]) + "】\n")
         # 1103 T3: 概念表逐个点名明令 — ep2 重生成「排他性的专业主义」被技术至上论
         # 近义顶替 0 次 (阻断实锤); L0 facing 只给论证位置, 无点名要求
         _concept_list = [str(c) for c in (_rm.get("概念") or []) if str(c).strip()]
@@ -1558,6 +1570,7 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
     user_p = (
         TRUST_DECL + "\n"
         + REGULA_BLOCK
+        + _case_ban_text
         + (REGULA_LAOTAN_LINE if _is_laotan else "")
         + f"书名：《{book.book_title}》 第{ep.ep_index}集：{ep.title}\n"
         f"作者：{book.author or '未知'}\n"
