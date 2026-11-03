@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import sys
 from pathlib import Path
 from typing import Any, Callable
@@ -23,6 +24,10 @@ from ..models import AudioFile, AudioJob, Segment, Voice
 # 2026-09-07: 下方 ASR 校验 except 分支的 logger.warning 曾因缺定义抛 NameError,
 # 把 89/89 段全部成功的 job 直接炸成 failed (job afe22ba1 实锤)。
 logger = logging.getLogger(__name__)
+
+# 1103 W4 终端防御: 钉卡/钉图标记 ⟪…⟫ 兜底剥 (produce 主剥, 此处防旁路渗入被念)
+_PIN_MARK_BRACKET_RE = re.compile(r"⟪[^⟪⟩]*⟫")
+
 
 
 class TTSService:
@@ -123,6 +128,9 @@ class TTSService:
             seg_pairs: list[tuple[str, str]] = [(str(sid), txt) for sid, txt in segments]
         else:
             seg_pairs = [(s.id, s.text) for s in segments]
+        # 1103 W4 终端防御: 钉卡/钉图标记若经任何旁路渗入 segment (标记贴在句中而非
+        # 独占一行时 produce 整行剥除不认), TTS 入口兜底剥净 — ⟪…⟫ 永不出口播。
+        seg_pairs = [(sid, _PIN_MARK_BRACKET_RE.sub("", txt)) for sid, txt in seg_pairs]
 
         # Build text preserving line breaks and control chars.
         # 拼音纠音 (2026-08-25): 易错词 → <字|PINYIN> 标注, IndexTTS2/2.5 前端解析;

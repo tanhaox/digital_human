@@ -200,3 +200,9 @@ def test_image_pin_binding_and_strip():
     assert pins[1]["image"] is None
     cleaned, _ = clean_episode_script("【0-25秒｜钩子】\n⟪图:信任公式⟫\n⟪卡⟫口播行。\n")
     assert "⟪图" not in cleaned and "⟪卡" not in cleaned and "口播行" in cleaned
+
+
+def test_pin_marks_terminal_defense_in_tts():
+    """1103 W4+: TTS 入口兜底剥 ⟪…⟫ — 标记贴句中(旁路渗入)也不出口播."""
+    from app.services.tts_service import _PIN_MARK_BRACKET_RE
+    assert _PIN_MARK_BRACKET_RE.sub("", "口播⟪图:信任公式⟫继续说。⟪卡⟫钉行。") == "口播继续说。钉行。"
