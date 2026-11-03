@@ -70,6 +70,31 @@ def concept_core(c: str) -> str:
     return s
 
 
+def concept_coverage_issues(text: str, concepts: list | None) -> list[str]:
+    """概念覆盖闸 (1103 S2, 阻断级): roadmap 概念核心词须在稿中出现.
+
+    实锤: ep2 概念「包容的专业精神」核心词「包容的专业」全稿 0 次 — 核心任务整段
+    没落地, 正文 2/3 是概念表现挂料。旧 theme_in_script (标题前8字逐字比对) 恒
+    false 已删 (1019), 本闸以"概念逐个覆盖"重立主题贴合执法。
+    """
+    if not concepts:
+        return []
+    t = text or ""
+    t_glue = t.replace("的", "").replace("性", "")  # 胶水字容差 (回放实锤: 概念「排他性的
+    # 专业主义」稿写「排他的专业主义」— 的/性 插拔属措辞自由, 非失覆盖)
+    out: list[str] = []
+    for c in concepts:
+        s = str(c or "").strip()
+        if not s:
+            continue
+        core = concept_core(s)
+        if core and core not in t and core.replace("的", "").replace("性", "") not in t_glue:
+            out.append(f"概念未覆盖(阻断): 「{s}」核心词「{core}」全稿未出现 — "
+                       "集型使命未落地, 概念表是排程契约 (补进正文或换概念重排)")
+    return out
+
+
+
 # ── 人设后处理注入层 (P1 定稿措辞): 创作 LLM 保持中性, 身份段/结尾在此加 ──
 # 2026-08-23: 自称"静"而非"静姐" — 拉大受众群 (静姐限定了已婚熟龄, 静覆盖更广)
 _PERSONA_IDENTITY = "我是静，读透一本好书，陪你遇见更好的自己。"
@@ -440,6 +465,10 @@ _EXPLAIN_MARKS = ("一共", "总共", "指的是", "也就是", "说白了", "�
 # 叫/拆成/分成。豆包修补句"五件工具, 今天讲第一件, 叫时间诊断"不含旧窗口标记,
 # 好解释被误拦实锤)
 _SENT_MARKS = ("叫", "拆成", "分成")
+# 1103 S2 模块计数同轴: 模块级计数词族 (系列级 件工具/步转型 由上面钦定闸管, 不在此列;
+# 「章」排除 — 书里第X章引用合法)。实锤: ep2「第一档×3 + 这一步」档/步两轴并存,
+# "档"是 writer 现场自造 (排程设计词=拆解三步的"步")。
+_MODULE_COUNT_RE = re.compile(r"(?:第[一二三四五六七八九十\d]+|这一|该)([档步招层式])")
 
 
 def _listen_feel_issues(text: str, series_word: str | None = None) -> list[str]:
@@ -468,6 +497,15 @@ def _listen_feel_issues(text: str, series_word: str | None = None) -> list[str]:
                  else "全书单选一套 (五步转型 或 五件工具)")
         out.append(f"计数体系混用: 「{fam_a[0]}」×{len(fam_a)} 与 「{fam_b[0]}」×{len(fam_b)} "
                    f"同稿并存 — {_hint}")
+    # (a2) 模块计数同轴 (1103 S2): 模块级计数词全稿须一套量词 — ≥2 族且其中 ≥1 族
+    # ≥2 次 (结构性枚举) 才报, 单发内容性提及 (如"高档产品") 不误伤
+    _fam_hits: dict[str, list[str]] = {}
+    for _m in _MODULE_COUNT_RE.finditer(t):
+        _fam_hits.setdefault(_m.group(1), []).append(_m.group(0))
+    if len(_fam_hits) >= 2 and any(len(v) >= 2 for v in _fam_hits.values()):
+        _ax = " 与 ".join(f"「{v[0]}」×{len(v)}" for v in _fam_hits.values())
+        out.append(f"模块计数不同轴: {_ax} 并存 — 同稿模块计数词须一套量词 "
+                   "(系列词第X件工具除外; 排程设计词=拆解三步的'步', 自造'档/式'须统一)")
     # (b) 框架词首现自解释: 逐族各查 (钦定后只查钦定族 — 被禁族该删不该解释)
     fams: list[tuple[str, "re.Pattern"]]= []
     if fam_b and (not series_word or "件工具" in series_word):
@@ -729,6 +767,14 @@ def hook_position_issues(text: str, hook_ref: str) -> list[str]:
     if not re.search(r"答案|拆成|拆给你|判定刻度|这集(就|给|拆)", _zone):
         issues.append("30秒无答案锚 — 钩子段/回顾段内须明说答案这集就给、给什么形态 "
                       "('这集把答案拆成三个判定刻度'式); 只戳痛不给期待, 30秒处耐心耗尽必划走")
+    # ③ 开环回扣 (1103 S2): 钩子承诺句式 (答案藏在/后面揭晓/看到最后) → 回顾段之后
+    # 须显式回扣 — 只承诺不兑现=开环烂尾。ep2 实锤: "答案藏在书里一句话里"全篇未揭晓。
+    # 与②答案锚互补: 锚管"给了期待", 回扣管"兑现了"。
+    if re.search(r"答案藏在|答案就在|后面揭晓|结尾揭晓|看到最后", seg):
+        _rest = text[marks[1].start():] if len(marks) > 1 else ""
+        if not re.search(r"就是(?:开头|前面|刚才).{0,12}那句|开头说的|开头那(?:一)?句|回到开头", _rest):
+            issues.append("钩子开环未回扣: 钩子承诺「答案/揭晓」全篇未兑现 — "
+                          "承诺句须在后文显式回扣 ('就是开头那句…'式), 开环烂尾伤复听")
     return issues
 
 

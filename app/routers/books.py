@@ -1485,7 +1485,8 @@ def edit_episode(book_id: str, n: int, body: EpisodeEdit, db: Session = Depends(
                 ep_index=ep.ep_index, flow_check=(1 < ep.ep_index < _total),
                 figure=str((ep.roadmap_json or {}).get("贯穿人物") or ""),
                 hook_ref=_hook_ref,
-                include=("validate", "flow", "fig", "hook"))
+                concepts=[str(c) for c in ((ep.roadmap_json or {}).get("概念") or [])],
+                include=("validate", "flow", "fig", "hook", "concepts"))
             relint_issues = _passes.snap_issues(_snap)
             # 1019 排重令③: 修稿复检同规补排重闸 — 否则人改稿触发的问题单刷新会
             # 洗掉阻断标记, 确认闸被绕过 (复检视野不含生成时闸, 须重算)

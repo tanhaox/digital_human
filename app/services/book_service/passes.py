@@ -86,16 +86,18 @@ def fig_quota_issues(text: str, figure: str) -> list[str]:
 def snapshot(text: str, *, target: float, book_title: str, require_cta: bool = False,
              ep_index: int = 0, flow_check: bool = False, figure: str = "",
              verbatim_paras: list[str] | None = None, hook_ref: str = "",
-             series_word: str = "",
+             series_word: str = "", concepts: list | None = None,
              include: tuple[str, ...] = ("validate", "flow", "brand")) -> dict[str, list[str]]:
     """一次校验快照 (可组合部分)。pass 闸比对都吃快照, 禁各 pass 零散重调。
 
     include: validate=validate_script(含CTA)/flow=section_flow_issues/
              brand=中国品牌闸/fig=人物配额/opening=樊登逐字+ep1开场秩序/
-             hook=黄金三秒钩子落位 — 按 pass 语义取。
+             hook=黄金三秒钩子落位/concepts=概念覆盖闸(1103 S2 阻断级,
+             concepts 参数喂 roadmap 概念表) — 按 pass 语义取。
     verbatim_paras: 樊登开局逐字段 (ep1); hook_ref: 路线图黄金三秒钩子 (工具/收官集)。
     """
-    from .creation_common import (_zh_brand_issues, ep1_opening_order_issues,
+    from .creation_common import (_zh_brand_issues, concept_coverage_issues,
+                                  ep1_opening_order_issues,
                                   fandeng_opening_issues, hook_position_issues,
                                   section_flow_issues, validate_script)
     snap: dict[str, list[str]] = {}
@@ -103,6 +105,8 @@ def snapshot(text: str, *, target: float, book_title: str, require_cta: bool = F
         snap["validate"] = list(validate_script(text, target, book_title=book_title,
                                                 require_cta=require_cta,
                                                 series_word=series_word or None)[1])
+    if "concepts" in include:
+        snap["concepts"] = concept_coverage_issues(text, concepts)
     if "flow" in include:
         snap["flow"] = list(section_flow_issues(text, book_title=book_title,
                                                 ep_index=ep_index, flow_check=flow_check))

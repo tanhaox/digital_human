@@ -24,6 +24,7 @@ from app.services.book_service.creation_common import (
     _parse_json,
     _scan_occult_quotes,
     _zh_brand_issues,
+    concept_coverage_issues,
     derive_breakdown_steps,
     elastic_labels,
     ep1_opening_order_issues,
@@ -1420,6 +1421,9 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
     # 1018 C4c: 黄金三秒钩子落位闸 — 工具集/收官集才查 (ep1 豁免: 六拍+打字卡扛前3秒)
     _hook_ref = str(_rm.get("黄金三秒钩子") or "") if ep.ep_index > 1 else ""
     _concept_issues.extend(hook_position_issues(out, _hook_ref))
+    # 1103 S2 概念覆盖闸 (阻断级): roadmap 概念核心词须落稿 — ep2「包容的专业」全稿
+    # 0 次、核心任务整段没落地实锤 (1019 删掉的 theme_in_script 死检查的正确重立)
+    _concept_issues.extend(concept_coverage_issues(out, _rm.get("概念") or []))
     # 1018 件序闸 (ID-112④ 清账; ep2 两轮一错一对=50%漂移实锤): 工具件序公式=
     # ep_index-1 (ep2=第1件…ep6=第5件); 稿内"第N件工具/第N步转型"数字须吻合
     _CN_NUM = {"一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
@@ -2061,7 +2065,8 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
         series_word=_series_word or "",
         ep_index=ep.ep_index, flow_check=_is_tool_ep, figure=_figure,
         verbatim_paras=_fd_open_paras, hook_ref=_hook_ref,
-        include=("validate", "flow", "fig", "opening", "hook") + (("brand",) if _is_tool_ep else ()))
+        concepts=[str(c) for c in (_rm.get("概念") or [])],
+        include=("validate", "flow", "fig", "opening", "hook", "concepts") + (("brand",) if _is_tool_ep else ()))
     issues = passes_mod.snap_issues(_fin)
     # 1019 排重令③: 案例跨集重复兜底闸 — 喂料层已剔已用, 此处拦拐棍层 [:3000] 直喂
     # 与 LLM 自选漏网 (ep7 看着覆盖清单仍复用梅斯特遗嘱实锤); 工具集(阻断)/头尾集(提示)
