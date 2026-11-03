@@ -683,7 +683,8 @@ def validate_script(text: str, target: float, book_title: str = "",
     if _gram_dups:
         issues.append("复读段: 「" + "」「".join(sorted(_gram_dups)[:3]) + "」出现多处 — 同句/同号召只留一处")
     # 0913 反套路扫描 (ban_list 同源, 确定性): 打数字互动/指定收件人转发/预告形容词
-    _ban_re = re.compile(r"[打扣]\s?[1一2二3三]|转给那个[^，。！？]*的人|下一集更[冷狠劲爆猛]")
+    # 1103 W: 打N到M 打分区 / 打一遍 量词是评分动作不是评论钩, 排除 (ep2 两连误报实锤)
+    _ban_re = re.compile(r"[打扣]\s?[1一2二3三](?!\s?[到至\-—遍个回趟次场])|转给那个[^，。！？]*的人|下一集更[冷狠劲爆猛]")
     _ban_hits = sorted(set(_ban_re.findall(text or "")))
     if _ban_hits:
         issues.append("反套路违规 (ban_list): " + " / ".join(h.strip() for h in _ban_hits[:4])

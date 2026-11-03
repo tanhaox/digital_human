@@ -129,3 +129,11 @@ def test_coverage_zuowei_segment_fallback():
 
 def test_redup_enumerative_adverb_whitelisted():
     assert _listen_feel_issues("咱们一条一条讲，一项一项过。") == []
+
+
+def test_ban_list_scoring_range_not_flagged():
+    """1103 W: 打1到5分/打一遍是打分动作不是评论钩 — ban 误报修复 (ep2 两连实锤)."""
+    from app.services.book_service.creation_common import validate_script
+    iss = validate_script("翻出你最近3个客户，把四格各打1到5分，让他照着打一遍。评论区聊聊你最低那格。",
+                          240.0, book_title="值得信赖的顾问")[1]
+    assert not any("反套路" in i and "打" in i for i in iss), iss
