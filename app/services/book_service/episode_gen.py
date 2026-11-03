@@ -523,7 +523,7 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
                     for c in (e2.coverage_json or []) if str(c).strip()]
         if _sib_cov:
             _hook_extra += ("案例跨集去重(知识点占坑): 兄弟集已讲知识点/故事 "
-                            + "、".join(dict.fromkeys(_sib_cov)[:30])
+                            + "、".join(list(dict.fromkeys(_sib_cov))[:30])
                             + " 禁整案重讲 (换案例, 或换角度半句带过)。\n")
         # 1103 T3: 概念表逐个点名明令 — ep2 重生成「排他性的专业主义」被技术至上论
         # 近义顶替 0 次 (阻断实锤); L0 facing 只给论证位置, 无点名要求
