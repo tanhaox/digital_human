@@ -142,11 +142,18 @@ function renderPage(b) {
   if (eps.length) loadProducePersonas(inp.persona_id);
 }
 
-// 1018 C4d (R9): 确认3 人闸守门 — 有未清校验问题先弹窗明示 (warn 不 block, 终审在人)
+// 1018 C4d (R9): 确认3 人闸守门 — 提示级问题先弹窗明示 (warn 不 block, 终审在人)
+// 1103 S3: 阻断级 (含"(阻断)"后缀) 前端先拦 — 服务端 confirm 同闸 422, 双层一致;
+// 阻断项须修稿 (保存自动复检) 或重新生成, 人闸放行不了它
 async function confirmEp(n, btn) {
   const e = (BOOKS.cur && BOOKS.cur.episodes || []).find(x => x.ep === n);
   const issues = ((e && e.roadmap) || {})._issues || [];
-  if (issues.length && !confirm(`⚠ 第 ${n} 集仍有 ${issues.length} 项校验问题未清：\n\n${issues.map(i => '• ' + i).join('\n')}\n\n确认放行进产线？（人闸终审，放行后问题不再拦截）`)) return;
+  const blocks = issues.filter(i => String(i).includes('(阻断)'));
+  if (blocks.length) {
+    alert(`⛔ 第 ${n} 集有 ${blocks.length} 项阻断级问题，禁确认：\n\n${blocks.map(i => '• ' + i).join('\n')}\n\n先修稿（保存会自动复检）或重新生成，过闸后才能确认。`);
+    return;
+  }
+  if (issues.length && !confirm(`⚠ 第 ${n} 集仍有 ${issues.length} 项提示级问题：\n\n${issues.map(i => '• ' + i).join('\n')}\n\n确认放行进产线？（人闸终审，放行后提示级问题不再拦截）`)) return;
   return run(`episodes/${n}/confirm`, btn);
 }
 

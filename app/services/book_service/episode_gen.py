@@ -2119,6 +2119,15 @@ def generate_episode(db: Session, ep: Episode) -> Episode:
     return ep
 
 
+def _blocking_issues(ep: "Episode") -> list[str]:
+    """阻断级问题 (1103 S3 严重度后缀约定): issue 文本含 "(阻断)" = confirm 硬拦.
+
+    半角括号与 1019 案例排重 "案例跨集重复(阻断)" 同源兼容; S2 概念覆盖闸为首个
+    新住户。提示级 (无后缀) 仍走人闸弹窗。"""
+    return [str(i) for i in (ep.roadmap_json or {}).get("_issues") or []
+            if "(阻断)" in str(i)]
+
+
 def auto_confirm_if_anim_done(db: Session, ep: Episode) -> bool:
     """1004 用户令: 动画全生成完 → 逐集确认默认自过 (讲书页停在"确认第N集"
     与产线实况脱节, 操作以 API 实况为准)。
@@ -2141,6 +2150,13 @@ def auto_confirm_if_anim_done(db: Session, ep: Episode) -> bool:
         if ep.script_generated_at and p.stat().st_mtime < ep.script_generated_at.timestamp():
             return False  # 稿子在动画之后重生成 → 回人工过稿
     except Exception:  # noqa: BLE001 — 判据失败不炸调用方 (页面照常)
+        return False
+    # 1103 S3: 阻断闸同规 — 旧版"预览产线豁免"直置 confirmed 绕过确认闸
+    # (ep2 实锤: _issues 记录不拦照样出库), 豁免废止; 阻断未清留 draft 回人工
+    _blocks = _blocking_issues(ep)
+    if _blocks:
+        logger.warning("[story] ep%d 阻断项未清, 动画完成自动确认跳过: %s",
+                       ep.ep_index, _blocks[0][:80])
         return False
     ep.status = "confirmed"
     if all(e.status == "confirmed" for e in ep.book.episodes):
@@ -2168,11 +2184,11 @@ def auto_confirm_by_anim(book_id: str, ep_index: int) -> bool:
 
 def confirm_episode(db: Session, ep: Episode) -> Episode:
     # 1019 排重令③: 阻断式闸 — 工具集案例跨集重复未解决禁确认 (头尾集为提示, 不拦);
-    # auto_confirm_if_anim_done 直置 status 不走此闸 (预览产线豁免)
-    _block = [str(i) for i in (ep.roadmap_json or {}).get("_issues") or []
-              if "案例跨集重复(阻断)" in str(i)]
+    # 1103 S3: 泛化为严重度后缀约定 "(阻断)" 一律禁确认 (S2 概念覆盖闸入住了),
+    # auto_confirm_if_anim_done 已同闸 (预览产线豁免废止)
+    _block = _blocking_issues(ep)
     if _block:
-        raise ValueError("确认被阻断: " + _block[0])
+        raise ValueError("确认被阻断: " + " | ".join(_block[:3]))
     ep.status = "confirmed"
     if all(e.status == "confirmed" for e in ep.book.episodes):
         ep.book.status = "done"
