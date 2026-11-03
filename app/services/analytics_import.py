@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS douyin_unified (
   v_likes INTEGER, v_shares INTEGER, v_comments INTEGER, v_collects INTEGER,
   v_profile_visits INTEGER, v_fan_growth INTEGER,
   fan_growth_cum INTEGER,
+  total_fans_est INTEGER, fan_net_est INTEGER,
   source TEXT, updated_at TEXT
 )
 """
@@ -206,8 +207,9 @@ def rebuild_unified(con: sqlite3.Connection) -> int:
     con.execute(UNIFIED_DDL)
     con.execute(VIDEO_DDL)  # 仅 daily 导入过的新库尚无 videos 表, 先确保再查
     have = {r[1] for r in con.execute("PRAGMA table_info(douyin_unified)")}
-    if "fan_growth_cum" not in have:  # 旧表迁移 (ADD COLUMN 非破坏)
-        con.execute("ALTER TABLE douyin_unified ADD COLUMN fan_growth_cum INTEGER")
+    for col in ("fan_growth_cum", "total_fans_est", "fan_net_est"):  # 旧表迁移 (ADD COLUMN 非破坏)
+        if col not in have:
+            con.execute(f"ALTER TABLE douyin_unified ADD COLUMN {col} INTEGER")
     cur = con.execute(f"SELECT date, {','.join(_UNIFIED_DAILY_COLS)} FROM douyin_daily ORDER BY date")
     daily = {r[0]: dict(zip(_UNIFIED_DAILY_COLS, r[1:])) for r in cur.fetchall()}
     vids: dict[str, list[dict]] = {}
@@ -251,6 +253,47 @@ def rebuild_unified(con: sqlite3.Connection) -> int:
             [fan_cum, f"daily+videos@{now}", now],
         )
         n += 1
+
+    # 锚点校准插值 (1103): 无真值日 total_fans_est / fan_net_est — 相邻锚点(有 total_fans
+    # 真值的日子, 含口述锚点)之间, 真值差按视频吸粉累计曲线加权分配 (累计平段退化按天线性);
+    # 尾部无下一锚点用上一段比例外推。展示层派生值 (†), 不回写 douyin_daily 真源。
+    cur = con.execute("SELECT date, total_fans, fan_growth_cum FROM douyin_unified ORDER BY date")
+    days = [(r[0], r[1], r[2]) for r in cur.fetchall()]
+    ki = [i for i, r in enumerate(days) if r[1] is not None]
+    if len(ki) >= 2:
+        series = [r[1] for r in days]
+        for i, r in enumerate(days):
+            if r[1] is not None:
+                continue
+            lo = max((k for k in ki if k < i), default=None)
+            hi = min((k for k in ki if k > i), default=None)
+            if lo is not None and hi is not None:
+                ta, tb = days[lo][1], days[hi][1]
+                span_cum, span_day = days[hi][2] - days[lo][2], hi - lo
+                series[i] = (ta + (r[2] - days[lo][2]) * (tb - ta) / span_cum if span_cum > 0
+                             else ta + (i - lo) * (tb - ta) / span_day)
+            elif lo is not None and hi is None and lo == ki[-1]:
+                a2, b2 = ki[-2], ki[-1]  # 尾部外推: 上一段比例
+                span_cum, span_day = days[b2][2] - days[a2][2], b2 - a2
+                ratio = ((days[b2][1] - days[a2][1]) / span_cum if span_cum > 0
+                         else (days[b2][1] - days[a2][1]) / span_day)
+                series[i] = (days[b2][1] + (r[2] - days[b2][2]) * ratio if span_cum > 0
+                             else days[b2][1] + (i - b2) * ratio)
+            elif lo is None:
+                a2, b2 = ki[0], ki[1]  # 首锚前反推
+                span_cum = days[b2][2] - days[a2][2]
+                series[i] = (days[a2][1] + (r[2] - days[a2][2]) * (days[b2][1] - days[a2][1]) / span_cum
+                             if span_cum > 0 else days[a2][1])
+        prev = None
+        for i, r in enumerate(days):
+            if r[1] is None and series[i] is not None:
+                est = round(series[i])
+                net = est - prev if prev is not None else None
+                con.execute("UPDATE douyin_unified SET total_fans_est=?, fan_net_est=? WHERE date=?",
+                            (est, net, r[0]))
+                prev = est
+            else:
+                prev = r[1]
     con.commit()
     return n
 

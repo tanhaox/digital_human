@@ -360,16 +360,25 @@ function render(data) {
   byId("rec4").innerHTML = '<span class="tag">干预</span><b>建立净增≤0 日的干预机制</b>。连续 2 天及以上净增≤0 时，及时调整发布频率或选题方向，避免账号进入失速区间。';
 
   /* ── 09 明细 ── */
-  byId("detailTitle").textContent = "全量明细（" + s.days + " 天）";
+  byId("detailTitle").textContent = "全量明细（" + rows.length + " 天 · 粉丝源 " + s.days + " 天）";
+  var uni = {};
+  (data.unified || []).forEach(function (u) { uni[u.date] = u; });
+  function fanCell(real, est) { return real != null ? real : (est != null ? est + '<span class="eta">†</span>' : "—"); }
   var head = ["日期", "投稿", "播放", "总粉丝量", "粉丝净增", "吸粉量", "脱粉量", "回访粉丝量"];
   var html = "<table><thead><tr>" + head.map(function (h) { return "<th>" + h + "</th>"; }).join("") + "</tr></thead><tbody>";
   rows.forEach(function (r) {
     var out = anomDates[r.date] ? ' class="out"' : "";
+    var u = uni[r.date] || {};
+    var inEra = u.total_fans_est != null;  // 派生段 = 无真值但有插值的日子
     html += "<tr" + out + "><td>" + md(r.date) + fxTag(r.date) + "</td><td>" + (r.posts == null ? "–" : r.posts) + "</td><td>" +
-      (r.views == null ? "–" : r.views) + "</td><td>" + r.total_fans + "</td><td" +
-      (r.fan_net < 0 ? ' class="neg"' : "") + ">" + r.fan_net + "</td><td>" + r.fan_new + "</td><td>" + r.fan_lost + "</td><td>" + r.revisit_fans + "</td></tr>";
+      (r.views == null ? "–" : r.views) + "</td><td>" + fanCell(r.total_fans, u.total_fans_est) + "</td><td" +
+      (r.fan_net != null && r.fan_net < 0 ? ' class="neg"' : "") + ">" + fanCell(r.fan_net, u.fan_net_est) +
+      "</td><td>" + fanCell(r.fan_new, inEra ? (u.v_fan_growth || 0) : null) + "</td><td>" +
+      (r.fan_lost != null ? r.fan_lost : "—") + "</td><td>" + (r.revisit_fans != null ? r.revisit_fans : "—") + "</td></tr>";
   });
-  byId("dataTable").innerHTML = html + "</tbody></table>";
+  byId("dataTable").innerHTML = html + "</tbody></table>" +
+    '<p class="eta">†=派生 (10-21 起, 抖音已撤粉丝数据导出): 总粉/净增 = 相邻真值锚点间按视频吸粉累计曲线校准插值; ' +
+    "吸粉 = 当日作品终身吸粉 (发布日归属, 无发布日=0); 脱粉/回访无源留空。锚点 = 主页实数 (报数即落库)。</p>";
   byId("sourceNote").innerHTML = "数据源 <b>data/analytics.db</b>（douyin_daily " + s.days + " 天全量）· 更新: 页面上传或 <b>python scripts/import_douyin_metrics.py &lt;导出.xlsx&gt;</b> · 所有指标均可在上表核验。";
 }
 

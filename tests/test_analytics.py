@@ -331,5 +331,17 @@ def test_unified_table_merges_daily_and_videos(tmp_path):
         assert abs(d2[6] - 0.025) < 1e-9
         # 粉丝增量累计求和曲线: 10-01 累计 7 → 10-02 累计 20
         assert d1[9] == 7 and d2[9] == 20
+
+        # 锚点校准插值: 10-03 无真值日 + 10-04 口述锚点 130 → 按天线性 108+(130-108)/2=119
+        con = sqlite3.connect(ai.DB_PATH)
+        con.execute("INSERT INTO douyin_daily (date, posts, views, source) VALUES ('2026-10-03', 0, 50, 't')")
+        con.execute("INSERT INTO douyin_daily (date, total_fans, source) VALUES ('2026-10-04', 130, 'manual')")
+        con.commit()
+        ai.rebuild_unified(con)
+        est = con.execute("SELECT date, total_fans_est, fan_net_est FROM douyin_unified "
+                          "WHERE date >= '2026-10-02' ORDER BY date").fetchall()
+        con.close()
+        assert est[1] == ("2026-10-03", 119, 11)        # 插值日: est=119, 净增=11
+        assert est[0][1] is None and est[2][1] is None  # 真值日不派生
     finally:
         ai.DB_PATH = old
