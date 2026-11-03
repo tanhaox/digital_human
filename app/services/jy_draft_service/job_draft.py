@@ -80,6 +80,8 @@ def export_job_draft(db: Session, job_id: str) -> dict[str, Any]:
         # 1023 截屏卡轨 (后来居上 = 最上层): 清单三连/金句断言的停留画面,
         # 纯文字素材直加 — 不动规划层 (用户令)
         draft_mod.TrackSpec(draft_mod.TrackType.text, "quote_card"),
+        # 1103 W8b: 钉图专用视频轨 (文字轨塞不进 VideoSegment, 同 anim_draft 修)
+        draft_mod.TrackSpec(draft_mod.TrackType.video, "quote_img"),
     ])
 
     # ── audio 轨: TTS 分段逐段进轨 (时间轴 = 累计时长), 无 manifest 回退整段 ──
@@ -355,7 +357,7 @@ def export_job_draft(db: Session, job_id: str) -> dict[str, Any]:
                         _mat = draft_mod.VideoMaterial(str(_img))
                         script.add_segment(draft_mod.VideoSegment(
                             _mat, _trange_sec(_c["start_s"], _c["end_s"] - _c["start_s"]),
-                            volume=0, clip_settings=_cs), "quote_card")
+                            volume=0, clip_settings=_cs), "quote_img")
                         _img_placed = True
                         logger.info("[jy_export] 钉图卡 ✓ %s @%.1fs",
                                     _c["image"], _c["start_s"])

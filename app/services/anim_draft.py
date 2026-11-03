@@ -1743,6 +1743,9 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
             draft_mod.TrackSpec(draft_mod.TrackType.text, "typing"),  # 0-3s 打字卡 (1029 复令恢复; 1023 曾撤)
             # 1023 截屏卡轨 (最上文字层): 清单三连/断言金句停留卡
             draft_mod.TrackSpec(draft_mod.TrackType.text, "quote_card"),
+            # 1103 W8b: 钉图专用视频轨 (quote_card 是文字轨塞不进 VideoSegment 实锤;
+            # 排卡轨后 = 最上层, 图卡与文字卡时间窗互斥不打架)
+            draft_mod.TrackSpec(draft_mod.TrackType.video, "quote_img"),
             draft_mod.TrackSpec(draft_mod.TrackType.audio, "voice"),
             draft_mod.TrackSpec(draft_mod.TrackType.audio, "sfx"),  # R9 同帧音效 (attach_sound 平移)
             draft_mod.TrackSpec(draft_mod.TrackType.effect, "fx"),
@@ -2150,7 +2153,7 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                                 volume=0,
                                 clip_settings=ClipSettings(
                                     scale_x=_sc, scale_y=_sc,
-                                    transform_x=0.0, transform_y=0.18)), "quote_card")
+                                    transform_x=0.0, transform_y=0.18)), "quote_img")
                             logger.info("[draft] 钉图卡 ✓ %s @%.1fs",
                                         _c["image"], _c["a0_us"] / _US)
                             continue
