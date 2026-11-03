@@ -297,12 +297,15 @@ def episodes_table(rows: list[dict], links: list[dict],
         if r is None:
             # 1023 用户令: 集已发、账号日未导 (ep2 实发 10-22, 日数据隔日才有) —
             # 照常上屏, 日列空 (—), 视频真值优先; 不再整行蒸发让"集消失"
+            # 1103: 账号日粉丝列无源 (抖音撤《粉丝数据》导出) → 日净增派生 = 当日作品终身吸粉
+            fan_net = v.get("fan_growth")
             out.append({
                 "date": d, "series": lk["series"],
                 "ep": (f"ep{lk['ep_index']}" if lk["ep_index"] else "非正片"),
                 "ep_title": lk["ep_title"], "publish_time": lk["publish_time"], "note": lk["note"],
                 "posts": None, "views": None,
-                "fan_net": None, "fan_new": None, "revisit": None, "next_net": None,
+                "fan_net": fan_net, "fan_net_derived": fan_net is not None,
+                "fan_new": None, "revisit": None, "next_net": None,
                 "is_anomaly": False, "factor": in_factor(factors or [], d),
                 "v_title": v.get("title"), "v_genre": v.get("genre"),
                 "v_views": v.get("views"), "v_completion": v.get("completion_rate"),
@@ -313,12 +316,16 @@ def episodes_table(rows: list[dict], links: list[dict],
             continue
         i = order.index(d)
         nxt = rows[i + 1]["fan_net"] if i + 1 < len(rows) else None
+        fan_net, derived = r["fan_net"], False
+        if fan_net is None and v.get("fan_growth") is not None:  # 账号日无源 → 作品口径派生
+            fan_net, derived = v["fan_growth"], True
         out.append({
             "date": d, "series": lk["series"],
             "ep": (f"ep{lk['ep_index']}" if lk["ep_index"] else "非正片"),
             "ep_title": lk["ep_title"], "publish_time": lk["publish_time"], "note": lk["note"],
             "posts": r.get("posts"), "views": r.get("views"),
-            "fan_net": r["fan_net"], "fan_new": r["fan_new"], "revisit": r["revisit_fans"],
+            "fan_net": fan_net, "fan_net_derived": derived,
+            "fan_new": r["fan_new"], "revisit": r["revisit_fans"],
             "next_net": nxt, "is_anomaly": d in anom,
             "factor": in_factor(factors or [], d),
             # 单视频真值 (作品列表; 09-27 非正片不在列表 → None)

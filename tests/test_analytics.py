@@ -179,6 +179,15 @@ def test_episodes_table_joins_video_truth():
     # 无视频 (如 09-27 非正片) → None
     out2 = episodes_table(rows, links, summ, [])
     assert out2[0]["v_views"] is None and out2[0]["fan_new"] == 40
+    # 1103: 账号日粉丝列无源 (新版逐日无粉丝列) → 日净增派生 = 当日作品吸粉, 带 derived 标记
+    rows2 = [_row("2026-10-22", None, None) | {"posts": 1, "views": 11704}]
+    links2 = [{"date": "2026-10-22", "series": "卓有成效的管理者", "book_id": None,
+               "book_title": "x", "ep_index": 2, "ep_title": "T2", "publish_time": "20:02", "note": ""}]
+    vids2 = [{"publish_date": "2026-10-22", "views": 11976, "completion_rate": 0.005,
+              "fan_growth": 118, "collects": 110, "profile_visits": 100, "genre": "3-5min视频"}]
+    out3 = episodes_table(rows2, links2, summ, vids2)
+    assert out3[0]["fan_net"] == 118 and out3[0]["fan_net_derived"] is True
+    assert out[0]["fan_net_derived"] is False  # 真数据日不派生
 
 
 def test_factor_window_and_stats():

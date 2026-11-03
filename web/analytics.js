@@ -107,7 +107,7 @@ function render(data) {
       } else {
         lines.push("作品列表无此条 (09-27 非正片) · 账号日播放 " + e.views);
       }
-      lines.push("账号日: 净增 " + e.fan_net + (e.next_net != null ? " · 次日尾 " + e.next_net : ""));
+      lines.push("账号日: 净增 " + e.fan_net + (e.fan_net_derived ? "(作品口径†)" : "") + (e.next_net != null ? " · 次日尾 " + e.next_net : ""));
       return lines.join("<br>");
     } },
     xAxis: { type: "category", data: eps.map(function (e) {
@@ -151,11 +151,13 @@ function render(data) {
       (e.v_fan_growth != null && e.fan_new != null && e.fan_new !== e.v_fan_growth ? ' <span class="eta">(' + e.fan_new + ")</span>" : "") +
       "</td><td>" + (e.v_collects != null ? e.v_collects : "—") + "</td><td>" +
       (e.v_profile_visits != null ? e.v_profile_visits : "—") + "</td><td" +
-      (e.fan_net != null && e.fan_net < 0 ? ' class="neg"' : "") + ">" + (e.fan_net == null ? "—" : e.fan_net) + "</td><td>" +
+      (e.fan_net != null && e.fan_net < 0 ? ' class="neg"' : "") + ">" +
+      (e.fan_net == null ? "—" : e.fan_net + (e.fan_net_derived ? '<span class="eta">†</span>' : "")) + "</td><td>" +
       (e.next_net == null ? "—" : e.next_net) + "</td></tr>";
   }).join("");
   byId("epNote").innerHTML = "投稿日 ↔ 集数 1:1（" + eps.length + "/" + v.posts_total +
     "）；吸粉 = <b>单视频真值</b>(作品列表导出, 括号内为账号日口径), 播放/完播/藏/主页 = 视频真值, 次日12点更新。" +
+    "<b>10-21 起日净增†</b>=当日作品终身吸粉求和(派生, 视频渠道≈92%总粉) — 抖音已撤《粉丝数据》导出, 账号日粉丝列无源; 次日尾不可派生(终身归属拆不出次日) 留空。" +
     "体裁×完播: " + (byId("epTableTitle").getAttribute("data-gen") || "—") +
     " — 时长-完播负相关链的活数据。09-27 非正片不在作品列表(疑已删); 10-20 接档 = 卓有成效的管理者 ep1(48h 试验车), 新书接档补 seed_episode_links.py 重跑。琥珀标签/图内阴影 = 节假日因素窗 (" +
     (data.factors || []).map(function (f) { return f.label; }).join("、") + "), 弱日归因须先剔除。";
