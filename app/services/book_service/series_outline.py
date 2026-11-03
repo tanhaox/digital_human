@@ -15,6 +15,7 @@ from pathlib import Path
 from sqlalchemy.orm import Session
 
 from app.models import BookProject, Episode
+from app.services.book_service.creation_common import concept_core
 from app.services.book_service.creation_steps import _ep_target_duration
 
 logger = logging.getLogger(__name__)
@@ -150,6 +151,10 @@ def _norm_chatter(raw: Any) -> list[dict]:
     return out
 
 
+# 秘籍引语捕获 (1103 S1 同型判特征之一): 「」『』""'''' 内 ≥6 字 (中英弯直全收)
+_QUOTE_RE = re.compile(r"[「『“\"‘']([^」』”\"’']{6,})[」』”\"’']")
+
+
 def _validate(data: dict) -> list[str]:
     """确定性校验 (设计令: 不靠 LLM 自觉)。返回问题清单, 空=过。
 
@@ -180,13 +185,23 @@ def _validate(data: dict) -> list[str]:
         tlast = str(eps[-1].get("核心任务") or "") + str(eps[-1].get("主题") or "") + str(eps[-1].get("本集秘籍") or "")
         if not any(k in tlast for k in ("行动册", "合订", "装订", "干货", "工具册", "收官", "交棒")):
             issues.append("末集未见'行动册/合订/装订'职能 (行动册集=纯干货收束)")
-        # 概念正交: 六集概念两两交集
+        # 概念正交: 精确交集 + 近义撞车 (1103 S1: 「包容的专业精神」ep2 vs
+        # 「包容的专业主义」ep6 两字之差逃过精确交集实锤 — 归一剥类后缀后
+        # 同核或包含(≥3字) = 同一概念两集 claim, 撞车集须换概念)
         csets = [set(str(c) for c in (e.get("概念") or [])) for e in eps]
+        cores = [[concept_core(str(c)) for c in (e.get("概念") or [])] for e in eps]
         for i in range(len(csets)):
             for j in range(i + 1, len(csets)):
                 inter = csets[i] & csets[j]
                 if inter:
                     issues.append(f"ep{i+1}/ep{j+1} 概念重叠: {inter}")
+                    continue
+                _near = next(
+                    (f"「{a}」≈「{b}」" for a in cores[i] for b in cores[j]
+                     if a == b or (min(len(a), len(b)) >= 3 and (a in b or b in a))), None)
+                if _near:
+                    issues.append(f"ep{i+1}/ep{j+1} 概念近义撞车: {_near} "
+                                  "(剥类后缀同核/包含, 一概念一集)")
         # 秘籍齐备 (0908 用户令): 每集一个可命名交付物, 禁空洞词
         _hollow = ("认知", "思维", "提升", "了解", "理解", "学会")
         for i, e in enumerate(eps):
@@ -218,6 +233,18 @@ def _validate(data: dict) -> list[str]:
         secrets = [str(e.get("本集秘籍") or "")[:10] for e in eps]
         if len(set(secrets)) != len(secrets):
             issues.append("存在重复秘籍")
+        # 相邻集秘籍同型 (1103 S1: ep1「问一句'您最担心…'」vs ep2「闭嘴三分钟只问
+        # '…'」操作符同为"抛预制问句+听" — 五件工具账本区分度塌实锤; 只查相邻集,
+        # 远集呼应合法)。三特征: 双含引语(≥6字) + 双含问词 + 任一含听/闭嘴。
+        for i in range(len(eps) - 1):
+            s1, s2 = str(eps[i].get("本集秘籍") or ""), str(eps[i + 1].get("本集秘籍") or "")
+            if not (s1 and s2):
+                continue
+            if (_QUOTE_RE.search(s1) and _QUOTE_RE.search(s2)
+                    and any(k in s1 for k in ("问", "提问")) and any(k in s2 for k in ("问", "提问"))
+                    and any(k in s1 + s2 for k in ("闭嘴", "听完", "听他说"))):
+                issues.append(f"ep{i+1}/ep{i+2} 秘籍同型: 相邻集同为'抛预制问句+听'操作符 "
+                              f"({s1[:14]}… vs {s2[:14]}…) — 工具须换动作类型 (写/换/复述/发…)")
         # 视角非单一
         all_views = [str(v) for e in eps for v in (e.get("视角") or [])]
         if all_views and len(set(all_views)) < 2:

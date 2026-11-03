@@ -50,6 +50,26 @@ def word_band(target: float) -> tuple[int, int, int, int]:
     hlo, hhi = max(int(cap * 0.80), _WORD_ENV[0]), min(int(cap * 1.20), _WORD_ENV[1])
     return lo, hi, hlo, hhi
 
+
+# ── 概念归一核心词 (1103 S1: 排程近义撞车 + S2 概念覆盖闸共用) ──────────
+# 实锤: 「包容的专业精神」(ep2) vs「包容的专业主义」(ep6) 两字之差逃过精确交集,
+# 同一概念两集 claim → 正文必然串味 (ep2 核心任务 0 落地)。归一剥类后缀后比核心词。
+_CONCEPT_TYPE_SUFFIXES = ("主义", "精神", "论", "性", "感", "等式", "方法", "式",
+                          "法则", "原则", "模型", "阶段", "清单")
+
+
+def concept_core(c: str) -> str:
+    """概念 → 归一核心词: 剥尾部类后缀 (剥后须 ≥2 字, 否则概念本身就是后缀词保留原样).
+
+    「包容的专业精神」→「包容的专业」;「技术至上论」→「技术至上」;「信任感」→「信任」。
+    """
+    s = str(c or "").strip()
+    for suf in _CONCEPT_TYPE_SUFFIXES:
+        if s.endswith(suf) and len(s) - len(suf) >= 2:
+            return s[: -len(suf)]
+    return s
+
+
 # ── 人设后处理注入层 (P1 定稿措辞): 创作 LLM 保持中性, 身份段/结尾在此加 ──
 # 2026-08-23: 自称"静"而非"静姐" — 拉大受众群 (静姐限定了已婚熟龄, 静覆盖更广)
 _PERSONA_IDENTITY = "我是静，读透一本好书，陪你遇见更好的自己。"
