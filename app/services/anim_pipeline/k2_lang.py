@@ -67,11 +67,21 @@ def _chat(user: str) -> str:
 
 
 def ensure_en_prompt(shot: dict[str, Any], zh_scene: str) -> str:
-    """镜级 EN 提示词缓存 (image_prompt_en, 源串 sha 失效; LLM fail-open 退中文原串)."""
+    """镜级 EN 提示词缓存 (image_prompt_en, 源串 sha 失效; LLM fail-open 退中文原串).
+
+    1103 Y2 (用户令: 规划原生英文, 翻译层只做残镜兜底): keyframe_en 非空 →
+    _scene_eff 走 EN 路, 入参已是英文 — 直存缓存零 LLM。旧实现把英文串再过一遍
+    "翻译" (ep2 s09 实锤: 出入仅个别冠词, 纯英→英 round-trip: 烧配额+拖 GPU 间隙
+    +重述漂移风险, s37/s39 的"翻译失败"也是它自造)。"""
     sha = _sha(zh_scene)
     cached = shot.get("image_prompt_en")
     if isinstance(cached, dict) and cached.get("sha") == sha and cached.get("en"):
         return str(cached["en"])
+    if str(shot.get("keyframe_en") or "").strip():
+        shot["image_prompt_en"] = {"sha": sha, "en": zh_scene, "native": True}
+        logger.info("[k2-en] %s native ✓ 规划英文直用 (%d chars)",
+                    shot.get("shot_id"), len(zh_scene))
+        return zh_scene
     try:
         en = _chat(zh_scene)
         if not en or len(en) < 20:

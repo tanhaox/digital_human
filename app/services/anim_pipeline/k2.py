@@ -602,6 +602,9 @@ def pretranslate(doc: dict[str, Any], only: set[str] | None = None) -> dict:
             continue
         if shot["status"] != "planned":
             continue
+        # 1103 Y2: keyframe_en 非空的镜规划已原生英文 (渲染直用零 LLM), 不进预翻译
+        if str(shot.get("keyframe_en") or "").strip():
+            continue
         zh = _scene_eff_k2(shot, doc["book_title"])
         cached = shot.get("image_prompt_en")
         if isinstance(cached, dict) and cached.get("sha") == k2_lang._sha(zh) and cached.get("en"):

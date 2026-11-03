@@ -64,3 +64,25 @@ def test_pretranslate_skips_cached_and_filtered():
         k2.pretranslate(doc)
     sent = m.call_args[0][0]
     assert len(sent) == 1 and sent[0][0]["shot_id"] == "s04"
+
+
+def test_native_en_zero_llm():
+    """Y2: keyframe_en 在 → 英文直用零 LLM (英→英 round-trip 废除, s09 实锤)."""
+    s = _shot("sN"); s["keyframe_en"] = "Planner-written English prompt " * 5
+    with patch.object(k2_lang, "_chat") as m:
+        got = k2_lang.ensure_en_prompt(s, "Planner-written English prompt " * 5 + ", tint")
+    assert m.call_count == 0
+    assert got.startswith("Planner-written English")
+    assert s["image_prompt_en"]["native"] is True
+
+
+def test_native_en_pretranslate_skipped():
+    """Y2: 预翻译收集跳过原生英文镜 (64/64 有 keyframe_en → 预翻译空转)."""
+    from app.services.anim_pipeline import k2
+    doc = {"book_title": "X", "ep": 2, "shots": [_shot("s01")]}
+    doc["shots"][0]["keyframe_en"] = "English native " * 6
+    with patch.object(k2, "_scene_eff_k2") as m_asm, \
+         patch("app.services.anim_pipeline.k2_lang.translate_batch") as m_b:
+        r = k2.pretranslate(doc)
+    assert m_asm.call_count == 0 and m_b.call_count == 0
+    assert r["pending"] == 0
