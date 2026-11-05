@@ -7,6 +7,8 @@ job/同集互斥/取消/SSE/台账全复用 anim_service.start_phase (零新机�
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from typing import Any
 
 from app.services import anim_service
 from app.services.anim_pipeline import v3_pipeline
@@ -62,3 +64,76 @@ def v3_start(book_id: str, ep: int, phase: str):
         return anim_service.start_phase(book_id, ep, phase)
     except anim_service.AnimBusyError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
+
+
+# ── ① 文稿分诊 (V1) ────────────────────────────────────────────────────
+
+def _load_v3_doc(book_title: str, ep: int) -> dict:
+    from app.services.anim_pipeline import shots as shots_mod
+    return shots_mod.load_doc(book_title, ep)
+
+
+@router.get("/ep/{book_id}/{ep}/triage")
+def v3_triage_get(book_id: str, ep: int):
+    """分诊数据源: v3.lines + 路由卡 + 闸态。"""
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    try:
+        doc = _load_v3_doc(book_title, ep)
+    except FileNotFoundError:
+        return {"lines": [], "cards": [], "gates": {}, "triaged": False}
+    v3 = doc.get("v3") or {}
+    return {"lines": v3.get("lines") or [], "cards": v3.get("cards") or [],
+            "gates": v3_pipeline.gates_view(doc),
+            "triaged": bool(v3.get("lines"))}
+
+
+class TriageSaveBody(BaseModel):
+    lines: list[dict[str, Any]] = []
+
+
+@router.post("/ep/{book_id}/{ep}/triage/save")
+def v3_triage_save(book_id: str, ep: int, body: TriageSaveBody):
+    """一句一行编辑保存: 文本/语态/处置回写 + 确定性重检 + 分诊闸自动开合。"""
+    from .triage import det_check, route_markers
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    with anim_service.ep_guard(book_id, ep):
+        doc = _load_v3_doc(book_title, ep)
+        v3 = doc.setdefault("v3", {})
+        old = {ln["no"]: ln for ln in v3.get("lines") or []}
+        n_edit = 0
+        for row in body.lines:
+            ln = old.get(row.get("no"))
+            if not ln:
+                continue
+            if str(row.get("text", ln["text"])).strip() != ln["text"].strip():
+                n_edit += 1
+                ln["text"] = str(row.get("text")).strip()
+            if row.get("mode") and row["mode"] != ln["mode"]:
+                ln["mode"] = row["mode"]
+                n_edit += 1
+            if row.get("disp") is not None:
+                ln["disp"] = row["disp"]
+            # 编辑后确定性重检 (LLM 标注不重跑 — 病检是执法层)
+            mode, routed = route_markers(ln["text"])
+            if mode:
+                ln["mode"], ln["disp"] = mode, "routed"
+            ln["flag"] = det_check(ln["text"])
+        v3["lines"] = list(old.values())
+        # 闸: 无未处置 block (disp=cleaned/converted 视为处置)
+        unresolved = [ln for ln in v3["lines"]
+                      if ln.get("flag") and ln["flag"].get("level") == "block"
+                      and ln.get("disp") not in ("cleaned", "converted", "routed")]
+        v3.setdefault("gates", {})["triage"] = not unresolved
+        from app.services.anim_pipeline import shots as shots_mod
+        shots_mod.save(doc)
+    return {"saved": len(body.lines), "edited": n_edit,
+            "blocks_unresolved": len(unresolved),
+            "gate": not unresolved}
