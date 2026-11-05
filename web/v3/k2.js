@@ -74,8 +74,9 @@ function renderGrid() {
         <button class="iconbtn" data-act="approve" data-sid="${esc(s.sid)}"
                 ${st !== 'img_done' ? ' disabled' : ''}>✅ 过审</button>
         <span class="flex1"></span>
-        <button class="iconbtn" data-act="reroll" data-sid="${esc(s.sid)}"
-                title="单镜重掷 (换 seed)">${st === 'planned' ? '▶ 生成' : '🔁 重掷'}</button>
+        ${s.brand ? '<span class="kbadge planned" title="品牌位: 冻结资产直通, 不可重掷">🏔 品牌</span>'
+                   : `<button class="iconbtn" data-act="reroll" data-sid="${esc(s.sid)}"
+                title="单镜重掷 (换 seed)">${st === 'planned' ? '▶ 生成' : '🔁 重掷'}</button>`}
       </div>
     </div>`;
   }).join('');

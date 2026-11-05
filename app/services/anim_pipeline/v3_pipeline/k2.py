@@ -69,10 +69,17 @@ def run(job: dict[str, Any], only: set[str] | None = None,
         raise SystemExit("未切镜 — 先跑 ③ 分镜文字")
     if not v3.get("frozen_at"):
         raise SystemExit("④ 未放行 — K2 吃 keyframe_en, 先在 ④ 页确认放行 (英文化批)")
+    if only is not None:
+        force_new_seed = True          # 点名 = 重掷语义, 强制换 seed (实锤: 旧 seed 复用 → 同图)
 
+    # 显式点名 (only) = 重掷语义: 已有图也要跑 (换 seed);
+    # 无 only = 批跑语义: 只补缺图。实锤: 旧过滤把点名镜也按"只补缺"排除 → 重掷静默空转。
     todo = [s for s in shots
-            if (only is None or s["sid"] in only)
-            and not ((s.get("k2") or {}).get("image"))]
+            if (only is not None and s["sid"] in only)
+            or (only is None and not ((s.get("k2") or {}).get("image")))]
+    _brand_only = [s["sid"] for s in todo if s.get("brand_card")]
+    if _brand_only and only is not None:
+        raise SystemExit(f"{'/'.join(_brand_only)} 是品牌位 (冻结资产直通, 零 LLM 零 GPU) — 不可重掷")
     total = len(todo)
     job["progress"] = {"done": 0, "total": total, "current": "K2 批生图 (GPU 独占)"}
 
