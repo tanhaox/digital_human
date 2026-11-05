@@ -49,11 +49,14 @@ def _h_shots(job: dict[str, Any]) -> None:
 def _h_direct(job: dict[str, Any]) -> None:
     from . import direct
     direct.run(job)
+def _h_k2(job: dict[str, Any]) -> None:
+    from . import k2
+    k2.run(job, only=set(job.get("only") or []) or None)
 def _h_stamp(job: dict[str, Any]) -> None: _stub(job, "stamp")
 
 
 _HANDLERS = {
-    "triage": _h_triage, "arcs": _h_arcs, "shots": _h_shots,
+    "triage": _h_triage, "arcs": _h_arcs, "shots": _h_shots, "k2": _h_k2,
     "direct": _h_direct, "stamp": _h_stamp,
 }
 

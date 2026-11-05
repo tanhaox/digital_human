@@ -17,7 +17,7 @@ from app.services.anim_pipeline.config import pipeline_line
 
 router = APIRouter(prefix="/api/anim/v3", tags=["anim-v3"])
 
-_V3_PHASES = ("v3_triage", "v3_arcs", "v3_shots", "v3_direct", "v3_stamp")
+_V3_PHASES = ("v3_triage", "v3_arcs", "v3_shots", "v3_direct", "v3_k2", "v3_stamp")
 
 
 def _line_gate(book_title: str) -> None:
@@ -80,8 +80,12 @@ def v3_state(book_id: str, ep: int):
             "running_job": running}
 
 
+class PhaseStartBody(BaseModel):
+    only: list[str] = []            # 单镜重掷 (v3_k2): 只跑这些镜 + 换 seed
+
+
 @router.post("/ep/{book_id}/{ep}/{phase}")
-def v3_start(book_id: str, ep: int, phase: str):
+def v3_start(book_id: str, ep: int, phase: str, body: PhaseStartBody | None = None):
     """启动 v3 相位 job (复用 start_phase: 同集闸/台账/SSE 全继承)。"""
     if phase not in _V3_PHASES:
         raise HTTPException(status_code=422, detail=f"未知 v3 相位: {phase} (可选 {_V3_PHASES})")
@@ -90,8 +94,11 @@ def v3_start(book_id: str, ep: int, phase: str):
     except anim_service.AnimNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     _line_gate(book_title)
+    only = set(body.only) if (body and body.only) else None
+    if only and phase != "v3_k2":
+        raise HTTPException(status_code=422, detail="only 仅支持 v3_k2 (单镜重掷)")
     try:
-        return anim_service.start_phase(book_id, ep, phase)
+        return anim_service.start_phase(book_id, ep, phase, only=only)
     except anim_service.AnimBusyError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
 
@@ -496,6 +503,107 @@ def v3_direct_finalize(book_id: str, ep: int):
         from app.services.anim_pipeline import shots as shots_mod
         shots_mod.save(doc)
     return out
+
+
+# ── ⑤ K2 批生图 (V6 薄壳) ─────────────────────────────────────────────
+
+@router.get("/ep/{book_id}/{ep}/k2")
+def v3_k2_get(book_id: str, ep: int):
+    """⑤ 数据源: 每镜 k2 状态 (image/status/seed/text_suspect) + 闸态。"""
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    try:
+        doc = _load_v3_doc(book_title, ep)
+    except FileNotFoundError:
+        return {"shots": [], "gates": {}, "frozen": False, "ready": False}
+    v3 = doc.get("v3") or {}
+    direct = v3.get("direct") or {}
+    out = []
+    for s in (v3.get("shots") or []):
+        k2s = s.get("k2") or {}
+        d = direct.get(s["sid"]) or {}
+        out.append({"sid": s["sid"], "est_s": s.get("est_s"),
+                    "size": d.get("size"), "cam": (d.get("cam") or {}).get("kind"),
+                    "brand": bool(s.get("brand_card")),
+                    "image": k2s.get("image"), "status": k2s.get("status") or "planned",
+                    "seed": k2s.get("seed"), "suspect": bool(k2s.get("text_suspect")),
+                    "error": k2s.get("error")})
+    return {"shots": out, "gates": v3_pipeline.gates_view(doc),
+            "frozen": bool(v3.get("frozen_at")), "ready": bool(out)}
+
+
+class K2ApproveBody(BaseModel):
+    sids: list[str] = []
+    all: bool = False
+
+
+@router.post("/ep/{book_id}/{ep}/k2/approve")
+def v3_k2_approve(book_id: str, ep: int, body: K2ApproveBody):
+    """⑤ 人检过审: img_done → approved (v2 语义, v3 命名空间)。"""
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    with anim_service.ep_guard(book_id, ep):
+        doc = _load_v3_doc(book_title, ep)
+        v3 = doc.setdefault("v3", {})
+        n = 0
+        for s in (v3.get("shots") or []):
+            k2s = s.get("k2") or {}
+            want = body.all or s["sid"] in body.sids
+            if want and k2s.get("status") == "img_done":
+                k2s["status"] = "approved"
+                n += 1
+        from app.services.anim_pipeline import shots as shots_mod
+        shots_mod.save(doc)
+    return {"approved": n}
+
+
+# ── ⑥ TTS (V6 薄壳: 复用音频线, 只读展示 + 试听 + 深链) ───────────────
+
+@router.get("/ep/{book_id}/{ep}/tts")
+def v3_tts_get(book_id: str, ep: int):
+    """⑥ 数据源: ep 音频包 (验收/钉选优先) — 复用 anim_draft.fetch_episode_audio。"""
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    from app.services.anim_draft import fetch_episode_audio, AnimNotFound as _ANF
+    try:
+        audio = fetch_episode_audio(book_id, ep)
+    except Exception as exc:  # noqa: BLE001 — 无音频不炸页
+        return {"has_audio": False, "reason": str(exc)[:200], "blocks": []}
+    blocks = [{"i": i, "text": str(b.get("text") or "")[:120],
+               "dur_s": b.get("dur_s"), "file": str(b.get("file") or "")}
+              for i, b in enumerate(audio.get("files") or [])]
+    return {"has_audio": True, "job_id": audio.get("job_id"),
+            "pinned": bool(audio.get("pinned")), "blocks": blocks,
+            "total_s": round(sum(float(b.get("dur_s") or 0) for b in blocks), 1)}
+
+
+@router.get("/ep/{book_id}/{ep}/tts/file/{idx}")
+def v3_tts_file(book_id: str, ep: int, idx: int):
+    """⑥ 试听: 按块索引取音频文件 (FileResponse, 范围请求由客户端处理)。"""
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    from app.services.anim_draft import fetch_episode_audio
+    from pathlib import Path as _P
+    audio = fetch_episode_audio(book_id, ep)
+    files = audio.get("files") or []
+    if idx < 0 or idx >= len(files):
+        raise HTTPException(status_code=404, detail=f"块不存在: {idx}")
+    p = _P(str(files[idx].get("file") or ""))
+    if not p.exists():
+        raise HTTPException(status_code=404, detail="音频文件缺失")
+    return FileResponse(str(p))
 
 
 @router.post("/ep/{book_id}/{ep}/shots/save")

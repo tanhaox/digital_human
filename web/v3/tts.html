@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>⑥ TTS · v3</title>
+<link rel="stylesheet" href="./v3.css">
+<link rel="stylesheet" href="./tts.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="h2row pt">
+    <h1 class="h2">⑥ TTS · 口播音频</h1>
+    <span class="sub" id="sub">加载中…</span>
+    <span id="counts"></span>
+  </div>
+  <div class="railwrap"><div class="rail" id="rail"></div></div>
+
+  <div class="bar">
+    <b>音频包 · 一块一行</b>
+    <span class="note">复用音频线 (验收/钉选优先) — 语速旋钮与块级重合成随 ⑦ 盖章批 (V5) 接入</span>
+  </div>
+
+  <div id="body"></div>
+
+  <div class="savebar">
+    <span class="note" id="stat">—</span>
+    <span class="flex1"></span>
+    <a class="ghost" id="btn-audio" href="#" target="_blank" title="音频工坊: 生成/重配音/钉选/验收都在那边">🔊 音频工坊 (生成/重配) ↗</a>
+    <button class="ghost" id="btn-refresh">↻ 刷新状态</button>
+  </div>
+</div>
+<script type="module" src="./tts.js"></script>
+</body>
+</html>

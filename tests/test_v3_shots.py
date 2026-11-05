@@ -659,3 +659,33 @@ def test_direct_enum_forward_and_repairs():
     assert n >= 2                                    # 4 连同景别: 级联修交替即合法
     assert all(a != b for a, b in zip(seq, seq[1:]))  # 无相邻相同
     assert not any(k != "弧级" for k in D.validate(direct, shots))
+
+
+def test_v3_k2_phase_registered_and_gated():
+    """⑤ K2 薄壳: v3_k2 进 PHASES + GPU_PHASES (GPU 独占令) + 分发表; 投影契约。"""
+    from app.services import anim_service as A
+    from app.services.anim_pipeline import v3_pipeline as V
+    from app.services.anim_pipeline.v3_pipeline import k2 as vk2
+    assert "v3_k2" in A.PHASES and "v3_k2" in A.GPU_PHASES
+    assert V._HANDLERS.get("k2") is V._h_k2
+    # 投影: v2 形状契约 (k2.run_shot 吃的字段全带) + arcs 主旨同构
+    vs = vk2._project_shot({"sid": "s1", "arc_id": "A1",
+                            "keyframe_zh": "画面", "keyframe_en": "scene",
+                            "seed": 42}, 7)
+    assert vs["shot_id"] == "s1" and vs["seed"] == 7 and vs["attempts"]["k2"] == 0
+    assert vs["in_image_text"] == []                     # 停用令
+    doc = {"book_title": "书", "v3": {"arcs": [
+        {"arc_id": "A1", "metaphor": "边界=护栏", "narrative": "讲什么"}]}}
+    pd = vk2._project_doc(doc)
+    assert pd["arcs"][0]["metaphor_core"] == "边界=护栏"   # arc_thesis 读这个
+    assert "arcs" not in doc or doc["arcs"] == [{"arc_id": "A1", "metaphor_core": "边界=护栏", "narrative": None}] or not doc.get("arcs")
+
+
+def test_v3_k2_refuses_unfrozen(monkeypatch):
+    """前置闸: ④ 未放行 (无 keyframe_en) 直接拒 — 不白烧 GPU。"""
+    from app.services.anim_pipeline.v3_pipeline import k2 as vk2
+    import pytest
+    monkeypatch.setattr("app.services.anim_pipeline.shots.load_doc",
+                        lambda *a, **k: {"v3": {"shots": [{"sid": "s1"}]}})
+    with pytest.raises(SystemExit, match="未放行"):
+        vk2.run({"book_title": "书", "ep": 5})
