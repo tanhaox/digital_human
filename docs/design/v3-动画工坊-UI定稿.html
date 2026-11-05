@@ -77,6 +77,16 @@ td { padding:7px 11px; border-bottom:1px solid var(--line); vertical-align:top; 
 .docline .txt { flex:1; min-width:0; }
 .docline.flg-r { border-left-color:var(--bad-t); background:rgba(110,32,32,.18); }
 .docline.flg-y { border-left-color:var(--amber); background:rgba(122,74,30,.12); }
+.doclist { border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+.dl-h, .docline { display:grid; grid-template-columns:48px 76px minmax(300px,1fr) auto; gap:8px;
+  align-items:baseline; padding:5px 12px; border-bottom:1px solid var(--line); }
+.dl-h { background:var(--panel2); color:var(--dim); font-size:13px; font-weight:600; }
+.docline { position:relative; flex-wrap:wrap; }
+.docline .iss { grid-column:3 / 5; font-size:12.5px; padding:2px 0 4px; }
+.iss-r { color:var(--bad-t); } .iss-y { color:var(--warn-t); }
+.docline.routed { opacity:.6; }
+.docline.dim { color:var(--faint); }
+.lm.sc-card { background:#3a5f6e; }
 .scell { display:inline-block; min-width:22px; text-align:center; border-radius:5px;
   font-family:var(--mono); font-size:12.5px; padding:1px 6px; color:#fff; }
 .sc1 { background:#1d3a5f; } .sc2 { background:#1d5f4c; }
@@ -264,39 +274,26 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
   <div class="axisline"><span>0s</span><span>60</span><span>120</span><span>180</span><span>~234s 估</span></div>
   <div class="cap">稿层诞生页: 语态着色 + 分诊状态 (红段=拦截行 L07) — 本页轴只有稿层, 弧层②起叠加</div></div>
 
-  <div class="concept-bar"><b style="color:var(--gold)">🩺 AI 体检 · 不合理处提醒</b>
-    <span class="note">AI=提醒层减量, 确定性闸=执法 (LLM 比抖音松, 出口闸是主防线)</span></div>
-  <div class="twrap">
-  <table>
-    <thead><tr><th>级</th><th>定位</th><th>问题</th><th>AI 建议</th><th>处置</th></tr></thead>
-    <tbody>
-      <tr><td><span class="badge bad">🔴 拦截</span></td><td class="mono">L07</td><td>伪指令残留「【大字卡、直接上屏】」— 非语态、非合法标记 (AI 粘入)</td><td>转为卡内容 (文字入③大字卡槽) 或整行清洗</td><td><button class="iconbtn">转为卡</button> <button class="iconbtn">清洗</button> <button class="iconbtn">归为口播</button></td></tr>
-      <tr><td><span class="badge warn">🟡 提醒</span></td><td class="mono">L21–L26</td><td>书证② 段 6 行连续引用, 无评论承接 — 听感易疲劳</td><td>拆两条书证, 中间插一句承接评论</td><td><button class="iconbtn">采纳建议</button> <button class="iconbtn">忽略</button></td></tr>
-      <tr><td><span class="badge warn">🟡 提醒</span></td><td class="mono">L33</td><td>案例时间「2021年某客户」— 违反案例时间铁律 (2020 线, 听众切身感)</td><td>改「前年一位客户」</td><td><button class="iconbtn">采纳建议</button> <button class="iconbtn">忽略</button></td></tr>
-      <tr><td><span class="badge warn">🟡 提醒</span></td><td class="mono">L45</td><td>62 字长句无标点 — 听感歧义风险 (听感歧义=废句)</td><td>在「才明白」后断句</td><td><button class="iconbtn">采纳建议</button> <button class="iconbtn">忽略</button></td></tr>
-      <tr><td><span class="badge warn">🟡 提醒</span></td><td class="mono">全稿</td><td>无人设自述段 — 回忆镜缺位 (②立意将无回忆弧可选)</td><td>可选: 加一段「我当年…」自述 (~2句)</td><td><button class="iconbtn">生成建议</button> <button class="iconbtn">忽略</button></td></tr>
-    </tbody>
-  </table>
+  <div class="doclist">
+    <div class="dl-h"><span>行</span><span>语态</span><span>文稿 · 一句一行 · 点行即改</span><span>标注</span></div>
+    <div class="docline"><span class="ln">L05</span><span class="lm sc-quote">书证</span><span class="txt editable">书里说：信任是一点一滴存出来的账户。</span><span></span></div>
+    <div class="docline flg-r"><span class="ln">L07</span><span class="badge bad">未分诊</span><span class="txt editable">【大字卡、直接上屏】</span><span><button class="iconbtn">转为卡</button><button class="iconbtn">清洗</button></span>
+      <div class="iss iss-r">🔴 伪指令残留 (AI 粘入) — 非语态非合法标记 · 建议: 文字转卡内容或整行删除</div></div>
+    <div class="docline"><span class="ln">L08</span><span class="lm sc-comm">评论</span><span class="txt editable">这话我信。但你账户塌的时候，第一个念头是补，第二个念头是躲。</span><span></span></div>
+    <div class="docline flg-y"><span class="ln">L21</span><span class="lm sc-quote">书证</span><span class="txt editable">书证②段起：连续六行引用……</span><span><button class="iconbtn">采纳</button><button class="iconbtn">忽略</button></span>
+      <div class="iss iss-y">🟡 连续 6 行书证无评论承接, 听感疲劳 · 建议: 拆两段插承接句</div></div>
+    <div class="docline routed"><span class="ln">L29</span><span class="lm sc-card">卡指令</span><span class="txt">【卡:止损两问】两轮不开吗？还在赔吗？</span><span class="tbd">→ 已路由 ③卡槽</span></div>
+    <div class="docline flg-y"><span class="ln">L33</span><span class="lm sc-persona">人设</span><span class="txt editable">2021年某客户跟我谈了三轮，最后一夜他把我微信删了。</span><span><button class="iconbtn">采纳</button><button class="iconbtn">忽略</button></span>
+      <div class="iss iss-y">🟡 案例时间铁律 (2020 线) · 建议: 改「前年一位客户」</div></div>
+    <div class="docline flg-y"><span class="ln">L45</span><span class="lm sc-comm">评论</span><span class="txt editable">止损这件事最反人性的一点是你明明知道该走却总觉得再撑一把就能翻盘才明白早走是止损晚走是止血压。</span><span><button class="iconbtn">采纳</button><button class="iconbtn">忽略</button></span>
+      <div class="iss iss-y">🟡 62 字长句听感歧义 (歧义=废句) · 建议: 「才明白」后断句</div></div>
+    <div class="docline routed"><span class="ln">L47</span><span class="lm sc-card">图指令</span><span class="txt">【图:信任公式】</span><span class="tbd">→ 已路由 钉图</span></div>
+    <div class="docline"><span class="ln">L52</span><span class="lm sc-brand">牌</span><span class="txt">我是老谭，拆一本书，翻一座山。</span><span></span></div>
+    <div class="docline dim"><span class="ln"></span><span></span><span class="tbd">… 全 52 行一句一行在列 · 🟡🔴 标注长在行上 · 无标注行即通过 …</span><span></span></div>
   </div>
-
-  <div class="concept-bar" style="margin-top:12px"><b style="color:var(--gold)">📄 文稿全文 · 行内直接改</b>
-    <span class="note">点体检行跳到这里 · 每行可编辑/改语态标 · 改稿留痕回流文字加工线</span>
-    <span style="flex:1"></span><button class="iconbtn">✎ 全文编辑模式</button></div>
-  <div class="twrap">
-  <table style="min-width:820px">
-    <thead><tr><th>行</th><th>语态</th><th>文稿 (行内编辑)</th><th></th></tr></thead>
-    <tbody>
-      <tr><td class="mono">L05</td><td><span class="lm sc-quote">书证</span></td><td class="editable">书里说：信任是一点一滴存出来的账户。</td><td><button class="iconbtn">✎</button></td></tr>
-      <tr class="flg-r"><td class="mono">L07</td><td><span class="badge bad">🔴 未分诊</span></td><td class="editable">【大字卡、直接上屏】</td><td><button class="iconbtn">✎</button> <select style="font:inherit;background:var(--panel2);color:var(--txt);border:1px solid var(--line2);border-radius:6px"><option>改标…</option><option>→书证</option><option>→评论</option><option>→卡指令</option></select></td></tr>
-      <tr><td class="mono">L08</td><td><span class="lm sc-comm">评论</span></td><td class="editable">这话我信。但你账户塌的时候，第一个念头是补，第二个念头是躲。</td><td><button class="iconbtn">✎</button></td></tr>
-      <tr class="flg-y"><td class="mono">L33</td><td><span class="lm sc-persona">人设</span></td><td class="editable">2021年某客户跟我谈了三轮，最后一夜他把我微信删了。</td><td><button class="iconbtn">✎</button></td></tr>
-      <tr class="flg-y"><td class="mono">L45</td><td><span class="lm sc-comm">评论</span></td><td class="editable">止损这件事最反人性的一点是你明明知道该走却总觉得再撑一把就能翻盘才明白早走是止损晚走是止血压。</td><td><button class="iconbtn">✎</button></td></tr>
-      <tr><td colspan="4" class="dim2">… 全 52 行在列 · 语态标可点改 (分诊重算) · 🟡/🔴 行与体检表互跳 …</td></tr>
-    </tbody>
-  </table>
-  </div>
-
-  <div class="fixrow"><span class="badge ok">分诊汇总</span> 语态行 49 · 结构指令 2（【卡:止损两问】→③卡槽 ·【图:信任公式】→钉图, 已路由不进口播）· 🔴 拦截 1 待处置 · 忽略 0</div>
+  <div class="gatebar" style="border-color:var(--line2); background:none">
+    <span class="note">改稿 <b style="color:var(--gold)">3 处未保存</b> · 语态标点改实时重算分诊</span>
+    <span style="flex:1"></span><button class="ghost act">↩ 撤销</button><button class="go act">💾 保存修改 (3)</button></div>
 
   <div class="gatebar"><span class="ti">◉ 文稿放行</span>
     <span class="note">全部🔴处置完 + 语态标注落定 → ②立意 (标注随稿带入); 改稿动作回流文字加工线留痕</span>
@@ -304,7 +301,7 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
 
   <ol class="specs">
     <li><b>逐行三去向</b> (抓bug 产物): 语态行→②弧分配 / 合法结构指令 (【卡:】→③卡槽、【图:】→钉图) 路由不进口播 / 无法分类→🔴拦截人工分诊 — 指令残留到 TTS 才现形的洞在此堵死。</li>
-    <li><b>文稿即面板</b> (用户令: 差修改编辑位): 全文行内可见可改 — 每行 ✎ 编辑、语态标点改 (分诊实时重算)、体检行↔文稿行互跳; 改稿留痕回流文字加工线。</li>
+    <li><b>一句一行统一清单</b> (用户令, 参老TTS页): 文稿+AI标注+处置合一 — 🟡🔴 标注长在行上, 点行即改, 行级采纳/忽略/转卡; 路由行(卡/图指令)置灰显示去向; 改完底部💾保存(计数提示), 留痕回流文字加工线。</li>
 <li><b>AI 体检=提醒层</b>: 伪指令/结构失衡/案例时间铁律(2020线)/听感歧义/长句/缺语态 — 提醒减量, 执法仍是确定性闸; 每条一键处置 (采纳/忽略/人工), 处置留痕回流文字加工线。</li>
     <li><b>渐进轴起点</b>: 稿层在本页诞生 (语态色+分诊状态), 弧层②起叠加 — 八页一轴到底。</li>
   </ol>
