@@ -10,7 +10,7 @@ export const BANDS = [
   { id: 'A2',    label: 'A2',   w: 26, color: '#6b572f', kind: 'narr' },
   { id: 'sq3',   label: '书证③', w: 6,  color: '#3a5f6e', kind: 'quote' },
   { id: 'A3',    label: 'A3',   w: 17, color: '#5c3f6b', kind: 'narr' },
-  { id: 'cta',   label: 'CTA牌', w: 5, color: '#22304a', kind: 'off' },
+  { id: 'cta',   label: '行动召·牌', w: 5, color: '#22304a', kind: 'off' },
 ];
 
 const esc = s => String(s ?? '').replace(/[&<>"']/g,

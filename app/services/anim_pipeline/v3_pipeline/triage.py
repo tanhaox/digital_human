@@ -29,7 +29,7 @@ LIST_STARTERS = ("第一", "第二", "第三", "首先", "其次", "再次", "�
 
 MODES = ("hook", "quote", "comm", "persona", "cta", "brand", "card", "img", "section", "unknown")
 MODE_ZH = {"hook": "钩子", "quote": "书证", "comm": "评论", "persona": "人设",
-           "cta": "CTA", "brand": "牌", "card": "卡指令", "img": "图指令",
+           "cta": "行动召", "brand": "牌", "card": "卡指令", "img": "图指令",
            "section": "段标", "unknown": "未分诊"}
 
 
@@ -108,7 +108,7 @@ mode 语义 (严格区分, 判错会毁立意):
 ① 介绍书/作者/推荐语 ≠ quote, 是 comm
 ② 转述"书里有个案例/书里给的解法" ≠ quote (没有原话引号就是转述), 是 comm
 ③ "我是老谭…" 开头一律 brand, 不是 persona
-issue 只报: 结构失衡(连续书证无承接/缺钩子/缺CTA/语态突兀)、明显书面语不宜口播。
+issue 只报: 结构失衡(连续书证无承接/缺钩子/缺行动召/语态突兀)、明显书面语不宜口播。
 suggs 每行给 0-2 条创作建议, kind∈"quote"(对仗短句有金句相)/"img"(流程公式结构宜配图)/
 "book"(转述书中观点宜调原句直出)/"event"(核心概念词宜上事件金字), text=一句中文建议。"""
 

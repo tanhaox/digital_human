@@ -6,7 +6,7 @@ const BASE = `/api/anim/v3/ep/${encodeURIComponent(B)}/${E}`;
 const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g,
   m => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[m]));
-const MODE_ZH = { hook:'钩子', quote:'书证', comm:'评论', persona:'人设', cta:'CTA',
+const MODE_ZH = { hook:'钩子', quote:'书证', comm:'评论', persona:'人设', cta:'行动召',
   brand:'牌', card:'卡指令', img:'图指令', section:'段标', unknown:'未分诊' };
 let LINES = [], dirty = new Set();
 

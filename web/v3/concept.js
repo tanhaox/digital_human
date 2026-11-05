@@ -10,9 +10,9 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g,
   m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 
 const TYPE_ZH = { narr: '叙事弧', quote: '书证镜', persona: '人设镜',
-  hook: '钩子', cta: 'CTA', brand: '品牌' };
+  hook: '钩子', cta: '行动召', brand: '品牌' };
 const MODE_ZH = { hook: '钩子', quote: '书证', comm: '评论', persona: '人设',
-  cta: 'CTA', brand: '牌' };
+  cta: '行动召', brand: '牌' };
 const MODE_COLOR = { hook: '#22304a', quote: '#3a5f6e', comm: '#2f6b52',
   persona: '#6e3a5a', cta: '#22304a', brand: '#4a3a1c' };
 
@@ -79,7 +79,7 @@ function renderAxis() {
   timeline($('axis'), {
     script, bands, arcGhost: false,
     axisLabel: `~${Math.round(ARCS.reduce((s, a) => s + (a.est_s || 0), 0))}s 估`,
-    caption: '上层=稿层语态 (钩/书证/评论/人设/CTA) · 下层=弧 (叙事/书证镜/人设镜) — 两带对齐即弧界落模块边界',
+    caption: '上层=稿层语态 (钩子/书证/评论/人设/行动召) · 下层=弧 (叙事/书证镜/人设镜) — 两带对齐即弧界落模块边界',
   });
 }
 
@@ -100,7 +100,7 @@ function renderTable() {
     return `<tr>
       <td class="mono">${esc(a.arc_id)}</td>
       <td><button class="ty ty-${esc(a.type)} tybtn" data-act="type" data-aid="${a.arc_id}"
-            title="点改弧型 (叙事/书证/人设/钩子/CTA/品牌)">${esc(TYPE_ZH[a.type] || a.type)}</button></td>
+            title="点改弧型 (叙事/书证/人设/钩子/行动召/品牌)">${esc(TYPE_ZH[a.type] || a.type)}</button></td>
       <td>${esc(MODE_ZH[a.mode] || a.mode)}</td>
       <td class="mono">L${a.no_start}–L${a.no_end}
         ${i > 0 ? `<button class="iconbtn" data-act="merge" data-aid="${a.arc_id}"
