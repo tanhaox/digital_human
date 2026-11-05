@@ -106,6 +106,14 @@ input[type=range] { width:88px; accent-color:var(--gold); }
 .mini .cap { font-size:11px; color:var(--faint); margin-top:5px; }
 .mini .ghost { opacity:.45; }
 .mini .ghost2 { opacity:.6; }
+.lane.script { height:15px; }
+.sc-hook { background:#7a4a1e; } .sc-quote { background:#175a6b; }
+.sc-comm { background:#2c3a4f; } .sc-cta { background:#6b5a24; } .sc-brand { background:#4a3a1c; }
+.legend i.sc-hook { background:#7a4a1e; } .legend i.sc-quote { background:#175a6b; }
+.legend i.sc-comm { background:#2c3a4f; } .legend i.sc-cta { background:#6b5a24; } .legend i.sc-brand { background:#4a3a1c; }
+.mini .grid { position:absolute; inset:0; pointer-events:none; z-index:2; }
+.mini .grid i { position:absolute; top:0; bottom:0; width:0; border-left:1px dashed rgba(148,163,184,.4); }
+.misalign { position:absolute; top:-2px; bottom:-2px; width:0; border-left:2px solid var(--bad-t); z-index:3; }
 .blklane { height:9px; background:#0a0d12; border:1px solid var(--line2); border-radius:4px; position:relative; overflow:hidden;
   background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.16) 0 1px, transparent 1px 2.17%); }
 .blklane .mk { position:absolute; top:0; bottom:0; width:4px; }
@@ -176,17 +184,35 @@ footer { color:var(--faint); font-size:11.5px; margin:24px 0 18px; }
     <span class="sub">本页只做一件事: 定弧 (段落→场), 确认后放行分镜</span>
     <span class="badge ok">0 警告</span><span class="badge">4 场 · 52 行 · 48 句</span></div>
 
-  <!-- 渐进轴 · P1: 仅弧层 (比例+句密度, 估值) -->
-  <div class="mini"><div class="lanes">
+  <!-- 渐进轴 · P1: 稿层(钩子/原句/评论) × 弧层 对照 + 贯通标尺 -->
+  <div class="mini"><div class="lanes" style="position:relative">
+    <div class="grid" aria-hidden="true"><i style="left:25.6%"></i><i style="left:51.2%"></i><i style="left:76.8%"></i></div>
+    <div class="lane script">
+      <div class="seg sc-hook" style="width:6%" title="钩子"><span class="lb">钩子</span></div>
+      <div class="seg sc-quote" style="width:10%" title="书中原句①"><span class="lb">原句①</span></div>
+      <div class="seg sc-comm" style="width:9.2%" title="评论①"><span class="lb">评论①</span></div>
+      <div class="seg sc-quote" style="width:11%" title="书中原句②"><span class="lb">原句②</span></div>
+      <div class="seg sc-comm" style="width:8%" title="评论②"><span class="lb">评论②</span></div>
+      <div class="seg sc-quote" style="width:14%" title="书中原句③"><span class="lb">原句③</span></div>
+      <div class="seg sc-comm" style="width:9%" title="评论③"><span class="lb">评论③</span></div>
+      <div class="seg sc-quote" style="width:11%" title="书中原句④"><span class="lb">原句④</span></div>
+      <div class="seg sc-comm" style="width:10%" title="评论④"><span class="lb">评论④</span></div>
+      <div class="seg sc-cta" style="width:8%" title="行动CTA"><span class="lb">CTA</span></div>
+      <div class="seg sc-brand" style="width:3.8%" title="品牌句"><span class="lb">牌</span></div>
+    </div>
     <div class="lane arc">
       <div class="seg" style="width:25.2%; background:#1d3a5f; background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.14) 0 1px, transparent 1px 9.09%)"><span class="lb">A1 岔路口 ·~59s</span></div>
       <div class="seg" style="width:29.9%; background:#1d5f4c; background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.14) 0 1px, transparent 1px 6.25%)"><span class="lb">A2 修复工坊 ·~70s</span></div>
-      <div class="seg" style="width:31.5%; background:#5f4a1d; background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.14) 0 1px, transparent 1px 7.69%)"><span class="lb">A3 闸门室 ·~74s</span></div>
+      <div class="seg" style="width:31.5%; background:#5f4a1d; background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.14) 0 1px, transparent 1px 7.69%)"><span class="lb">A3 闸门室 ·~74s</span><b class="misalign" style="left:0"></b></div>
       <div class="seg" style="width:13.2%; background:#4a1d5f; background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.14) 0 1px, transparent 1px 14.29%)"><span class="lb">A4 ·~31s</span></div>
     </div>
   </div>
   <div class="axisline"><span>0s</span><span>60</span><span>120</span><span>180</span><span>~234s 估</span></div>
-  <div class="cap">弧层: 拍子比例一眼看 · 竖线=句密度刻度 (c01–c48, 字数估位) — 本页轴只回答"节奏比例对不对"</div></div>
+  <div class="legend" style="margin-top:6px">
+    <span><i class="sc-hook"></i>钩子</span><span><i class="sc-quote"></i>书中原句</span><span><i class="sc-comm"></i>评论</span>
+    <span><i class="sc-cta"></i>行动CTA</span><span><i class="sc-brand"></i>品牌句</span>
+    <span style="color:var(--bad-t)">▎红痕=弧界切进原句③ 尾部 (人闸要看的正是这种错位)</span></div>
+  <div class="cap">稿层×弧层对照: 弧界是否落在模块边界上, 分配合理/立意准不准一眼判断; 虚线标尺 (60/120/180s) 贯通两层</div></div>
 
   <div class="vs" style="margin-bottom:14px">
     <div class="panel old">v2&nbsp; <b>文稿 → TTS → 立意 → …</b><br><span class="note">立意确认前先烧 TTS; 弧边界在时间轴上猜</span></div>
@@ -226,7 +252,7 @@ footer { color:var(--faint); font-size:11.5px; margin:24px 0 18px; }
     <li><b>借现版立意面板</b>: 六拍分配表/单场重掷/编辑保存交互原样迁入, 仅增 行号/句区间/镜数 三列 (结构引用)。</li>
     <li><b>预估列</b>: 字数×语率估算, 供拍子比例参考; 真实时长 ④ 盖章注入 (本页永远不显示精确秒)。</li>
     <li><b>零音频依赖</b>: 本页无音频也可开工 (旧版音频门挪到 ③ TTS)。</li>
-    <li><b>渐进轴 · 弧层</b>: 同一轴组件随页渐富 (弧→镜→块→秒→状态); 本页只亮弧层+句密度刻度 (估值)。</li>
+    <li><b>渐进轴 · 稿层×弧层</b>: 原稿模块 (钩子/原句/评论/CTA) 与弧切分上下对照 + 贯通标尺 — 弧界切没切在模块边界上, 分配合理/立意准否一眼判断; 错位红痕自动标出 (人闸证据)。</li>
   </ol>
 </section>
 </div>
