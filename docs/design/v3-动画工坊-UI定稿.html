@@ -70,6 +70,9 @@ tr.hgroup th + th { border-left:1px solid var(--line); }
 th { text-align:left; font-weight:600; color:var(--dim); font-size:13.5px; letter-spacing:.4px;
   padding:8px 11px; background:var(--panel2); border-bottom:1px solid var(--line2); white-space:nowrap; }
 td { padding:7px 11px; border-bottom:1px solid var(--line); vertical-align:top; }
+tr.sent-row td { padding:3px 11px 3px 46px; color:var(--dim); font-size:13px;
+  background:rgba(19,28,47,.55); border-bottom:1px solid var(--line); }
+tr.sent-row .sid { font-family:var(--mono); color:var(--faint); font-size:11.5px; margin-right:8px; }
 tr:last-child td { border-bottom:none; }
 .mono { font-family:var(--mono); font-variant-numeric:tabular-nums; }
 td .dim2 { color:var(--faint); }
@@ -313,7 +316,7 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
   <div class="axisline"><span>0s</span><span>60</span><span>120</span><span>180</span><span>~234s 估</span></div>
   <div class="cap">+ 镜层: 镜段宽度=字数预估 · ⚠出口闸镜琥珀 (s08/s38/s41) · s42 品牌金 — 点镜段跳表格行</div></div>
 
-  <div class="cap" style="margin:0 0 8px"><b style="color:var(--dim)">一行 = 一镜。</b>镜/句/块是同一段时间的三个名字: <b class="mono">s</b> 给成片镜头、<b class="mono">c</b> 给口播句子、<b class="mono">blk</b> 给 TTS 音频块 (如 s17 = c19–c21 三句并一镜)。字幕轨 = 口播句级系统直出+强调词自动降维, 不在此编辑; <b>大字卡是本表重点</b>, 三种样式分 chip 展示: <span class="kard kard-list">灰底·清单卡</span> <span class="kard kard-quote">金句·两三行</span> <span class="kard kard-ev">事件金字</span>; 打字卡为书级冻结、集级一处 (见表上方)。</div>
+  <div class="cap" style="margin:0 0 8px"><b style="color:var(--dim)">一行 = 一镜, 镜下缩进行 = 口播句 (正式文稿全量在列, 48 句一句不落)。</b>镜/句/块是同一段时间的三个名字: <b class="mono">s</b> 给成片镜头、<b class="mono">c</b> 给口播句子、<b class="mono">blk</b> 给 TTS 音频块 (如 s17 = c19–c21 三句并一镜, 缩进三行逐句可读)。字幕轨 = 口播句级系统直出+强调词自动降维, 不在此编辑; <b>大字卡是本表重点</b>, 三种样式分 chip 展示: <span class="kard kard-list">灰底·清单卡</span> <span class="kard kard-quote">金句·两三行</span> <span class="kard kard-ev">事件金字</span>; 打字卡为书级冻结、集级一处 (见表上方)。</div>
 
   <div class="fixrow" style="margin:0 0 10px"><span class="badge gold">typing 轨</span> <b>打字卡</b> (书级冻结 · ep 0–2s 逐字)：<span class="editable">「信任三阶段修复法」</span>
     <button class="iconbtn">✎ 改</button><span class="note">— 集级一处, 非逐镜; 全系列复用, 改动走书级</span></div>
@@ -331,17 +334,29 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
     </thead>
     <tbody>
       <tr><td class="mono">s01</td><td class="mono">c01</td><td class="mono">blk000</td><td>A1</td><td class="editable">岔路口全景, 绿光坦途向远方延伸, 阶段路标立牌</td><td><span class="add">＋清单</span> <span class="add">＋金句</span> <span class="add">＋事件</span></td><td class="tbd">— 待盖章</td><td><span class="badge ok">✓</span></td></tr>
+      <tr class="sent-row"><td colspan="8"><span class="sid">c01 · blk000</span>客户信任崩塌之前，其实有三个阶段——蜜月期、怀疑期、重建期。</td></tr>
       <tr><td class="mono">s04</td><td class="mono">c04</td><td class="mono">blk004</td><td>A1</td><td class="editable">黄灯颠簸路段, 路标翻牌, 决策树分流装置启动</td><td><span class="kard kard-ev">「怀疑坎」</span><button class="iconbtn">✎</button><button class="iconbtn del">✕</button></td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
+      <tr class="sent-row"><td colspan="8"><span class="sid">c04 · blk004</span>黄灯亮起的时候，路标会翻牌，决策树开始分流。</td></tr>
       <tr><td class="mono">s08</td><td class="mono">c08</td><td class="mono">blk009</td><td>A1</td><td class="editable">蜜月期油门误踩怀疑期路段, 车身倾斜将翻</td><td><span class="kard kard-quote">用错阶段的应对<br>就是翻车前兆</span><button class="iconbtn">✎</button><button class="iconbtn del">✕</button></td><td class="tbd">—</td><td><span class="badge warn">载体申报</span> <button class="iconbtn">修</button></td></tr>
+      <tr class="sent-row"><td colspan="8"><span class="sid">c08 · blk009</span>在怀疑期踩蜜月期的油门，车就会翻。</td></tr>
       <tr><td class="mono">s12</td><td class="mono">c12</td><td class="mono">blk013</td><td>A2</td><td class="editable">修复工坊大门开启, 机械组装线点亮</td><td><span class="kard kard-ev">「怀疑期」</span><button class="iconbtn">✎</button><button class="iconbtn del">✕</button></td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
+      <tr class="sent-row"><td colspan="8"><span class="sid">c12 · blk013</span>走进修复工坊，组装线开始运转。</td></tr>
       <tr><td class="mono">s13</td><td class="mono">c13</td><td class="mono">blk014</td><td>A2</td><td class="editable">传送带首块玻璃模块落入卡槽</td><td><span class="kard kard-ev">「蜜月期」@— 盖章定</span><button class="iconbtn">✎</button><button class="iconbtn del">✕</button></td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
+      <tr class="sent-row"><td colspan="8"><span class="sid">c13 · blk014</span>第一块玻璃模块落进卡槽，这就是小块交付。</td></tr>
       <tr><td class="mono">s17</td><td class="mono">c19–c21</td><td class="mono">blk019–021</td><td>A2</td><td class="editable">预警灯塔扫出红光斑, 组装线全速拼装</td><td><span class="kard kard-list">重建三件套<br>小块交付 · 主动简报 · 提前排雷</span><button class="iconbtn">✎</button><button class="iconbtn del">✕</button></td><td class="tbd">— (估 8.7s ⚠)</td><td><span class="badge ok">✓</span></td></tr>
+      <tr class="sent-row"><td colspan="8"><span class="sid">c19 · blk019</span>预警灯塔提前扫出红光斑。</td></tr><tr class="sent-row"><td colspan="8"><span class="sid">c20 · blk020</span>看见风险先说风险，别等人问。</td></tr><tr class="sent-row"><td colspan="8"><span class="sid">c21 · blk021</span>主动简报，就是定期递出的发光信封。</td></tr>
       <tr><td class="mono">s22</td><td class="mono">c25</td><td class="mono">blk024</td><td>A2</td><td class="editable">发光信封定时报送, 收件匣指示灯亮起</td><td><span class="kard kard-ev">「提前告知」</span><button class="iconbtn">✎</button><button class="iconbtn del">✕</button></td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
+      <tr class="sent-row"><td colspan="8"><span class="sid">c25 · blk024</span>信封定时报送，收件匣的灯亮了又亮。</td></tr>
       <tr><td class="mono">s30</td><td class="mono">c33</td><td class="mono">blk034</td><td>A3</td><td class="editable">闸门拉下, 金币流截断, 剩余资源入袋</td><td><span class="kard kard-ev">「体面退出」</span><button class="iconbtn">✎</button><button class="iconbtn del">✕</button></td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
+      <tr class="sent-row"><td colspan="8"><span class="sid">c33 · blk034</span>拉下闸门，金币流被截断，剩下的才是你的。</td></tr>
       <tr><td class="mono">s33</td><td class="mono">c37</td><td class="mono">blk038</td><td>A3</td><td class="editable">止损原则刻度盘, 两轮标记后指针归零</td><td><span class="kard kard-ev">「止损原则」</span><button class="iconbtn">✎</button><button class="iconbtn del">✕</button></td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
+      <tr class="sent-row"><td colspan="8"><span class="sid">c37 · blk038</span>止损原则：两轮尝试，闸门还不开，就该体面退场。</td></tr>
       <tr><td class="mono">s36</td><td class="mono">c40–c41</td><td class="mono">blk041</td><td>A4</td><td class="editable">工具墙收藏柜逐格点亮, 六件工具齐整</td><td><span class="kard kard-list">六件工具完整体系<br>急救卡 · 简报模板 · 止损表 …</span><button class="iconbtn">✎</button><button class="iconbtn del">✕</button></td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
+      <tr class="sent-row"><td colspan="8"><span class="sid">c40 · blk041</span>工具墙六件套，一件一件点亮。</td></tr>
       <tr><td class="mono">s38</td><td class="mono">c43</td><td class="mono">blk044</td><td>A4</td><td class="editable">投递站窗口亮起, 玻璃工具卡滑出</td><td><span class="kard kard-ev">「小块交付」@— 盖章定</span><button class="iconbtn">✎</button><button class="iconbtn del">✕</button></td><td class="tbd">—</td><td><span class="badge warn">锚定链</span> <button class="iconbtn">修</button></td></tr>
+      <tr class="sent-row"><td colspan="8"><span class="sid">c43 · blk044</span>明早投递第一份小块交付简报。</td></tr>
       <tr><td class="mono">s42</td><td class="mono">c48</td><td class="mono">blk046</td><td>A4</td><td class="locked">收官品牌卡 (我是老谭 · 拆一本书 · 翻一座山)</td><td class="tbd">— 原子锁定</td><td class="tbd">— 原子</td><td><span class="badge lock">🔒 品牌</span></td></tr>
+      <tr class="sent-row"><td colspan="8"><span class="sid">c48 · blk046</span>我是老谭，拆一本书，翻一座山。</td></tr>
       <tr><td colspan="8" class="dim2">… 全 42 镜 · 出口闸行内「修」= 文字阶段零成本重掷 (不触发 TTS/GPU) …</td></tr>
     </tbody>
   </table>
@@ -354,6 +369,7 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
 
   <ol class="specs">
     <li><b>三联号</b> 镜s·句c·块blk 互链可点, 点任一号跳对应行/块 (四套编号映射可见性根治)。</li>
+    <li><b>口播句全量展示</b>: 每镜下缩进挂所属句 (c 号+块号+文稿原文) — 正式文稿 48 句一句不落, 孤儿句/漏配画面一眼现形 (有稿必有字幕的审计面); 句文本只读 (要改字→打回①或走文字加工线)。</li>
     <li><b>大字卡三样式</b> (代码真相 anim_draft:2222/317): 灰底清单卡 (#0D0D12 底·多行) / 金句卡 (两三行·红描边·白字) / 事件金字 (h3_event 金色浮字·@秒盖章定) — 三种 chip 视觉即样式, 各自 ✎改/✕删, ＋入口按样式分流; 字幕轨强调词装配全自动降维, 不进本表。</li>
     <li><b>质检列</b> (原出口闸): writer 文字合规检查实时亮灯 — 载体申报=画面句里的文字载体须申报二段化 / 锚定链=开画面描述与英文keyframe须一致 / 引号文本=引号内容须上卡; ⚠项「修」=单镜零成本重掷, 全✓才可放行。</li>
     <li><b>场过滤 chips</b>: 全部/单场/仅病镜三视角切换, 总审时按场过。</li>
