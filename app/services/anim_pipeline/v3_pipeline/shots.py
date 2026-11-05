@@ -714,6 +714,21 @@ def text_layer_issues(shots: list[dict[str, Any]]) -> dict[str, list[str]]:
     return out
 
 
+# ── 景别推断 (④导演页 UI 预填; 生成仍由 LLM 做主) ──────────────────────
+
+_SIZE_WORDS = (("大全景", "全景"), ("全景", "全景"), ("远景", "全景"),
+               ("中景", "中景"), ("近景", "近景"), ("特写", "特写"))
+
+
+def suggest_size(text: str) -> str:
+    """从画面句推断景别 (只是预填, 与 final_gate 的大场景词表同源)。"""
+    t = str(text or "")
+    for w, size in _SIZE_WORDS:
+        if w in t:
+            return size
+    return "中景"
+
+
 # ── 一键空白化 (1105 用户令: v3 停用图内字通道) ────────────────────────
 
 _CARRIER_WORD = re.compile(r"含文字载体「(.+?)」")

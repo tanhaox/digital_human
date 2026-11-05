@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>④ 导演 · v3</title>
+<link rel="stylesheet" href="./v3.css">
+<link rel="stylesheet" href="./director.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="h2row pt">
+    <h1 class="h2">④ 导演 · 景别 / 运镜 / 光影</h1>
+    <span class="sub" id="sub">加载中…</span>
+    <span id="counts"></span>
+  </div>
+  <div class="railwrap"><div class="rail" id="rail"></div></div>
+
+  <div class="rhy" id="rhythm"></div>
+  <div class="rhy-cap" id="rhycap"></div>
+
+  <div class="layout">
+    <main>
+      <div id="blocks"></div>
+    </main>
+
+    <aside class="side">
+      <div class="card" id="gatecard"></div>
+      <div class="card">
+        <div class="ctitle">配额与校验</div>
+        <div id="quotas"></div>
+        <div id="dissues"></div>
+      </div>
+      <details class="card">
+        <summary>规格 (这一页做什么)</summary>
+        <ol class="specs">
+          <li>景别: 全景 / 中景 / 近景 / 特写 — 决定画面尺度与呼吸感。</li>
+          <li>运镜三元组: 型 (固定/缓推/左右摇/上下摇/拉近拉远) · 幅 (小中大) · 速 (慢中快), 单镜单运镜。</li>
+          <li>主体运动: 只动画面句里已有的实体, 禁添画面外动物/器物。</li>
+          <li>光影: 与相邻镜连续 (同一场的光源方向不变)。</li>
+          <li>确定性校验: 全片全景 ≥⌈n/4⌉、特写 ≤⌈n/2⌉、相邻镜景别不得相同。</li>
+        </ol>
+      </details>
+    </aside>
+  </div>
+
+  <div class="savebar">
+    <span class="note" id="dirty">改稿 0 处未保存</span>
+    <span class="flex1"></span>
+    <button class="ghost" id="btn-run" disabled title="生成功能下一批接入">🎬 生成导演</button>
+    <button class="go" id="btn-save" disabled title="保存功能下一批接入"><span id="save-label">💾 保存导演</span><span id="n-dirty"></span></button>
+    <button class="go" id="btn-next" disabled title="生成并保存后解锁">⑤ K2 →</button>
+  </div>
+</div>
+<script type="module" src="./director.js"></script>
+</body>
+</html>

@@ -208,8 +208,15 @@ def v3_shots_get(book_id: str, ep: int):
     arcs = [{k: a.get(k) for k in ("arc_id", "type", "mode", "no_start", "no_end",
                                    "line_count", "est_s", "world", "metaphor")}
             for a in (v3.get("arcs") or [])]
+    # ④ 导演: 已填数据 + 景别预填 (UI 空态也有内容可看)
+    from app.services.anim_pipeline.v3_pipeline.shots import suggest_size
+    direct = {str(d.get("sid")): d for d in (v3.get("direct") or []) if d.get("sid")}
+    for s in shots:
+        s["direct"] = direct.get(str(s["sid"])) or None
+        s["size_guess"] = suggest_size(s.get("keyframe_zh"))
     return {"shots": shots, "cards": cards, "arcs": arcs,
             "issues": v3.get("shot_issues") or {},
+            "direct_issues": v3.get("direct_issues") or {},
             "warnings": v3.get("shot_warnings") or [],
             "gates": v3_pipeline.gates_view(doc), "ready": bool(shots)}
 
