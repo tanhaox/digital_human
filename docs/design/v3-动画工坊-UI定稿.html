@@ -130,6 +130,9 @@ td .dim2 { color:var(--faint); }
 .p2g .dim2 { color:var(--faint); }
 .p2g .tbd { color:var(--faint); font-family:var(--mono); }
 .p2g.dg .r { grid-template-columns:52px 62px 84px 104px minmax(280px,1fr) minmax(240px,340px); }
+.camq { display:inline-block; border:1px dashed var(--line2); color:var(--cyan);
+  border-radius:8px; padding:0 8px; font-size:12px; cursor:pointer; font-family:var(--mono); }
+.camq:hover { border-color:var(--cyan); }
 .sizelane { display:flex; align-items:flex-end; gap:2px; height:30px;
   border:1px solid var(--line2); border-radius:5px; background:#0a0d12; padding:2px 3px; }
 .sizelane i { flex:1; border-radius:2px 2px 0 0;
@@ -451,17 +454,17 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
     <button class="iconbtn">✎ 改法层</button><span class="note">— 镜头序/光影/连续性是本页宪法, 分镜按此填空 (shooting_script)</span></div>
 
   <div class="p2wrap"><div class="p2g dg">
-    <div class="r"><span class="hd">场</span><span class="hd">镜</span><span class="hd">景别</span><span class="hd">运镜 <span class="note">视点</span></span><span class="hd">画面主体运动 <span class="note">内容</span></span><span class="hd">光影 · 连续性</span></div>
+    <div class="r"><span class="hd">场</span><span class="hd">镜</span><span class="hd">景别</span><span class="hd">运镜 <span class="note">型·幅·速</span></span><span class="hd">画面主体运动 <span class="note">内容</span></span><span class="hd">光影 · 连续性</span></div>
     <div class="r"><span class="mono"><span class="scell sc1">1</span></span><span class="mono">s01</span><span>全景</span><span>固定</span><span class="editable">岔路口装置整体亮起, 路标翻牌</span><span class="dim2">晨光正面 · 眼动 左→右</span></div>
-    <div class="r"><span></span><span class="mono">s04</span><span>特写</span><span>微推</span><span class="editable">决策树分流装置启动, 指针拨动</span><span class="dim2">同上 · 道具 路标牌右手</span></div>
+    <div class="r"><span></span><span class="mono">s04</span><span>特写</span><span>微推 <span class="camq" title="幅度·速度, 点改">小·慢</span></span><span class="editable">决策树分流装置启动, 指针拨动</span><span class="dim2">同上 · 道具 路标牌右手</span></div>
     <div class="r"><span></span><span class="mono">s08</span><span>中景</span><span>固定</span><span class="editable">车身倾斜将翻, 悬挂物摇晃</span><span class="dim2">同上 · 承 s04 眼动</span></div>
     <div class="r"><span class="mono"><span class="scell sc2">2</span></span><span class="mono">s12</span><span>中景</span><span>固定</span><span class="editable">工坊大门开启, 组装线逐段点亮</span><span class="dim2">窗光侧逆 · 眼动 左→右</span></div>
-    <div class="r"><span></span><span class="mono">s13</span><span>特写</span><span>微推</span><span class="editable">玻璃模块落入卡槽, 卡扣咬合</span><span class="dim2">同上 · 模块右手 (道具锁)</span></div>
-    <div class="r"><span></span><span class="mono">s17</span><span>大场景</span><span>横移</span><span class="editable">灯塔光束扫过, 红光斑掠过整条产线</span><span class="dim2">顶光+红光斑 · 接 s18 左入</span></div>
-    <div class="r"><span></span><span class="mono">s18</span><span>全景</span><span>跟</span><span class="editable">传送带载模块流转, 机械臂接力</span><span class="dim2">窗光侧逆 · 眼动随带向右</span></div>
+    <div class="r"><span></span><span class="mono">s13</span><span>特写</span><span>微推 <span class="camq">中·快</span></span><span class="editable">玻璃模块落入卡槽, 卡扣咬合</span><span class="dim2">同上 · 模块右手 (道具锁)</span></div>
+    <div class="r"><span></span><span class="mono">s17</span><span>大场景</span><span>横移 <span class="camq">大·慢</span></span><span class="editable">灯塔光束扫过, 红光斑掠过整条产线</span><span class="dim2">顶光+红光斑 · 接 s18 左入</span></div>
+    <div class="r"><span></span><span class="mono">s18</span><span>全景</span><span>跟 <span class="camq">中·慢</span></span><span class="editable">传送带载模块流转, 机械臂接力</span><span class="dim2">窗光侧逆 · 眼动随带向右</span></div>
     <div class="r"><span class="mono"><span class="scell sc3">3</span></span><span class="mono">s30</span><span>全景</span><span>固定</span><span class="editable">闸门下落, 金币流截断入袋</span><span class="dim2">冷顶光 · 眼动 中→下</span></div>
     <div class="r"><span></span><span class="mono">s33</span><span>特写</span><span>固定</span><span class="editable">刻度盘两轮标记, 指针归零</span><span class="dim2">同上 · 道具 刻度盘左手</span></div>
-    <div class="r"><span class="mono"><span class="scell sc4">4</span></span><span class="mono">s38</span><span>中景</span><span>微拉</span><span class="editable">投递窗口亮起, 工具卡滑出至手</span><span class="dim2">暖光 · 眼动 中→左</span></div>
+    <div class="r"><span class="mono"><span class="scell sc4">4</span></span><span class="mono">s38</span><span>中景</span><span>微拉 <span class="camq">小·慢</span></span><span class="editable">投递窗口亮起, 工具卡滑出至手</span><span class="dim2">暖光 · 眼动 中→左</span></div>
     <div class="r"><span></span><span class="mono">s42</span><span>全景</span><span>固定</span><span class="locked">品牌卡定稿 (零 GPU 直通)</span><span class="dim2">— 原子</span></div>
     <div class="r"><span></span><span></span><span class="dim2">…</span><span class="dim2">…</span><span class="dim2">… 全 42 镜 · 运镜八步封顶 (推拉摇移跟升降固定) · 内容运动 ≠ 视点运动分列 …</span><span class="dim2">…</span></div>
   </div></div>
@@ -474,7 +477,8 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
   <ol class="specs">
     <li><b>法层驱动</b>: 镜头序/光影/连续性 (shooting_script) 逐场卡置顶, 分镜按此填空 — 与现产线法层一致。</li>
     <li><b>景别节奏层</b> (渐进轴): 柱高=景别大小; 景深配额 (每场大场景≥N) 可视化验收, ep6 A2 "13镜仅3镜大场景"类病在此页现形。</li>
-    <li><b>内容运动 ≠ 视点运动</b>: 两列分家 (画面主体运动 vs 运镜); 反运镜暗坑 (1026 三处) 进质检亮灯; 运镜八步封顶。</li>
+    <li><b>运镜三元组 型·幅·速</b> (用户令: H3 硬编码"大幅度慢速"唯一可操作非提示词项): 每镜 运镜型 (八步封顶) + 幅度 (小/中/大) + 速度 (慢/中/快) — 默认 大·慢 = 现产线行为零改动, 点 chip 即改; 固定镜无幅速。H3 壳按三元组生成运镜行 (现 large amplitude at slow speed 写死, h3.py:403)。</li>
+<li><b>内容运动 ≠ 视点运动</b>: 两列分家 (画面主体运动 vs 运镜); 反运镜暗坑 (1026 三处) 进质检亮灯; 运镜八步封顶。</li>
     <li><b>纯文字阶段</b>: 导演语言也是文本, 本页改动零 TTS/GPU; 放行后随结构锁定。</li>
   </ol>
 </section>
