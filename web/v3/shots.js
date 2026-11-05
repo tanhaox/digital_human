@@ -163,7 +163,8 @@ function cardChip(c) {
   const btn = !isImg ? ''
     : (c.image
         ? `<a class="kimg" href="${BASE}/shots/card/${encodeURIComponent(c.image)}" target="_blank" title="图示已生成, 点击预览">🖼</a>`
-        : `<button class="iconbtn" data-act="render" data-cid="${esc(c.cid)}" title="图示 → HTML 排版出图">🖼</button>`);
+        : `<button class="iconbtn" data-act="render" data-cid="${esc(c.cid)}" title="图示 → HTML 排版出图">🖼</button>`)
+      + `<button class="iconbtn" data-act="diag" data-cid="${esc(c.cid)}" title="按整段原文补全图示 (跨行清单漏项: 如「最后两项」没进图)">⟳</button>`;
   const full = String(c.text || '');
   const shown = full.length > 22 ? full.slice(0, 22) + '…' : full;
   const tip = '内容类型: ' + label + ' / 渲染: ' + how + ' · ' + full;
@@ -303,6 +304,18 @@ $('blocks').addEventListener('click', async ev => {
       else toast('渲染失败: ' + (r.detail || '未知'));
     } catch (e) { toast('渲染失败: ' + e.message); }
     finally { b.disabled = false; b.textContent = '🖼'; }
+    return;
+  }
+  if (b.dataset.act === 'diag') {
+    b.disabled = true;
+    try {
+      const r = await (await fetch(`${BASE}/shots/card/diagram`, { method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cid: b.dataset.cid }) })).json();
+      if (r.ok) { toast('✓ 图示结构已按整段原文补全'); await refresh(); }
+      else toast('补全失败');
+    } catch (e) { toast('补全失败: ' + e.message); }
+    finally { b.disabled = false; }
     return;
   }
   if (b.dataset.act === 'reroll') {

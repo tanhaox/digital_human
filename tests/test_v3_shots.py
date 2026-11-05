@@ -418,3 +418,19 @@ def test_merge_same_list_cards():
 def test_list_kind_summary_vs_hint():
     assert v3shots._list_kind("第二项…第三项…") == "提示"      # 清单提醒, 不是总结
     assert v3shots._list_kind("回顾一下这节课的总结") == "总结"
+
+
+def test_expected_item_count():
+    """跨句清单的项数 (第一项×3 + 第四到六项×3 + 第七到九项×3 + 最后两项×2 = 11)。"""
+    txt = ("第一项，会做什么、不会做什么。第二项，客户需要配合什么。第三项，分析边界在哪。"
+           "第四到六项，工作计划。第七到九项，报告怎么用。最后两项最关键：验收标准。")
+    assert v3shots.expected_item_count(txt) == 11
+    assert v3shots.expected_item_count("最后两项最关键") == 2
+    assert v3shots.expected_item_count("这里没有清单") == 0
+
+
+def test_sanitize_diagram_children_cap():
+    """实锤: children 默认上限 6, 11 项清单被砍成 6 项 — 补全/渲染路径必须放宽。"""
+    node = {"name": "根", "children": [{"name": f"项{i}"} for i in range(1, 12)]}
+    assert len(v3shots.sanitize_diagram(node)["children"]) == 6
+    assert len(v3shots.sanitize_diagram(node, budget=[14], max_children=14)["children"]) == 11

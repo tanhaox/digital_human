@@ -133,7 +133,8 @@ def _refresh_last(s: dict[str, Any], line_of: dict[int, dict]) -> None:
 _BREAK = "。！？；，、,.!?;"
 
 
-def sanitize_diagram(node: Any, depth: int = 0, budget: list[int] | None = None) -> dict | None:
+def sanitize_diagram(node: Any, depth: int = 0, budget: list[int] | None = None,
+                     max_children: int = 6) -> dict | None:
     """LLM 图示结构清洗: ≤3 层, 总节点 ≤12, 节点名 ≤10 字; 非法返回 None。"""
     if not isinstance(node, dict) or depth > 2:
         return None
@@ -147,8 +148,8 @@ def sanitize_diagram(node: Any, depth: int = 0, budget: list[int] | None = None)
     budget[0] -= 1
     out: dict[str, Any] = {"name": name}
     kids = []
-    for c in (node.get("children") or [])[:6]:
-        k = sanitize_diagram(c, depth + 1, budget)
+    for c in (node.get("children") or [])[:max_children]:
+        k = sanitize_diagram(c, depth + 1, budget, max_children)
         if k:
             kids.append(k)
     if kids:
@@ -297,6 +298,102 @@ def _merge_same_list(cards: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for i, c in enumerate(keep, 1):
         c["cid"] = f"c{i:02d}"
     return keep
+
+
+# ── 图示补全 (1105 用户令: 清单跨行漏项是机制问题, 系统自己补) ──────────
+# 实锤: 丑话清单 11 项被拆成 L35/L41/L43/L45 四行, 首行的 diagram 只画到 7-9,
+# 「最后两项 验收标准/评价」整段没进图。分诊 prompt 已收紧; 存量卡用这个定点补。
+
+_CN_NUM = {"一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7,
+           "八": 8, "九": 9, "十": 10, "十一": 11, "十二": 12, "十三": 13, "十四": 14}
+_RANGE_RE = re.compile(r"第([一二三四五六七八九十两]{1,3})(?:到|至|-|~)([一二三四五六七八九十两]{1,3})项")
+_SINGLE_RE = re.compile(r"第([一二三四五六七八九十两]{1,3})项")
+_LAST_RE = re.compile(r"最后([一二三四五六七八九十两]{1,3})项")
+
+
+def expected_item_count(text: str) -> int:
+    """从「第一项/第四到六项/最后两项」这类说法估算清单应有多少项 (0=说不清)。"""
+    def _n(w: str) -> int:
+        return _CN_NUM.get(w, 0)
+
+    t = str(text or "")
+    total = 0
+    ranged = set()
+    for m in _RANGE_RE.finditer(t):
+        a, b = _n(m.group(1)), _n(m.group(2))
+        if a and b and b >= a:
+            total += b - a + 1
+            ranged.update(range(a, b + 1))
+    for m in _SINGLE_RE.finditer(t):
+        if _n(m.group(1)) in ranged:
+            continue
+        total += 1
+    for m in _LAST_RE.finditer(t):
+        total += _n(m.group(1))
+    return total if 0 < total <= 20 else 0
+
+
+_LIST_LINE = re.compile(r"第[一二三四五六七八九十]+|最后|项|清单|条")
+
+_DIAGRAM_SYS = """你在补全一张清单类图示的结构化数据。输入是清单原文 (可能分几句话讲完)
+和当前已有的结构。输出一棵覆盖**全部条目**的树:
+
+{"diagram":{"name":"根","children":[{"name":"分支","children":[{"name":"叶"}]}]}}
+
+规则:
+1. 2-3 层; 每个节点 ≤10 字; 总节点 ≤14。
+2. 原文提到的每一项都要进树, 一项都不能漏 (尤其"最后两项""剩下几项"这类收尾句)。
+3. 条目 ≤8 项时可以分组; 超过 8 项**不要分组**, 直接用「根 + 各项」的扁平结构
+   (分组会撑爆节点上限, 导致末尾几项被截掉 — 实锤: 丑话清单 11 项丢了验收/评价)。
+4. 当前结构仅供参考, 与原文冲突时**以原文为准重画**, 不要照抄。
+5. 叶子不要加序号 (不要写「1 会做什么」), 只写项名。
+6. 只输出 JSON, 不要解释。"""
+
+
+def complete_diagram(card: dict[str, Any], lines: list[dict[str, Any]],
+                     arcs: list[dict[str, Any]] | None, book_title: str, ep: int) -> bool:
+    """按整段原文补全图示结构 (含本条弧后续行)。成功写回 card["diagram"]。"""
+    from app.services.llm_service import get_llm_service, _parse_json
+    no = int(card.get("line_no") or 0)
+    # 跨度不能按弧截 (实锤: 丑话清单 L35 在 A6 末尾, 后续 L39/L41/L43/L45 已属 A7 —
+    # 按弧取只拿到首句, 最后两项永远补不进来)。改为顺读: 一路收到不再像清单行的句子为止。
+    anchor = _grams(card.get("text") or "")
+    span: list[dict[str, Any]] = []
+    for ln in lines:
+        if int(ln["no"]) < no:
+            continue
+        t = str(ln.get("text") or "").strip()
+        if str(ln.get("mode") or "") == "section" or not t:
+            continue
+        if int(ln["no"]) > no and not (_LIST_LINE.search(t) or (anchor & _grams(t))):
+            break
+        span.append(ln)
+        if len(span) >= 8:
+            break
+    if not span:
+        return False
+    body = "\n".join(f'L{int(l["no"])}|{str(l["text"])[:120]}' for l in span)
+    # 项数硬提示: 模型多次只画到一半 (6/11), 把原文的项数算出来钉死
+    want = expected_item_count(" ".join(str(l.get("text") or "") for l in span))
+    hint = f"\n【本清单原文共 {want} 项, 树里必须有 {want} 个叶子, 少一项算错】" if want else ""
+    try:
+        raw = get_llm_service().chat(
+            _DIAGRAM_SYS,
+            # 不喂旧结构: 给了它就会照抄 (实锤: 补全后仍是缺项的三分支版)
+            f"《{book_title}》第{ep}集\n\n清单原文:\n{body}{hint}",
+            model="flash", temperature=0.3,
+            response_format={"type": "json_object"}, tag="v3_diagram")
+        data = _parse_json(raw)
+    except Exception as exc:  # noqa: BLE001 — 补全失败不阻断
+        logger.warning("[v3:shots] 图示补全失败: %s", exc)
+        return False
+    node = data.get("diagram") if isinstance(data.get("diagram"), dict) else data
+    # children 上限必须放宽: 默认 6 会把 11 项清单砍到 6 项 (实锤)
+    dg = sanitize_diagram(node, budget=[14], max_children=14)
+    if not dg:
+        return False
+    card["diagram"] = dg
+    return True
 
 
 # ── LLM: 画面句 ───────────────────────────────────────────────────────

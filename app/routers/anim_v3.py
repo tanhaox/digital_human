@@ -234,6 +234,34 @@ def v3_card_image(book_id: str, ep: int, name: str):
     return FileResponse(str(p))
 
 
+class CardDiagramBody(BaseModel):
+    cid: str
+
+
+@router.post("/ep/{book_id}/{ep}/shots/card/diagram")
+def v3_card_diagram(book_id: str, ep: int, body: CardDiagramBody):
+    """图示补全: 按本条弧整段原文重画结构 (跨行清单漏项是机制问题, 系统自己补)。"""
+    from app.services.anim_pipeline.v3_pipeline.shots import complete_diagram
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    with anim_service.ep_guard(book_id, ep):
+        doc = _load_v3_doc(book_title, ep)
+        v3 = doc.setdefault("v3", {})
+        card = next((c for c in (v3.get("cards") or [])
+                     if str(c.get("cid")) == body.cid), None)
+        if not card:
+            raise HTTPException(status_code=404, detail=f"card 不存在: {body.cid}")
+        ok = complete_diagram(card, v3.get("lines") or [], v3.get("arcs") or [],
+                              book_title, ep)
+        if ok:
+            from app.services.anim_pipeline import shots as shots_mod
+            shots_mod.save(doc)
+    return {"ok": ok, "cid": body.cid, "diagram": card.get("diagram")}
+
+
 @router.post("/ep/{book_id}/{ep}/shots/card/render")
 def v3_card_render(book_id: str, ep: int, body: CardRenderBody):
     """配图渲染: HTML 模板 + Playwright 截图 (复用封面视觉体系, 零 GPU)。
@@ -274,7 +302,7 @@ def v3_card_render(book_id: str, ep: int, body: CardRenderBody):
         # 文件名用 ASCII (实锤: 中文名在 URL 里需编码, 预览/跨端不稳)
         safe = f"v3_{body.cid}"
         out = cards_dir(book_title) / f"{safe}.png"
-        _dg = sanitize_diagram(card.get("diagram") or {})
+        _dg = sanitize_diagram(card.get("diagram") or {}, budget=[14], max_children=14)
         try:
             if _dg and _dg.get("children"):
                 render_diagram(_dg, out, size=body.size)   # 脑图/流程图
