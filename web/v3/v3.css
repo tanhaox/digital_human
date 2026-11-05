@@ -1,0 +1,60 @@
+/* v3 八页线共用样式 — 令牌取自产线体系 (anim.css 同源), 单暗色工作台 */
+:root {
+  color-scheme: dark;
+  --bg:#0f172a; --panel:#16213a; --panel2:#131c2f;
+  --line:#2a3752; --line2:#334155;
+  --txt:#e2e8f0; --dim:#94a3b8; --faint:#64748b;
+  --gold:#C9A25E; --amber:#f0b45a; --cyan:#7cc4e8;
+  --ok:#1e5c3a; --ok-t:#7fd4a8; --warn:#7a4a1e; --warn-t:#f0b45a;
+  --bad:#6e2020; --bad-t:#e08080;
+  --sans:"Microsoft YaHei",system-ui,sans-serif;
+  --mono:"Cascadia Mono",Consolas,ui-monospace,monospace;
+}
+* { box-sizing:border-box; }
+html,body { margin:0; }
+body { background:var(--bg); color:var(--txt); font:16.5px/1.6 var(--sans);
+  padding-left:max(16px, env(safe-area-inset-left, 0px));
+  padding-right:max(16px, env(safe-area-inset-right, 0px)); }
+a { color:var(--cyan); text-decoration:none; }
+.wrap { max-width:1180px; margin:0 auto; }
+
+/* 八步轨 */
+.railwrap { position:sticky; top:env(safe-area-inset-top, 0px); z-index:15;
+  background:rgba(15,23,42,.95); backdrop-filter:blur(8px);
+  border:1px solid var(--line); border-radius:10px; margin:6px 0 18px; }
+.rail { display:flex; flex-wrap:wrap; gap:6px; padding:8px 10px; align-items:center; }
+.rail a.step { display:flex; gap:6px; align-items:center; padding:5px 12px; border-radius:8px;
+  font-size:15px; color:var(--dim); border:1px solid transparent; }
+.rail a.step:hover { border-color:var(--line2); text-decoration:none; }
+.rail .sep { color:var(--faint); font-size:13px; }
+.step .n { font-family:var(--mono); font-size:13px; color:var(--faint); }
+.step.now { color:var(--gold); border-color:var(--gold); background:rgba(201,162,94,.08); }
+.step.done { color:var(--ok-t); } .step.done .n { color:var(--ok-t); }
+.st { font-size:12.5px; padding:1px 8px; border-radius:9px; background:#2a3442; color:#cfd8e3; font-family:var(--mono); }
+
+/* 渐进轴 (timeline.js 容器) */
+.mini { margin:2px 0 14px; }
+.mini .lanes { display:flex; flex-direction:column; gap:3px; }
+.mini .lane { position:relative; border-radius:5px; overflow:hidden; display:flex; border:1px solid var(--line2); }
+.lane.arc { height:18px; } .lane.script { height:17px; }
+.lane.shots { height:25px; background:#0a0d12; }
+.lane.arc.ghost { opacity:.45; }
+.mini .seg { position:relative; height:100%; }
+.mini .seg .lb { position:absolute; top:1px; left:4px; font-family:var(--mono);
+  font-size:10.5px; color:rgba(255,255,255,.78); white-space:nowrap; }
+.mini .shot { position:absolute; top:0; bottom:0; border-right:1px solid rgba(10,13,18,.9); }
+.mini .axisline { display:flex; justify-content:space-between; font-family:var(--mono);
+  font-size:11px; color:var(--faint); margin-top:3px; }
+.mini .cap { font-size:13px; color:var(--faint); margin-top:5px; }
+.blklane { height:11px; background:#0a0d12; border:1px solid var(--line2); border-radius:4px; }
+
+/* 通用 */
+.panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
+.badge { font-size:13px; padding:1px 9px; border-radius:10px; background:#2a3442; color:#cfd8e3; font-family:var(--mono); }
+.badge.ok { background:var(--ok); color:var(--ok-t); }
+.badge.warn { background:var(--warn); color:var(--warn-t); }
+.badge.bad { background:var(--bad); color:var(--bad-t); }
+.note { color:var(--faint); font-size:14px; }
+.h2 { font-size:21px; font-weight:700; margin:0; }
+.h2row { display:flex; align-items:baseline; gap:10px; margin:0 0 10px; flex-wrap:wrap; }
+.sub { color:var(--dim); font-size:14.5px; }

@@ -48,7 +48,9 @@ _register_feed("story_section", _load_section)
 _register_feed("fandeng_full", _load_ff)
 
 PHASES = ("plan", "replan", "redo", "k2", "h3", "brand", "enhance",
-          "facefix", "textpass")
+          "facefix", "textpass",
+          # 1105 v3 双轨 (V0): 文字阶段五相位 — job/同集闸/台账复用 start_phase 机制
+          "v3_triage", "v3_arcs", "v3_shots", "v3_direct", "v3_stamp")
 # GPU 预取群: start_phase 入口即占 _GPU_JOB_LOCK, 全程持有 (与 comfy 互斥)。
 # 1018 用户令: facefix/textpass (购物篮修脸/压字) 走 ComfyUI — 同入 GPU 互斥群。
 # 1105 批2 (病灶11): redo 移出预取群 — 其 LLM 重设计段 (零 GPU, N×3.5min) 曾
@@ -295,6 +297,8 @@ def _run_job(job: dict[str, Any]) -> None:
             _phase_facefix(job)      # 1018: 购物篮修脸 (GPU, 独立不联动)
         elif job["phase"] == "textpass":
             _phase_textpass(job)     # 1018: 购物篮压字 (GPU, 独立不联动)
+        elif job["phase"].startswith("v3_"):
+            _phase_v3(job)           # 1105 V0: v3 八页线相位 (v3_pipeline 包)
         else:
             _phase_gpu(job)
         with _JOBS_LOCK:
@@ -454,6 +458,15 @@ def _wait_gpu_lock(job: dict[str, Any], total: int) -> bool:
                              "shot_id": "等 GPU 空…", "done": 0, "total": total})
         if _GPU_JOB_LOCK.acquire(timeout=15.0):
             return True
+
+
+def _phase_v3(job: dict[str, Any]) -> None:
+    """1105 V0: v3 八页线相位统一入口 → v3_pipeline 包内分发。
+
+    零 GPU 相位 (triage/arcs/shots/direct/stamp 全文字+确定性换算);
+    job/同集互斥/SSE/进度/台账由 start_phase 机制承担, 这里只做相位本体。"""
+    from app.services.anim_pipeline import v3_pipeline
+    v3_pipeline.run_phase(job)
 
 
 def _phase_redo(job: dict[str, Any]) -> None:

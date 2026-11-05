@@ -19,6 +19,7 @@ from .models import AudioJob, DirectorJob, Host, Voice
 from .routers import (
     analytics,
     anim,
+    anim_v3,
     articles,
     audio,
     books,
@@ -397,7 +398,7 @@ def create_app() -> FastAPI:
     # 回滚开关 (env ANIM_RF_CSP): 1=强制(默认) / report=仅上报不拦截 / 0=完全关闭。
     # 页面被 CSP 打坏时: ANIM_RF_CSP=0 重启即恢复, 无需改代码。
     _csp_mode = os.environ.get("ANIM_RF_CSP", "1")
-    _anim_csp_paths = ("/web/anim.html", "/web/anim.css", "/web/anim/")
+    _anim_csp_paths = ("/web/anim.html", "/web/anim.css", "/web/anim/", "/web/v3/")
     _anim_rf_csp = (
         "default-src 'self'; script-src 'self'; style-src 'self'; "
         "img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self'; "
@@ -449,6 +450,7 @@ def create_app() -> FastAPI:
     app.include_router(books.router)
     app.include_router(ppt.router)
     app.include_router(anim.router)
+    app.include_router(anim_v3.router)   # 1105 v3 双轨 V0: 八页线 (书级选线闸在路由内)
 
     # Convenience redirect: /api/templates → /api/visual-render/templates
     @app.get("/api/templates")

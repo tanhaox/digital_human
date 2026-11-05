@@ -192,6 +192,20 @@ def style_binding_missing(book_title: str) -> bool:
     return not (root / "_资产" / f"风格绑定_{_safe_name(book_title)}.json").exists()
 
 
+def pipeline_line(book_title: str) -> str:
+    """1105 v3 双轨 (用户令): 书级产线选线 — 缺省 "v2" (存量零扰动)。
+
+    绑定文件 _资产/产线绑定_{书名}.json {"line": "v3"} → 该书走 /web/v3/ 八页线;
+    文件缺失/损坏/值非法 → 一律 "v2"。回退 = 删文件。"""
+    root = Path(load().output_root)
+    bind = root / "_资产" / f"产线绑定_{_safe_name(book_title)}.json"
+    try:
+        d = json.loads(bind.read_text(encoding="utf-8"))
+        return "v3" if str(d.get("line") or "") == "v3" else "v2"
+    except Exception:  # noqa: BLE001 — 无绑定/坏绑定 = v2
+        return "v2"
+
+
 def resolve_style(book_title: str) -> dict:
     """书级风格绑定 → 风格库成员 (缺失全走默认赛璐璐; 库成员字段缺省回退默认).
 

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>v3 八页线</title>
+<link rel="stylesheet" href="./v3.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="h2row" style="padding-top:14px">
+    <h1 class="h2">v3 八页线</h1>
+    <span class="sub" id="sub">加载中…</span>
+    <span id="line-badge"></span>
+  </div>
+  <div class="railwrap"><div class="rail" id="rail"></div></div>
+  <div id="axis" class="mini"></div>
+  <div class="panel" id="body">选线状态加载中…</div>
+</div>
+<script type="module">
+import { timeline } from './timeline.js';
+import { rail } from './rail.js';
+const qs = new URLSearchParams(location.search);
+const b = qs.get('book_id') || '', e = qs.get('ep_index') || '1';
+const el = id => document.getElementById(id);
+async function refresh() {
+  try {
+    const r = await fetch(`/api/anim/v3/ep/${encodeURIComponent(b)}/${e}/state`);
+    const d = await r.json();
+    el('sub').textContent = `${d.book_title} · 第${d.ep}集`;
+    el('line-badge').innerHTML = d.line === 'v3'
+      ? '<span class="badge ok">v3 线 ✓</span>'
+      : '<span class="badge warn">未开通 v3 (缺省 v2)</span>';
+    rail(el('rail'), { line: d.line, gates: d.gates, active: 'triage' });
+    timeline(el('axis'), { caption: '基准九段带 (三型弧模型) — 真实弧带在 ②立意 放行后按 doc.v3.arcs 生成' });
+    el('body').innerHTML = d.line === 'v3'
+      ? '<b>① 文稿分诊</b> 建设中 (V1) — 放行闸: ' +
+        JSON.stringify(d.gates) +
+        '<br><span class="note">规范/批次见 docs/improvements/进行中-20261105-分镜续跑升级.md</span>'
+      : `<div class="note">本书走 <b>v2 工坊线</b> (存量不动)。开通 v3: 写
+         outputs/动画/_资产/产线绑定_${d.book_title}.json → {"line":"v3"} 后刷新。</div>`;
+  } catch (err) {
+    el('sub').textContent = '状态加载失败: ' + err.message;
+  }
+}
+refresh();
+</script>
+</body>
+</html>
