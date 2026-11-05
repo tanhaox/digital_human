@@ -1,4 +1,5 @@
-// ③ 分镜文字页逻辑 (CSP: 全外置, 动态样式走 CSSOM)
+// ③ 分镜文字页 (CSP: 全外置, 动态样式走 CSSOM)
+// 布局: 左 = 弧分块镜头表 (读稿顺序), 右 = 总审栏 (闸态/质检/弧级提醒), 底 = 常驻操作。
 import { rail } from './rail.js';
 import { timeline } from './timeline.js';
 
@@ -10,173 +11,248 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g,
   m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 
 const ARC_COLOR = { narr: '#2f6b52', quote: '#3a5f6e', persona: '#6e3a5a',
-  hook: '#22304a', cta: '#22304a', brand: '#4a3a1c' };
-// 统一口径: 标签显示内容类型 (kind 六类), 视觉由渲染方式 (style) 决定
+  hook: '#3d4a63', cta: '#3d4a63', brand: '#4a3a1c' };
+const TYPE_ZH = { narr: '叙事弧', quote: '书证镜', persona: '人设镜',
+  hook: '钩子', cta: '行动召', brand: '品牌' };
 const STYLE_ZH = { list: '清单卡', quote: '金句卡', event: '事件字', img: '配图', title: '标题卡' };
 
-let SHOTS = [], CARDS = [], ISSUES = {}, dirty = new Set(), GATE_OPEN = false;
+let SHOTS = [], CARDS = [], ARCS = [], ISSUES = {}, WARNINGS = [];
+let dirty = new Set(), GATE_OPEN = false;
 
-function refreshDirty() {
-  const confirmMode = !dirty.size && !GATE_OPEN;
-  $('save-label').textContent = confirmMode ? '✅ 确认放行分镜' : '💾 保存分镜';
-  $('n-dirty').textContent = confirmMode ? '' : ` (${dirty.size})`;   // 常驻节点, 不重建 (防焦点/状态丢)
-  $('dirty').innerHTML = dirty.size
-    ? `改稿 <b class="gold-t">${dirty.size} 处未保存</b>` : '改稿 0 处未保存';
-}
-
+/* ── 数据 ─────────────────────────────────────────────── */
 async function refresh() {
   const [d, st] = await Promise.all([
     (await fetch(`${BASE}/shots`)).json(),
     (await fetch(`${BASE}/state`)).json(),
   ]);
-  SHOTS = d.shots || []; CARDS = d.cards || []; ISSUES = d.issues || {};
+  SHOTS = d.shots || []; CARDS = d.cards || []; ARCS = d.arcs || [];
+  ISSUES = d.issues || {}; WARNINGS = d.warnings || [];
   $('sub').textContent = `${st.book_title} · 第${st.ep}集`;
-  const nIss = Object.entries(ISSUES)
-    .filter(([k]) => k !== '弧级').reduce((a, [, v]) => a + v.length, 0);
-  const nArc = (ISSUES['弧级'] || []).length;
-  const nCard = CARDS.length;
-  $('counts').innerHTML =
-    `<span class="badge">${SHOTS.length} 镜</span>` +
-    `<span class="badge">${nCard} 卡</span>` +
-    `<span class="badge ${nIss ? 'bad' : 'ok'}">质检 ${nIss ? nIss : '✓'}</span>` +
-    (nArc ? `<span class="badge warn">弧级 ${nArc}</span>` : '') +
-    `<span class="badge">${Math.round(SHOTS.reduce((s, x) => s + (x.est_s || 0), 0))}s 估</span>`;
-  rail($('rail'), { line: st.line, gates: d.gates, active: 'shots' });
-  renderIssues(d.issues || {}, d.warnings || []);
-  renderCardsHint(nCard);
-  renderAxis();
-  renderGrid();
-  renderGate(d.gates?.shots, d.ready);
+  renderHeader(); renderRail(st, d.gates); renderAxis();
+  renderBlocks(); renderSide(); renderGate(d.gates?.shots, d.ready);
+  refreshDirty();
 }
 
-function renderCardsHint(nCard) {
-  const box = $('cards-hint');
-  if (nCard > 0) { box.innerHTML = ''; return; }
-  box.innerHTML = '<div class="hint">💡 本集还没有大字卡 — 卡来自 ① 分诊页的建议 (金句/清单/配图/书证/事件)'
-    + '<button class="iconbtn" id="btn-autocards" title="把分诊给出的全部建议一次建成卡">一键建卡</button></div>';
-  const b = document.getElementById('btn-autocards');
-  if (b) b.onclick = async () => {
+function shotIssues(sid) { return ISSUES[sid] || []; }
+function arcIssues() { return ISSUES['弧级'] || []; }
+
+function renderHeader() {
+  const nIss = SHOTS.reduce((a, s) => a + shotIssues(s.sid).length, 0);
+  const nArc = arcIssues().length;
+  const secs = Math.round(SHOTS.reduce((s, x) => s + (x.est_s || 0), 0));
+  $('counts').innerHTML =
+    `<span class="badge">${SHOTS.length} 镜</span>` +
+    `<span class="badge">${CARDS.length} 卡</span>` +
+    `<span class="badge ${nIss ? 'bad' : 'ok'}">镜级 ${nIss || '✓'}</span>` +
+    (nArc ? `<span class="badge warn">弧级 ${nArc}</span>` : '') +
+    `<span class="badge">~${secs}s</span>`;
+}
+
+function renderRail(st, gates) { rail($('rail'), { line: st.line, gates, active: 'shots' }); }
+
+/* ── 顶轴: 一镜一段, 点击定位 ─────────────────────────── */
+function renderAxis() {
+  if (!SHOTS.length) return;
+  const total = SHOTS.reduce((s, x) => s + (x.est_s || 1), 0) || 1;
+  const segs = []; let acc = 0;
+  for (const s of SHOTS) {
+    const w = +((s.est_s || 1) / total * 100).toFixed(2);
+    segs.push({ l: +acc.toFixed(2), w,
+                c: shotIssues(s.sid).length ? '#8a2e2e' : (ARC_COLOR[s.arc_type] || '#334155'),
+                title: `${s.sid} · ${s.arc_id} · ~${s.est_s}s${shotIssues(s.sid).length ? ' · 质检 ' + shotIssues(s.sid).length : ''}` });
+    acc += w;
+  }
+  timeline($('axis'), { arc: false, shots: segs, axisLabel: `~${Math.round(total)}s 估`,
+    caption: '一镜一段 (红=有质检问题) · 点任意段跳到该镜' });
+  const els = $('axis').querySelectorAll('.lane.shots .shot');
+  els.forEach((el, i) => {
+    if (!SHOTS[i]) return;
+    el.classList.add('clickable');
+    el.onclick = () => jumpTo(SHOTS[i].sid);
+  });
+}
+
+function jumpTo(sid) {
+  const el = document.querySelector(`[data-shot="${sid}"]`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.remove('flash');
+  void el.offsetWidth;
+  el.classList.add('flash');
+  setTimeout(() => el.classList.remove('flash'), 1300);
+}
+
+/* ── 左区: 弧分块 ─────────────────────────────────────── */
+function arcMeta(aid) { return ARCS.find(a => a.arc_id === aid) || {}; }
+
+function renderBlocks() {
+  if (!SHOTS.length) {
+    $('blocks').innerHTML = '<div class="arc"><div class="shotrow muted">尚无镜 — 点下方「🎨 重跑分镜」由立意弧切镜</div></div>';
+    return;
+  }
+  const byArc = new Map();
+  for (const s of SHOTS) {
+    if (!byArc.has(s.arc_id)) byArc.set(s.arc_id, []);
+    byArc.get(s.arc_id).push(s);
+  }
+  const out = [];
+  for (const [aid, shots] of byArc) {
+    const a = arcMeta(aid);
+    const type = a.type || shots[0].arc_type || 'narr';
+    const world = String(a.world || '').trim();
+    const est = Math.round(shots.reduce((x, s) => x + (s.est_s || 0), 0));
+    const wTitle = world
+      ? `视觉世界: ${world}${a.metaphor ? ' / 隐喻: ' + a.metaphor : ''}`
+      : '视觉世界为空 — 写手无世界可继承, 画面句会退化成通用场景';
+    out.push(`<section class="arc" data-type="${esc(type)}" data-arc="${esc(aid)}">
+      <header class="ah">
+        <span class="aid">${esc(aid)}</span>
+        <span class="atype">${esc(TYPE_ZH[type] || type)}</span>
+        ${a.no_start ? `<span class="lspan">L${a.no_start}–${a.no_end}</span>` : ''}
+        <span class="world${world ? '' : ' miss'}" title="${esc(wTitle)}">${world ? esc(world) : '⚠ 无视觉世界'}</span>
+        <span class="est">${shots.length} 镜 · ~${est}s</span>
+      </header>
+      ${shots.map(shotBlock).join('')}
+    </section>`);
+  }
+  $('blocks').innerHTML = out.join('');
+}
+
+function cardChip(c) {
+  const label = c.kind || STYLE_ZH[c.style] || c.style || '卡';
+  const how = STYLE_ZH[c.style] || c.style || '';
+  const isImg = ['图示', '公式'].includes(c.kind) || c.style === 'img';
+  const btn = !isImg ? ''
+    : (c.image
+        ? `<a class="kimg" href="${BASE}/shots/card/${encodeURIComponent(c.image)}" target="_blank" title="图示已生成, 点击预览">🖼</a>`
+        : `<button class="iconbtn" data-act="render" data-cid="${esc(c.cid)}" title="图示 → HTML 排版出图">🖼</button>`);
+  const full = String(c.text || '');
+  const shown = full.length > 16 ? full.slice(0, 16) + '…' : full;
+  const tip = '内容类型: ' + label + ' / 渲染: ' + how + ' · ' + full;
+  return `<span class="kard kard-${esc(c.style)}" title="${esc(tip)}">`
+    + `${esc(label)}「${esc(shown)}」${btn}</span>`;
+}
+
+function shotBlock(s) {
+  const iss = shotIssues(s.sid);
+  const kards = CARDS.filter(c => c.sid === s.sid);
+  const byLine = new Map();
+  const loose = [];
+  for (const c of kards) {
+    if (c.line_no && (s.line_refs || []).includes(c.line_no)) {
+      if (!byLine.has(c.line_no)) byLine.set(c.line_no, []);
+      byLine.get(c.line_no).push(c);
+    } else loose.push(c);
+  }
+  const srcBadge = s.source === 'brand_card' || s.brand_card
+    ? '<span class="src src-brand" title="品牌冻结骨架 (登山客三拍+圣经色板), LLM 零参与">🔒 品牌卡</span>'
+    : ((s.arc_type === 'hook' || s.arc_type === 'cta')
+        ? '<span class="src src-const" title="按特区宪法生成 (钩子/行动召既定画面语言)">📐 宪法</span>' : '');
+
+  const sents = (s.sents || []).map(sen => {
+    const cs = byLine.get(sen.no) || [];
+    return `<div class="sent"><span class="ln">L${sen.no}</span><span class="tx">${esc(sen.text)}</span></div>`
+      + (cs.length ? `<div class="kards">${cs.map(cardChip).join('')}</div>` : '');
+  }).join('');
+
+  return `<div class="shotrow${iss.length ? ' bad' : ''}" data-shot="${esc(s.sid)}">
+    <div class="sh">
+      <span class="sid">${esc(s.sid)}</span>
+      <span class="dur">~${s.est_s}s</span>
+      ${srcBadge}
+      ${iss.length ? `<span class="qcdot" title="${esc(iss.join(' | '))}"></span>` : ''}
+      <span class="flex1"></span>
+      <button class="iconbtn" data-act="reroll" data-sid="${esc(s.sid)}" title="重写这一镜的画面句">↻ 重写</button>
+    </div>
+    <div class="kf" contenteditable="true" spellcheck="false" data-sid="${esc(s.sid)}"
+         data-k="keyframe_zh">${esc(s.keyframe_zh || '')}</div>
+    <div class="sents">${sents}</div>
+    ${loose.length ? `<div class="kards">${loose.map(cardChip).join('')}</div>` : ''}
+  </div>`;
+}
+
+/* ── 右栏: 总审 ───────────────────────────────────────── */
+function shortIssue(txt) {
+  const t = String(txt || '');
+  const m = t.match(/^s\d+\s+(.*)$/);
+  return m ? m[1] : t;
+}
+
+function renderSide() {
+  const items = [];
+  for (const s of SHOTS) {
+    for (const t of shotIssues(s.sid)) {
+      items.push(`<div class="qitem" data-jump="${esc(s.sid)}">
+        <span class="sj">${esc(s.sid)}</span>
+        <span class="txt">${esc(shortIssue(t)).slice(0, 120)}</span></div>`);
+    }
+  }
+  $('qcount').textContent = items.length;
+  $('qcount').className = 'badge ' + (items.length ? 'bad' : 'ok');
+  $('qlist').innerHTML = items.length ? items.join('')
+    : '<div class="qempty">✓ 镜级问题已清 — 可放行</div>';
+  $('qlist').querySelectorAll('[data-jump]').forEach(el => {
+    el.onclick = () => jumpTo(el.dataset.jump);
+  });
+
+  const arc = arcIssues();
+  $('acount').textContent = arc.length;
+  $('alist').innerHTML = arc.length
+    ? arc.map(x => `<div class="aitem">${esc(x)}</div>`).join('')
+    : '<div class="qempty">✓ 无</div>';
+
+  $('warncard').innerHTML = WARNINGS.length
+    ? WARNINGS.map(w => `<div class="hint">💡 ${esc(w)}</div>`).join('') : '';
+  $('warncard').hidden = !WARNINGS.length;
+}
+
+function renderGate(open, ready) {
+  GATE_OPEN = !!open;
+  const nIss = SHOTS.reduce((a, s) => a + shotIssues(s.sid).length, 0);
+  const hasCarrier = SHOTS.some(s => shotIssues(s.sid).some(t => t.includes('文字载体')));
+  const box = $('gatecard');
+  box.className = 'card gatebar' + (open ? '' : ' locked');
+  box.innerHTML = open
+    ? '<div class="gt gold-t">◉ 分镜已放行</div><div class="note">可进 ④ 导演 (景别/运镜/光影)</div>'
+    : `<div class="gt">🔒 分镜闸未开</div><div class="note">${ready ? `镜级 ${nIss} 项待清` : '尚未切镜'}</div>`
+      + (hasCarrier ? '<div class="fixrow"><button class="btn-fix" id="btn-autofix" title="把载体补成「空白XX」(v3 图内字通道已停用); 出不了量词的需手改">🔧 一键空白化</button></div>' : '')
+      + (!CARDS.length ? '<div class="fixrow"><button class="btn-fix" id="btn-autocards" title="把①分诊给出的金句/清单/配图/书证/事件建议一次建成卡">＋ 一键建卡</button></div>' : '');
+  const ac = document.getElementById('btn-autocards');
+  if (ac) ac.onclick = async () => {
     const r = await (await fetch(`${BASE}/shots/autocards`, { method: 'POST',
       headers: { 'Content-Type': 'application/json' }, body: '{}' })).json();
     toast(`新建 ${r.added} 张卡 (共 ${r.cards})`);
     await refresh();
   };
-}
-
-function renderIssues(issues, warns) {
-  const shotItems = [], arcItems = [];
-  for (const [key, list] of Object.entries(issues)) {
-    const bucket = key === '弧级' ? arcItems : shotItems;
-    for (const x of list) bucket.push(`<div class="issue">▎${esc(x)}</div>`);
-  }
-  const head = shotItems.length
-    ? `<div class="issue-sum">镜级 ${shotItems.length} 项 (要改)</div>` : '';
-  const arcHead = arcItems.length
-    ? `<div class="hint">弧级 ${arcItems.length} 项 (策略提醒 — 宪法配额, 人检可保留)</div>` : '';
-  const fixBtn = shotItems.length
-    ? '<div class="fixrow"><button class="go" id="btn-autofix" title="文字载体 → 就地补「空白」(空白便签/空白白板); 出不了量词的需手改; 终态词需人工改">🔧 一键空白化</button>'
-      + '<span class="note">把载体补成「空白XX」(v3 图内字通道已停用); 终态词属语义改写, 需手改</span></div>'
-    : '';
-  $('issues').innerHTML = head + shotItems.join('') + fixBtn + arcHead + arcItems.join('');
   const af = document.getElementById('btn-autofix');
   if (af) af.onclick = async () => {
     const r = await (await fetch(`${BASE}/shots/fix`, { method: 'POST',
       headers: { 'Content-Type': 'application/json' }, body: '{}' })).json();
     toast(`已空白化 ${r.fixed} 镜` + (r.manual.length ? ` · ${r.manual.length} 项需手改` : ''));
     await refresh();
-    if (r.manual.length) console.info('需人工处理:', r.manual);
+    if (r.manual.length) toast('需手改: ' + r.manual[0]);
   };
-  $('warns').innerHTML = (warns || []).map(w => `<div class="hint">💡 ${esc(w)}</div>`).join('');
-}
-
-function renderAxis() {
-  if (!SHOTS.length) { $('axis').innerHTML = '<div class="cap">尚无镜 — 先跑「重跑分镜」</div>'; return; }
-  const total = SHOTS.reduce((s, x) => s + (x.est_s || 1), 0) || 1;
-  const shots = [];
-  let acc = 0;
-  for (const s of SHOTS) {
-    const w = +((s.est_s || 1) / total * 100).toFixed(2);
-    shots.push({ l: +acc.toFixed(2), w,
-                 c: ISSUES[s.sid] ? '#8a2e2e' : (ARC_COLOR[s.arc_type] || '#334155'),
-                 title: `${s.sid} ${s.arc_id}${ISSUES[s.sid] ? ' (质检 ' + ISSUES[s.sid].length + ')' : ''}` });
-    acc += w;
-  }
-  timeline($('axis'), {
-    arc: false, shots,
-    axisLabel: `~${Math.round(total)}s 估`,
-    caption: '镜段按弧型着色 (叙事绿/书证青/回忆紫/非叙事灰) · 质检有问题的镜红标',
-  });
-}
-
-function cardsOf(sid) {
-  return CARDS.filter(c => c.sid === sid)
-    .map(c => {
-      const label = c.kind || STYLE_ZH[c.style] || c.style;
-      const how = STYLE_ZH[c.style] || c.style;
-      // 只有「公式」类才出图 — 其余纯文字走剪映后期卡 (用户令: 没必要的 PNG 不做)
-      const isFormula = ['图示', '公式'].includes(c.kind) || c.style === 'img';
-      const btn = !isFormula ? ''
-        : (c.image
-            ? `<a class="iconbtn kimg" href="${BASE}/shots/card/${encodeURIComponent(c.image)}" target="_blank" title="图示已生成, 点击预览">🖼</a>`
-            : `<button class="iconbtn" data-act="render" data-cid="${c.cid}" title="图示 (公式/图表/流程/表格) → HTML 排版出图 (剪映排不出, AI 会画乱码)">🖼</button>`);
-      return `<span class="kard kard-${esc(c.style)}" title="内容类型: ${esc(label)} · 渲染方式: ${esc(how)}">`
-        + `${esc(label)}「${esc(c.text)}」</span>${btn}`;
-    })
-    .join(' ');
-}
-
-function renderGrid() {
-  if (!SHOTS.length) {
-    $('grid').innerHTML = '<div class="row"><div class="muted">尚无镜 — 点下方「🎨 重跑分镜」由立意弧切镜</div></div>';
-    return;
-  }
-  const rows = [`<div class="row hd"><div>弧</div><div>镜</div><div>画面句 · 口播 (写什么/说什么)</div>
-    <div>大字卡</div><div>时长</div><div>质检</div></div>`];
-  for (const s of SHOTS) {
-    const iss = ISSUES[s.sid] || [];
-    rows.push(`<div class="row shot">
-      <div class="mono muted">${esc(s.arc_id)}</div>
-      <div class="mono">${esc(s.sid)}</div>
-      <div>${s.source === 'brand_card'
-          ? '<span class="src src-brand" title="品牌冻结骨架 (登山客三拍+圣经色板), LLM 零参与">🔒 品牌卡</span>'
-          : (s.arc_type === 'hook' || s.arc_type === 'cta'
-              ? '<span class="src src-const" title="按特区宪法生成 (钩子/行动召既定画面语言)">📐 宪法</span>' : '')}
-        <span class="editable" contenteditable="true" data-sid="${s.sid}" data-k="keyframe_zh">${esc(s.keyframe_zh || '')}</span>
-        <button class="iconbtn" data-act="reroll" data-sid="${s.sid}" title="重写这一镜的画面句">↻</button></div>
-      <div>${cardsOf(s.sid) || '<span class="muted">—</span>'}</div>
-      <div class="mono muted">~${s.est_s}s</div>
-      <div class="qc ${iss.length ? '' : 'ok'}">${iss.length ? iss.length + ' 项' : '✓'}</div>
-    </div>`);
-    for (const sen of (s.sents || [])) {
-      rows.push(`<div class="row sent">
-        <div></div><div></div>
-        <div class="stext">${esc(sen.text)}</div>
-        <div></div><div></div><div></div></div>`);
-    }
-  }
-  $('grid').innerHTML = rows.join('');
-}
-
-function renderGate(open, ready) {
-  GATE_OPEN = !!open;
-  refreshDirty();
   const nx = $('btn-next');
   nx.disabled = !open;
-  nx.title = open ? '进入 ④ 导演 (景别/运镜/光影)' : (ready ? '先处置质检问题' : '先跑分镜');
-  $('gate').className = 'gatebar' + (open ? '' : ' locked');
-  $('gate').innerHTML = open
-    ? '<b class="gold-t">◉ 分镜放行</b> <span class="note">镜/画面句/卡内容已锁 — 下一步 ④ 导演 (零 GPU)</span>'
-    : `<b class="note">🔒 分镜闸未开</b> <span class="note">— ${ready ? '有质检问题待处置' : '尚未切镜'}</span>`;
+  nx.title = open ? '进入 ④ 导演 (景别/运镜/光影)' : (ready ? '先处置镜级问题' : '先跑分镜');
 }
 
-$('grid').addEventListener('input', ev => {
+/* ── 编辑与保存 ───────────────────────────────────────── */
+function refreshDirty() {
+  const confirmMode = !dirty.size && !GATE_OPEN;
+  $('save-label').textContent = confirmMode ? '✅ 确认放行分镜' : '💾 保存分镜';
+  $('n-dirty').textContent = confirmMode ? '' : ` (${dirty.size})`;
+  $('dirty').innerHTML = dirty.size
+    ? `改稿 <b class="gold-t">${dirty.size} 处未保存</b>` : '改稿 0 处未保存';
+}
+
+$('blocks').addEventListener('input', ev => {
   const sid = ev.target.dataset?.sid;
   if (!sid) return;
-  dirty.add(sid);
-  refreshDirty();
+  dirty.add(sid); refreshDirty();
 });
 
-$('grid').addEventListener('click', async ev => {
+$('blocks').addEventListener('click', async ev => {
   const b = ev.target.closest('button[data-act]'); if (!b) return;
   if (b.dataset.act === 'render') {
     b.disabled = true; b.textContent = '⏳';
@@ -191,10 +267,7 @@ $('grid').addEventListener('click', async ev => {
     return;
   }
   if (b.dataset.act === 'reroll') {
-    const sid = b.dataset.sid;
-    const s = SHOTS.find(x => x.sid === sid);
-    if (!s) return;
-    toast('单镜重写：先手改画面句，或「重跑分镜」由 LLM 重出全片 (零 GPU)');
+    toast('单镜重写：直接改画面句，或「重跑分镜」由 LLM 重出全片 (零 GPU)');
   }
 });
 
@@ -209,7 +282,7 @@ async function saveShots() {
       sid: s.sid, keyframe_zh: s.keyframe_zh,
       in_image_text: s.in_image_text || [], text_layer: s.text_layer || [] })),
       cards: CARDS }) })).json();
-  dirty.clear(); refreshDirty();
+  dirty.clear();
   await refresh();
   if (r.gate) toast('✓ 分镜放行 — 可进 ④');
   else if (Object.keys(r.issues || {}).length) toast('质检未过: ' + Object.keys(r.issues)[0]);

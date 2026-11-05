@@ -174,7 +174,8 @@ def v3_shots_get(book_id: str, ep: int):
     try:
         doc = _load_v3_doc(book_title, ep)
     except FileNotFoundError:
-        return {"shots": [], "cards": [], "issues": {}, "gates": {}, "ready": False}
+        return {"shots": [], "cards": [], "arcs": [], "issues": {}, "gates": {},
+                "ready": False}
     v3 = doc.get("v3") or {}
     lines = {ln["no"]: ln for ln in (v3.get("lines") or [])}
     shots = v3.get("shots") or []
@@ -182,7 +183,12 @@ def v3_shots_get(book_id: str, ep: int):
         s["sents"] = [{"no": no, "text": str(lines.get(no, {}).get("text") or "")}
                       for no in s.get("line_refs") or [] if no in lines]
     cards = v3.get("cards") or []
-    return {"shots": shots, "cards": cards, "issues": v3.get("shot_issues") or {},
+    # 弧元信息随包下发: ③页按弧分块要显示 型/行号段/视觉世界 (缺失=写手无世界可继承, 要显形)
+    arcs = [{k: a.get(k) for k in ("arc_id", "type", "mode", "no_start", "no_end",
+                                   "line_count", "est_s", "world", "metaphor")}
+            for a in (v3.get("arcs") or [])]
+    return {"shots": shots, "cards": cards, "arcs": arcs,
+            "issues": v3.get("shot_issues") or {},
             "warnings": v3.get("shot_warnings") or [],
             "gates": v3_pipeline.gates_view(doc), "ready": bool(shots)}
 
