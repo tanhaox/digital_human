@@ -224,9 +224,10 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
   <a class="step now" href="#p1"><span class="n">①</span>立意<span class="st">确认中</span></a><span class="sep">→</span>
   <a class="step" href="#p2"><span class="n">②</span>分镜文字<span class="st">🔒待①</span></a><span class="sep">→</span>
   <a class="step" href="#p3"><span class="n">③</span>导演<span class="st">🔒</span></a><span class="sep">→</span>
-  <a class="step" href="#p4"><span class="n">④</span>TTS<span class="st">🔒</span></a><span class="sep">→</span>
-  <a class="step" href="#p5"><span class="n">⑤</span>盖章<span class="st">🔒</span></a><span class="sep">→</span>
-  <a class="step" href="#p6"><span class="n">⑥</span>执行<span class="st">K2/H3</span></a>
+  <a class="step" href="#p4"><span class="n">④</span>K2 生图<span class="st">零音频</span></a><span class="sep">→∥→</span>
+  <a class="step" href="#p5"><span class="n">⑤</span>TTS<span class="st">🔒</span></a><span class="sep">→</span>
+  <a class="step" href="#p6"><span class="n">⑥</span>盖章<span class="st">🔒</span></a><span class="sep">→</span>
+  <a class="step" href="#p7"><span class="n">⑦</span>H3 视频<span class="st">吃图+秒</span></a>
 </div></div>
 
 <!-- ════════ P1 立意 (独立页 · 借现版立意面板) ════════ -->
@@ -310,7 +311,7 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
 
   <ol class="specs">
     <li><b>借现版立意面板</b>: 六拍分配表/单场重掷/编辑保存交互原样迁入, 仅增 行号/句区间/镜数 三列 (结构引用)。</li>
-    <li><b>预估列</b>: 字数×语率估算, 供拍子比例参考; 真实时长 ⑤ 盖章注入 (本页永远不显示精确秒)。</li>
+    <li><b>预估列</b>: 字数×语率估算, 供拍子比例参考; 真实时长 ⑥ 盖章注入 (本页永远不显示精确秒)。</li>
     <li><b>零音频依赖</b>: 本页无音频也可开工 (旧版音频门挪到 ③ TTS)。</li>
     <li><b>语态模式×画面模式分配</b> (用户令第五轮): 稿件 = 语态序列 — 原书怎么说→<b>书证镜</b> (独立弧型: 书的视角, 引文零转译), 人设自述("我当年…")→<b>回忆镜</b> (老谭出镜, 即使不加泛黄也是人在讲), 老谭评论→<b>叙事隐喻弧</b> (A=B 世界), 钩子/CTA/品牌→非叙事位 (系列冻结)。当前实病: 三种语态搅进同一立意, 隐喻被稀释、书证和人设没有自己的画面语言。</li>
 <li><b>弧界=稿模块边界</b> (执法): 渐进轴稿层×弧层对照, 弧界切进模块内自动红痕、放行闸拦截; 品牌位=书级冻结条 (开场预留+收官仪式句), 零立意零分镜。</li>
@@ -472,7 +473,7 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
   <div class="gatebar"><span class="ti">◉ 导演放行</span>
     <span class="note">景深配额/连续性/运镜纪律全绿 → 进入 ④ TTS; 改动零 TTS/GPU 成本</span>
     <span style="flex:1"></span>
-    <button class="ghost act">↩ 打回分镜文字</button><button class="gold act">✅ 镜头语言 OK → TTS</button></div>
+    <button class="ghost act">↩ 打回分镜文字</button><button class="gold act">✅ 镜头语言 OK → ④K2 与 ⑤TTS 并行开工</button></div>
 
   <ol class="specs">
     <li><b>法层驱动</b>: 镜头序/光影/连续性 (shooting_script) 逐场卡置顶, 分镜按此填空 — 与现产线法层一致。</li>
@@ -484,9 +485,78 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
 </section>
 </div>
 
+<!-- ════════ P4 K2 生图+人检 (零音频, 与 TTS 并行) ════════ -->
 <div class="page" id="p4">
 <section>
-  <div class="h2row"><h2 class="h2"><span class="no">④</span> TTS · 纯渲染</h2>
+  <div class="h2row"><h2 class="h2"><span class="no">④</span> K2 · 生图 + 人检</h2>
+    <span class="sub">零音频依赖 (查码实锤: 只吃 画面句+风格+seed) — ③放行即开工, 与 ⑤TTS 并行</span>
+    <span class="badge">42 镜 · ~15s/镜 GPU</span><span class="badge warn">人检 3 待审</span></div>
+
+  <!-- 渐进轴 · P4: 状态层 (生图进度) -->
+  <div class="mini"><div class="lanes">
+    <div class="lane arc ghost">
+      <div class="seg" style="width:6%; background:#22304a"><span class="lb">钩</span></div>
+      <div class="seg" style="width:8%; background:#3a5f6e"><span class="lb">书证</span></div>
+      <div class="seg" style="width:19%; background:#1d5f4c"><span class="lb">A1</span></div>
+      <div class="seg" style="width:6%; background:#6e3a5a"><span class="lb">人</span></div>
+      <div class="seg" style="width:7%; background:#3a5f6e"><span class="lb">书②</span></div>
+      <div class="seg" style="width:26%; background:#5f4a1d"><span class="lb">A2</span></div>
+      <div class="seg" style="width:6%; background:#3a5f6e"><span class="lb">书③</span></div>
+      <div class="seg" style="width:17%; background:#4a1d5f"><span class="lb">A3</span></div>
+      <div class="seg" style="width:5%; background:#22304a"><span class="lb">CTA</span></div>
+    </div>
+    <div class="lane shots">
+      <div class="shot status-img_done" style="left:0;width:2.29%"></div>
+      <div class="shot status-img_done" style="left:2.29%;width:3.05%"></div>
+      <div class="shot status-img_done" style="left:5.34%;width:3.81%"></div>
+      <div class="shot status-img_done" style="left:9.15%;width:3.56%"></div>
+      <div class="shot status-img_done" style="left:12.71%;width:4.06%"></div>
+      <div class="shot status-img_done" style="left:16.77%;width:3.05%"></div>
+      <div class="shot status-img_done" style="left:19.82%;width:5.58%"></div>
+      <div class="shot status-planned" style="left:25.40%;width:2.45%"></div>
+      <div class="shot status-planned" style="left:27.85%;width:1.88%"></div>
+      <div class="shot status-planned" style="left:29.73%;width:3.05%"></div>
+      <div class="shot status-planned" style="left:32.78%;width:2.69%"></div>
+      <div class="shot status-planned" style="left:35.47%;width:2.87%"></div>
+      <div class="shot status-planned" style="left:38.34%;width:4.16%"></div>
+      <div class="shot status-planned" style="left:42.50%;width:2.93%"></div>
+      <div class="shot status-planned" style="left:45.43%;width:2.24%"></div>
+      <div class="shot status-planned" style="left:47.67%;width:2.51%"></div>
+      <div class="shot status-planned" style="left:50.18%;width:5.12%"></div>
+      <div class="shot status-planned" style="left:55.30%;width:6.62%"></div>
+      <div class="shot status-planned" style="left:66.02%;width:3.15%"></div>
+      <div class="shot status-planned" style="left:69.17%;width:4.41%"></div>
+      <div class="shot status-planned" style="left:73.58%;width:13.23%"></div>
+      <div class="shot status-planned" style="left:86.80%;width:3.96%"></div>
+      <div class="shot status-planned" style="left:90.76%;width:9.24%"></div>
+    </div>
+  </div>
+  <div class="axisline"><span>0s</span><span>60</span><span>120</span><span>180</span><span>~234s 估</span></div>
+  <div class="cap">状态层: <i style="display:inline-block;width:10px;height:10px;background:#7a4a1e;border-radius:3px"></i> 已生图 7 · <i style="display:inline-block;width:10px;height:10px;background:#39434f;border-radius:3px"></i> 待生 35 (样例) — 与 TTS 并行, 人检图叠着验收音频做</div></div>
+
+  <div class="sum">
+    <div class="panel"><b>🎨 批生图</b><br>planned → img_done<br><span class="note">~15s/镜 · GPU 独占托管</span></div>
+    <div class="panel"><b>🔍 人检</b><br>过审 / 🔁打回(填负面词=删子句) / 购物篮重做<br><span class="note">R 标 · QC 同现版</span></div>
+    <div class="panel"><b>⚡ 并行位</b><br>本页不等 TTS/验收/盖章<br><span class="note">③放行即开烧; 人检完成集进 ⑦H3 队列</span></div>
+  </div>
+
+  <div class="gatebar"><span class="ti">◉ K2 收口</span>
+    <span class="note">人检全过审 (approved) 即本页完成 — H3 只等 盖章(秒数) 与 本页(图), 两头齐即开 ⑦</span>
+    <span style="flex:1"></span>
+    <button class="ghost act">↩ 打回导演台</button><button class="go act">✅ 全部过审 (H3 队列就绪)</button></div>
+
+  <ol class="specs">
+    <li><b>K2 零音频依赖</b> (查码实锤): k2.py 全链只吃 画面句+风格绑定+seed — 不碰音频/时长; ③导演放行即可开烧, 与 ⑤TTS 并行, 墙钟时间省一整段。</li>
+    <li><b>人检前移</b>: 图的过审/打回/购物篮与 音频验收/盖章 叠做; H3 门槛 = 本页 approved ∪ ⑥盖章。</li>
+    <li><b>校带拆镜处置</b>: ⑥盖章若拆已生图镜 → 父镜图共享首帧或补生一张 (~15s, 罕见); 换文案仍走媒体失效。</li>
+    <li><b>渐进轴 · 状态层</b>: 生图进度一目; 点段跳看板卡。</li>
+  </ol>
+</section>
+</div>
+
+<div class="page" id="p5">
+<section>
+  <div class="h2row"><h2 class="h2"><span class="no">⑤</span> TTS · 纯渲染</h2>
     <span class="sub">本页只做一件事: 把已锁定的文字结构变成音频 (块=句, 不跨弧)</span>
     <span class="badge">46 块 · 预估 234s</span><span class="badge warn">韵律微调 1</span></div>
 
@@ -569,9 +639,9 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
 </div>
 
 <!-- ════════ P4 盖章校带 (独立页) ════════ -->
-<div class="page" id="p5">
+<div class="page" id="p6">
 <section>
-  <div class="h2row"><h2 class="h2"><span class="no">⑤</span> 盖章 · 校带</h2>
+  <div class="h2row"><h2 class="h2"><span class="no">⑥</span> 盖章 · 校带</h2>
     <span class="sub">本页只做一件事: 实测秒数一次性注入结构 + 越带镜处理</span>
     <span class="badge gold">234.4s 实测</span></div>
 
@@ -640,7 +710,7 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
 
   <div class="gatebar"><span class="ti">🖨 盖章</span>
     <span class="note">— 待盖章 字段全部填实: t_start/t_end · 花字时窗 · 上屏@秒 · beats · 时长核验 <span class="spec">1</span></span>
-    <span style="flex:1"></span><button class="go act">确认盖章 → K2 就绪</button></div>
+    <span style="flex:1"></span><button class="go act">确认盖章 → H3 就绪</button></div>
 
   <ol class="specs">
     <li><b>盖章=确定性换算</b> (零 LLM): 块实测时长 → 句→镜→全场→特区 一次性回填; 换语速/重合成块后仅重盖章。</li>
@@ -652,10 +722,10 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
 </div>
 
 <!-- ════════ P5 执行段 ════════ -->
-<div class="page" id="p6">
+<div class="page" id="p7">
 <section>
-  <div class="h2row"><h2 class="h2"><span class="no">⑥</span> 执行 · K2 → H3 → 装配</h2>
-    <span class="sub">沿用现有动画工坊看板 (anim.html), 界面不动 — 本页只做入口聚合</span></div>
+  <div class="h2row"><h2 class="h2"><span class="no">⑦</span> H3 · 视频 → 装配</h2>
+    <span class="sub">唯一吃实测时长的相位 (duration_s→帧数) — 门槛: ④图 approved ∪ ⑥盖章秒数</span></div>
 
   <!-- 渐进轴 · P5: 镜层按产线状态重着色 (样例进度) -->
   <div class="mini"><div class="lanes">
@@ -696,17 +766,15 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
   <div class="cap">+ 状态层: 镜段按产线状态重着色 (样例进度: 已生图13 · 已批12 · 败1 · 待跑16) — 点段跳看板卡</div></div>
 
   <div class="sum">
-    <div class="panel"><b>🎨 K2</b><br>42 镜 planned → img_done<br><span class="note">~15s/镜 · GPU 托管</span></div>
-    <div class="panel"><b>🔍 人检</b><br>过审 / 🔁打回 / 购物篮<br><span class="note">R 标 · QC 同现版</span></div>
-    <div class="panel"><b>🎬 H3</b><br>approved → anim_done<br><span class="note">上屏字事件随镜渲染</span></div>
-    <div class="panel"><b>🎞 装配</b><br>剪映草稿 · 花字卡锚<br><span class="note">时窗已在 ④ 定死</span></div>
+    <div class="panel"><b>🎬 H3 批生视频</b><br>approved → anim_done (~102s/10s镜)<br><span class="note">运镜三元组/上屏事件随镜渲染 · 败镜换seed重roll</span></div>
+    <div class="panel"><b>🎞 装配</b><br>剪映草稿 · 大字卡锚 · 字幕轨 · 打字卡<br><span class="note">时窗已在 ⑥ 定死</span></div>
   </div>
   <div class="gatebar"><span class="ti">→ 动画工坊看板</span>
     <span class="note">K2/H3/对齐/装配/购物篮/重排镜号 全部在现版页面完成, 零改动</span>
     <span style="flex:1"></span><button class="go act">打开看板 →</button></div>
   <ol class="specs">
-    <li><b>不动执行段</b>: v3 改的只有 ①-④ 的结构产生方式; K2/H3 吃的 shots.json 字段兼容。</li>
-    <li><b>渐进轴 · 状态层</b>: 镜段换产线状态色 (现版徽章色系), 生成进度一眼看; 败镜红段直跳重roll。</li>
+    <li><b>H3 双门槛</b>: ④图 approved ∪ ⑥盖章秒数 — 缺一不开烧; K2/H3 界面沿用现有看板不动。</li>
+    <li><b>渐进轴 · 状态层</b>: 镜段产线状态色 (样例: 已生图13·已批12·败1·待跑16); 败镜红段直跳重roll。</li>
   </ol>
 </section>
 </div>
