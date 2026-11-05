@@ -11,7 +11,8 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g,
 
 const ARC_COLOR = { narr: '#2f6b52', quote: '#3a5f6e', persona: '#6e3a5a',
   hook: '#22304a', cta: '#22304a', brand: '#4a3a1c' };
-const STYLE_ZH = { list: '清单', quote: '金句', event: '事件', img: '配图' };
+// 统一口径: 标签显示内容类型 (kind 六类), 视觉由渲染方式 (style) 决定
+const STYLE_ZH = { list: '清单卡', quote: '金句卡', event: '事件字', img: '配图', title: '标题卡' };
 
 let SHOTS = [], CARDS = [], ISSUES = {}, dirty = new Set(), GATE_OPEN = false;
 
@@ -109,7 +110,12 @@ function renderAxis() {
 
 function cardsOf(sid) {
   return CARDS.filter(c => c.sid === sid)
-    .map(c => `<span class="kard kard-${esc(c.style)}">${esc(STYLE_ZH[c.style] || c.style)}「${esc(c.text)}」</span>`)
+    .map(c => {
+      const label = c.kind || STYLE_ZH[c.style] || c.style;
+      const how = STYLE_ZH[c.style] || c.style;
+      return `<span class="kard kard-${esc(c.style)}" title="内容类型: ${esc(label)} · 渲染方式: ${esc(how)}">`
+        + `${esc(label)}「${esc(c.text)}」</span>`;
+    })
     .join(' ');
 }
 

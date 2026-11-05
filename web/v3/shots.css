@@ -44,3 +44,4 @@
 .src-brand { color:var(--gold); border:1px solid #4a3a1c; }
 .src-const { color:var(--cyan); border:1px dashed #2a4a66; }
 .fixrow { display:flex; gap:10px; align-items:center; margin:8px 0 4px; flex-wrap:wrap; }
+.kard-title { color:#e2e8f0; border:1px solid #4a5568; font-weight:700; }

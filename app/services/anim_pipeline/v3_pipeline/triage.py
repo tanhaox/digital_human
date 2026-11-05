@@ -21,8 +21,9 @@ RE_IMG = re.compile(r"^【图[:：](?P<name>[^】]{1,48})】$")
 RE_SECTION = re.compile(r"^【\d+\s*[–\-—]\s*\d+\s*[sS秒]?\s*[｜|][^】]*】$")
 # writer 注释前缀 (1103 Z+T 白名单): "金句：xxx" 非口播 — 剥前缀, 内容直接成卡
 RE_NOTE = re.compile(r"^(金句|口诀|结论|标题|提示|总结|注释|备注)[：:]\s*(?P<body>.+)$")
-_NOTE_STYLE = {"金句": "quote", "口诀": "quote", "结论": "event", "标题": "list",
-               "提示": "list", "总结": "list", "注释": "list", "备注": "list"}
+# 六类统一口径 (用户令): 注释前缀即内容类型, 渲染方式由 shots.KIND_STYLE 决定
+_NOTE_KIND = {"金句": "金句", "口诀": "口诀", "结论": "结论", "标题": "标题",
+              "提示": "提示", "总结": "总结", "注释": "提示", "备注": "提示"}
 RE_ANY_MARKER = re.compile(r"^【[^】]*】")
 
 # ── 确定性病检 ─────────────────────────────────────────────────────────
@@ -95,7 +96,7 @@ def route_markers(text: str) -> tuple[str, dict[str, Any] | None]:
         return "section", None
     m = RE_NOTE.match(t)
     if m:
-        return "note", {"style": _NOTE_STYLE.get(m.group(1), "list"),
+        return "note", {"kind": _NOTE_KIND.get(m.group(1), "提示"),
                         "name": m.group(1), "text": m.group("body").strip()[:60]}
     return "", None
 

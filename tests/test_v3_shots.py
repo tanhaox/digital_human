@@ -218,3 +218,29 @@ def test_marker_and_adopted_no_double_card():
            "lines": [{"no": 41, "text": "同句", "adopted": ["img"]}]}
     cs2 = v3shots.build_cards(v3b, sh)
     assert len(cs2) == 1 and cs2[0]["style"] == "list"
+
+
+def test_kind_style_two_dimensions():
+    """用户令: 内容类型(六类) 与 渲染方式(三通道) 是两个维度, 不混一列。"""
+    sh = [{"sid": "s1", "line_refs": [41]}]
+    # 注释前缀 → kind + 默认 style
+    v3 = {"cards": [{"cid": "c01", "kind": "结论", "name": "结论",
+                     "text": "边界即信任", "line_no": 41, "from": "marker"}],
+          "lines": [{"no": 41, "text": "边界即信任。", "adopted": []}]}
+    c = v3shots.build_cards(v3, sh)[0]
+    assert c["kind"] == "结论" and c["style"] == "event"      # 结论 → 事件字
+    # 建议 → kind 映射
+    assert v3shots._SUGG_KIND["quote"] == "金句"
+    assert v3shots._SUGG_KIND["event"] == "结论"
+    assert v3shots._SUGG_KIND["list"] == "总结"
+    # 六类都有默认渲染
+    for k in v3shots.KINDS:
+        assert k in v3shots.KIND_STYLE, k
+
+
+def test_note_prefix_maps_to_kind():
+    from app.services.anim_pipeline.v3_pipeline import triage
+    for pref, kind in (("金句", "金句"), ("口诀", "口诀"), ("结论", "结论"),
+                       ("标题", "标题"), ("提示", "提示"), ("总结", "总结")):
+        mode, rec = triage.route_markers(f"{pref}：示例内容")
+        assert mode == "note" and rec["kind"] == kind, (pref, rec)

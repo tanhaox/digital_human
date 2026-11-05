@@ -28,6 +28,17 @@ _LATER_PHASE_MARKERS = ("缺 keyframe_en", "缺 motion_zh", "缺 motion_en",
 
 CARD_OF_SUGG = {"event": "event", "quote": "quote", "img": "img",
                 "book": "quote", "list": "list"}
+
+# ── 统一口径 (用户令): 内容类型 = 稿件 writer 注释六类; 渲染方式 = 三种通道 ──
+# 内容性质 (kind) 与渲染方式 (style) 是两个维度, 不混为一列:
+#   金句/口诀 → 金句卡  |  结论 → 事件字  |  标题 → 标题卡
+#   提示/总结 → 清单卡
+KINDS = ("金句", "口诀", "结论", "标题", "提示", "总结")
+KIND_STYLE = {"金句": "quote", "口诀": "quote", "结论": "event",
+              "标题": "title", "提示": "list", "总结": "list"}
+# 建议 kind → 内容类型 (分诊建议词表与注释六类对齐)
+_SUGG_KIND = {"quote": "金句", "book": "金句", "event": "结论",
+              "list": "总结", "img": "提示"}
 # 同一句多建议时只建一张卡 (实锤: 配图+清单同句各出一张, 文字完全相同=重叠)
 # 取舍: 文字卡优先 (清单/金句/事件/书证), 配图仅在没有文字卡时使用
 _SUGG_PRIORITY = {"list": 0, "quote": 1, "book": 2, "event": 3, "img": 9}
@@ -148,8 +159,12 @@ def build_cards(v3: dict[str, Any], shots: list[dict[str, Any]]) -> list[dict[st
         if key in seen:
             continue
         seen.add(key)
+        _kind = str(c.get("kind") or c.get("name") or "总结")
+        if _kind not in KINDS:
+            _kind = "总结"
         cards.append({"cid": c.get("cid") or f"c{len(cards) + 1:02d}",
-                      "style": c.get("style") or "list",
+                      "kind": _kind,                                  # 内容性质 (六类)
+                      "style": KIND_STYLE.get(_kind) or c.get("style") or "list",  # 渲染方式
                       "text": str(c.get("text") or c.get("name") or "")[:60],
                       "line_no": no, "sid": line2sid.get(no, ""), "from": "marker"})
     _marker_lines = set(_marker_by_line.keys())
@@ -172,7 +187,9 @@ def build_cards(v3: dict[str, Any], shots: list[dict[str, Any]]) -> list[dict[st
         if key in seen:
             continue
         seen.add(key)
-        cards.append({"cid": f"c{len(cards) + 1:02d}", "style": style, "text": text,
+        cards.append({"cid": f"c{len(cards) + 1:02d}",
+                      "kind": _SUGG_KIND.get(kind, "总结"),
+                      "style": style, "text": text,
                       "line_no": no, "sid": line2sid.get(no, ""), "from": "adopted"})
     return cards
 
