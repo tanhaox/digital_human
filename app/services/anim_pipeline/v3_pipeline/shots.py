@@ -393,6 +393,14 @@ def complete_diagram(card: dict[str, Any], lines: list[dict[str, Any]],
     if not dg:
         return False
     card["diagram"] = dg
+    # 回写源头: 重跑分镜会用 lines[].suggs[].diagram 重建卡, 不回写等于白补
+    for ln in lines:
+        if int(ln["no"]) == no:
+            for g in (ln.get("suggs") or []):
+                if g.get("kind") == "img":
+                    g["diagram"] = dg
+                    break
+            break
     return True
 
 
@@ -409,7 +417,10 @@ _SYS = """你是动画分镜的画师。给定「镜」清单 (镜号|所属弧�
    剧情标签 (该拨未拨/先存本金) 是给你理解用的, 不许写进画面句。
 4. 继承所属弧的视觉世界与隐喻, 相邻镜构图不重复。
 5. **画面句里一个引号都不许用** (「」『』"" 全禁): 主题词直接描述, 不要括起来。
-6. 每条只输出画面句, 严格 JSON: {"shots":[{"sid":"s1","keyframe_zh":"..."}]}"""
+6. **景深节奏**: 每 4 镜至少 1 镜大场景 (大全景/俯瞰/辽阔环境, 主体占比小+参照物显纵深);
+   特写/桌面级不得超过半数, 连排特写必拆。
+7. **开篇留人**: 前 60 秒的镜 (标 [hook]) 优先让人物在场 (背影/手/半个身位都算)。
+8. 每条只输出画面句, 严格 JSON: {"shots":[{"sid":"s1","keyframe_zh":"..."}]}"""
 
 
 def fill_brand_shots(shots: list[dict[str, Any]], bible: dict | None) -> int:
@@ -434,20 +445,50 @@ def fill_brand_shots(shots: list[dict[str, Any]], bible: dict | None) -> int:
     return n
 
 
-def _batch_prompt(batch: list[dict[str, Any]], arc_of: dict[str, dict], line_of: dict[int, dict]) -> str:
+def batch_quota(batch: list[dict[str, Any]], zone_of: dict[str, str]) -> str:
+    """本批硬配额 (用户令: 规则只在检查器里、写手不知道 → 事后重投, token 暴涨)。
+
+    景深按「每 4 镜至少 1 镜大场景」逐批下硬指标 (逐批向上取整, 总量必然达标);
+    开篇 60 秒内的镜点名要求人物在场。
+    """
+    n = len(batch)
+    if not n:
+        return ""
+    need_big = max(1, -(-n // 4))
+    hook = [s["sid"] for s in batch if zone_of.get(s["sid"]) == "hook"]
+    lines = [f"【本批硬配额 (违反整批打回重写)】本批 {n} 镜:",
+             f"- 景深: 至少 {need_big} 镜必须是**大场景构图** (大全景/俯瞰/辽阔环境, "
+             "主体占比小+参照物显纵深); 特写/桌面级不得超过半数。"]
+    if hook:
+        need_p = max(1, -(-len(hook) * 3 // 4))
+        lines.append(f"- 人物: {'/'.join(hook)} 落在开篇 60 秒, 其中至少 {need_p} 镜必须有人物在场 "
+                     "(背影/手/半个身位都算)。")
+    return "\n".join(lines)
+
+
+def _batch_prompt(batch: list[dict[str, Any]], arc_of: dict[str, dict],
+                  line_of: dict[int, dict], zone_of: dict[str, str]) -> str:
     rows = []
     for s in batch:
         a = arc_of.get(s["arc_id"]) or {}
         text = str(s.get("narration") or "")[:100]
-        rows.append(f'{s["sid"]}|{a.get("world", "")}|{a.get("metaphor", "")[:60]}|'
+        tag = "[hook]" if zone_of.get(s["sid"]) == "hook" else ""
+        rows.append(f'{s["sid"]}{tag}|{a.get("world", "")}|{a.get("metaphor", "")[:60]}|'
                     f'{text}|{s["est_s"]}s')
-    return "镜号|视觉世界|立意|口播原文|目标时长\n" + "\n".join(rows)
+    quota = batch_quota(batch, zone_of)
+    return (quota + "\n" if quota else "") + "镜号|视觉世界|立意|口播原文|目标时长\n" + "\n".join(rows)
 
 
 def _llm_fill(shots: list[dict[str, Any]], arcs: list[dict[str, Any]],
               line_of: dict[int, dict]) -> int:
     from app.services.llm_service import get_llm_service, _parse_json
     arc_of = {a["arc_id"]: a for a in arcs}
+    # 时间分区 (前 60s = hook): 用句长估时累加, 与 QC 同一把尺
+    zone_of: dict[str, str] = {}
+    acc = 0.0
+    for s in shots:
+        zone_of[s["sid"]] = "hook" if acc < 60 else ""
+        acc += float(s.get("est_s") or 0)
     filled = 0
     for i in range(0, len(shots), BATCH):
         batch = [s for s in shots[i:i + BATCH]
@@ -462,7 +503,7 @@ def _llm_fill(shots: list[dict[str, Any]], arcs: list[dict[str, Any]],
                 sys_p += "\n\n【特区宪法 — 钩子/行动召镜必须遵守】\n" + str(ZONE_RULES)
             except Exception:  # noqa: BLE001
                 pass
-        raw = get_llm_service().chat(sys_p, _batch_prompt(batch, arc_of, line_of),
+        raw = get_llm_service().chat(sys_p, _batch_prompt(batch, arc_of, line_of, zone_of),
                                      model="pro", temperature=0.6,
                                      response_format={"type": "json_object"}, tag="v3_shots")
         got = {str(r.get("sid")): str(r.get("keyframe_zh") or "")[:600]

@@ -434,3 +434,18 @@ def test_sanitize_diagram_children_cap():
     node = {"name": "根", "children": [{"name": f"项{i}"} for i in range(1, 12)]}
     assert len(v3shots.sanitize_diagram(node)["children"]) == 6
     assert len(v3shots.sanitize_diagram(node, budget=[14], max_children=14)["children"]) == 11
+
+
+def test_batch_quota_feeds_rules_to_writer():
+    """用户令: 配额规则必须进生成提示, 不能只在检查器里 (事后重投 = token 暴涨)。"""
+    batch = [{"sid": f"s{i}"} for i in range(1, 9)]
+    q = v3shots.batch_quota(batch, {"s1": "hook", "s2": "hook"})
+    assert "大场景" in q and "至少 2 镜" in q          # 8 镜 → ⌈8/4⌉ = 2
+    assert "s1/s2" in q and "人物" in q
+    assert v3shots.batch_quota([], {}) == ""
+    # 常驻规则也在系统提示里 (双保险)
+    assert "景深节奏" in v3shots._SYS and "开篇留人" in v3shots._SYS
+    # 批次行标了 hook, 写手才知道哪几镜属于开篇
+    row = v3shots._batch_prompt([{"sid": "s1", "arc_id": "A1", "narration": "口播", "est_s": 5}],
+                                {"A1": {}}, {}, {"s1": "hook"})
+    assert "s1[hook]" in row
