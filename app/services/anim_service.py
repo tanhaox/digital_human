@@ -342,20 +342,32 @@ def _phase_plan(job: dict[str, Any]) -> None:
     with _ep_lock_timed(job["book_id"], job["ep"]):
         # 1105 批3 (病灶3): ⛔停止回调贯通 — plan/续跑的逐场段场间生效
         _stop = lambda: job["cancel"]  # noqa: E731 — 闭包读 dict, 无需 partial
+
+        def _prog(done: int, total: int, cur: str) -> None:
+            # 1105 批5 (病灶6): 场级进度 → job.progress + SSE (前端零改, anim_progress 通用)
+            with _JOBS_LOCK:
+                job["progress"] = {"done": done, "total": total, "current": cur}
+            _publish(job["id"], {"type": "anim_progress", "phase": job["phase"],
+                                 "shot_id": cur, "done": done, "total": total})
+
         if job.get("continue_scenes"):
             # ▶️ 分镜续跑 (0917 立意人闸第二段): 立意确认后从骨架续跑逐场
-            path = planner.resume_scenes(job["book_id"], job["ep"], stop_check=_stop)
+            _report: dict[str, Any] = {}
+            path = planner.resume_scenes(job["book_id"], job["ep"],
+                                         stop_check=_stop, on_progress=_prog,
+                                         report=_report)
             # 1101 U9: 落盘音频指纹 (换轨检测的基准)
             _doc0 = shots_mod.load_doc(job["book_title"], job["ep"])
             _doc0["audio_stamp"] = anim_draft.audio_stamp(_doc0, audio)
             shots_mod.save(_doc0)
             # 1013 P0: 自动增强退役 (单写者直接产散文; 手动修复走 enhance 相位/端点)
-            job["result"] = {"shots_json": str(path), "scenes_resumed": True}
+            # 1105 批5: result 回报本轮续跑明细 (resumed/reopened_sick, job 面板可见)
+            job["result"] = {"shots_json": str(path), "scenes_resumed": True, **_report}
             return
         path = planner.plan(job["book_id"], job["ep"], force=job["force"],
                             scorched=bool(job.get("scorched")),
                             concept_only=bool(job.get("concept_only")),
-                            stop_check=_stop)
+                            stop_check=_stop, on_progress=_prog)
         doc = shots_mod.load_doc(job["book_title"], job["ep"])
         if str(doc.get("planner_flow", "")).startswith("director2"):
             # v2 时间轴原生对齐 manifest (含 opening 预留) — 只备整集口播, 不再归真

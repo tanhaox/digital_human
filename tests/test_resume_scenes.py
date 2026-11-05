@@ -226,6 +226,45 @@ def test_scenes_flow_stop_between_scenes(monkeypatch):
     assert calls["n"] == 1
 
 
+def test_scenes_flow_progress_and_report(monkeypatch):
+    # 1105 批5: 场级进度回调序列 + report 回报 (resumed/reopened_sick/planned_total)
+    from pathlib import Path
+    from app.services.anim_pipeline import director2
+    calls = {"n": 0, "prog": []}
+
+    def fake_dispatch(*a, **k):
+        calls["n"] += 1
+        return _doc()
+
+    def fake_prog(done, total, cur):
+        calls["prog"].append((done, total, cur))
+
+    monkeypatch.setattr(planner, "_todo_set",
+                        lambda d, b: (["A1", "A2"], {"A2": ["违规 场A2[s1]"]}, set()))
+    monkeypatch.setattr(planner, "_dispatch_scene", fake_dispatch)
+    monkeypatch.setattr(planner.shots_mod, "save", lambda d: None)
+    monkeypatch.setattr(planner, "_arc_hard_issues", lambda d, b, a: [])
+    monkeypatch.setattr(director2, "redesign_split_clones",
+                        lambda doc, bible=None: {"redesigned": 0, "failed": 0})
+    monkeypatch.setattr(director2, "consistency_review",
+                        lambda doc, bible=None: {"patched": 0})
+    monkeypatch.setattr(planner, "_final_gate_issues", lambda doc, bible: [])
+    monkeypatch.setattr(planner, "_finalize_doc", lambda doc, segs, tag: Path("x"))
+    report: dict = {}
+    planner._scenes_flow("bid", "书", 1, manifest={}, bible=None, doc=_doc(),
+                         on_progress=fake_prog, report=report)
+    assert report == {"planned_total": 2, "resumed": ["A1", "A2"],
+                      "reopened_sick": ["A2"]}
+    assert calls["prog"][0] == (0, 2, "A1 规划中")
+    assert calls["prog"][1] == (1, 2, "A2 规划中")
+    assert calls["prog"][2][2].startswith("收尾链")
+    # 接线: _phase_plan 闭包 + result 回报
+    import inspect
+    from app.services import anim_service as _svc
+    pp = inspect.getsource(_svc._phase_plan)
+    assert "on_progress=_prog" in pp and "**_report" in pp
+
+
 def test_stop_check_wiring_asserts():
     # 源码级断言: stop_check 贯通 plan/_scorched_flow/resume_scenes/_scenes_flow
     import inspect

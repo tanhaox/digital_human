@@ -313,7 +313,7 @@ def _fill_gaps(cfg, doc: dict[str, Any], segs: list[dict[str, Any]]) -> None:
 
 def plan(book_ref: str, ep: int, teardown_file: str | None = None, force: bool = False,
          scorched: bool = False, concept_only: bool = False,
-         stop_check=None) -> Path:
+         stop_check=None, on_progress=None) -> Path:
     """导演规划 v2 (0914 系统化切换): 叙事弧 + 运动设计 + 镜头组.
 
     v2 = director2 (scripts/anim_director.py 正身): 时间轴直出 TTS manifest
@@ -326,6 +326,8 @@ def plan(book_ref: str, ep: int, teardown_file: str | None = None, force: bool =
     concept_only (0917 立意人闸): scorched 下只跑第一级 (切场+立意确认轮),
       落盘骨架+立意.md 即停 — 人确认/改判后续跑 resume_scenes (▶️ 按钮)。
     stop_check (1105 批3): ⛔停止回调, 逐场段场间生效 (粒度=场, 已成场照盘可续)。
+    on_progress (1105 批5): (done, total, current) 场级进度回调 — 20 场 × 1-2min
+      曾全程进度条空转 (job.js 只对无 progress 的 plan 显示"静默属正常")。
     """
     cfg = load()
     book_id, book_title = resolve_book(cfg.db_path, book_ref)
@@ -355,7 +357,8 @@ def plan(book_ref: str, ep: int, teardown_file: str | None = None, force: bool =
             existing.unlink()
             logger.info("[plan] 🧭 全清重来 (0917 两级化): 旧版备份 %s 后删除, 切场+逐场分镜", bak.name)
             return _scorched_flow(book_id, book_title, ep, ep_row, manifest, bible,
-                                  concept_only=concept_only, stop_check=stop_check)
+                                  concept_only=concept_only, stop_check=stop_check,
+                                  on_progress=on_progress)
         else:
             return _replan_flow(book_id, book_title, ep, manifest, bible)
 
@@ -366,7 +369,7 @@ def plan(book_ref: str, ep: int, teardown_file: str | None = None, force: bool =
     # 无doc) 全部提前分流, 该块 0917 起不可达, 徒增主路误读。
     if not existing.exists():
         return _scorched_flow(book_id, book_title, ep, ep_row, manifest, bible,
-                              stop_check=stop_check)
+                              stop_check=stop_check, on_progress=on_progress)
     raise SystemExit(f"已存在 {existing} (--force 覆盖; 已有产物状态会丢失)")
 
 
@@ -437,7 +440,7 @@ def _finalize_doc(doc: dict[str, Any], segs: list[dict[str, Any]], tag: str) -> 
 
 def _scorched_flow(book_id: str, book_title: str, ep: int, ep_row: dict[str, Any],
                    manifest: dict, bible: dict, concept_only: bool = False,
-                   stop_check=None) -> Path:
+                   stop_check=None, on_progress=None) -> Path:
     """🧭 全清两级化 (0917 用户令): 切场一次 + 逐场分镜 — 根治整集单窗预算摊薄.
 
     一级 plan_arcs 小输出切场 (含每场 visual_metaphor), 二级逐场 plan_scene
@@ -496,15 +499,18 @@ def _scorched_flow(book_id: str, book_title: str, ep: int, ep_row: dict[str, Any
         shots_mod.save(doc)
         return shots_mod.shots_path(book_title, ep)
     return _scenes_flow(book_id, book_title, ep, manifest, bible, doc,
-                        stop_check=stop_check)
+                        stop_check=stop_check, on_progress=on_progress)
 
 
-def resume_scenes(book_ref: str, ep: int, stop_check=None) -> Path:
+def resume_scenes(book_ref: str, ep: int, stop_check=None, on_progress=None,
+                  report: dict | None = None) -> Path:
     """▶️ 分镜续跑 (0917 立意人闸第二段): 从盘上骨架/已完成场续跑至全集.
 
     1105 批3 (病灶3): stop_check ⛔停止场间生效 — 旧版续跑全程不查 cancel,
     点了停止场照跑完、状态还误标 failed; 现粒度=场 (场内两把 LLM 不打断),
-    已成场每场落盘, 再点 ▶️ 从断点接着跑。"""
+    已成场每场落盘, 再点 ▶️ 从断点接着跑。
+    1105 批5 (病灶6): on_progress (done,total,current) 场级进度;
+    report 传入选 dict → 填 resumed/reopened_sick (job result 回报续跑了哪些场)。"""
     cfg = load()
     book_id, book_title = resolve_book(cfg.db_path, book_ref)
     _ = fetch_episode(cfg.db_path, book_id, ep)  # 存在性/取行副作用保留
@@ -547,7 +553,8 @@ def resume_scenes(book_ref: str, ep: int, stop_check=None) -> Path:
             "音频已换轨 (指纹失配) — 立意骨架按旧音频切场, 直接续跑会错位。"
             "重跑 🧭规划(全清重来) 或到音频页重新验收采用原轨后再续跑")
     return _scenes_flow(book_id, book_title, ep, manifest, bible, doc,
-                        stop_check=stop_check)
+                        stop_check=stop_check, on_progress=on_progress,
+                        report=report)
 
 
 def _todo_set(doc: dict[str, Any],
@@ -618,7 +625,8 @@ def resume_todo(book_ref: str, ep: int,
 
 def _scenes_flow(book_id: str, book_title: str, ep: int,
                  manifest: dict, bible: dict, doc: dict[str, Any],
-                 stop_check=None) -> Path:
+                 stop_check=None, on_progress=None,
+                 report: dict | None = None) -> Path:
     """两级化第二段: 逐场分镜 (跳过已过闸的场) + 收尾归真/重设计/巡检/核验.
 
     1014 双根治 (ep4 A6 死锁实锤):
@@ -641,11 +649,19 @@ def _scenes_flow(book_id: str, book_title: str, ep: int,
     logger.info("[scorched] 逐场分镜: 待跑 %d 场 (%s) — 每场 1-2 分钟",
                 len(arc_ids), "/".join(arc_ids))
     final_doc = doc
+    # 1105 批5: report 填充 — job result 回报本轮续跑明细 (页面 job 面板可见)
+    if report is not None:
+        report["planned_total"] = len(arc_ids)
+        report["resumed"] = []
+        report["reopened_sick"] = [a for a in arc_ids if a in sick]
     for i, arc_id in enumerate(arc_ids):
         # 1105 批3 (病灶3): ⛔停止场间生效 — 粒度=场, 已成 N 场照盘
         if stop_check and stop_check():
             raise SystemExit(
                 f"⏹ 用户停止 — {i}/{len(arc_ids)} 场已成落盘, ▶️分镜续跑 接着跑")
+        # 1105 批5 (病灶6): 场级进度 — 20 场 × 1-2min 不再进度条空转
+        if on_progress:
+            on_progress(i, len(arc_ids), f"{arc_id} 规划中")
         problems: list[str] = []
         seeded = list(sick.get(arc_id) or [])
         for attempt in (1, 2):
@@ -679,6 +695,10 @@ def _scenes_flow(book_id: str, book_title: str, ep: int,
                              f"盘上停在第 {i} 场成功点, ▶️分镜续跑 接着跑")
         shots_mod.save(final_doc)
         logger.info("[scorched] %d/%d 场 %s ✓", i + 1, len(arc_ids), arc_id)
+        if report is not None:
+            report["resumed"].append(arc_id)
+    if on_progress:
+        on_progress(len(arc_ids), len(arc_ids), "收尾链 (创意槽/组装/归真/分身/巡检)")
 
     # 1007 P5: 术层创意槽填充 (法层模板 → LLM 填 action/detail/atmosphere)
     try:
