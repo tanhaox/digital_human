@@ -75,15 +75,17 @@ td { padding:7px 11px; border-bottom:1px solid var(--line); vertical-align:top; 
 .docline .ln { font-family:var(--mono); font-size:11.5px; color:var(--faint); min-width:36px; }
 .docline .lm { font-size:11px; border-radius:7px; padding:0 7px; color:#fff; min-width:44px; text-align:center; }
 .docline .txt { flex:1; min-width:0; }
-.docline.flg-r { border-left-color:var(--bad-t); background:rgba(110,32,32,.18); }
-.docline.flg-y { border-left-color:var(--amber); background:rgba(122,74,30,.12); }
+.docline.flg-r, .docline.flg-y { border-left-color:var(--bad-t); background:none; }
+.doclist .lm { background:none; border:1px solid var(--line2); color:var(--dim); }
+.doclist .iss { color:var(--bad-t); }
+.lm.sc-card { background:none; border:1px solid var(--line2); color:var(--dim); }
 .doclist { border:1px solid var(--line); border-radius:10px; overflow:hidden; }
 .dl-h, .docline { display:grid; grid-template-columns:48px 76px minmax(300px,1fr) auto; gap:8px;
   align-items:baseline; padding:5px 12px; border-bottom:1px solid var(--line); }
 .dl-h { background:var(--panel2); color:var(--dim); font-size:13px; font-weight:600; }
 .docline { position:relative; flex-wrap:wrap; }
 .docline .iss { grid-column:3 / 5; font-size:12.5px; padding:2px 0 4px; }
-.iss-r { color:var(--bad-t); } .iss-y { color:var(--warn-t); }
+.iss-r, .iss-y { color:var(--bad-t); }
 .docline.routed { opacity:.6; }
 .docline.dim { color:var(--faint); }
 .lm.sc-card { background:#3a5f6e; }
