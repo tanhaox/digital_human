@@ -55,9 +55,9 @@ function renderGrid() {
   if (!SHOTS.length) { $('grid').innerHTML = '<div class="note">未切镜 — 先跑 ③</div>'; return; }
   $('grid').innerHTML = SHOTS.map(s => {
     const st = s.status || 'planned';
-    const img = s.image
-      ? `<img src="/api/anim/ep/${encodeURIComponent(B)}/${E}/file/${esc(s.image)}" loading="lazy"
-              alt="${esc(s.sid)}" title="${esc(s.sid)} · seed ${s.seed ?? '?'}">`
+    const img = s.image_url
+      ? `<img src="${esc(s.image_url)}" loading="lazy"
+              alt="${esc(s.sid)}" title="${esc(s.sid)}${s.brand ? ' · 品牌位' : ' · seed ' + (s.seed ?? '?')}">`
       : (s.brand ? '🏔 品牌卡直通 (待生成)' : '— 待生成 —');
     return `<div class="kcard ${st === 'approved' ? 'approved' : (s.suspect ? 'suspect' : '')}">
       <div class="kimg">${img}</div>

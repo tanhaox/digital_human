@@ -525,10 +525,20 @@ def v3_k2_get(book_id: str, ep: int):
     for s in (v3.get("shots") or []):
         k2s = s.get("k2") or {}
         d = direct.get(s["sid"]) or {}
+        img = k2s.get("image")
+        # image_url 由后端算 (实锤: 品牌图在 ep 目录之外 ../../_资产/, /file/ 按
+        # 路径安全 404 → 品牌镜显示未出图)
+        if img and s.get("brand_card"):
+            url = f"/api/anim/v3/ep/{book_id}/{ep}/k2/brand-image"
+        elif img:
+            url = f"/api/anim/ep/{book_id}/{ep}/file/{img}"
+        else:
+            url = None
         out.append({"sid": s["sid"], "est_s": s.get("est_s"),
                     "size": d.get("size"), "cam": (d.get("cam") or {}).get("kind"),
                     "brand": bool(s.get("brand_card")),
-                    "image": k2s.get("image"), "status": k2s.get("status") or "planned",
+                    "image": img, "image_url": url,
+                    "status": k2s.get("status") or "planned",
                     "seed": k2s.get("seed"), "suspect": bool(k2s.get("text_suspect")),
                     "error": k2s.get("error")})
     return {"shots": out, "gates": v3_pipeline.gates_view(doc),
@@ -538,6 +548,22 @@ def v3_k2_get(book_id: str, ep: int):
 class K2ApproveBody(BaseModel):
     sids: list[str] = []
     all: bool = False
+
+
+@router.get("/ep/{book_id}/{ep}/k2/brand-image")
+def v3_k2_brand_image(book_id: str, ep: int):
+    """品牌镜首帧 = 书级品牌 keyframe (在 _资产/ 目录, ep 目录之外, 专用端点取)。"""
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    from app.services.anim_pipeline import brand as brand_mod
+    from app.services.anim_pipeline import shots as shots_mod
+    from pathlib import Path as _P
+    p = shots_mod.ep_dir(book_title, ep) / brand_mod.resolve(book_title, ep, "keyframe")
+    if not p.exists():
+        raise HTTPException(status_code=404, detail="品牌 keyframe 不存在 — 先跑品牌卡")
+    return FileResponse(str(p))
 
 
 @router.post("/ep/{book_id}/{ep}/k2/approve")
