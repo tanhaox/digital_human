@@ -75,6 +75,7 @@ def v3_state(book_id: str, ep: int):
     return {"book_id": book_id, "book_title": book_title, "ep": ep,
             "line": line, "gates": gates,
             "lines_done": bool(v3d.get("lines")),
+            "frozen": bool(v3d.get("frozen_at")),
             "counts": counts,
             "running_job": running}
 
@@ -441,6 +442,60 @@ def v3_direct_save(book_id: str, ep: int, body: DirectSaveBody):
         shots_mod.save(doc)
     return {"saved": len(merged), "issues": issues,
             "gate": v3["gates"]["direct"]}
+
+
+class DirectRerollBody(BaseModel):
+    sid: str
+
+
+@router.post("/ep/{book_id}/{ep}/direct/reroll")
+def v3_direct_reroll(book_id: str, ep: int, body: DirectRerollBody):
+    """④ 单镜重掷: 只重生成该镜四元组 (一镜一批, 便宜), 固化执行参数后返回。"""
+    from app.services.anim_pipeline.v3_pipeline import direct as v3_direct
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    with anim_service.ep_guard(book_id, ep):
+        doc = _load_v3_doc(book_title, ep)
+        v3 = doc.setdefault("v3", {})
+        shots = v3.get("shots") or []
+        d = v3_direct.reroll_one(shots, v3.get("arcs") or [], body.sid)
+        if not d:
+            raise HTTPException(status_code=422, detail=f"镜不存在或未产出: {body.sid}")
+        for k in ("steps", "station", "clause"):
+            d.pop(k, None)
+        d["steps"] = v3_direct.steps_for(next(s for s in shots if s["sid"] == body.sid))
+        d["station"] = v3_direct.station_for(d.get("cam"))
+        d["clause"] = v3_direct.cam_clause(d.get("cam"))
+        merged = dict(v3.get("direct") or {})
+        merged[body.sid] = d
+        v3["direct"] = merged
+        v3["direct_issues"] = v3_direct.validate(merged, shots)
+        from app.services.anim_pipeline import shots as shots_mod
+        shots_mod.save(doc)
+    return {"sid": body.sid, "direct": d, "issues": v3["direct_issues"]}
+
+
+@router.post("/ep/{book_id}/{ep}/direct/finalize")
+def v3_direct_finalize(book_id: str, ep: int):
+    """④ 放行动作: 英文化批 (ID-131) + 冻结戳 (③④ 此后转只读)。幂等。"""
+    from app.services.anim_pipeline.v3_pipeline import direct as v3_direct
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    with anim_service.ep_guard(book_id, ep):
+        doc = _load_v3_doc(book_title, ep)
+        try:
+            out = v3_direct.finalize(doc)
+        except SystemExit as exc:
+            raise HTTPException(status_code=409, detail=str(exc))
+        from app.services.anim_pipeline import shots as shots_mod
+        shots_mod.save(doc)
+    return out
 
 
 @router.post("/ep/{book_id}/{ep}/shots/save")

@@ -492,7 +492,7 @@ def _batch_prompt(batch: list[dict[str, Any]], arc_of: dict[str, dict],
 
 
 def _llm_fill(shots: list[dict[str, Any]], arcs: list[dict[str, Any]],
-              line_of: dict[int, dict]) -> int:
+              line_of: dict[int, dict], job: dict[str, Any] | None = None) -> int:
     from app.services.llm_service import get_llm_service, _parse_json
     arc_of = {a["arc_id"]: a for a in arcs}
     # 时间分区 (前 60s = hook): 用句长估时累加, 与 QC 同一把尺
@@ -501,12 +501,18 @@ def _llm_fill(shots: list[dict[str, Any]], arcs: list[dict[str, Any]],
     for s in shots:
         zone_of[s["sid"]] = "hook" if acc < 60 else ""
         acc += float(s.get("est_s") or 0)
+    total_b = -(-len(shots) // BATCH)
     filled = 0
-    for i in range(0, len(shots), BATCH):
+    for bi, i in enumerate(range(0, len(shots), BATCH)):
+        if job is not None and job.get("cancel"):
+            raise SystemExit("已取消")      # 批间生效 (面板 ⛔)
         batch = [s for s in shots[i:i + BATCH]
                  if s.get("arc_type") != "brand" and not s.get("keyframe_zh")]
         if not batch:
             continue                     # 品牌镜已由冻结骨架填好, 不进 LLM
+        if job is not None:
+            job["progress"] = {"done": bi, "total": total_b,
+                               "current": f"画面句 {batch[0]['sid']}.."}
         sys_p = _SYS
         if any(s.get("arc_type") in ("hook", "cta") for s in batch):
             # 钩子/行动召: 注入特区宪法 (v2 同一份规则, 非 LLM 自由发挥)
@@ -852,7 +858,7 @@ def run(job: dict[str, Any]) -> None:
         logger.info("[v3:shots] 品牌镜骨架注入 %d 镜 (零 LLM)", n_brand)
     filled = n_brand
     try:
-        filled += _llm_fill(shots, arcs, line_of)
+        filled += _llm_fill(shots, arcs, line_of, job)
         logger.info("[v3:shots] 画面句 %d/%d 镜 ✓ (批 %d)", filled, len(shots), BATCH)
     except Exception as exc:  # noqa: BLE001 — LLM 失败留空待人填
         logger.warning("[v3:shots] 画面句 LLM 失败 (留空待手填): %s", exc)

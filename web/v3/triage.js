@@ -1,5 +1,15 @@
 // v3 分诊页逻辑 (外置: CSP 禁内联)
 import { rail } from './rail.js';
+import { createJobRunner } from './job.js';
+const runner = createJobRunner({
+  onFinished: job => {
+    setRunning(false);
+    if (job.status === 'completed') toast('✓ 分诊完成');
+    else if (job.status !== 'unknown') toast('分诊结束: ' + (job.status || ''));
+    refresh();
+  },
+  onBusy: busy => setRunning(busy),
+});
 const qs = new URLSearchParams(location.search);
 const B = qs.get('book_id') || '', E = qs.get('ep_index') || '1';
 const BASE = `/api/anim/v3/ep/${encodeURIComponent(B)}/${E}`;
@@ -28,7 +38,7 @@ async function refresh() {
   $('btn-run').textContent = d.triaged ? '🩺 重新分诊' : '🩺 开始分诊';
   renderList();
   // 页面重载时若有分诊 job 在跑 → 续接轮询 (进度可见)
-  if (st.running_job && st.running_job.phase === 'v3_triage') poll(st.running_job.id);
+  if (st.running_job && st.running_job.phase === 'v3_triage') runner.attach(st.running_job);
 }
 
 function renderGate(open, triaged) {
@@ -168,24 +178,11 @@ $('btn-run').onclick = async () => {
     headers: { 'Content-Type': 'application/json' }, body: '{}' });
   if (!r.ok) { toast('启动失败: ' + (await r.json()).detail, true); return; }
   const j = await r.json();
-  setRunning(true);
   if (LINES.length) toast('分诊中 (约 1 分钟) — 完成自动刷新');
-  poll(j.id);
+  runner.attach(j);
 };
 async function poll(id) {
-  setRunning(true);
-  for (let i = 0; i < 60; i++) {
-    await new Promise(r => setTimeout(r, 3000));
-    let d; try { d = await (await fetch(`/api/anim/job/${id}`)).json(); }
-    catch { continue; }
-    if (d.status !== 'running') {
-      setRunning(false);
-      if (d.status === 'completed') toast('✓ 分诊完成');
-      else toast('分诊失败: ' + (d.error || d.status));
-      refresh(); return;
-    }
-  }
-  setRunning(false);
+  // 已由 job.js 面板接管 (1105 换装); 保留函数位防旧调用
 }
 function toast(m) { const t = document.createElement('div');
   t.textContent = m; t.className = 'toast';

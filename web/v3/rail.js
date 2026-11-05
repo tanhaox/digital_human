@@ -6,7 +6,7 @@ export const STEPS = [
   { n: '①', id: 'triage',  gate: 'triage', page: './triage.html',  label: '文稿分诊' },
   { n: '②', id: 'concept', gate: 'arcs',   page: './concept.html', label: '立意' },
   { n: '③', id: 'shots',   gate: 'shots',  page: './shots.html',   label: '分镜文字' },
-  { n: '④', id: 'direct',  gate: 'direct', page: null,             label: '导演' },
+  { n: '④', id: 'direct',  gate: 'direct', page: './director.html', label: '导演' },
   { n: '⑤', id: 'k2',      gate: null,     page: null,             label: 'K2 生图' },
   { n: '⑥', id: 'tts',     gate: null,     page: null,             label: 'TTS' },
   { n: '⑦', id: 'stamp',   gate: 'stamp',  page: null,             label: '盖章' },

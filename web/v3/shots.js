@@ -2,6 +2,17 @@
 // 布局: 左 = 弧分块镜头表 (读稿顺序), 右 = 总审栏 (闸态/质检/弧级提醒), 底 = 常驻操作。
 import { rail } from './rail.js';
 import { timeline } from './timeline.js';
+import { createJobRunner } from './job.js';
+
+const runner = createJobRunner({
+  onFinished: job => {
+    if (job.status === 'completed')
+      toast(`✓ ${job.result?.shots ?? '?'} 镜 (质检 ${job.result?.issues ?? 0})`);
+    else if (job.status !== 'unknown') toast('分镜结束: ' + (job.status || ''));
+    refresh();
+  },
+  onBusy: busy => setBusy(busy),
+});
 
 const qs = new URLSearchParams(location.search);
 const B = qs.get('book_id') || '', E = qs.get('ep_index') || '1';
@@ -16,7 +27,7 @@ const TYPE_ZH = { narr: '叙事弧', quote: '书证镜', persona: '人设镜',
   hook: '钩子', cta: '行动召', brand: '品牌' };
 const STYLE_ZH = { list: '清单卡', quote: '金句卡', event: '事件字', img: '配图', title: '标题卡' };
 
-let SHOTS = [], CARDS = [], ARCS = [], ISSUES = {}, WARNINGS = [];
+let SHOTS = [], CARDS = [], ARCS = [], ISSUES = {}, WARNINGS = [], FROZEN = false;
 let dirty = new Set(), GATE_OPEN = false;
 
 /* ── 数据 ─────────────────────────────────────────────── */
@@ -29,8 +40,17 @@ async function refresh() {
   ISSUES = d.issues || {}; WARNINGS = d.warnings || [];
   $('sub').textContent = `${st.book_title} · 第${st.ep}集`;
   renderHeader(); renderRail(st, d.gates); renderAxis();
+  if (st.running_job) runner.attach(st.running_job);   // 刷新重挂
+  FROZEN = !!st.frozen;
   renderSysWarn(); renderBlocks(); renderSide(); renderGate(d.gates?.shots, d.ready);
   refreshDirty();
+  if (FROZEN) {   // 放行冻结: 画面句转只读 (改稿=作废英文化)
+    document.querySelectorAll('[data-k="keyframe_zh"]').forEach(el => {
+      el.contentEditable = 'false';
+    });
+    $('btn-run').disabled = true; $('btn-save').disabled = true;
+    $('save-label').textContent = '🔒 已放行冻结';
+  }
 }
 
 /* 系统自查: 叙事/书证/人设弧缺「视觉世界」→ 一键补全 (用户令: 缺字段是系统的锅) */
@@ -349,19 +369,7 @@ $('btn-run').onclick = async () => {
     headers: { 'Content-Type': 'application/json' }, body: '{}' });
   if (!r.ok) { toast('启动失败: ' + (await r.json()).detail); return; }
   const j = await r.json();
-  setBusy(true); toast('分镜生成中 (LLM 写画面句)');
-  for (let i = 0; i < 80; i++) {
-    await new Promise(x => setTimeout(x, 3000));
-    let d; try { d = await (await fetch(`/api/anim/job/${j.id}`)).json(); } catch { continue; }
-    if (d.status !== 'running') {
-      setBusy(false);
-      toast(d.status === 'completed'
-        ? `✓ ${d.result?.shots ?? '?'} 镜 (质检 ${d.result?.issues ?? 0})`
-        : '分镜失败: ' + (d.error || d.status));
-      refresh(); return;
-    }
-  }
-  setBusy(false);
+  runner.attach(j);
 };
 function setBusy(on) {
   const b = $('btn-run'); b.disabled = on;

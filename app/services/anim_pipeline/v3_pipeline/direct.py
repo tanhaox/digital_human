@@ -165,13 +165,20 @@ def _batch_prompt(batch: list[dict[str, Any]], arc_of: dict[str, dict],
 
 
 def _llm_fill(shots: list[dict[str, Any]], arcs: list[dict[str, Any]],
-              guess_of: dict[str, str]) -> dict[str, dict[str, Any]]:
+              guess_of: dict[str, str], job: dict[str, Any] | None = None
+              ) -> dict[str, dict[str, Any]]:
     """按批生成四元组; 批内自检 (枚举/槽长/相邻景别) 不达标整批补投一次。"""
     from app.services.llm_service import get_llm_service, _parse_json
     arc_of = {a["arc_id"]: a for a in arcs}
     direct: dict[str, dict[str, Any]] = {}
-    for i in range(0, len(shots), 8):
+    total_b = -(-len(shots) // 8)
+    for bi, i in enumerate(range(0, len(shots), 8)):
         batch = shots[i:i + 8]
+        if job is not None:
+            if job.get("cancel"):
+                raise SystemExit("已取消")          # 批间生效 (面板 ⛔)
+            job["progress"] = {"done": bi, "total": total_b,
+                               "current": f"导演参数 {batch[0]['sid']}.."}
         prompt_b = _batch_prompt(batch, arc_of, guess_of)
         raw = get_llm_service().chat(_SYS, prompt_b, model="pro", temperature=0.4,
                                      response_format={"type": "json_object"},
@@ -210,6 +217,73 @@ def _llm_fill(shots: list[dict[str, Any]], arcs: list[dict[str, Any]],
     return direct
 
 
+def reroll_one(shots: list[dict[str, Any]], arcs: list[dict[str, Any]],
+               sid: str) -> dict[str, Any] | None:
+    """单镜重掷 (④ 版, v2 cartRedo 对应位): 只重生成该镜四元组, 一镜一批 LLM。"""
+    from app.services.llm_service import get_llm_service, _parse_json
+    from app.services.anim_pipeline.v3_pipeline.shots import suggest_size
+    s = next((x for x in shots if str(x["sid"]) == sid), None)
+    if not s:
+        return None
+    arc_of = {a["arc_id"]: a for a in arcs}
+    guess = {sid: suggest_size(s.get("keyframe_zh"))}
+    got = _llm_fill([s], arcs, guess)
+    return got.get(sid)
+
+
+# ── 放行钩子 = 英文化批 (ID-131; 窗口唯一: ⑤要吃/放行前翻=改稿作废) ────
+
+_EN_SYS = """You translate animation shot descriptions to English. Input lines:
+sid|中文画面句|中文主体运动. Output strict JSON:
+{"shots":[{"sid":"s1","keyframe_en":"...","motion_en":"..."}]}
+Rules: keyframe_en is the SAME composition in English (no text/words may appear
+in the described image); motion_en describes the same subject motion in English,
+never mentioning any on-screen words. Plain faithful prose, no camera moves."""
+
+
+def finalize(doc: dict[str, Any]) -> dict[str, Any]:
+    """④ 放行: 批量翻译 keyframe_en/motion_en + opening_desc(=keyframe_en) + 冻结戳。
+
+    幂等: 已 frozen 直接返回。冻结后 ③④ 改稿即作废翻译 → 页面转只读 (前端按
+    v3.frozen_at 判), 重放行须先解冻 (当前设计: 重跑 ③ 即清戳)。
+    """
+    import json as _json
+    from app.services.llm_service import get_llm_service, _parse_json
+    v3 = doc.setdefault("v3", {})
+    if v3.get("frozen_at"):
+        return {"frozen": True, "already": True,
+                "translated": sum(1 for s in (v3.get("shots") or []) if s.get("keyframe_en"))}
+    shots = v3.get("shots") or []
+    direct = v3.get("direct") or {}
+    issues = v3.get("direct_issues") or {}
+    if any(k != "弧级" for k in issues) or len(direct) < len(shots):
+        raise SystemExit("导演未达标 — 先清镜级问题并填满 34 镜再放行")
+    todo = [s for s in shots if not s.get("keyframe_en")]
+    rows = [f'{s["sid"]}|{str(s.get("keyframe_zh") or "")[:400]}'
+            f'|{str((direct.get(s["sid"]) or {}).get("motion") or "")[:100]}'
+            for s in todo]
+    done = 0
+    for i in range(0, len(rows), 12):
+        batch = rows[i:i + 12]
+        raw = get_llm_service().chat(_EN_SYS, "\n".join(batch), model="pro",
+                                     temperature=0.2,
+                                     response_format={"type": "json_object"},
+                                     tag="v3_en")
+        got = {str(r.get("sid")): r for r in (_parse_json(raw).get("shots") or [])}
+        for s in todo:
+            r = got.get(s["sid"])
+            if r:
+                s["keyframe_en"] = str(r.get("keyframe_en") or "")[:800]
+                s["opening_desc"] = s["keyframe_en"]     # v2 锚定链: 逐字同构
+                d = direct.get(s["sid"])
+                if d is not None and r.get("motion_en"):
+                    d["motion_en"] = str(r.get("motion_en"))[:400]
+                done += 1
+    v3["frozen_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+    logger.info("[v3:direct] 放行英文化 %d/%d 镜, frozen_at=%s", done, len(todo), v3["frozen_at"])
+    return {"frozen": True, "translated": done, "total": len(todo)}
+
+
 def run(job: dict[str, Any]) -> None:
     """v3_direct 相位本体: 读 v3.shots → LLM 四元组 → 校验 → v3.direct 落盘。"""
     from app.services.anim_pipeline import shots as shots_mod
@@ -222,7 +296,7 @@ def run(job: dict[str, Any]) -> None:
         raise SystemExit("未切镜 — 先跑 ③ 分镜文字")
     job["progress"] = {"done": 0, "total": 1, "current": "导演参数生成中"}
     guess_of = {s["sid"]: suggest_size(s.get("keyframe_zh")) for s in shots}
-    direct = _llm_fill(shots, v3.get("arcs") or [], guess_of)
+    direct = _llm_fill(shots, v3.get("arcs") or [], guess_of, job)
     issues = validate(direct, shots)
     # 步数/工位/英文句是执行参数, 随镜固化 (H3 壳直接取, 不再判)
     for s in shots:

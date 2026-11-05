@@ -1,6 +1,15 @@
 // ② 立意页逻辑 (CSP: 全外置, 动态样式走 CSSOM)
 import { rail } from './rail.js';
 import { timeline } from './timeline.js';
+import { createJobRunner } from './job.js';
+const runner = createJobRunner({
+  onFinished: job => {
+    if (job.status === 'completed') toast(`✓ 切出 ${job.result?.arcs ?? '?'} 弧`);
+    else if (job.status !== 'unknown') toast('立意结束: ' + (job.status || ''));
+    refresh();
+  },
+  onBusy: busy => { $('btn-run').disabled = busy; },
+});
 
 const qs = new URLSearchParams(location.search);
 const B = qs.get('book_id') || '', E = qs.get('ep_index') || '1';
@@ -41,6 +50,7 @@ async function refresh() {
     `<span class="badge ${nMet === ARCS.length ? 'ok' : 'warn'}">立意 ${nMet}/${ARCS.length}</span>` +
     (d.issues.length ? `<span class="badge bad">红痕 ${d.issues.length}</span>` : '');
   rail($('rail'), { line: st.line, gates: d.gates, active: 'concept' });
+  if (st.running_job) runner.attach(st.running_job);
   renderIssues(d.issues || []);
   renderHints(d.hints || []);
   renderAxis();
@@ -198,19 +208,7 @@ $('btn-run').onclick = async () => {
   const r = await fetch(`${BASE}/v3_arcs`, { method: 'POST',
     headers: { 'Content-Type': 'application/json' }, body: '{}' });
   if (!r.ok) { toast('启动失败: ' + (await r.json()).detail); return; }
-  const j = await r.json();
-  toast('立意生成中 (LLM 约 1 分钟)');
-  setBusy(true);
-  for (let i = 0; i < 60; i++) {
-    await new Promise(x => setTimeout(x, 3000));
-    let d; try { d = await (await fetch(`/api/anim/job/${j.id}`)).json(); } catch { continue; }
-    if (d.status !== 'running') {
-      setBusy(false);
-      toast(d.status === 'completed' ? `✓ 切出 ${d.result?.arcs ?? '?'} 弧` : '立意失败: ' + (d.error || d.status));
-      refresh(); return;
-    }
-  }
-  setBusy(false);
+  runner.attach(await r.json());
 };
 function setBusy(on) {
   const b = $('btn-run'); b.disabled = on;

@@ -1,5 +1,6 @@
 // ④ 导演页 (UI 定稿批: 真数据 + 空字段; 生成/保存下一批接入)
 import { rail } from './rail.js';
+import { createJobRunner } from './job.js';
 
 const qs = new URLSearchParams(location.search);
 const B = qs.get('book_id') || '', E = qs.get('ep_index') || '1';
@@ -37,15 +38,30 @@ const NO_MOVE = ['待定', '固定'];
 const TYPE_ZH = { narr: '叙事弧', quote: '书证镜', persona: '人设镜',
   hook: '钩子', cta: '行动召', brand: '品牌' };
 
-let SHOTS = [], ARCS = [], STATE = {}, DIRTY = new Set(), GATES = {};
+let SHOTS = [], ARCS = [], STATE = {}, DIRTY = new Set(), GATES = {}, FROZEN = false;
 let MIN_SLOT = 6;
+
+/* 任务面板 (1105 移植 v2 模式): busy 禁操作钮, 结束刷新, 刷新重挂 */
+const runner = createJobRunner({
+  onFinished: job => {
+    if (job.status === 'completed')
+      toast(`✓ ${job.result?.shots ?? '?'} 镜 (运镜 ${job.result?.moves ?? 0}, 待清 ${job.result?.issues ?? 0})`);
+    else if (job.status !== 'unknown') toast('生成结束: ' + (job.status || ''));
+    boot();
+  },
+  onBusy: busy => {
+    ['btn-run', 'btn-save', 'btn-next'].forEach(id => { $(id).disabled = busy; });
+    if (busy) $('btn-run').textContent = '⏳ 生成中…';
+    else $('btn-run').textContent = '🎬 生成导演';
+  },
+});
 
 async function boot() {
   const [d, st] = await Promise.all([
     (await fetch(`${BASE}/shots`)).json(),
     (await fetch(`${BASE}/state`)).json(),
   ]);
-  SHOTS = d.shots || []; ARCS = d.arcs || []; GATES = d.gates || {};
+  SHOTS = d.shots || []; ARCS = d.arcs || []; GATES = d.gates || {}; FROZEN = !!st.frozen;
   // 词表以服务端为准 (单一事实源: 后端 CAM_DEFS = H3 壳 = 校验器 = 本页预览)
   if (d.cam_defs) {
     Object.keys(CAM_DEFS).forEach(k => delete CAM_DEFS[k]);
@@ -70,6 +86,7 @@ async function boot() {
     };
   }
   rail($('rail'), { line: st.line, gates: GATES, active: 'direct' });
+  if (st.running_job) runner.attach(st.running_job);   // 刷新重挂 (v2 同模式)
   renderBlocks(); renderRhythm(); renderCounts(); renderSide();
   const run = $('btn-run'), save = $('btn-save');
   run.disabled = false; run.title = 'LLM 按官方词表填四元组 (程序管步数/工位)';
@@ -82,21 +99,7 @@ async function runDirect() {
   const r = await fetch(`${BASE}/v3_direct`, { method: 'POST',
     headers: { 'Content-Type': 'application/json' }, body: '{}' });
   if (!r.ok) { toast('启动失败: ' + (await r.json()).detail); return; }
-  const j = await r.json();
-  $('btn-run').disabled = true; $('btn-run').textContent = '⏳ 生成中…';
-  toast('导演参数生成中 (LLM 四元组, 批内自检)');
-  for (let i = 0; i < 100; i++) {
-    await new Promise(x => setTimeout(x, 4000));
-    let d; try { d = await (await fetch(`/api/anim/job/${j.id}`)).json(); } catch { continue; }
-    if (d.status !== 'running') {
-      $('btn-run').disabled = false; $('btn-run').textContent = '🎬 生成导演';
-      toast(d.status === 'completed'
-        ? `✓ ${d.result?.shots ?? '?'} 镜 (运镜 ${d.result?.moves ?? 0}, 待清 ${d.result?.issues ?? 0})`
-        : '生成失败: ' + (d.error || d.status));
-      boot(); return;
-    }
-  }
-  $('btn-run').disabled = false; $('btn-run').textContent = '🎬 生成导演';
+  runner.attach(await r.json());
 }
 
 async function saveDirect() {
@@ -117,7 +120,15 @@ async function saveDirect() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ direct }) })).json();
     DIRTY.clear();
-    if (r.gate) toast('✓ 导演放行 — 可进 ⑤');
+    if (r.gate && confirmMode) {
+      // 放行动作 = 英文化批 (ID-131): keyframe_en/motion_en + 冻结戳
+      toast('放行中: 英文化批 (34 镜翻译, 约 1 分钟)…');
+      try {
+        const f = await (await fetch(`${BASE}/direct/finalize`, { method: 'POST',
+          headers: { 'Content-Type': 'application/json' }, body: '{}' })).json();
+        toast(f.already ? '已放行过 (幂等)' : `✓ 放行完成: 英文化 ${f.translated}/${f.total} 镜 — 可进 ⑤`);
+      } catch (e) { toast('英文化失败: ' + e.message); }
+    } else if (r.gate) toast('✓ 达标 — 点「确认放行」触发英文化');
     else {
       const first = Object.entries(r.issues || {}).find(([k]) => k !== '弧级');
       toast(first ? `待清: ${first[1][0]}` : '已保存 (弧级提醒不拦闸)');
@@ -226,6 +237,7 @@ function rowHTML(s) {
       <select class="sel-amp" data-k="cam.amp" title="运镜幅度 (H3: small/large amplitude, 中没有词)"${fixed ? ' disabled' : ''}>${opts(AMPS, st.cam.amp, AMP_LAB)}</select>
       <select class="sel-speed" data-k="cam.speed" title="运镜速度 (H3: slow/fast speed, 常速没有词)"${fixed ? ' disabled' : ''}>${opts(SPEEDS, st.cam.speed, SPD_LAB)}</select>
       <span class="flex1"></span>
+      <button class="iconbtn" data-act="reroll" data-sid="${esc(s.sid)}" title="重掷此镜四元组 (一镜一批 LLM)">↻</button>
       <button class="kf-btn" data-act="kf" title="展开画面句">画面句 ▸</button>
     </div>
     <div class="r2">
@@ -261,6 +273,19 @@ function bindRows() {
         }
       });
     });
+    const rb = row.querySelector('[data-act="reroll"]');
+    rb.onclick = async () => {
+      const sid = rb.dataset.sid;
+      rb.disabled = true; rb.textContent = '⏳';
+      try {
+        const r = await (await fetch(`${BASE}/direct/reroll`, { method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sid }) })).json();
+        if (r.direct) { toast(`✓ ${sid} 四元组已重掷`); await boot(); }
+        else toast('重掷失败: ' + (r.detail || ''));
+      } catch (e) { toast('重掷失败: ' + e.message); }
+      finally { rb.disabled = false; rb.textContent = '↻'; }
+    };
     const btn = row.querySelector('[data-act="kf"]');
     const kf = row.querySelector('.kf');
     btn.onclick = () => {
@@ -313,9 +338,17 @@ function renderSide() {
 
   const ok = q.big >= q.needBig && q.micro <= q.maxMicro && q.sameAdj === 0;
   const box = $('gatecard');
+  if (FROZEN) {
+    box.className = 'card gatebar on';
+    box.innerHTML = '<div class="gt gold-t">🔒 已放行冻结</div>'
+      + '<div class="note">英文化已固化 — 改稿须重跑 ③ 分镜 (作废翻译)</div>';
+    document.querySelectorAll('#blocks select, #blocks input').forEach(el => { el.disabled = true; });
+    $('btn-run').disabled = true;
+    return;
+  }
   box.className = 'card gatebar' + (ok ? ' on' : '');
   box.innerHTML = ok
-    ? '<div class="gt gold-t">◉ 导演参数达标</div><div class="note">生成/保存接入后可放行 ⑤</div>'
+    ? '<div class="gt gold-t">◉ 导演参数达标</div><div class="note">点底部「确认放行」触发英文化批 → ⑤</div>'
     : '<div class="gt">🔒 导演未完成</div><div class="note">先调整景别节奏 (右栏三项全绿)</div>';
 }
 

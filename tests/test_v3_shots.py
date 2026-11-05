@@ -553,3 +553,90 @@ def test_narrative_feeds_both_prompts():
     r4 = p4([{"sid": "s1", "arc_id": "A1", "est_s": 5, "keyframe_zh": "画面"}],
             arc, {"s1": "全景"})
     assert "本弧讲什么" in r4 and "专家执行到位" in r4
+
+
+def test_direct_finalize_idempotent_and_freezes():
+    """④ 放行钩子 (ID-131): 英文化批 + frozen_at 冻结戳; 幂等; 未达标拒放行。"""
+    import sys, json
+    from app.services.anim_pipeline.v3_pipeline import direct as D
+    sys.path.insert(0, ".")
+    shots = [{"sid": "s1", "keyframe_zh": "悬崖公路全景，豪车入弯", "keyframe_en": ""},
+             {"sid": "s2", "keyframe_zh": "过肩近景握盘", "keyframe_en": ""}]
+    doc = {"v3": {"shots": shots,
+                  "direct": {x["sid"]: {"size": "全景", "cam": {"kind": "固定"},
+                                        "motion": "手握紧", "light": ""} for x in shots},
+                  "direct_issues": {}}}
+
+    class _LLM:
+        def chat(self, *a, **kw):
+            assert kw.get("tag") == "v3_en"
+            ids = [ln.split("|")[0] for ln in a[1].splitlines() if ln.startswith("s")]
+            return json.dumps({"shots": [{"sid": i, "keyframe_en": "cliff road EN",
+                                          "motion_en": "grip EN"} for i in ids]})
+
+    class _SvcMod:
+        @staticmethod
+        def get_llm_service():
+            return _LLM()
+
+        @staticmethod
+        def _parse_json(raw):
+            return json.loads(raw)
+
+    real = sys.modules.get("app.services.llm_service")
+    sys.modules["app.services.llm_service"] = _SvcMod
+    try:
+        out = D.finalize(doc)
+        assert out["translated"] == 2 and doc["v3"]["frozen_at"]
+        assert all(s["keyframe_en"] == "cliff road EN" for s in shots)
+        assert all(s["opening_desc"] == s["keyframe_en"] for s in shots)   # 锚定链同构
+        assert doc["v3"]["direct"]["s1"]["motion_en"] == "grip EN"
+        again = D.finalize(doc)                     # 幂等
+        assert again["already"] is True
+        # 未达标拒放行
+        bad = {"v3": {"shots": shots, "direct": {"s1": {}},
+                      "direct_issues": {"s1": ["相邻镜景别相同"]}}}
+        import pytest
+        with pytest.raises(SystemExit):
+            D.finalize(bad)
+    finally:
+        if real:
+            sys.modules["app.services.llm_service"] = real
+
+
+def test_llm_fill_cancel_between_batches(monkeypatch):
+    """批间取消 (1105): 面板 ⛔ → 下一批开跑前 SystemExit, 不烧后面的批。"""
+    from app.services.anim_pipeline.v3_pipeline import direct as D
+    job = {"cancel": False}
+    calls = []
+
+    class _LLM:
+        def chat(self, *a, **kw):
+            calls.append(1)
+            return '{"shots":[]}' if kw.get("tag") != "v3_direct" else '{"shots":[]}'
+
+    class _Svc:
+        @staticmethod
+        def get_llm_service():
+            return _LLM()
+
+        @staticmethod
+        def _parse_json(raw):
+            return {"shots": []}
+
+    monkeypatch.setitem(__import__("sys").modules, "app.services.llm_service", _Svc)
+    shots = [{"sid": f"s{i}", "arc_id": "A1", "est_s": 8.0, "keyframe_zh": "x" * 90}
+             for i in range(1, 21)]          # 3 批
+    import pytest
+    orig_chat = _LLM.chat
+
+    def chat_cancel_second(self, *a, **kw):
+        calls.append(1)
+        if len(calls) >= 2:
+            job["cancel"] = True             # 第 2 批返回时已请求取消
+        return '{"shots":[]}'
+
+    _LLM.chat = chat_cancel_second
+    with pytest.raises(SystemExit):
+        D._llm_fill(shots, [], {"s1": "中景"}, job)
+    assert len(calls) == 2                    # 第 3 批没烧
