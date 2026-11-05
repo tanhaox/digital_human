@@ -92,6 +92,54 @@ def test_resume_todo_sick_projection_truncated(monkeypatch, tmp_path):
     assert len(rt["sick"]["A2"]) == 3 and all(len(p) <= 140 for p in rt["sick"]["A2"])
 
 
+def test_scenes_flow_stop_immediately(monkeypatch):
+    # 1105 批3: stop_check 立即真 → 第 0 场循环顶即 SystemExit, 不碰任何 LLM
+    monkeypatch.setattr(planner, "_todo_set", lambda d, b: (["A1", "A2"], {}, set()))
+
+    def _boom(*a, **k):
+        raise AssertionError("stop 应在任何场规划前拦下")
+    monkeypatch.setattr(planner, "_dispatch_scene", _boom)
+    try:
+        planner._scenes_flow("bid", "书", 1, manifest={}, bible=None, doc=_doc(),
+                             stop_check=lambda: True)
+        assert False
+    except SystemExit as exc:
+        assert "用户停止" in str(exc) and "0/2" in str(exc)
+
+
+def test_scenes_flow_stop_between_scenes(monkeypatch):
+    # 第 1 场完成后拉 stop → 第 2 场循环顶 SystemExit("1/2"), 不规划第 2 场
+    calls = {"n": 0}
+
+    def fake_dispatch(*a, **k):
+        calls["n"] += 1
+        return _doc()
+    monkeypatch.setattr(planner, "_todo_set", lambda d, b: (["A1", "A2"], {}, set()))
+    monkeypatch.setattr(planner, "_dispatch_scene", fake_dispatch)
+    monkeypatch.setattr(planner.shots_mod, "save", lambda d: None)
+    monkeypatch.setattr(planner, "_arc_hard_issues", lambda d, b, a: [])
+    try:
+        planner._scenes_flow("bid", "书", 1, manifest={}, bible=None, doc=_doc(),
+                             stop_check=lambda: calls["n"] >= 1)
+        assert False
+    except SystemExit as exc:
+        assert "1/2" in str(exc) and "用户停止" in str(exc)
+    assert calls["n"] == 1
+
+
+def test_stop_check_wiring_asserts():
+    # 源码级断言: stop_check 贯通 plan/_scorched_flow/resume_scenes/_scenes_flow
+    import inspect
+    assert "stop_check" in inspect.signature(planner.plan).parameters
+    assert "stop_check" in inspect.signature(planner.resume_scenes).parameters
+    assert "stop_check" in inspect.signature(planner._scenes_flow).parameters
+    from app.services import anim_service as _svc
+    pp = inspect.getsource(_svc._phase_plan)
+    assert "stop_check=_stop" in pp
+    rj = inspect.getsource(_svc._run_job)
+    assert "已停止" in rj          # SystemExit+cancel → cancelled 分支
+
+
 def test_wiring_source_asserts():
     # 源码级断言 (test_audio_stamp.py 范式): 投影/预检/白名单 防断链
     import inspect

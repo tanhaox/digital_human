@@ -146,7 +146,7 @@ export function createJobRunner({
     activeId: () => jobId,
     cancel: async () => {
       if (!jobId) return;
-      try { await cancelJob(jobId); notify('已请求停止 — 当前镜完成后中断'); }
+      try { await cancelJob(jobId); notify('已请求停止 — 当前镜/场完成后中断 (1105 批3: 规划相位也生效)'); }
       catch (e) { notify(e.message, true); }
     },
     appendLog,

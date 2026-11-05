@@ -298,7 +298,16 @@ def _run_job(job: dict[str, Any]) -> None:
         _publish(job["id"], {"type": "anim_cancelled" if cancelled else "anim_done",
                              "result": job.get("result")})
     except SystemExit as exc:  # 管线业务错 (planner 用 SystemExit 报可读信息)
-        _fail_job(job, str(exc))
+        # 1105 批3 (病灶3): 停止触发的 SystemExit 是取消不是失败 — 旧版误标
+        # failed, 用户 ⛔停止 被当成炸线 (进度面板亮 ❌)
+        if job["cancel"]:
+            with _JOBS_LOCK:
+                job["status"] = "cancelled"
+                job["finished_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+            _publish(job["id"], {"type": "anim_cancelled", "result": job.get("result")})
+            logger.info("[anim] job %s 已停止: %s", job["id"][:8], exc)
+        else:
+            _fail_job(job, str(exc))
     except AnimNotFound as exc:
         _fail_job(job, str(exc.args[0]) if exc.args else str(exc))
     except Exception as exc:
@@ -331,9 +340,11 @@ def _phase_plan(job: dict[str, Any]) -> None:
                 audio["job_id"][:8], len(audio["files"]),
                 sum(f["dur_s"] for f in audio["files"]))
     with _ep_lock_timed(job["book_id"], job["ep"]):
+        # 1105 批3 (病灶3): ⛔停止回调贯通 — plan/续跑的逐场段场间生效
+        _stop = lambda: job["cancel"]  # noqa: E731 — 闭包读 dict, 无需 partial
         if job.get("continue_scenes"):
             # ▶️ 分镜续跑 (0917 立意人闸第二段): 立意确认后从骨架续跑逐场
-            path = planner.resume_scenes(job["book_id"], job["ep"])
+            path = planner.resume_scenes(job["book_id"], job["ep"], stop_check=_stop)
             # 1101 U9: 落盘音频指纹 (换轨检测的基准)
             _doc0 = shots_mod.load_doc(job["book_title"], job["ep"])
             _doc0["audio_stamp"] = anim_draft.audio_stamp(_doc0, audio)
@@ -343,7 +354,8 @@ def _phase_plan(job: dict[str, Any]) -> None:
             return
         path = planner.plan(job["book_id"], job["ep"], force=job["force"],
                             scorched=bool(job.get("scorched")),
-                            concept_only=bool(job.get("concept_only")))
+                            concept_only=bool(job.get("concept_only")),
+                            stop_check=_stop)
         doc = shots_mod.load_doc(job["book_title"], job["ep"])
         if str(doc.get("planner_flow", "")).startswith("director2"):
             # v2 时间轴原生对齐 manifest (含 opening 预留) — 只备整集口播, 不再归真

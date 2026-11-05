@@ -100,6 +100,25 @@ def test_wait_gpu_lock_cancel_and_idle():
     assert anim_service._wait_gpu_lock({"cancel": False, "id": "j-idle"}, 1) is True
 
 
+def test_run_job_stop_is_cancelled_not_failed(monkeypatch):
+    # 1105 批3 (病灶3): 停止触发的 SystemExit → cancelled (旧版误标 failed);
+    # 非停止的业务 SystemExit 仍 failed
+    job = {"id": "j-stop", "phase": "plan", "status": "running", "book_id": "b",
+           "book_title": "书", "ep": 1, "cancel": True, "log": [], "result": None,
+           "error": None, "progress": None, "started_at": "", "finished_at": None}
+    monkeypatch.setattr(anim_service, "_publish", lambda *a, **k: None)
+    monkeypatch.setattr(anim_service, "_phase_plan",
+                        lambda j: (_ for _ in ()).throw(SystemExit("⏹ 用户停止 — 1/3 场已成落盘")))
+    anim_service._run_job(job)
+    assert job["status"] == "cancelled" and job.get("error") is None
+
+    job2 = dict(job, id="j-fail", cancel=False)
+    monkeypatch.setattr(anim_service, "_phase_plan",
+                        lambda j: (_ for _ in ()).throw(SystemExit("切场失败 ×2")))
+    anim_service._run_job(job2)
+    assert job2["status"] == "failed" and "切场失败" in job2["error"]
+
+
 def test_lock_wiring_source_asserts():
     import inspect
     # redo 移出 GPU 预取群 (LLM 段不再占 GPU 锁); k2/h3 等仍在
