@@ -362,6 +362,14 @@ def text_layer_issues(shots: list[dict[str, Any]]) -> dict[str, list[str]]:
     (实锤: 旧版用 split(' ')[0] 把「分区人物配额: …」当 sid, 44 条场级提醒淹没 14 条镜级真问题)。
     """
     from app.services.anim_pipeline.scene_writer import writer_failures
+    # 1105 修 (ep5 实锤): v3 文字阶段还没有实测时间, 旧实现给每镜假 t_start=0 →
+    # constitution.zone_of 把所有镜都判进「hook 区 (0-60s)」→ 分区人物配额对着 1 镜弧
+    # 要求 100% 有人物, 9 条假警报。改用句长估时累加出与成片同比例的假时间轴。
+    t0_of: dict[str, float] = {}
+    _t = 0.0
+    for s in shots:
+        t0_of[str(s["sid"])] = _t
+        _t += float(s.get("est_s") or 0)
     by_arc: dict[str, list[dict]] = {}
     for s in shots:
         by_arc.setdefault(s["arc_id"], []).append(s)
@@ -372,7 +380,8 @@ def text_layer_issues(shots: list[dict[str, Any]]) -> dict[str, list[str]]:
         if not arc_shots:
             continue
         fake = {"shots": [{"shot_id": s["sid"], "arc_id": s["arc_id"],
-                           "t_start": 0, "keyframe_zh": s["keyframe_zh"],
+                           "t_start": t0_of.get(str(s["sid"]), 0.0),
+                           "keyframe_zh": s["keyframe_zh"],
                            "in_image_text": s.get("in_image_text") or [],
                            "text_layer": s.get("text_layer") or []}
                           for s in arc_shots]}
