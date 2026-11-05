@@ -28,6 +28,9 @@ _LATER_PHASE_MARKERS = ("缺 keyframe_en", "缺 motion_zh", "缺 motion_en",
 
 CARD_OF_SUGG = {"event": "event", "quote": "quote", "img": "img",
                 "book": "quote", "list": "list"}
+# 同一句多建议时只建一张卡 (实锤: 配图+清单同句各出一张, 文字完全相同=重叠)
+# 取舍: 文字卡优先 (清单/金句/事件/书证), 配图仅在没有文字卡时使用
+_SUGG_PRIORITY = {"list": 0, "quote": 1, "book": 2, "event": 3, "img": 9}
 
 
 # ── 确定性: 句 → 镜 ──────────────────────────────────────────────────
@@ -112,9 +115,22 @@ def build_cards(v3: dict[str, Any], shots: list[dict[str, Any]]) -> list[dict[st
             line2sid[no] = s["sid"]
     cards: list[dict[str, Any]] = []
     seen: set[tuple] = set()
+    # 稿件指令卡 (【卡:】行) 按行去重 — 历史脏数据收敛: 旧版逻辑把生成的卡也
+    # 标成了 from=marker, 同一行会留两份 (实锤: s17 配图+清单文字完全相同)
+    _marker_by_line: dict[int, dict] = {}
     for c in v3.get("cards") or []:
+        if str(c.get("from") or "marker") not in ("marker", ""):
+            continue
+        _no = int(c.get("line_no") or 0)
+        _prev = _marker_by_line.get(_no)
+        if _prev is None or (_SUGG_PRIORITY.get(str(c.get("style")), 99)
+                             < _SUGG_PRIORITY.get(str(_prev.get("style")), 99)):
+            _marker_by_line[_no] = c
+    for c in _marker_by_line.values():
         no = int(c.get("line_no") or 0)
-        key = (no, str(c.get("text") or "")[:20])
+        # key 与 adopted 路一致 (行号, 样式) — 实锤: 两路 key 不同型 → marker 与
+        # adopted 同一行双卡, 文字完全相同 (s1/s3/s4 全中)
+        key = (no, str(c.get("style") or "list"))
         if key in seen:
             continue
         seen.add(key)
@@ -122,19 +138,24 @@ def build_cards(v3: dict[str, Any], shots: list[dict[str, Any]]) -> list[dict[st
                       "style": c.get("style") or "list",
                       "text": str(c.get("text") or c.get("name") or "")[:60],
                       "line_no": no, "sid": line2sid.get(no, ""), "from": "marker"})
+    _marker_lines = set(_marker_by_line.keys())
     for ln in v3.get("lines") or []:
-        for kind in ln.get("adopted") or []:
-            style = CARD_OF_SUGG.get(kind)
-            if not style:
-                continue
-            no = int(ln["no"])
-            text = str(ln.get("text") or "").strip()[:40]
-            key = (no, style)
-            if key in seen:
-                continue
-            seen.add(key)
-            cards.append({"cid": f"c{len(cards) + 1:02d}", "style": style, "text": text,
-                          "line_no": no, "sid": line2sid.get(no, ""), "from": "adopted"})
+        if int(ln["no"]) in _marker_lines:
+            continue          # 该行已有稿件指令卡 (【卡:】), 不再叠建议卡
+        adopted = [k for k in (ln.get("adopted") or []) if k in CARD_OF_SUGG]
+        if not adopted:
+            continue
+        # 同一句只建一张卡: 按优先级取一个 (文字卡优先于配图)
+        kind = min(adopted, key=lambda k: _SUGG_PRIORITY.get(k, 99))
+        style = CARD_OF_SUGG[kind]
+        no = int(ln["no"])
+        text = str(ln.get("text") or "").strip()[:40]
+        key = (no, style)
+        if key in seen:
+            continue
+        seen.add(key)
+        cards.append({"cid": f"c{len(cards) + 1:02d}", "style": style, "text": text,
+                      "line_no": no, "sid": line2sid.get(no, ""), "from": "adopted"})
     return cards
 
 

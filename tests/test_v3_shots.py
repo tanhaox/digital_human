@@ -168,3 +168,53 @@ def test_quote_position_labels_exempt():
     # 真·画内文字 → 不豁免
     assert not v3shots._quotes_are_position_labels('白板上写着「止损两问」四个大字，顾问指着…')
     assert not v3shots._quotes_are_position_labels('没有引号的普通画面句，桌上摊着文件…')
+
+
+def test_one_card_per_line_priority():
+    """实锤: 同一句被 list+img 两个建议各建一张卡, 文字相同 = 视觉重叠。"""
+    sh = [{"sid": "s1", "line_refs": [7]}]
+    v3 = {"cards": [], "lines": [
+        {"no": 7, "text": "第一项，会做什么、不会做什么。", "adopted": ["list", "img"]}]}
+    cs = v3shots.build_cards(v3, sh)
+    assert len(cs) == 1 and cs[0]["style"] == "list"       # 文字卡优先
+    # 只有配图建议时才建配图卡
+    v3b = {"cards": [], "lines": [{"no": 7, "text": "某句。", "adopted": ["img"]}]}
+    assert v3shots.build_cards(v3b, sh)[0]["style"] == "img"
+    # 不同行各自成卡
+    v3c = {"cards": [], "lines": [
+        {"no": 7, "text": "甲。", "adopted": ["list"]},
+        {"no": 9, "text": "乙。", "adopted": ["quote"]}]}
+    sh2 = [{"sid": "s1", "line_refs": [7, 9]}]
+    assert len(v3shots.build_cards(v3c, sh2)) == 2
+
+
+def test_stale_adopted_cards_not_duplicated():
+    """实锤: 旧生成卡被当稿件指令卡保留 → 同一行两份, 文字完全相同。"""
+    sh = [{"sid": "s1", "line_refs": [41]}]
+    v3 = {"cards": [{"cid": "c01", "style": "img", "text": "旧卡",
+                     "line_no": 41, "from": "adopted"}],
+          "lines": [{"no": 41, "text": "第一项…", "adopted": ["list", "img"]}]}
+    cs = v3shots.build_cards(v3, sh)
+    assert len(cs) == 1 and cs[0]["style"] == "list"
+    # 稿件指令卡 (marker) 必须保留
+    v3b = {"cards": [{"cid": "c01", "style": "list", "text": "稿件卡",
+                      "line_no": 41, "from": "marker"}],
+           "lines": [{"no": 41, "text": "第一项…", "adopted": []}]}
+    cs2 = v3shots.build_cards(v3b, sh)
+    assert len(cs2) == 1 and cs2[0]["text"] == "稿件卡"
+
+
+def test_marker_and_adopted_no_double_card():
+    """实锤: marker 卡与 adopted 卡去重 key 不同型 → 同行出两张完全相同的卡。"""
+    sh = [{"sid": "s1", "line_refs": [41]}]
+    v3 = {"cards": [{"cid": "c01", "style": "event", "text": "同句",
+                     "line_no": 41, "from": "marker"}],
+          "lines": [{"no": 41, "text": "同句", "adopted": ["event"]}]}
+    cs = v3shots.build_cards(v3, sh)
+    assert len(cs) == 1, [c["style"] for c in cs]
+    # 稿件指令卡优先 (即使建议是别的样式)
+    v3b = {"cards": [{"cid": "c01", "style": "list", "text": "稿件卡",
+                      "line_no": 41, "from": "marker"}],
+           "lines": [{"no": 41, "text": "同句", "adopted": ["img"]}]}
+    cs2 = v3shots.build_cards(v3b, sh)
+    assert len(cs2) == 1 and cs2[0]["style"] == "list"
