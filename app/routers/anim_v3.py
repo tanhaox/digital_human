@@ -178,6 +178,90 @@ def v3_shots_get(book_id: str, ep: int):
             "gates": v3_pipeline.gates_view(doc), "ready": bool(shots)}
 
 
+@router.post("/ep/{book_id}/{ep}/shots/autocards")
+def v3_shots_autocards(book_id: str, ep: int):
+    """一键建卡: 把 ① 分诊给出的建议 (金句/清单/配图/书证/事件) 全部转成大字卡。
+
+    等同在 ① 页逐条点「采纳」— 让 ③ 页零卡时不必回 ① 手工点。
+    """
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    from app.services.anim_pipeline.v3_pipeline.shots import CARD_OF_SUGG, build_cards
+    with anim_service.ep_guard(book_id, ep):
+        doc = _load_v3_doc(book_title, ep)
+        v3 = doc.setdefault("v3", {})
+        n = 0
+        for ln in v3.get("lines") or []:
+            for sug in ln.get("suggs") or []:
+                k = str(sug.get("kind") or "")
+                if k not in CARD_OF_SUGG:
+                    continue
+                ad = ln.setdefault("adopted", [])
+                if k not in ad:
+                    ad.append(k)
+                    n += 1
+        cards = build_cards(v3, v3.get("shots") or [])
+        v3["cards"] = cards
+        from app.services.anim_pipeline import shots as shots_mod
+        shots_mod.save(doc)
+    return {"added": n, "cards": len(cards)}
+
+
+@router.post("/ep/{book_id}/{ep}/shots/fix")
+def v3_shots_fix(book_id: str, ep: int):
+    """一键合规: 文字载体未申报 → 自动申报 in_image_text (确定性, 内容取卡/口播)。
+
+    终态词属语义改写, 不自动动刀 (返回待人工清单)。改完复跑质检并更新闸态。
+    """
+    import re as _re
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    _CARRIER = _re.compile(r"含文字载体「(.+?)」")
+    fixed, manual = 0, []
+    with anim_service.ep_guard(book_id, ep):
+        doc = _load_v3_doc(book_title, ep)
+        v3 = doc.setdefault("v3", {})
+        shots = {s["sid"]: s for s in v3.get("shots") or []}
+        cards = v3.get("cards") or []
+        lines = {ln["no"]: ln for ln in (v3.get("lines") or [])}
+        for sid, issues in (v3.get("shot_issues") or {}).items():
+            if sid == "弧级":
+                continue
+            s = shots.get(sid)
+            if not s:
+                continue
+            for iss in issues:
+                m = _CARRIER.search(iss)
+                if not m:
+                    if "终态" in iss:
+                        manual.append(f"{sid}: {iss[:80]}")
+                    continue
+                if s.get("in_image_text"):
+                    continue                       # 已有申报, 不动
+                # 申报内容: 优先该镜的卡文字, 其次口播首句前 10 字
+                text = next((c.get("text") for c in cards if c.get("sid") == sid
+                             and c.get("text")), "")
+                if not text:
+                    no = (s.get("line_refs") or [None])[0]
+                    text = str(lines.get(no, {}).get("text") or "").strip()[:10]
+                s["in_image_text"] = [text or m.group(1)]
+                fixed += 1
+        from app.services.anim_pipeline.v3_pipeline.shots import text_layer_issues
+        issues = text_layer_issues(list(shots.values()))
+        v3["shot_issues"] = issues
+        v3.setdefault("gates", {})["shots"] = not issues
+        from app.services.anim_pipeline import shots as shots_mod
+        shots_mod.save(doc)
+    return {"fixed": fixed, "manual": manual, "issues": issues,
+            "gate": not issues}
+
+
 @router.post("/ep/{book_id}/{ep}/shots/save")
 def v3_shots_save(book_id: str, ep: int, body: ShotSaveBody):
     """分镜文字编辑保存: 画面句/卡 回写 + 质检复跑 + 分镜闸开合。"""

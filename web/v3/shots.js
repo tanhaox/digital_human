@@ -42,9 +42,24 @@ async function refresh() {
     `<span class="badge">${Math.round(SHOTS.reduce((s, x) => s + (x.est_s || 0), 0))}s 估</span>`;
   rail($('rail'), { line: st.line, gates: d.gates, active: 'shots' });
   renderIssues(d.issues || {}, d.warnings || []);
+  renderCardsHint(nCard);
   renderAxis();
   renderGrid();
   renderGate(d.gates?.shots, d.ready);
+}
+
+function renderCardsHint(nCard) {
+  const box = $('cards-hint');
+  if (nCard > 0) { box.innerHTML = ''; return; }
+  box.innerHTML = '<div class="hint">💡 本集还没有大字卡 — 卡来自 ① 分诊页的建议 (金句/清单/配图/书证/事件)'
+    + '<button class="iconbtn" id="btn-autocards" title="把分诊给出的全部建议一次建成卡">一键建卡</button></div>';
+  const b = document.getElementById('btn-autocards');
+  if (b) b.onclick = async () => {
+    const r = await (await fetch(`${BASE}/shots/autocards`, { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: '{}' })).json();
+    toast(`新建 ${r.added} 张卡 (共 ${r.cards})`);
+    await refresh();
+  };
 }
 
 function renderIssues(issues, warns) {
@@ -57,7 +72,19 @@ function renderIssues(issues, warns) {
     ? `<div class="issue-sum">镜级 ${shotItems.length} 项 (要改)</div>` : '';
   const arcHead = arcItems.length
     ? `<div class="hint">弧级 ${arcItems.length} 项 (策略提醒 — 宪法配额, 人检可保留)</div>` : '';
-  $('issues').innerHTML = head + shotItems.join('') + arcHead + arcItems.join('');
+  const fixBtn = shotItems.length
+    ? '<div class="fixrow"><button class="go" id="btn-autofix" title="文字载体未申报 → 自动申报(内容取该镜卡/口播); 终态词需人工改">🔧 一键合规</button>'
+      + '<span class="note">只处理「载体未申报」; 终态词属语义改写, 需手改</span></div>'
+    : '';
+  $('issues').innerHTML = head + shotItems.join('') + fixBtn + arcHead + arcItems.join('');
+  const af = document.getElementById('btn-autofix');
+  if (af) af.onclick = async () => {
+    const r = await (await fetch(`${BASE}/shots/fix`, { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: '{}' })).json();
+    toast(`已自动申报 ${r.fixed} 镜` + (r.manual.length ? ` · ${r.manual.length} 项需手改` : ''));
+    await refresh();
+    if (r.manual.length) console.info('需人工处理:', r.manual);
+  };
   $('warns').innerHTML = (warns || []).map(w => `<div class="hint">💡 ${esc(w)}</div>`).join('');
 }
 

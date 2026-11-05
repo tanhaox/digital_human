@@ -43,3 +43,4 @@
 .src { display:inline-block; font-size:11.5px; padding:0 6px; border-radius:6px; margin-right:6px; white-space:nowrap; }
 .src-brand { color:var(--gold); border:1px solid #4a3a1c; }
 .src-const { color:var(--cyan); border:1px dashed #2a4a66; }
+.fixrow { display:flex; gap:10px; align-items:center; margin:8px 0 4px; flex-wrap:wrap; }
