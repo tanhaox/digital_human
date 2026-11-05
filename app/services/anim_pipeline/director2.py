@@ -2762,7 +2762,11 @@ def plan_scene(book_id: str, book_title: str, ep: int, arc_id: str,
     try:
         from app.services import anim_draft as _ad
         _files = _ad.fetch_episode_audio(book_id, ep)["files"]
-        _sseg = _ad._sentence_segs(_files)
+        # 1105 现场修 (病灶14b, ep6 job eac49cee 实锤): 此处原直调 _sentence_segs
+        # 绕过 sentence_table 真相源 → 合并短句补丁对场规划路径不生效 (句级 packs
+        # 仍 53 段), s12 0.7s 短句镜死循环复现。规划路径一律吃 sentence_table
+        # (含 <1.5s 孤立短句并入邻句); _sentence_segs 只留给对齐/归真/时间纪律闸。
+        _sseg = _ad.sentence_table(_files)
         if _sseg:
             segs = _sseg
             logger.info("[replan] 句级 packs %d 段 (切点=句边)", len(segs))

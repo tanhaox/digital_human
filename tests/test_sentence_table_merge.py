@@ -73,3 +73,13 @@ def test_merged_boundaries_subset_of_original_edges(monkeypatch):
         assert s["t_start"] in flat and s["t_end"] in flat
     assert all((s["t_end"] - s["t_start"]) >= 1.5 for s in out)
     assert out[-1]["t_end"] == 15            # 总时长无损
+
+
+def test_planning_path_uses_truth_source():
+    # 1105 现场修 (病灶14b): 场规划路径不得绕过 sentence_table 真相源直调
+    # _sentence_segs (ep6 job eac49cee 实锤 — 合并补丁对该路径不生效)
+    import inspect
+    from app.services.anim_pipeline import director2
+    src = inspect.getsource(director2)
+    assert "_ad.sentence_table(_files)" in src      # replan 场级切点吃真相源
+    assert "_ad._sentence_segs(_files)" not in src  # 直调绕源 = 回归
