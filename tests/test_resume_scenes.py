@@ -92,6 +92,105 @@ def test_resume_todo_sick_projection_truncated(monkeypatch, tmp_path):
     assert len(rt["sick"]["A2"]) == 3 and all(len(p) <= 140 for p in rt["sick"]["A2"])
 
 
+def _patch_resume_base(monkeypatch, doc, audio=None, bible=None):
+    """resume_scenes 入口桩: DB/音频/圣经/法层全离线, 尾段 _scenes_flow 打桩."""
+    from app.services import anim_draft
+    from app.services.anim_pipeline import director2
+    audio = audio or {"job_id": "aj1", "files": [
+        {"file": "/x/1.wav", "text": "第一包", "dur_s": 2.0}]}
+    monkeypatch.setattr(planner, "load", lambda: type("C", (), {"db_path": ":memory:"})())
+    monkeypatch.setattr(planner, "resolve_book", lambda db, ref: ("bid", "测试书"))
+    monkeypatch.setattr(planner, "fetch_episode", lambda db, bid, ep: {})
+    monkeypatch.setattr(anim_draft, "fetch_episode_audio", lambda bid, ep: audio)
+    monkeypatch.setattr(director2, "load_or_derive_bible", lambda bid, bt, *a, **k: (bible or {}))
+    monkeypatch.setattr(planner.shots_mod, "load_doc", lambda bt, ep: doc)
+    monkeypatch.setattr(planner, "_audio_manifest", lambda au: {"segments": []})
+    monkeypatch.setattr(
+        "app.services.anim_pipeline.shooting_script.load",
+        lambda bt, ep: {"scenes": [{"arc_id": "A1"}]})   # 法层在盘 (默认过闸1)
+
+
+def test_resume_rejects_stale_audio(monkeypatch):
+    # 1105 批4-闸2 (病灶5, 用户拍板硬拒): 盘上 stamp ≠ 当前音频指纹 → SystemExit
+    doc = {"arcs": [{"arc_id": "A1"}], "shots": [], "planner_flow": "director2",
+           "audio_stamp": {"job_id": "OLD", "text_sha": "deadbeef", "packs": 1, "total_s": 9.9}}
+    _patch_resume_base(monkeypatch, doc, audio={"job_id": "NEW", "files": [
+        {"file": "/x/1.wav", "text": "第一包改字", "dur_s": 2.0}]})
+    try:
+        planner.resume_scenes("bid", 1)
+        assert False
+    except SystemExit as exc:
+        assert "音频已换轨" in str(exc) and "重新验收" in str(exc)
+
+
+def test_resume_same_track_passes_stamp_gate(monkeypatch, tmp_path):
+    # 同轨 (stamp 一致) → 过指纹闸, 进 _scenes_flow
+    doc = {"arcs": [{"arc_id": "A1"}], "shots": []}
+    _patch_resume_base(monkeypatch, doc)
+    from app.services import anim_draft
+    doc["audio_stamp"] = anim_draft.audio_stamp(doc, {"job_id": "aj1", "files": [
+        {"file": "/x/1.wav", "text": "第一包", "dur_s": 2.0}]})
+    seen = {}
+    monkeypatch.setattr(planner, "_scenes_flow",
+                        lambda *a, **k: seen.setdefault("ok", True) or __import__("pathlib").Path("x"))
+    planner.resume_scenes("bid", 1)
+    assert seen.get("ok") is True
+
+
+def test_resume_regenerates_missing_shooting(monkeypatch):
+    # 1105 批4-闸1 (病灶4): 法层缺 → 现场重生; 成功后照常进 _scenes_flow
+    calls = {"load": 0, "gen": 0}
+
+    def fake_load(bt, ep):
+        calls["load"] += 1
+        return {"scenes": [{"arc_id": "A1"}]} if calls["load"] > 1 else None
+    monkeypatch.setattr(planner, "load", lambda: type("C", (), {"db_path": ":memory:"})())
+    monkeypatch.setattr(planner, "resolve_book", lambda db, ref: ("bid", "测试书"))
+    monkeypatch.setattr(planner, "fetch_episode", lambda db, bid, ep: {})
+    from app.services import anim_draft
+    from app.services.anim_pipeline import director2
+    monkeypatch.setattr(anim_draft, "fetch_episode_audio", lambda bid, ep: {
+        "job_id": "aj1", "files": [{"file": "/x/1.wav", "text": "一", "dur_s": 2.0}]})
+    monkeypatch.setattr(director2, "load_or_derive_bible", lambda *a, **k: {})
+    monkeypatch.setattr(planner.shots_mod, "load_doc", lambda bt, ep: {"arcs": [{"arc_id": "A1"}]})
+    monkeypatch.setattr(planner, "_audio_manifest", lambda au: {"segments": []})
+    monkeypatch.setattr("app.services.anim_pipeline.shooting_script.load", fake_load)
+    monkeypatch.setattr("app.services.anim_pipeline.shooting_script.generate",
+                        lambda bid, bt, ep: calls.__setitem__("gen", calls["gen"] + 1)
+                        or {"scenes": [{"arc_id": "A1"}]})
+    monkeypatch.setattr("app.services.anim_pipeline.shooting_script.validate",
+                        lambda ss: [])
+    monkeypatch.setattr(planner, "_scenes_flow",
+                        lambda *a, **k: __import__("pathlib").Path("x"))
+    planner.resume_scenes("bid", 1)
+    assert calls["gen"] == 1            # 缺法层 → 重生了一把即成功
+
+
+def test_resume_rejects_when_shooting_regen_fails(monkeypatch):
+    # 法层缺 + 重生两把均败 → 拒绝裸奔分镜
+    monkeypatch.setattr(planner, "load", lambda: type("C", (), {"db_path": ":memory:"})())
+    monkeypatch.setattr(planner, "resolve_book", lambda db, ref: ("bid", "测试书"))
+    monkeypatch.setattr(planner, "fetch_episode", lambda db, bid, ep: {})
+    from app.services import anim_draft
+    from app.services.anim_pipeline import director2
+    monkeypatch.setattr(anim_draft, "fetch_episode_audio", lambda bid, ep: {
+        "job_id": "aj1", "files": [{"file": "/x/1.wav", "text": "一", "dur_s": 2.0}]})
+    monkeypatch.setattr(director2, "load_or_derive_bible", lambda *a, **k: {})
+    monkeypatch.setattr(planner.shots_mod, "load_doc", lambda bt, ep: {"arcs": [{"arc_id": "A1"}]})
+    monkeypatch.setattr(planner, "_audio_manifest", lambda au: {"segments": []})
+    monkeypatch.setattr("app.services.anim_pipeline.shooting_script.load",
+                        lambda bt, ep: None)
+
+    def _gen_fail(bid, bt, ep):
+        raise RuntimeError("LLM down")
+    monkeypatch.setattr("app.services.anim_pipeline.shooting_script.generate", _gen_fail)
+    try:
+        planner.resume_scenes("bid", 1)
+        assert False
+    except SystemExit as exc:
+        assert "裸奔" in str(exc)
+
+
 def test_scenes_flow_stop_immediately(monkeypatch):
     # 1105 批3: stop_check 立即真 → 第 0 场循环顶即 SystemExit, 不碰任何 LLM
     monkeypatch.setattr(planner, "_todo_set", lambda d, b: (["A1", "A2"], {}, set()))

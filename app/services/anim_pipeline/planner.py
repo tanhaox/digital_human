@@ -516,6 +516,36 @@ def resume_scenes(book_ref: str, ep: int, stop_check=None) -> Path:
     doc = shots_mod.load_doc(book_title, ep)
     if not (doc.get("arcs") or []):
         raise SystemExit("盘上无场结构 — 先跑 🧭 规划 (立意闸) 再续跑")
+    # 1105 批4-闸1 (病灶4): 法层自愈 — concept 阶段法层两把败后续跑曾在无导演
+    # 模型下裸奔分镜 (规层裸奔, 概念场易全空镜); 现缺法层现场重生 ×2
+    # (1 次 LLM/把, 远比 20 分钟裸奔分镜便宜), 仍败明确拒跑。
+    from app.services.anim_pipeline import shooting_script as _ss_mod
+    if not _ss_mod.load(book_title, ep):
+        logger.warning("[resume] 法层缺失 — 现场重生 (≤2 把)…")
+        for _attempt in (1, 2):
+            try:
+                ss = _ss_mod.generate(book_id, book_title, ep)
+                _iss = _ss_mod.validate(ss)
+                if _iss:
+                    logger.warning("[resume] 法层重生校验 %d 处 (不阻断, 供人检): %s",
+                                   len(_iss), _iss[:3])
+                else:
+                    logger.info("[resume] 法层自愈 ✓ %d 场", len(ss.get("scenes") or []))
+                break
+            except Exception as exc:  # noqa: BLE001 — 重生失败换下一把
+                logger.warning("[resume] 法层重生失败 (第%d次): %s", _attempt, exc)
+        if not _ss_mod.load(book_title, ep):
+            raise SystemExit("法层缺失且重生两把均败 — 拒绝裸奔分镜 (术/器链会整链"
+                             "离线, 概念场易全空镜); LLM 恢复后再点 ▶️续跑")
+    # 1105 批4-闸2 (病灶5, 用户拍板: 硬拒): 音频指纹闸 — 立意骨架按旧轨切场,
+    # 人闸期间换轨 (reroll/再生成/重新验收) 后拿新 manifest 切旧骨架 = 场窗
+    # 错位, GPU 花完才暴露 (ep1 实证); H3 先例只 warn, 续跑是规划入口, 硬拒。
+    # 旧 doc 无 stamp (1101 U9 前) 跳过 — 向后兼容。
+    _stamp = doc.get("audio_stamp")
+    if _stamp and anim_draft.audio_stamp(doc, audio) != _stamp:
+        raise SystemExit(
+            "音频已换轨 (指纹失配) — 立意骨架按旧音频切场, 直接续跑会错位。"
+            "重跑 🧭规划(全清重来) 或到音频页重新验收采用原轨后再续跑")
     return _scenes_flow(book_id, book_title, ep, manifest, bible, doc,
                         stop_check=stop_check)
 
