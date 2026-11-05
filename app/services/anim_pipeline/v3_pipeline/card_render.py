@@ -58,7 +58,16 @@ def build_card_html(kind: str, title: str, lines: list[str], *,
     e = _html.escape
     pad_x, pad_y = (int(W * 0.08), int(H * 0.10))
 
-    if kind in ("提示", "总结", "清单"):
+    if kind in ("图示", "公式") and len([x for x in lines if str(x).strip()]) <= 1:
+        # 单行图示 (公式/单表) — 无编号, 超大字居中 (实锤: 公式带①很怪)
+        txt = (lines[0] if lines else title).strip()
+        parts = _break_lines(txt, max(8, len(txt) // 2))[:2]
+        fs = min(_fit_fs(p, W * 0.86, cap=120) for p in parts) if parts else 90
+        body = ('<div class="content center">' + "".join(
+            f'<div class="big" style="font-size:{fs}px">{e(p)}</div>' for p in parts) + '</div>')
+        align = "center"
+    elif kind in ("提示", "总结", "清单", "图示", "公式"):
+        # 图示类多条 / 清单: 标题 + 编号条目
         # 清单: 标题 + 编号条目 (字号按最长项铺满可用宽 — 固定号会让宽幅图右侧空白)
         title_fs = _fit_fs(title, W - 2 * pad_x - 80, cap=110)
         longest = max((len(str(t)) for t in lines[:8]), default=10)

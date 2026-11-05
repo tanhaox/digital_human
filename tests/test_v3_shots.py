@@ -233,7 +233,7 @@ def test_kind_style_two_dimensions():
     assert v3shots._SUGG_KIND["quote"] == "金句"
     assert v3shots._SUGG_KIND["event"] == "结论"
     assert v3shots._SUGG_KIND["list"] == "总结"
-    assert v3shots._SUGG_KIND["img"] == "公式"     # 只有公式才出图 (用户令)
+    assert v3shots._SUGG_KIND["img"] == "图示"     # 只有图示(公式/图表/流程/表格)才出图
     # 六类都有默认渲染
     for k in v3shots.KINDS:
         assert k in v3shots.KIND_STYLE, k
