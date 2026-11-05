@@ -256,3 +256,20 @@ def test_card_render_html_builds_for_all_kinds():
         h = cr.build_card_html(kind, "标题", lines)
         assert "<html>" in h and "老谭读书" in h
         assert "content" in h
+
+
+def test_diagram_html_builds():
+    """脑图/流程图: ECharts tree (本地 vendor, 零新依赖)。"""
+    from app.services.anim_pipeline.v3_pipeline import card_render as cr
+    root = {"name": "信任", "children": [
+        {"name": "可信度", "children": [{"name": "专业"}, {"name": "经验"}]},
+        {"name": "可靠度", "children": [{"name": "按时"}]}]}
+    h = cr.build_diagram_html(root)
+    assert "echarts" not in h.lower() or "__opt" in h    # 选项通过 __opt 注入
+    assert "__opt" in h and "tree" in h and "老谭读书" in h
+    # 叶子必须去掉圆点 (实锤: leaves.symbolSize 不生效)
+    import json
+    opt = json.loads(h.split("window.__opt = ", 1)[1].split(";</script>", 1)[0])
+    kids = opt["series"][0]["data"][0]["children"]
+    leaf = kids[0]["children"][0]
+    assert leaf.get("symbolSize") == 0

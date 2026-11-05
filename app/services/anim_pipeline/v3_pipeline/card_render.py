@@ -165,3 +165,96 @@ def render_card(kind: str, title: str, lines: list[str], out_path: Path, *,
             browser.close()
     logger.info("[card-render] %s %s → %s", kind, title[:20], out_path.name)
     return out_path
+
+
+# ── 图示: 脑图 / 流程图 (ECharts 树形, 本地 vendor 零新依赖) ──────────────
+# 实锤: tree 的 data 必须是数组 (传对象 → SVG 空壳); canvas 在 headless 截不到
+# → 强制 SVG 渲染器; 动画关闭 (截图时定态)。
+
+DIAGRAM_SIZES = {"wide": (1600, 900), "square": (1400, 1400)}
+
+
+def build_diagram_html(root: dict, *, size: str = "wide", orient: str = "LR",
+                       brand: str = "老谭读书 ｜ 商业认知系列") -> str:
+    """脑图/流程图 HTML (ECharts tree)。root = {name, children:[{name, children}]}。"""
+    import json
+    W, H = DIAGRAM_SIZES.get(size, DIAGRAM_SIZES["wide"])
+
+    def _leafless(node: dict) -> dict:
+        """叶子节点去掉圆点 (实锤: leaves.symbolSize 不生效, 红点压住文字)。"""
+        kids = node.get("children") or []
+        out = {k: v for k, v in node.items() if k != "children"}
+        if not kids:
+            out["symbolSize"] = 0
+            out["label"] = {"position": "right", "distance": 8}
+        else:
+            out["children"] = [_leafless(k) for k in kids]
+        return out
+
+    root = _leafless(root)
+    opt = {
+        "backgroundColor": _C["paper"],
+        "animation": False,
+        "series": [{
+            "type": "tree", "orient": orient, "roam": False,
+            "data": [root],
+            "label": {"fontSize": 26, "color": _C["title"],
+                      "fontFamily": "Microsoft YaHei"},
+            "leaves": {"label": {"fontSize": 22, "color": "#6b5540"}, "symbolSize": 0},
+            "lineStyle": {"color": "#A98A5C", "width": 2.5},
+            "itemStyle": {"color": _C["sub"], "borderColor": _C["gold"]},
+            "symbolSize": 14, "initialTreeDepth": -1,
+            "left": "8%", "right": "18%", "top": "8%", "bottom": "8%",
+        }],
+    }
+    e = _html.escape
+    return f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+* {{ margin:0; padding:0; box-sizing:border-box; }}
+html,body {{ width:{W}px; height:{H}px; background:{_C['paper']}; }}
+body {{ background-image:url("{_GRAIN}"), url("{_FIBER}"); position:relative; }}
+#c {{ width:{W}px; height:{H}px; position:relative; z-index:1; }}
+.frame {{ position:absolute; inset:20px; border:3px double {_C['gold']}; border-radius:14px;
+          z-index:3; pointer-events:none; }}
+.brand {{ position:absolute; left:0; right:0; bottom:34px; text-align:center;
+          font-size:24px; color:{_C['brand_fg']}; letter-spacing:3px;
+          font-family:"Microsoft YaHei",sans-serif; }}
+</style></head><body>
+<div class="frame"></div><div id="c"></div>
+<div class="brand">{e(brand)}</div>
+<script>window.__opt = {json.dumps(opt, ensure_ascii=False)};</script>
+</body></html>"""
+
+
+def render_diagram(root: dict, out_path: Path, *, size: str = "wide",
+                   orient: str = "LR") -> Path:
+    """渲染脑图/流程图为 PNG (ECharts SVG 渲染器 + Playwright 截图)。"""
+    from pathlib import Path as _P
+    import json
+    from playwright.sync_api import sync_playwright
+    W, H = DIAGRAM_SIZES.get(size, DIAGRAM_SIZES["wide"])
+    page_html = build_diagram_html(root, size=size, orient=orient)
+    ec = _P(__file__).resolve().parents[4] / "web" / "vendor" / "echarts.min.js"
+    if not ec.exists():
+        raise RuntimeError(f"echarts 缺失: {ec}")
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-gpu"])
+        try:
+            ctx = browser.new_context(viewport={"width": W, "height": H},
+                                      device_scale_factor=1)
+            page = ctx.new_page()
+            page.set_content(page_html, wait_until="load")
+            page.add_script_tag(path=str(ec))
+            page.evaluate("""() => {
+                const c = echarts.init(document.getElementById('c'), null, {renderer:'svg'});
+                c.setOption(window.__opt);
+                window.__ready = true;
+            }""")
+            page.wait_for_function("window.__ready === true", timeout=15000)
+            page.wait_for_timeout(600)
+            page.screenshot(path=str(out_path), clip={"x": 0, "y": 0, "width": W, "height": H})
+        finally:
+            browser.close()
+    logger.info("[card-render] 脑图 %s → %s", str(root.get("name"))[:16], out_path.name)
+    return out_path
