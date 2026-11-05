@@ -18,8 +18,7 @@ async function refresh() {
       ? '<b>下一步: ① 文稿分诊</b> — ' +
         (d.lines_done ? '本集已分诊过, <a href="./triage.html' + location.search + '">查看/续改 →</a>'
                       : '<a href="./triage.html' + location.search + '">进入分诊页 →</a>') +
-        '<br><span class="note">放行闸: ' + JSON.stringify(d.gates) +
-        ' · 规范见 docs/improvements/进行中-20261105-分镜续跑升级.md</span>'
+        '<br><span class="note">闸态看顶部八步轨 (🔒待前段 / ✓已放行) — 规范见 docs/improvements/进行中-20261105-分镜续跑升级.md</span>'
       : `<div class="note">本书走 <b>v2 工坊线</b> (存量不动)。开通 v3: 写
          outputs/动画/_资产/产线绑定_${d.book_title}.json → {"line":"v3"} 后刷新。</div>`;
   } catch (err) {
