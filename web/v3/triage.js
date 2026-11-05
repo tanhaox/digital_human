@@ -91,10 +91,23 @@ function renderList() {
   }).join('');
 }
 
-$('doclist').addEventListener('input', ev => {
-  const no = +ev.target.dataset.no; dirty.add(no);
+/** 重渲染前把行内编辑现值回写 LINES — 防 renderList 吞掉未保存改动 */
+function syncText() {
+  document.querySelectorAll('.txt[data-no]').forEach(el => {
+    const ln = LINES.find(l => l.no === +el.dataset.no);
+    if (ln && el.textContent !== ln.text) { ln.text = el.textContent; dirty.add(ln.no); }
+  });
+}
+function refreshDirty() {
   $('n-dirty').textContent = dirty.size;
-  $('dirty').innerHTML = `改稿 <b class="gold-t">${dirty.size} 处未保存</b>`;
+  $('dirty').innerHTML = dirty.size
+    ? `改稿 <b class="gold-t">${dirty.size} 处未保存</b>` : '改稿 0 处未保存';
+}
+
+$('doclist').addEventListener('input', ev => {
+  if (!ev.target.dataset.no) return;
+  dirty.add(+ev.target.dataset.no);
+  refreshDirty();
 });
 $('doclist').addEventListener('click', async ev => {
   const b = ev.target.closest('button'); if (!b) return;
@@ -107,16 +120,23 @@ $('doclist').addEventListener('click', async ev => {
     $('n-dirty').textContent = dirty.size;
   } else if (a === 'clean') { ln.disp = 'cleaned'; ln.text = ''; await save(); }
   else if (a === 'conv') { ln.disp = 'converted'; await save(); }
-  else if (a === 'ok') { ln.flag = null; dirty.add(no); }
-  else if (a === 'sugg') { ln.suggs = ln.suggs.filter(s => s.kind !== b.dataset.k); dirty.add(no); }
-  else if (a === 'dismiss') { ln.suggs = ln.suggs.filter(s => s.kind !== b.dataset.k); dirty.add(no); }
+  else if (a === 'ok') {
+    syncText(); ln.flag = null; dirty.add(no); renderList(); refreshDirty();
+  } else if (a === 'sugg' || a === 'dismiss') {
+    // 采纳/忽略: 该条建议从行上移除 (采纳=已记入 v3.cards 待 ③ 消费, 忽略=丢弃)
+    syncText();
+    ln.suggs = (ln.suggs || []).filter(x => x.kind !== b.dataset.k);
+    if (a === 'sugg') (ln.adopted = ln.adopted || []).push(b.dataset.k);
+    dirty.add(no);
+    renderList(); refreshDirty();
+  }
 });
 $('btn-save').onclick = save;
 async function save() {
+  syncText();
   const lines = LINES.map(l => ({
-    no: l.no,
-    text: (document.querySelector(`.txt[data-no="${l.no}"]`)?.textContent ?? l.text).trim(),
-    mode: l.mode, disp: l.disp }));
+    no: l.no, text: l.text.trim(), mode: l.mode, disp: l.disp,
+    adopted: l.adopted || [] }));
   const r = await (await fetch(`${BASE}/triage/save`, { method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ lines }) })).json();

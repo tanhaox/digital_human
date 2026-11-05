@@ -57,9 +57,17 @@ def v3_state(book_id: str, ep: int):
             doc_line = doc.get("v3") or {}
         except FileNotFoundError:
             gates = v3_pipeline.gates_view({})
+    running = None
+    with anim_service._JOBS_LOCK:
+        rj = next((j for j in anim_service._JOBS.values()
+                   if j["status"] == "running" and j["book_id"] == book_id
+                   and j["ep"] == ep), None)
+        if rj:
+            running = anim_service._job_view(rj)
     return {"book_id": book_id, "book_title": book_title, "ep": ep,
             "line": line, "gates": gates,
-            "lines_done": bool((doc_line or {}).get("lines"))}
+            "lines_done": bool((doc_line or {}).get("lines")),
+            "running_job": running}
 
 
 @router.post("/ep/{book_id}/{ep}/{phase}")
@@ -110,7 +118,7 @@ class TriageSaveBody(BaseModel):
 @router.post("/ep/{book_id}/{ep}/triage/save")
 def v3_triage_save(book_id: str, ep: int, body: TriageSaveBody):
     """一句一行编辑保存: 文本/语态/处置回写 + 确定性重检 + 分诊闸自动开合。"""
-    from .triage import det_check, route_markers
+    from app.services.anim_pipeline.v3_pipeline.triage import det_check, route_markers
     try:
         book_id, book_title = anim_service.resolve_ep(book_id, ep)
     except anim_service.AnimNotFound as exc:
@@ -133,6 +141,9 @@ def v3_triage_save(book_id: str, ep: int, body: TriageSaveBody):
                 n_edit += 1
             if row.get("disp") is not None:
                 ln["disp"] = row["disp"]
+            if row.get("adopted"):
+                # 采纳的建议种类 (quote/img/book/event/list) — ③ 分镜页据此建卡/配图/书证
+                ln["adopted"] = [str(k) for k in row["adopted"] if k][:6]
             # 编辑后确定性重检 (LLM 标注不重跑 — 病检是执法层)
             mode, routed = route_markers(ln["text"])
             if mode:

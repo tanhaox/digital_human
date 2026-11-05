@@ -86,3 +86,15 @@ def test_wiring_v1():
     both = (Path("web/v3/triage.html").read_text(encoding="utf-8")
             + Path("web/v3/triage.js").read_text(encoding="utf-8"))
     assert "一句一行" in both and "v3_triage" in both        # 页面: 清单+相位触发
+
+
+def test_save_endpoint_imports_resolve():
+    """实锤回归 (1105): v3_triage_save 里的延迟导入 `from .triage` 相对导入错
+    → 每次保存 500, 编辑从未落盘。此处真实执行端点内每条 import。"""
+    import inspect
+    from app.routers import anim_v3
+    for fn in (anim_v3.v3_triage_save, anim_v3.v3_start):
+        for line in inspect.getsource(fn).splitlines():
+            line = line.strip()
+            if line.startswith("from ") and " import " in line:
+                exec(line, {})       # 真解析: 模块不存在/名字不存在/相对导入错 都会炸
