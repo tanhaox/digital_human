@@ -62,7 +62,9 @@ def test_build_cards_from_markers_and_adopted():
     sh, _ = v3shots.pack_shots(_arcs(), _lines())
     v3 = {
         "cards": [{"cid": "c01", "style": "list", "text": "止损两问", "line_no": 4}],
-        "lines": [dict(l, adopted=["event"]) if l["no"] == 5 else l for l in _lines()],
+        "lines": [dict(l, adopted=["event"],
+                       suggs=[{"kind": "event", "card_text": "体面退出"}])
+                  if l["no"] == 5 else l for l in _lines()],
     }
     cards = v3shots.build_cards(v3, sh)
     assert any(c["from"] == "marker" and c["line_no"] == 4 for c in cards)
@@ -194,17 +196,22 @@ def test_quote_position_labels_exempt():
 def test_one_card_per_line_priority():
     """实锤: 同一句被 list+img 两个建议各建一张卡, 文字相同 = 视觉重叠。"""
     sh = [{"sid": "s1", "line_refs": [7]}]
+    both = [{"kind": "list", "card_text": "①会做什么 ②不会做什么"},
+            {"kind": "img", "card_text": "会做/不做/配合/边界"}]
     v3 = {"cards": [], "lines": [
-        {"no": 7, "text": "第一项，会做什么、不会做什么。", "adopted": ["list", "img"]}]}
+        {"no": 7, "text": "第一项…", "adopted": ["list", "img"], "suggs": both}]}
     cs = v3shots.build_cards(v3, sh)
-    assert len(cs) == 1 and cs[0]["style"] == "list"       # 文字卡优先
+    assert len(cs) == 1 and cs[0]["style"] == "list"       # 都有卡文字时 文字卡优先
     # 只有配图建议时才建配图卡
-    v3b = {"cards": [], "lines": [{"no": 7, "text": "某句。", "adopted": ["img"]}]}
+    v3b = {"cards": [], "lines": [{"no": 7, "text": "某句。", "adopted": ["img"],
+           "suggs": [{"kind": "img", "card_text": "信任=可信度×可靠度"}]}]}
     assert v3shots.build_cards(v3b, sh)[0]["style"] == "img"
     # 不同行各自成卡
     v3c = {"cards": [], "lines": [
-        {"no": 7, "text": "甲。", "adopted": ["list"]},
-        {"no": 9, "text": "乙。", "adopted": ["quote"]}]}
+        {"no": 7, "text": "甲。", "adopted": ["list"],
+         "suggs": [{"kind": "list", "card_text": "甲乙丙"}]},
+        {"no": 9, "text": "乙。", "adopted": ["quote"],
+         "suggs": [{"kind": "quote", "card_text": "金句锚"}]}]}
     sh2 = [{"sid": "s1", "line_refs": [7, 9]}]
     assert len(v3shots.build_cards(v3c, sh2)) == 2
 
@@ -214,7 +221,9 @@ def test_stale_adopted_cards_not_duplicated():
     sh = [{"sid": "s1", "line_refs": [41]}]
     v3 = {"cards": [{"cid": "c01", "style": "img", "text": "旧卡",
                      "line_no": 41, "from": "adopted"}],
-          "lines": [{"no": 41, "text": "第一项…", "adopted": ["list", "img"]}]}
+          "lines": [{"no": 41, "text": "第一项…", "adopted": ["list", "img"],
+                     "suggs": [{"kind": "list", "card_text": "①会做 ②不做"},
+                               {"kind": "img", "card_text": "会做/不做/边界"}]}]}
     cs = v3shots.build_cards(v3, sh)
     assert len(cs) == 1 and cs[0]["style"] == "list"
     # 稿件指令卡 (marker) 必须保留
@@ -352,3 +361,31 @@ def test_arc_reminders_do_not_block_gate():
     assert v3shots.has_blocking_issues({}) is False
     assert v3shots.has_blocking_issues({"弧级": ["景深配额: 全集 …"]}) is False
     assert v3shots.has_blocking_issues({"s8": ["…"], "弧级": ["…"]}) is True
+
+
+def test_build_cards_prefers_card_text_over_priority():
+    """实锤 L41: 确定性 list 建议无 card_text, 老优先级让它压过 img → 清单卡变成口播断句残片。"""
+    v3 = {"cards": [], "lines": [{
+        "no": 41,
+        "text": "第一项，会做什么、不会做什么。第二项，客户需要配合什么、不需要做什么。第三项，分析边界在哪，不碰哪些领域。",
+        "adopted": ["img", "list"],
+        "suggs": [
+            {"kind": "img", "card_text": "丑话清单①会/不会做 ②配合/不配合 ③分析边界",
+             "diagram": {"name": "丑话清单前三项", "children": [{"name": "会做什么"}]}},
+            {"kind": "list", "text": "成清单排比 — 建议合并制作为剪映清单卡"},
+        ]}]}
+    cards = v3shots.build_cards(v3, [{"sid": "s17", "line_refs": [41]}])
+    assert len(cards) == 1
+    c = cards[0]
+    assert c["kind"] == "图示" and c["style"] == "img"      # 带卡文字的那条胜出
+    assert c["text"] == "丑话清单①会/不会做 ②配合/不配合 ③分析边界"
+    assert "第三项" not in c["text"]                          # 不再是口播截断
+    assert c.get("diagram") and c["sid"] == "s17"
+
+
+def test_build_cards_skips_suggestion_without_card_text():
+    """没卡文字就不建卡: 用口播整句硬截 = 断句残片, 宁缺勿滥。"""
+    v3 = {"cards": [], "lines": [{
+        "no": 5, "text": "第一项，会做什么。第二项，不会做什么。第三项，边界在哪。",
+        "adopted": ["list"], "suggs": [{"kind": "list", "text": "成清单排比"}]}]}
+    assert v3shots.build_cards(v3, [{"sid": "s1", "line_refs": [5]}]) == []

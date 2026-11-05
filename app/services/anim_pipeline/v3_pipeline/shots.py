@@ -192,7 +192,7 @@ def build_cards(v3: dict[str, Any], shots: list[dict[str, Any]]) -> list[dict[st
         cards.append({"cid": c.get("cid") or f"c{len(cards) + 1:02d}",
                       "kind": _kind,                                  # 内容性质 (六类)
                       "style": KIND_STYLE.get(_kind) or c.get("style") or "list",  # 渲染方式
-                      "text": str(c.get("text") or c.get("name") or "")[:60],
+                      "text": _clip(str(c.get("text") or c.get("name") or ""), 60),
                       "line_no": no, "sid": line2sid.get(no, ""), "from": "marker"})
     _marker_lines = set(_marker_by_line.keys())
     for ln in v3.get("lines") or []:
@@ -201,15 +201,24 @@ def build_cards(v3: dict[str, Any], shots: list[dict[str, Any]]) -> list[dict[st
         adopted = [k for k in (ln.get("adopted") or []) if k in CARD_OF_SUGG]
         if not adopted:
             continue
-        # 同一句只建一张卡: 按优先级取一个 (文字卡优先于配图)
-        kind = min(adopted, key=lambda k: _SUGG_PRIORITY.get(k, 99))
+        # 同一句只建一张卡。1105 实锤 (L41 丑话清单): 确定性 list 建议没有 card_text,
+        # 按老优先级 (list=0 最高) 选中后只能拿口播整句硬截 40 字 →
+        # 「第一项，会做什么、不会做什么。第二项…第三项」断在半句。
+        # 改为: 先看哪条建议带了 card_text, 再比优先级 (同为文字卡时仍文字优先)。
+        _ct_of = {k: next((str(g.get("card_text") or "").strip()
+                           for g in (ln.get("suggs") or [])
+                           if g.get("kind") == k and str(g.get("card_text") or "").strip()), "")
+                  for k in adopted}
+        kind = min(adopted, key=lambda k: (0 if _ct_of.get(k) else 1,
+                                           _SUGG_PRIORITY.get(k, 99)))
         style = CARD_OF_SUGG[kind]
         no = int(ln["no"])
-        # 卡文字优先用分诊给的 card_text (事件字已压到 ≤8 字), 退回行文本
-        _ct = next((str(g.get("card_text") or "") for g in (ln.get("suggs") or [])
-                    if g.get("kind") == kind and g.get("card_text")), "")
-        text = _clip(_ct or str(ln.get("text") or "").strip(),
-                     40 if style != "event" else 12)
+        _ct = _ct_of.get(kind, "")
+        if not _ct:
+            # 没卡文字就不硬造: 清单卡用口播整句截断 = 断句残片, 宁缺勿滥
+            logger.info("[v3:shots] L%s 采纳建议 %s 无 card_text, 跳过建卡", no, kind)
+            continue
+        text = _clip(_ct, 12 if style == "event" else 40)
         key = (no, style)
         if key in seen:
             continue

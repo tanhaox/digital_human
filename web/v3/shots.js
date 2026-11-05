@@ -165,7 +165,7 @@ function cardChip(c) {
         ? `<a class="kimg" href="${BASE}/shots/card/${encodeURIComponent(c.image)}" target="_blank" title="图示已生成, 点击预览">🖼</a>`
         : `<button class="iconbtn" data-act="render" data-cid="${esc(c.cid)}" title="图示 → HTML 排版出图">🖼</button>`);
   const full = String(c.text || '');
-  const shown = full.length > 16 ? full.slice(0, 16) + '…' : full;
+  const shown = full.length > 22 ? full.slice(0, 22) + '…' : full;
   const tip = '内容类型: ' + label + ' / 渲染: ' + how + ' · ' + full;
   return `<span class="kard kard-${esc(c.style)}" title="${esc(tip)}">`
     + `${esc(label)}「${esc(shown)}」${btn}</span>`;
