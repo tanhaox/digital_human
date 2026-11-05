@@ -39,3 +39,7 @@
   padding:2px 8px; border-radius:7px; border:none; cursor:pointer; }
 .iconbtn:hover { color:var(--cyan); }
 .issue-sum { color:var(--bad-t); font-weight:700; font-size:13.5px; margin:8px 0 4px; }
+/* 画面来源标记: 品牌卡=冻结资产, 宪法=特区规则 (两者都不是 LLM 自由发挥) */
+.src { display:inline-block; font-size:11.5px; padding:0 6px; border-radius:6px; margin-right:6px; white-space:nowrap; }
+.src-brand { color:var(--gold); border:1px solid #4a3a1c; }
+.src-const { color:var(--cyan); border:1px dashed #2a4a66; }

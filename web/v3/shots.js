@@ -98,7 +98,11 @@ function renderGrid() {
     rows.push(`<div class="row shot">
       <div class="mono muted">${esc(s.arc_id)}</div>
       <div class="mono">${esc(s.sid)}</div>
-      <div><span class="editable" contenteditable="true" data-sid="${s.sid}" data-k="keyframe_zh">${esc(s.keyframe_zh || '')}</span>
+      <div>${s.source === 'brand_card'
+          ? '<span class="src src-brand" title="品牌冻结骨架 (登山客三拍+圣经色板), LLM 零参与">🔒 品牌卡</span>'
+          : (s.arc_type === 'hook' || s.arc_type === 'cta'
+              ? '<span class="src src-const" title="按特区宪法生成 (钩子/行动召既定画面语言)">📐 宪法</span>' : '')}
+        <span class="editable" contenteditable="true" data-sid="${s.sid}" data-k="keyframe_zh">${esc(s.keyframe_zh || '')}</span>
         <button class="iconbtn" data-act="reroll" data-sid="${s.sid}" title="重写这一镜的画面句">↻</button></div>
       <div>${cardsOf(s.sid) || '<span class="muted">—</span>'}</div>
       <div class="mono muted">~${s.est_s}s</div>

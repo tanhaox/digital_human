@@ -152,6 +152,28 @@ _SYS = """你是动画分镜的画师。给定「镜」清单 (镜号|所属弧�
 5. 每条只输出画面句, 严格 JSON: {"shots":[{"sid":"s1","keyframe_zh":"..."}]}"""
 
 
+def fill_brand_shots(shots: list[dict[str, Any]], bible: dict | None) -> int:
+    """品牌位画面 = 冻结骨架确定性注入 (用户令: 不分配立意≠没画面; 品牌 DNA 不许随机).
+
+    v2 同源: brand.shot_design 给 登山客三拍骨架+圣经色板, 槽长等比拉伸, LLM 零参与。
+    """
+    from app.services.anim_pipeline import brand
+    n = 0
+    for s in shots:
+        if s.get("arc_type") != "brand":
+            continue
+        try:
+            d = brand.shot_design(float(s.get("est_s") or 5.0), bible)
+            s["keyframe_zh"] = str(d["keyframe_zh"])[:600]
+            s["anim"] = d.get("anim") or {}
+            s["brand_card"] = True                 # v2 字段: K2/H3 走品牌直通
+            s["source"] = "brand_card"             # 画面来源标记 (前端显示)
+            n += 1
+        except Exception as exc:  # noqa: BLE001 — 单镜失败不炸
+            logger.warning("[v3:shots] 品牌镜骨架注入失败 %s: %s", s.get("sid"), exc)
+    return n
+
+
 def _batch_prompt(batch: list[dict[str, Any]], arc_of: dict[str, dict], line_of: dict[int, dict]) -> str:
     rows = []
     for s in batch:
@@ -168,8 +190,19 @@ def _llm_fill(shots: list[dict[str, Any]], arcs: list[dict[str, Any]],
     arc_of = {a["arc_id"]: a for a in arcs}
     filled = 0
     for i in range(0, len(shots), BATCH):
-        batch = shots[i:i + BATCH]
-        raw = get_llm_service().chat(_SYS, _batch_prompt(batch, arc_of, line_of),
+        batch = [s for s in shots[i:i + BATCH]
+                 if s.get("arc_type") != "brand" and not s.get("keyframe_zh")]
+        if not batch:
+            continue                     # 品牌镜已由冻结骨架填好, 不进 LLM
+        sys_p = _SYS
+        if any(s.get("arc_type") in ("hook", "cta") for s in batch):
+            # 钩子/行动召: 注入特区宪法 (v2 同一份规则, 非 LLM 自由发挥)
+            try:
+                from app.services.anim_pipeline.hook_zone import ZONE_RULES
+                sys_p += "\n\n【特区宪法 — 钩子/行动召镜必须遵守】\n" + str(ZONE_RULES)
+            except Exception:  # noqa: BLE001
+                pass
+        raw = get_llm_service().chat(sys_p, _batch_prompt(batch, arc_of, line_of),
                                      model="pro", temperature=0.6,
                                      response_format={"type": "json_object"}, tag="v3_shots")
         got = {str(r.get("sid")): str(r.get("keyframe_zh") or "")[:600]
@@ -241,10 +274,23 @@ def run(job: dict[str, Any]) -> None:
     shots, warns = pack_shots(arcs, lines)      # 内含全局镜号 s1..sN
     line_of = {ln["no"]: ln for ln in lines}
 
-    job["progress"] = {"done": 0, "total": 1, "current": f"LLM 写画面句 ({len(shots)} 镜)"}
-    filled = 0
+    job["progress"] = {"done": 0, "total": 1, "current": f"写画面句 ({len(shots)} 镜)"}
+    # 品牌位: 冻结骨架确定性注入 (零 LLM); 其余镜才走 LLM
+    bible = None
     try:
-        filled = _llm_fill(shots, arcs, line_of)
+        from app.services.anim_pipeline import director2
+        _bp = director2._bible_cache_path(job["book_title"])
+        if _bp.exists():
+            import json as _json
+            bible = _json.loads(_bp.read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001 — 圣经缺失退无色彩注入
+        bible = None
+    n_brand = fill_brand_shots(shots, bible)
+    if n_brand:
+        logger.info("[v3:shots] 品牌镜骨架注入 %d 镜 (零 LLM)", n_brand)
+    filled = n_brand
+    try:
+        filled += _llm_fill(shots, arcs, line_of)
         logger.info("[v3:shots] 画面句 %d/%d 镜 ✓ (批 %d)", filled, len(shots), BATCH)
     except Exception as exc:  # noqa: BLE001 — LLM 失败留空待人填
         logger.warning("[v3:shots] 画面句 LLM 失败 (留空待手填): %s", exc)
@@ -260,7 +306,7 @@ def run(job: dict[str, Any]) -> None:
     v3.setdefault("gates", {})["shots"] = False     # 人闸: 前端放行才开
     shots_mod.save(doc)
 
-    job["result"] = {"shots": len(shots), "filled": filled, "cards": len(cards),
+    job["result"] = {"shots": len(shots), "filled": filled, "brand": n_brand, "cards": len(cards),
                      "issues": n_issue, "warnings": len(warns)}
     logger.info("[v3:shots] %s ep%d: %d 镜 (画面句 %d, 卡 %d, 质检问题 %d) → shots.json v3 ✓",
                 job["book_title"], job["ep"], len(shots), filled, len(cards), n_issue)

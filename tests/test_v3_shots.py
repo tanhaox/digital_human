@@ -103,3 +103,33 @@ def test_wiring_v3():
                 exec(line, {})          # 延迟导入必须可解析 (V1 实锤)
     for f in ("web/v3/shots.html", "web/v3/shots.js", "web/v3/shots.css"):
         assert Path(f).exists(), f
+
+
+def test_brand_arc_gets_frozen_skeleton_not_llm():
+    """用户令: 非叙事位不分配立意 ≠ 没有画面 — 品牌位走冻结骨架 (LLM 零参与)."""
+    from app.services.anim_pipeline import brand
+    sh, _ = v3shots.pack_shots(_arcs(), _lines())
+    brand_shots = [s for s in sh if s["arc_type"] == "brand"]
+    if not brand_shots:
+        # 本夹具无 brand 弧 → 造一个
+        _arcs2 = _arcs() + [{"arc_id": "A6", "type": "brand", "mode": "brand",
+                             "no_start": 7, "no_end": 7}]
+        sh, _ = v3shots.pack_shots(_arcs2, _lines())
+        brand_shots = [s for s in sh if s["arc_type"] == "brand"]
+    assert brand_shots, "品牌弧必须切出镜"
+    n = v3shots.fill_brand_shots(brand_shots, {"color_palette": "暖橙+青灰"})
+    assert n == len(brand_shots)
+    for s in brand_shots:
+        assert s["keyframe_zh"], "品牌镜必须有画面句 (来自冻结骨架)"
+        assert s.get("brand_card") is True      # v2 字段: K2/H3 品牌直通
+        assert s.get("anim", {}).get("beats")   # 三拍 beats 等比拉伸
+        assert s.get("source") == "brand_card"
+
+
+def test_brand_skeleton_is_deterministic():
+    """同一槽长两次生成必须逐字一致 (品牌 DNA 不许随机)."""
+    from app.services.anim_pipeline import brand
+    a = brand.shot_design(5.0, {"color_palette": "暖橙"})
+    b = brand.shot_design(5.0, {"color_palette": "暖橙"})
+    assert a["keyframe_zh"] == b["keyframe_zh"]
+    assert a["anim"]["opening_desc"] == b["anim"]["opening_desc"]
