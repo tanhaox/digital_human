@@ -367,8 +367,11 @@ def plan(book_ref: str, ep: int, teardown_file: str | None = None, force: bool =
     # 1101 H1: 旧单窗直跑块 (director2.plan + _finalize_doc(tag=plan)) 删除 —
     # 四条入路 (无force+existing→SystemExit / force+scorched / force+!scorched /
     # 无doc) 全部提前分流, 该块 0917 起不可达, 徒增主路误读。
+    # 1105 现场修 (病灶13, ep6 实锤): 此路漏传 concept_only — 全新集点 🧭规划
+    # (立意闸) 直接跑进逐场分镜, 人闸被跳过 (job 00f07473 A1 白烧 3 次整场)。
     if not existing.exists():
         return _scorched_flow(book_id, book_title, ep, ep_row, manifest, bible,
+                              concept_only=concept_only,
                               stop_check=stop_check, on_progress=on_progress)
     raise SystemExit(f"已存在 {existing} (--force 覆盖; 已有产物状态会丢失)")
 

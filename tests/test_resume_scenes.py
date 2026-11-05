@@ -278,6 +278,28 @@ def test_stop_check_wiring_asserts():
     assert "已停止" in rj          # SystemExit+cancel → cancelled 分支
 
 
+def test_plan_fresh_episode_respects_concept_gate(monkeypatch, tmp_path):
+    # 1105 现场修 (病灶13, ep6 job 00f07473 实锤): 全新集路径漏传 concept_only
+    # — 🧭规划(立意闸) 对无 doc 的集直接跑进逐场分镜, 人闸被跳过。
+    from pathlib import Path
+    from app.services import anim_draft
+    from app.services.anim_pipeline import director2
+    captured = {}
+    monkeypatch.setattr(planner, "load", lambda: type("C", (), {"db_path": ":memory:"})())
+    monkeypatch.setattr(planner, "resolve_book", lambda db, ref: ("bid", "测试书"))
+    monkeypatch.setattr(planner, "fetch_episode", lambda db, bid, ep: {"title": "t", "script_text": "s"})
+    monkeypatch.setattr(director2, "load_or_derive_bible", lambda *a, **k: {})
+    monkeypatch.setattr(anim_draft, "fetch_episode_audio", lambda bid, ep: {
+        "job_id": "aj", "files": [{"file": "/x/1.wav", "text": "一", "dur_s": 2.0}]})
+    monkeypatch.setattr(planner, "_audio_manifest", lambda au: {"segments": []})
+    monkeypatch.setattr(planner.shots_mod, "shots_path",
+                        lambda bt, ep: tmp_path / "no_such_shots.json")   # 全新集
+    monkeypatch.setattr(planner, "_scorched_flow",
+                        lambda *a, **k: captured.update(k) or Path("x"))
+    planner.plan("bid", 1, concept_only=True)
+    assert captured.get("concept_only") is True
+
+
 def test_wiring_source_asserts():
     # 源码级断言 (test_audio_stamp.py 范式): 投影/预检/白名单 防断链
     import inspect
