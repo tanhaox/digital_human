@@ -7,6 +7,7 @@ job/同集互斥/取消/SSE/台账全复用 anim_service.start_phase (零新机�
 from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import Any
 
@@ -176,6 +177,75 @@ def v3_shots_get(book_id: str, ep: int):
     return {"shots": shots, "cards": cards, "issues": v3.get("shot_issues") or {},
             "warnings": v3.get("shot_warnings") or [],
             "gates": v3_pipeline.gates_view(doc), "ready": bool(shots)}
+
+
+class CardRenderBody(BaseModel):
+    cid: str
+    size: str = "wide"
+
+
+@router.get("/ep/{book_id}/{ep}/shots/card/{name}")
+def v3_card_image(book_id: str, ep: int, name: str):
+    """配图预览 (卡片图在 data/l0/{书名}/cards/, 不在 ep 目录 → 专用端点)。"""
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    from app.services.jy_draft_service.quote_card import cards_dir
+    safe = name.replace("/", "").replace("\\", "").replace("..", "")
+    p = cards_dir(book_title) / f"{safe}.png"
+    if not p.exists():
+        raise HTTPException(status_code=404, detail=f"图不存在: {safe}")
+    return FileResponse(str(p))
+
+
+@router.post("/ep/{book_id}/{ep}/shots/card/render")
+def v3_card_render(book_id: str, ep: int, body: CardRenderBody):
+    """配图渲染: HTML 模板 + Playwright 截图 (复用封面视觉体系, 零 GPU)。
+
+    用户令: 配图不走 ComfyUI (AI 画不了精确中文排版) — 产物落
+    data/l0/{书名}/cards/, 装配钉图时按图名取 (anim_draft quote_img 轨)。
+    """
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    with anim_service.ep_guard(book_id, ep):
+        doc = _load_v3_doc(book_title, ep)
+        v3 = doc.setdefault("v3", {})
+        cards = v3.get("cards") or []
+        card = next((c for c in cards if c.get("cid") == body.cid), None)
+        if not card:
+            raise HTTPException(status_code=404, detail=f"卡不存在: {body.cid}")
+        # 清单类: 把卡文字按标点拆成条目 (最多 5 条)
+        import re as _re
+        _KIND_OF_STYLE = {"quote": "金句", "event": "结论", "list": "总结",
+                          "title": "标题", "img": "提示"}
+        kind = str(card.get("kind") or _KIND_OF_STYLE.get(str(card.get("style")), "总结"))
+        text = str(card.get("text") or "").strip()
+        if kind in ("提示", "总结", "清单"):
+            parts = [p.strip() for p in _re.split(r"[；;。\n]", text) if p.strip()]
+            lines = parts[:5] or [text]
+            title = parts[0][:14] if parts else text[:14]
+            if len(parts) > 1:
+                lines = parts[1:5] or parts[:1]
+        else:
+            title, lines = text[:20], [text]
+        from app.services.anim_pipeline.v3_pipeline.card_render import render_card
+        from app.services.jy_draft_service.quote_card import cards_dir
+        # 文件名用 ASCII (实锤: 中文名在 URL 里需编码, 预览/跨端不稳)
+        safe = f"v3_{body.cid}"
+        out = cards_dir(book_title) / f"{safe}.png"
+        try:
+            render_card(kind, title, lines, out, size=body.size)
+        except Exception as exc:  # noqa: BLE001
+            raise HTTPException(status_code=500, detail=f"渲染失败: {exc}")
+        card["image"] = safe          # 装配钉图按此名取 data/l0/{书名}/cards/{safe}.png
+        card["image_file"] = out.name
+        from app.services.anim_pipeline import shots as shots_mod
+        shots_mod.save(doc)
+    return {"cid": body.cid, "image": safe, "path": str(out), "rendered": True}
 
 
 @router.post("/ep/{book_id}/{ep}/shots/autocards")

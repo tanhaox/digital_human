@@ -113,8 +113,12 @@ function cardsOf(sid) {
     .map(c => {
       const label = c.kind || STYLE_ZH[c.style] || c.style;
       const how = STYLE_ZH[c.style] || c.style;
+      // 配图出走 HTML 渲染 (封面同源), 不占 GPU
+      const btn = c.image
+        ? `<a class="iconbtn kimg" href="${BASE}/shots/card/${encodeURIComponent(c.image)}" target="_blank" title="已出图, 点击预览">🖼</a>`
+        : `<button class="iconbtn" data-act="render" data-cid="${c.cid}" title="用封面同款 HTML 渲染出图 (零 GPU)">🖼</button>`;
       return `<span class="kard kard-${esc(c.style)}" title="内容类型: ${esc(label)} · 渲染方式: ${esc(how)}">`
-        + `${esc(label)}「${esc(c.text)}」</span>`;
+        + `${esc(label)}「${esc(c.text)}」</span>${btn}`;
     })
     .join(' ');
 }
@@ -171,7 +175,19 @@ $('grid').addEventListener('input', ev => {
 });
 
 $('grid').addEventListener('click', async ev => {
-  const b = ev.target.closest('button'); if (!b) return;
+  const b = ev.target.closest('button[data-act]'); if (!b) return;
+  if (b.dataset.act === 'render') {
+    b.disabled = true; b.textContent = '⏳';
+    try {
+      const r = await (await fetch(`${BASE}/shots/card/render`, { method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cid: b.dataset.cid }) })).json();
+      if (r.rendered) { toast(`✓ 已出图 ${r.image}.png`); await refresh(); }
+      else toast('渲染失败: ' + (r.detail || '未知'));
+    } catch (e) { toast('渲染失败: ' + e.message); }
+    finally { b.disabled = false; b.textContent = '🖼'; }
+    return;
+  }
   if (b.dataset.act === 'reroll') {
     const sid = b.dataset.sid;
     const s = SHOTS.find(x => x.sid === sid);

@@ -244,3 +244,14 @@ def test_note_prefix_maps_to_kind():
                        ("标题", "标题"), ("提示", "提示"), ("总结", "总结")):
         mode, rec = triage.route_markers(f"{pref}：示例内容")
         assert mode == "note" and rec["kind"] == kind, (pref, rec)
+
+
+def test_card_render_html_builds_for_all_kinds():
+    """配图渲染: 六类内容各自能出 HTML (不启动浏览器, 只验纯函数)。"""
+    from app.services.anim_pipeline.v3_pipeline import card_render as cr
+    for kind, lines in (("总结", ["甲", "乙"]), ("金句", ["信任是账户，取现要预约"]),
+                        ("结论", ["边界即信任"]), ("标题", ["核心二三"]),
+                        ("提示", ["先做这个"]), ("口诀", ["丑话前置"])):
+        h = cr.build_card_html(kind, "标题", lines)
+        assert "<html>" in h and "老谭读书" in h
+        assert "content" in h
