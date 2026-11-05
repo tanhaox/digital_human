@@ -15,6 +15,9 @@ const CAMS = ['待定', '固定', '推', '拉', '摇', '移', '跟', '升', '降
 const AMPS = ['小', '中', '大'];
 const SPEEDS = ['慢', '中', '快'];
 const NO_MOVE = ['待定', '固定'];
+// 方向: 摇/移/跟 才有 (H3 壳拼进运镜行: pans left / tilts up / trucks right)
+const DIRS = ['无', '左', '右', '上', '下'];
+const NO_DIR = ['待定', '固定', '推', '拉', '升', '降'];
 const TYPE_ZH = { narr: '叙事弧', quote: '书证镜', persona: '人设镜',
   hook: '钩子', cta: '行动召', brand: '品牌' };
 
@@ -33,6 +36,7 @@ async function boot() {
       size: saved.size || s.size_guess || '中景',
       // 未生成 → 运镜「待定」而不是假装「固定」; 一旦选了运动, 幅速默认 大·慢
       cam: { kind: (saved.cam && saved.cam.kind) || '待定',
+             dir: (saved.cam && saved.cam.dir) || '无',
              amp: (saved.cam && saved.cam.amp) || '大',
              speed: (saved.cam && saved.cam.speed) || '慢' },
       motion: saved.motion || '', light: saved.light || '',
@@ -112,13 +116,15 @@ function opts(list, cur) {
 function rowHTML(s) {
   const st = STATE[s.sid];
   const fixed = NO_MOVE.includes(st.cam.kind);
+  const noDir = NO_DIR.includes(st.cam.kind);
   return `<div class="row" data-sid="${esc(s.sid)}">
     <div class="r1">
       <span class="sid">${esc(s.sid)}</span>
       <span class="dur">~${s.est_s}s</span>
       ${st.filled ? '' : '<span class="warn-dot" title="尚未生成导演参数"></span>'}
       <select class="sel-size" data-k="size" title="景别">${opts(SIZES, st.size)}</select>
-      <select class="sel-cam" data-k="cam.kind" title="运镜型">${opts(CAMS, st.cam.kind)}</select>
+      <select class="sel-cam" data-k="cam.kind" title="运镜型 (八步封顶)">${opts(CAMS, st.cam.kind)}</select>
+      <select class="sel-dir" data-k="cam.dir" title="运镜方向 (摇/移/跟 才有)"${noDir ? ' disabled' : ''}>${opts(DIRS, st.cam.dir)}</select>
       <select class="sel-amp" data-k="cam.amp" title="运镜幅度"${fixed ? ' disabled' : ''}>${opts(AMPS, st.cam.amp)}</select>
       <select class="sel-speed" data-k="cam.speed" title="运镜速度"${fixed ? ' disabled' : ''}>${opts(SPEEDS, st.cam.speed)}</select>
       <span class="flex1"></span>
@@ -163,9 +169,16 @@ function bindRows() {
 }
 
 function refreshRow(row, sid) {
-  const fixed = NO_MOVE.includes(STATE[sid].cam.kind);
+  const kind = STATE[sid].cam.kind;
+  const fixed = NO_MOVE.includes(kind);
+  const noDir = NO_DIR.includes(kind);
   row.querySelector('.sel-amp').disabled = fixed;
   row.querySelector('.sel-speed').disabled = fixed;
+  row.querySelector('.sel-dir').disabled = noDir;
+  if (noDir && STATE[sid].cam.dir !== '无') {
+    STATE[sid].cam.dir = '无';
+    row.querySelector('.sel-dir').value = '无';
+  }
 }
 
 /* ── 配额 ─────────────────────────────────────────────── */
