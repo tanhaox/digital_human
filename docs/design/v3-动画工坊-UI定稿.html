@@ -2,12 +2,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="claude:viewport-fit-sides" content="cover">
-<title>动画工坊 v3</title>
+<title>动画工坊 v3 · 五页套件</title>
 <style>
-/* 设计令牌 = 产线现有体系 (anim.css), 单暗色工作台 (工具本体即暗色, 刻意单主题) */
+/* 设计令牌 = 产线现有体系 (anim.css), 单暗色工作台 */
 :root {
   color-scheme: dark;
-  --bg:#0f172a; --panel:#16213a; --panel2:#131c2f; --card:#182238;
+  --bg:#0f172a; --panel:#16213a; --panel2:#131c2f;
   --line:#2a3752; --line2:#334155;
   --txt:#e2e8f0; --dim:#94a3b8; --faint:#64748b;
   --gold:#C9A25E; --amber:#f0b45a; --cyan:#7cc4e8;
@@ -18,242 +18,282 @@
 }
 * { box-sizing:border-box; }
 html,body { margin:0; }
-body {
-  background:var(--bg); color:var(--txt); font:14px/1.65 var(--sans);
+body { background:var(--bg); color:var(--txt); font:14px/1.65 var(--sans);
   padding-left:max(16px, env(safe-area-inset-left, 0px));
-  padding-right:max(16px, env(safe-area-inset-right, 0px));
-}
+  padding-right:max(16px, env(safe-area-inset-right, 0px)); }
 body::before { content:""; position:fixed; inset:0 0 auto 0; height:env(safe-area-inset-top, 0px); z-index:20; background:var(--bg); }
 a { color:var(--cyan); text-decoration:none; }
 .wrap { max-width:1180px; margin:0 auto; }
 
-/* ── 顶栏 + v3 动线导轨 ── */
-.nav { display:flex; gap:18px; align-items:center; padding:10px 0; font-size:13px; color:var(--dim); }
+/* ── 站内导航 (= 流程导轨, 一页一步) ── */
+.nav { display:flex; gap:16px; align-items:center; padding:10px 0; font-size:13px; color:var(--dim); flex-wrap:wrap; }
 .nav .logo { font-family:var(--mono); color:var(--gold); font-weight:700; }
 .nav .logo span { color:var(--txt); }
 .railwrap { position:sticky; top:env(safe-area-inset-top, 0px); z-index:15;
   background:rgba(15,23,42,.95); backdrop-filter:blur(8px);
-  border:1px solid var(--line); border-radius:10px; margin:6px 0 18px; }
+  border:1px solid var(--line); border-radius:10px; margin:4px 0 18px; }
 .rail { display:flex; flex-wrap:wrap; gap:6px; padding:8px 10px; align-items:center; }
-.rail a.step { display:flex; gap:6px; align-items:center; padding:4px 10px; border-radius:8px;
-  font-size:12.5px; color:var(--dim); border:1px solid transparent; }
+.rail a.step { display:flex; gap:6px; align-items:center; padding:4px 11px; border-radius:8px;
+  font-size:13px; color:var(--dim); border:1px solid transparent; }
 .rail a.step:hover { border-color:var(--line2); text-decoration:none; }
 .rail .sep { color:var(--faint); font-size:11px; }
 .step .n { font-family:var(--mono); font-size:11px; color:var(--faint); }
 .step.now { color:var(--gold); border-color:var(--gold); background:rgba(201,162,94,.08); }
-.step.done { color:var(--ok-t); }
-.step.done .n { color:var(--ok-t); }
-.step.lock { color:var(--faint); }
-.step.lock .st { font-size:10.5px; }
+.step.done { color:var(--ok-t); } .step.done .n { color:var(--ok-t); }
 .st { font-size:10.5px; padding:0 6px; border-radius:8px; background:#2a3442; color:#cfd8e3; font-family:var(--mono); }
 
-/* ── 区块骨架 ── */
-section { margin:0 0 26px; }
+/* ── 页面切换: 一页一事, 整页互斥 ── */
+.page { display:none; }
+.page.on { display:block; }
+
+section { margin:0 0 24px; }
 .h2row { display:flex; align-items:baseline; gap:10px; margin:0 0 10px; flex-wrap:wrap; }
-.h2 { font-size:17px; font-weight:700; margin:0; }
-.h2 .no { font-family:var(--mono); color:var(--gold); font-size:14px; }
+.h2 { font-size:18px; font-weight:700; margin:0; }
+.h2 .no { font-family:var(--mono); color:var(--gold); font-size:15px; }
 .sub { color:var(--dim); font-size:12.5px; }
 .panel { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
 .note { color:var(--faint); font-size:12px; }
-.spec { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px;
-  border-radius:9px; background:#233246; color:var(--cyan); font-family:var(--mono); font-size:11px;
-  margin:0 4px; vertical-align:1px; cursor:help; }
 .badge { font-size:11px; padding:1px 8px; border-radius:9px; background:#2a3442; color:#cfd8e3; font-family:var(--mono); }
 .badge.gold { background:#4a3a1c; color:var(--gold); }
 .badge.lock { background:var(--lock); color:#aab6c5; }
 .badge.ok { background:var(--ok); color:var(--ok-t); }
 .badge.warn { background:var(--warn); color:var(--warn-t); }
-.badge.bad { background:var(--bad); color:var(--bad-t); }
+.spec { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px;
+  border-radius:9px; background:#233246; color:var(--cyan); font-family:var(--mono); font-size:11px; margin:0 4px; }
 
-/* 对照条 */
+/* v2/v3 对照 (P1 顶部) */
 .vs { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
 .vs .panel { padding:10px 14px; font-size:12.5px; }
-.vs b { font-family:var(--mono); }
-.vs .old b { color:var(--faint); } .vs .new b { color:var(--gold); }
-.vs .arr { color:var(--faint); font-family:var(--mono); }
+.vs b { font-family:var(--mono); } .vs .old b { color:var(--faint); } .vs .new b { color:var(--gold); }
 
-/* ── 立意卡 ── */
-.arcs { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:10px; }
-.arc { background:var(--panel2); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
-.arc .id { font-family:var(--mono); color:var(--gold); font-weight:700; }
-.arc .rng { font-family:var(--mono); font-size:11px; color:var(--faint); margin-left:6px; }
-.arc .w { color:var(--cyan); font-size:12.5px; margin:2px 0; }
-.arc .m { color:var(--dim); font-size:12px; }
-.arc .ft { display:flex; gap:8px; margin-top:6px; font-size:11px; color:var(--faint); font-family:var(--mono); }
-
-/* ── 表 ── */
+/* ── P1 立意: 六拍分配表 (借现版立意面板) ── */
+.concept-bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:0 0 10px; }
 .twrap { overflow-x:auto; border:1px solid var(--line); border-radius:10px; }
-table { border-collapse:collapse; width:100%; min-width:860px; font-size:12.5px; }
+table { border-collapse:collapse; width:100%; min-width:900px; font-size:12.5px; }
 th { text-align:left; font-weight:600; color:var(--dim); font-size:11.5px; letter-spacing:.4px;
   padding:7px 10px; background:var(--panel2); border-bottom:1px solid var(--line2); white-space:nowrap; }
 td { padding:6px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
 tr:last-child td { border-bottom:none; }
-td.mono, .mono { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+.mono { font-family:var(--mono); font-variant-numeric:tabular-nums; }
 td .dim2 { color:var(--faint); }
 .tbd { color:var(--faint); font-family:var(--mono); }
-.locked { color:var(--dim); }
-.locked::after { content:"🔒"; font-size:10px; margin-left:4px; opacity:.8; }
+.wl-chip { display:inline-block; background:#233246; color:var(--cyan); border-radius:8px; padding:0 8px; font-size:11px; margin:0 4px 2px 0; }
+.c-warn { color:var(--warn-t); font-size:12px; }
+.tools { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; align-items:center; }
+
+/* ── P2 分镜 ── */
+.chips { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 10px; }
+.chip { font-size:12px; padding:2px 12px; border-radius:9px; border:1px solid var(--line2); color:var(--dim); cursor:pointer; font-family:var(--mono); }
+.chip.on { color:var(--gold); border-color:var(--gold); background:rgba(201,162,94,.08); }
 .editable { color:var(--txt); border-bottom:1px dashed var(--line2); cursor:text; }
+.locked { color:var(--dim); }
+.iconbtn { background:#2a3442; color:#cfd8e3; font-family:var(--mono); font-size:11px; padding:2px 8px; border-radius:7px; border:none; cursor:pointer; }
 
-/* 总审 bar */
-.gatebar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:12px;
-  background:linear-gradient(90deg, rgba(201,162,94,.10), transparent 60%);
-  border:1px solid var(--gold); border-radius:10px; padding:10px 14px; }
-.gatebar .ti { color:var(--gold); font-weight:700; }
-button { font:inherit; border:none; border-radius:8px; padding:5px 14px; cursor:pointer; color:#fff; }
-button.go { background:#14532d; } button.gold { background:#9a3412; }
-button.ghost { background:transparent; border:1px solid var(--line2); color:var(--dim); }
-
-/* ── TTS 块表 ── */
+/* ── P3 TTS ── */
 .rate { display:flex; align-items:center; gap:6px; font-family:var(--mono); font-size:11px; color:var(--dim); }
 input[type=range] { width:88px; accent-color:var(--gold); }
-.iconbtn { background:#2a3442; color:#cfd8e3; font-family:var(--mono); font-size:11px; padding:2px 8px; border-radius:7px; }
 
-/* ── 时间轴 ── */
+/* ── P4 时间轴 ── */
 .tl { position:relative; margin:8px 0 2px; }
 .tl .band { position:relative; height:34px; border-radius:6px; overflow:hidden; display:flex; border:1px solid var(--line2); }
 .tl .arcband { height:100%; position:relative; }
 .tl .shot { position:absolute; top:0; bottom:0; border-right:1px solid rgba(15,23,42,.85); }
-.tl .lab { position:absolute; top:3px; left:4px; font-family:var(--mono); font-size:9.5px; color:rgba(255,255,255,.75); }
+.tl .lab { position:absolute; top:3px; left:4px; font-family:var(--mono); font-size:9.5px; color:rgba(255,255,255,.78); }
 .tl .zone { position:absolute; top:-20px; bottom:-4px; border-left:1px dashed var(--amber); }
 .tl .zonelab { position:absolute; top:-20px; left:4px; font-size:10px; color:var(--amber); font-family:var(--mono); white-space:nowrap; }
 .tl .axis { display:flex; justify-content:space-between; font-family:var(--mono); font-size:10px; color:var(--faint); margin-top:4px; }
 .tl .ev { position:absolute; bottom:-7px; width:6px; height:6px; border-radius:3px; background:var(--cyan); }
-.legend { display:flex; gap:14px; flex-wrap:wrap; font-size:11px; color:var(--dim); margin-top:14px; }
+.legend { display:flex; gap:14px; flex-wrap:wrap; font-size:11px; color:var(--dim); margin-top:16px; }
 .legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:4px; vertical-align:-1px; }
-
-/* 校带行 */
 .fixrow { display:flex; gap:10px; align-items:center; padding:8px 10px; border:1px solid var(--line); border-radius:8px; margin-top:8px; font-size:12.5px; flex-wrap:wrap; }
 
-/* 阶段四 摘要 */
+/* 放行 bar (每页页脚闸) */
+.gatebar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:14px;
+  background:linear-gradient(90deg, rgba(201,162,94,.10), transparent 60%);
+  border:1px solid var(--gold); border-radius:10px; padding:10px 14px; }
+.gatebar .ti { color:var(--gold); font-weight:700; }
+button.act { font:inherit; border:none; border-radius:8px; padding:5px 14px; cursor:pointer; color:#fff; }
+button.go { background:#14532d; } button.gold { background:#9a3412; }
+button.ghost { background:transparent; border:1px solid var(--line2); color:var(--dim); }
+
+/* P5 摘要 */
 .sum { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; }
 .sum .panel { padding:10px 12px; font-size:12.5px; color:var(--dim); }
 .sum b { color:var(--txt); font-family:var(--mono); }
 
-/* 规格清单 */
-.specs { counter-reset:sp; }
-.specs li { margin:4px 0; color:var(--dim); font-size:12.5px; }
-.specs li::before { counter-increment:sp; content:counter(sp); display:inline-flex; align-items:center; justify-content:center;
+/* 每页规格 */
+.specs { margin:8px 0 0; padding:0; list-style:none; counter-reset:sp; }
+.specs li { margin:4px 0; color:var(--dim); font-size:12.5px; counter-increment:sp; }
+.specs li::before { content:counter(sp); display:inline-flex; align-items:center; justify-content:center;
   min-width:18px; height:18px; border-radius:9px; background:#233246; color:var(--cyan);
   font-family:var(--mono); font-size:11px; margin-right:8px; }
 .specs b { color:var(--txt); }
-footer { color:var(--faint); font-size:11.5px; margin:26px 0 18px; }
-@media (max-width:640px){ .vs { grid-template-columns:1fr; } table { min-width:720px; } }
+footer { color:var(--faint); font-size:11.5px; margin:24px 0 18px; }
+@media (max-width:640px){ .vs { grid-template-columns:1fr; } table { min-width:760px; } }
 </style>
 
 <div class="wrap">
 
 <nav class="nav">
   <span class="logo">Pipeline<span>Studio</span></span>
-  <span>拆书</span><span>文字加工</span><span class="badge gold">动画工坊 v3</span><span>视频库</span>
-  <span style="flex:1"></span><span>值得信赖的顾问 · 第6集 <span class="note">(样例数据 = 今日 ep6 实弹)</span></span>
+  <span>拆书</span><span>文字加工</span>
+  <span class="badge gold">动画 v3 · 一站一页</span><span>视频库</span>
+  <span style="flex:1"></span><span>值得信赖的顾问 · 第6集 <span class="note">(样例=1105 ep6 实弹)</span></span>
 </nav>
 
-<!-- ① v3 动线导轨 (替代旧 flowline; 音频门挪到 ②) -->
-<div class="railwrap"><div class="rail">
-  <a class="step now" href="#s1"><span class="n">①</span>文字创作<span class="st">总审中</span><span class="spec" title="S1">1</span></a><span class="sep">→</span>
-  <a class="step lock" href="#s2"><span class="n">②</span>TTS<span class="st">🔒待①放行</span></a><span class="sep">→</span>
-  <a class="step lock" href="#s3"><span class="n">③</span>盖章校带</a><span class="sep">→</span>
-  <a class="step lock" href="#s4"><span class="n">④</span>K2</a><span class="sep">→</span>
-  <a class="step lock" href="#s4"><span class="n">⑤</span>人检</a><span class="sep">→</span>
-  <a class="step lock" href="#s4"><span class="n">⑥</span>H3</a><span class="sep">→</span>
-  <a class="step lock" href="#s4"><span class="n">⑦</span>装配
+<div class="railwrap"><div class="rail" id="rail">
+  <a class="step now" href="#p1"><span class="n">①</span>立意<span class="st">确认中</span></a><span class="sep">→</span>
+  <a class="step" href="#p2"><span class="n">②</span>分镜<span class="st">🔒待①</span></a><span class="sep">→</span>
+  <a class="step" href="#p3"><span class="n">③</span>TTS<span class="st">🔒</span></a><span class="sep">→</span>
+  <a class="step" href="#p4"><span class="n">④</span>盖章<span class="st">🔒</span></a><span class="sep">→</span>
+  <a class="step" href="#p5"><span class="n">⑤</span>执行<span class="st">K2/H3</span></a>
 </div></div>
 
-<!-- v2 → v3 对照 -->
-<div class="vs">
-  <div class="panel old">v2 动线&nbsp; <b>文稿 → TTS → 立意 → 分镜 → K2</b><br>
-    <span class="note">切场在时间轴上猜边界 · 改一字=换轨=整集对齐 · 立意确认前先烧 TTS</span></div>
-  <div class="panel new">v3 动线&nbsp; <b>文稿 → 立意+分镜+字卡 → TTS → 盖章 → K2</b><br>
-    <span class="note">结构锁文本 · 秒数是盖章注入 · 改什么都在放行前, 零成本</span></div>
-</div>
+<!-- ════════ P1 立意 (独立页 · 借现版立意面板) ════════ -->
+<div class="page on" id="p1">
+<section>
+  <div class="h2row"><h2 class="h2"><span class="no">①</span> 立意 · 六拍分配</h2>
+    <span class="sub">本页只做一件事: 定弧 (段落→场), 确认后放行分镜</span>
+    <span class="badge ok">0 警告</span><span class="badge">4 场 · 52 行 · 48 句</span></div>
 
-<!-- ═══ ① 文字创作总审台 ═══ -->
-<section id="s1">
-  <div class="h2row"><h2 class="h2"><span class="no">①</span> 文字创作 · 一次总审</h2>
-    <span class="sub">立意 + 镜头分组 + 花字 + 上屏字, 全部纯文字锁定后放行 <span class="spec">2</span><span class="spec">3</span></span>
-    <span class="badge warn">出口闸 3 处待修</span></div>
-
-  <div class="arcs">
-    <div class="arc"><span class="id">A1</span><span class="rng">L01–L12 · 11镜</span>
-      <div class="w">阶段路标岔路口</div>
-      <div class="m">信任波动=三阶段路径 (蜜月绿光→怀疑黄灯→重建红光攀爬)</div>
-      <div class="ft"><span>预估 59s</span><span>句 c01–c11</span><span class="tbd">— 待盖章</span></div></div>
-    <div class="arc"><span class="id">A2</span><span class="rng">L13–L31 · 12镜</span>
-      <div class="w">信任修复工坊</div>
-      <div class="m">信任重建=机械组装线 · 小块交付=传送带玻璃模块</div>
-      <div class="ft"><span>预估 70s</span><span>句 c12–c27</span><span class="tbd">— 待盖章</span></div></div>
-    <div class="arc"><span class="id">A3</span><span class="rng">L32–L44 · 13镜</span>
-      <div class="w">止损闸门控制室</div>
-      <div class="m">止损=闸门资源分配 · 体面退出=拉闸断流失</div>
-      <div class="ft"><span>预估 74s</span><span>句 c28–c41</span><span class="tbd">— 待盖章</span></div></div>
-    <div class="arc"><span class="id">A4</span><span class="rng">L45–L52 · 6镜</span>
-      <div class="w">简报投递站</div>
-      <div class="m">行动召唤=投递站即时启动 · 急救卡=玻璃工具卡</div>
-      <div class="ft"><span>预估 31s</span><span>句 c42–c48</span><span class="tbd">— 待盖章</span></div></div>
+  <div class="vs" style="margin-bottom:14px">
+    <div class="panel old">v2&nbsp; <b>文稿 → TTS → 立意 → …</b><br><span class="note">立意确认前先烧 TTS; 弧边界在时间轴上猜</span></div>
+    <div class="panel new">v3&nbsp; <b>文稿 → 立意 → …</b><br><span class="note">改判/重掷零音频成本; 弧=行号区间, 天然句边对齐</span></div>
   </div>
 
-  <div class="twrap" style="margin-top:12px">
+  <div class="concept-bar">
+    <b style="color:var(--gold)">📜 立意 (人闸 — 可编辑, 保存即生效)</b>
+    <span style="flex:1"></span>
+    <span class="note">过目→放行 · 不喜欢→🎲重掷该场 或 ✏️直接改 (改核心映射=旧值进禁用史)</span>
+  </div>
+  <div class="twrap">
+  <table>
+    <thead><tr><th>拍</th><th>行号 <span class="spec">1</span></th><th>句区间</th><th>视觉世界</th><th>隐喻核心 (A=B)</th><th>镜数</th><th>预估 <span class="spec">2</span></th></tr></thead>
+    <tbody>
+      <tr><td class="mono">A1</td><td class="mono">L01–L12</td><td class="mono">c01–c11</td><td><span class="wl-chip">岔路口装置</span></td><td class="editable">信任波动=三阶段路径 (蜜月绿光→怀疑黄灯→重建红光攀爬)</td><td class="mono">11</td><td class="mono">~59s</td></tr>
+      <tr><td class="mono">A2</td><td class="mono">L13–L31</td><td class="mono">c12–c27</td><td><span class="wl-chip">修复工坊</span></td><td class="editable">信任重建=机械组装线 · 小块交付=传送带玻璃模块</td><td class="mono">12</td><td class="mono">~70s</td></tr>
+      <tr><td class="mono">A3</td><td class="mono">L32–L44</td><td class="mono">c28–c41</td><td><span class="wl-chip">闸门控制室</span></td><td class="editable">止损=闸门资源分配 · 体面退出=拉闸断流失</td><td class="mono">13</td><td class="mono">~74s</td></tr>
+      <tr><td class="mono">A4</td><td class="mono">L45–L52</td><td class="mono">c42–c48</td><td><span class="wl-chip">投递站</span></td><td class="editable">行动召唤=投递站即时启动 · 急救卡=玻璃工具卡</td><td class="mono">6</td><td class="mono">~31s</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <div class="tools">
+    <span class="note">🎲 单场重掷:</span>
+    <select style="background:var(--panel2);color:var(--txt);border:1px solid var(--line2);border-radius:7px;padding:3px 8px"><option>A1</option><option>A2</option><option>A3</option><option>A4</option></select>
+    <input placeholder="不喜欢的原因/想要的方向 (可空)" style="background:var(--panel2);color:var(--txt);border:1px solid var(--line2);border-radius:7px;padding:3px 8px;min-width:220px">
+    <button class="iconbtn">🎲 重掷此场</button>
+    <button class="iconbtn">💾 保存立意</button>
+    <span class="c-warn"></span>
+  </div>
+
+  <div class="gatebar"><span class="ti">◉ 立意放行</span>
+    <span class="note">放行 = 弧结构锁定 (行号区间不可再改, 改=打回本页) → 进入 ② 分镜</span>
+    <span style="flex:1"></span><button class="gold act">✅ 立意 OK → 分镜</button></div>
+
+  <ol class="specs">
+    <li><b>借现版立意面板</b>: 六拍分配表/单场重掷/编辑保存交互原样迁入, 仅增 行号/句区间/镜数 三列 (结构引用)。</li>
+    <li><b>预估列</b>: 字数×语率估算, 供拍子比例参考; 真实时长 ④ 盖章注入 (本页永远不显示精确秒)。</li>
+    <li><b>零音频依赖</b>: 本页无音频也可开工 (旧版音频门挪到 ③ TTS)。</li>
+  </ol>
+</section>
+</div>
+
+<!-- ════════ P2 分镜 (镜·句·块 总审, 独立页) ════════ -->
+<div class="page" id="p2">
+<section>
+  <div class="h2row"><h2 class="h2"><span class="no">②</span> 分镜 · 镜句块总审</h2>
+    <span class="sub">本页只做一件事: 42 镜的文字结构 (画面句/花字/上屏字) 定稿</span>
+    <span class="badge warn">出口闸 3 处待修</span><span class="badge gold">42 镜 · 48 句 · 46 块</span></div>
+
+  <div class="chips">
+    <span class="chip on">全部 42</span><span class="chip">A1 · 11</span><span class="chip">A2 · 12</span>
+    <span class="chip">A3 · 13</span><span class="chip">A4 · 6</span><span class="chip">⚠ 出口闸 3</span>
+  </div>
+
+  <div class="twrap">
   <table>
     <thead><tr>
-      <th>镜 · 句 · 块 <span class="spec" title="S7">7</span></th><th>场</th><th>画面句 (keyframe_zh)</th>
-      <th>花字 · 装配 <span class="spec" title="S9">9</span></th><th>上屏字 · H3</th><th>时长</th><th>出口闸 <span class="spec" title="S9">9</span></th>
+      <th>镜 · 句 · 块 <span class="spec">1</span></th><th>场</th><th>画面句 (keyframe_zh) <span class="spec">2</span></th>
+      <th>花字 · 装配</th><th>上屏字 · H3</th><th>时长</th><th>出口闸 <span class="spec">3</span></th>
     </tr></thead>
     <tbody>
       <tr><td class="mono">s01 · c01 · blk000</td><td>A1</td><td class="editable">岔路口全景, 绿光坦途向远方延伸, 阶段路标立牌</td><td class="tbd">—</td><td class="tbd">—</td><td class="tbd">— 待盖章</td><td><span class="badge ok">✓</span></td></tr>
       <tr><td class="mono">s04 · c04 · blk004</td><td>A1</td><td class="editable">黄灯颠簸路段, 路标翻牌, 决策树分流装置启动</td><td><b>「怀疑坎」</b> <span class="dim2">卡锚</span></td><td class="tbd">—</td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
-      <tr><td class="mono">s08 · c08 · blk009</td><td>A1</td><td class="editable">蜜月期油门误踩怀疑期路段, 车身倾斜将翻</td><td><b>「信任波动」</b></td><td class="tbd">—</td><td class="tbd">—</td><td><span class="badge warn">载体申报</span></td></tr>
+      <tr><td class="mono">s08 · c08 · blk009</td><td>A1</td><td class="editable">蜜月期油门误踩怀疑期路段, 车身倾斜将翻</td><td><b>「信任波动」</b></td><td class="tbd">—</td><td class="tbd">—</td><td><span class="badge warn">载体申报</span> <button class="iconbtn">修</button></td></tr>
       <tr><td class="mono">s12 · c12 · blk013</td><td>A2</td><td class="editable">修复工坊大门开启, 机械组装线点亮</td><td><b>「怀疑期」</b></td><td class="tbd">—</td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
       <tr><td class="mono">s13 · c13 · blk014</td><td>A2</td><td class="editable">传送带首块玻璃模块落入卡槽</td><td class="tbd">—</td><td><b>「蜜月期」</b> <span class="tbd">@—</span></td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
       <tr><td class="mono">s17 · c19–c21 · blk019-021</td><td>A2</td><td class="editable">预警灯塔扫出红光斑, 组装线全速拼装</td><td><b>「重建期」</b></td><td class="tbd">—</td><td class="tbd">— (估 8.7s ⚠)</td><td><span class="badge ok">✓</span></td></tr>
+      <tr><td class="mono">s22 · c25 · blk024</td><td>A2</td><td class="editable">发光信封定时报送, 收件匣指示灯亮起</td><td><b>「提前告知」</b></td><td class="tbd">—</td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
       <tr><td class="mono">s30 · c33 · blk034</td><td>A3</td><td class="editable">闸门拉下, 金币流截断, 剩余资源入袋</td><td><b>「体面退出」</b></td><td class="tbd">—</td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
       <tr><td class="mono">s33 · c37 · blk038</td><td>A3</td><td class="editable">止损原则刻度盘, 两轮标记后指针归零</td><td><b>「止损原则」</b></td><td class="tbd">—</td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
-      <tr><td class="mono">s38 · c43 · blk044</td><td>A4</td><td class="editable">投递站窗口亮起, 玻璃工具卡滑出</td><td class="tbd">—</td><td><b>「小块交付」</b> <span class="tbd">@—</span></td><td class="tbd">—</td><td><span class="badge warn">锚定链</span></td></tr>
-      <tr><td class="mono">s42 · c48 · blk045</td><td>A4</td><td class="locked">收官品牌卡 (我是老谭 · 拆一本书 · 翻一座山)</td><td class="tbd">—</td><td class="tbd">—</td><td class="tbd">— 原子</td><td><span class="badge lock">🔒 品牌</span></td></tr>
-      <tr><td colspan="7" class="dim2">… 共 42 镜 · 出口闸 3 处 (行内点开即修, 文字阶段重掷零成本) …</td></tr>
+      <tr><td class="mono">s38 · c43 · blk044</td><td>A4</td><td class="editable">投递站窗口亮起, 玻璃工具卡滑出</td><td class="tbd">—</td><td><b>「小块交付」</b> <span class="tbd">@—</span></td><td class="tbd">—</td><td><span class="badge warn">锚定链</span> <button class="iconbtn">修</button></td></tr>
+      <tr><td class="mono">s41 · c47 · blk045</td><td>A4</td><td class="editable">工具墙收藏柜逐格点亮, 六件工具齐整</td><td class="tbd">—</td><td class="tbd">—</td><td class="tbd">—</td><td><span class="badge warn">引号文本</span> <button class="iconbtn">修</button></td></tr>
+      <tr><td class="mono">s42 · c48 · blk046</td><td>A4</td><td class="locked">收官品牌卡 (我是老谭 · 拆一本书 · 翻一座山)</td><td class="tbd">—</td><td class="tbd">—</td><td class="tbd">— 原子</td><td><span class="badge lock">🔒 品牌</span></td></tr>
+      <tr><td colspan="7" class="dim2">… 全 42 镜 · 出口闸行内「修」= 文字阶段零成本重掷 (不触发 TTS/GPU) …</td></tr>
     </tbody>
   </table>
   </div>
 
-  <div class="gatebar">
-    <span class="ti">◉ 一次总审</span>
-    <span class="note">放行 = 锁定 弧/镜/花字/上屏内容, 进入 TTS; 之后改动一律走"打回本场" (局部, 不雪崩) <span class="spec">2</span></span>
+  <div class="gatebar"><span class="ti">◉ 分镜放行</span>
+    <span class="note">放行 = 镜/花字/上屏<b>内容</b>锁定 → 进入 ③ TTS; 时长列仍空 (④ 盖章注入)</span>
     <span style="flex:1"></span>
-    <button class="ghost">🔁 打回 A1</button><button class="ghost">🔁 打回 A4</button>
-    <button class="gold">✅ 放行 42 镜 → TTS</button>
-  </div>
-</section>
+    <button class="ghost act">↩ 打回立意</button><button class="gold act">✅ 42 镜 OK → TTS</button></div>
 
-<!-- ═══ ② TTS 块级工作台 ═══ -->
-<section id="s2">
-  <div class="h2row"><h2 class="h2"><span class="no">②</span> TTS · 纯渲染</h2>
-    <span class="sub">块 = 句, 不跨弧 <span class="spec">4</span> · 语速与单块修复都在这里 <span class="spec">5</span></span>
-    <span class="badge">46 块 · 预估 234s</span></div>
+  <ol class="specs">
+    <li><b>三联号</b> 镜s·句c·块blk 互链可点, 点任一号跳对应行/块 (四套编号映射可见性根治)。</li>
+    <li><b>画面句/花字/上屏</b> 全部行内编辑; 虚线 = 可编辑, 放行后变🔒只读。</li>
+    <li><b>出口闸前置</b>: 载体申报/锚定链/引号文本等 writer 病族在本页实时亮灯, 「修」=单镜重掷 (免费)。</li>
+    <li><b>场过滤 chips</b>: 全部/单场/仅病镜三视角切换, 总审时按场过。</li>
+  </ol>
+</section>
+</div>
+
+<!-- ════════ P3 TTS (独立页) ════════ -->
+<div class="page" id="p3">
+<section>
+  <div class="h2row"><h2 class="h2"><span class="no">③</span> TTS · 纯渲染</h2>
+    <span class="sub">本页只做一件事: 把已锁定的文字结构变成音频 (块=句, 不跨弧)</span>
+    <span class="badge">46 块 · 预估 234s</span><span class="badge warn">韵律微调 1</span></div>
+
   <div class="twrap">
   <table>
-    <thead><tr><th>块</th><th>文本 (可编辑=改稿走 ④ 打回)</th><th>语速 <span class="spec" title="S4">4</span></th><th>时长</th><th>操作 <span class="spec" title="S5">5</span></th></tr></thead>
+    <thead><tr><th>块</th><th>场</th><th>文本 (🔒=②已锁定, 改=打回)</th><th>语速 <span class="spec">1</span></th><th>时长</th><th>操作 <span class="spec">2</span></th></tr></thead>
     <tbody>
-      <tr><td class="mono">blk000</td><td class="locked">客户信任崩塌之前，其实有三个阶段…</td>
+      <tr><td class="mono">blk000</td><td>A1</td><td class="locked">客户信任崩塌之前，其实有三个阶段…</td>
         <td><span class="rate"><input type="range" min="80" max="125" value="100" oninput="this.nextElementSibling.textContent=(this.value/100).toFixed(2)+'×'"><b>1.00×</b></span></td>
         <td class="mono">3.5s</td><td><button class="iconbtn">▶ 试听</button> <button class="iconbtn">📌 钉</button></td></tr>
-      <tr><td class="mono">blk014</td><td class="locked">蜜月期的绿灯刚亮，别急着踩油门。</td>
+      <tr><td class="mono">blk014</td><td>A2</td><td class="locked">蜜月期的绿灯刚亮，别急着踩油门。</td>
         <td><span class="rate"><input type="range" min="80" max="125" value="100" oninput="this.nextElementSibling.textContent=(this.value/100).toFixed(2)+'×'"><b>1.00×</b></span></td>
         <td class="mono">4.1s</td><td><button class="iconbtn">▶ 试听</button> <button class="iconbtn">📌 钉</button></td></tr>
-      <tr><td class="mono">blk037</td><td class="locked">两轮尝试后闸门仍不开，就该体面退场了。</td>
+      <tr><td class="mono">blk037</td><td>A3</td><td class="locked">两轮尝试后闸门仍不开，就该体面退场了。</td>
         <td><span class="rate"><input type="range" min="80" max="125" value="92" oninput="this.nextElementSibling.textContent=(this.value/100).toFixed(2)+'×'"><b style="color:var(--amber)">0.92×</b></span></td>
-        <td class="mono">4.2s</td><td><button class="iconbtn">▶ 试听</button> <button class="iconbtn">♻ 重合成</button> <span class="badge warn">韵律微调</span></td></tr>
-      <tr><td class="mono">blk045</td><td class="locked">我是老谭，拆一本书，翻一座山。</td>
+        <td class="mono">4.2s</td><td><button class="iconbtn">▶ 试听</button> <button class="iconbtn">♻ 重合成</button></td></tr>
+      <tr><td class="mono">blk046</td><td>A4</td><td class="locked">我是老谭，拆一本书，翻一座山。</td>
         <td><span class="rate">1.00× 冻结</span></td><td class="mono">4.4s</td><td><span class="badge lock">🔒 品牌句</span></td></tr>
-      <tr><td colspan="5" class="dim2">… 共 46 块 · 改语速只影响该块时长, 重盖章确定性 · 单块重合成失败域=该块 …</td></tr>
+      <tr><td colspan="6" class="dim2">… 46 块按场分组 · 单块重合成失败域=该块, 其余镜媒体不作废 …</td></tr>
     </tbody>
   </table>
   </div>
-</section>
 
-<!-- ═══ ③ 盖章校带 ═══ -->
-<section id="s3">
-  <div class="h2row"><h2 class="h2"><span class="no">③</span> 盖章 · 校带</h2>
-    <span class="sub">实测秒数一次性注入全部结构 <span class="spec">3</span> · 越带镜句边拆并, 确认后生效 <span class="spec">6</span></span></div>
+  <div class="gatebar"><span class="ti">◉ 音频验收</span>
+    <span class="note">人耳过块 (只听标记块) → 采用; 采用后进入 ④ 盖章, 语速改动需重盖章 (确定性)</span>
+    <span style="flex:1"></span>
+    <button class="ghost act">↩ 打回分镜</button><button class="go act">🎧 验收采用 → 盖章</button></div>
+
+  <ol class="specs">
+    <li><b>语速旋钮</b> 块级 0.80–1.25×; 品牌句冻结; 上屏字承载信息冗余 → 语速是渲染旋钮不是结构约束。</li>
+    <li><b>块级钉选/重合成</b>: adopt 从 job 级升级为块级; 单块修复=失败域一块 (需 TTS 服务侧配合)。</li>
+    <li><b>文本🔒</b>: 块文本来自 ② 已锁结构; 要改字 → 打回 ② (局部), 不在本页偷改。</li>
+  </ol>
+</section>
+</div>
+
+<!-- ════════ P4 盖章校带 (独立页) ════════ -->
+<div class="page" id="p4">
+<section>
+  <div class="h2row"><h2 class="h2"><span class="no">④</span> 盖章 · 校带</h2>
+    <span class="sub">本页只做一件事: 实测秒数一次性注入结构 + 越带镜处理</span>
+    <span class="badge gold">234.4s 实测</span></div>
 
   <div class="panel">
     <div class="tl">
@@ -302,46 +342,61 @@ footer { color:var(--faint); font-size:11.5px; margin:26px 0 18px; }
       <span><i style="background:#1d3a5f"></i>A1 岔路口</span><span><i style="background:#1d5f4c"></i>A2 修复工坊</span>
       <span><i style="background:#5f4a1d"></i>A3 闸门室</span><span><i style="background:#4a1d5f"></i>A4 投递站</span>
       <span><i style="background:rgba(240,180,90,.5)"></i>越带 &gt;6.3s</span>
-      <span><i style="background:#7cc4e8"></i>上屏字事件</span><span>镜界=句边=块边 (三联号同源)</span>
+      <span><i style="background:#7cc4e8"></i>上屏字事件</span><span>镜界=句边=块边</span>
     </div>
   </div>
 
-  <div class="fixrow"><span class="badge warn">校带</span> <b class="mono">s17</b> 实测 <b class="mono">9.7s</b> 越带 → 建议在句边 <span class="mono">c20|c21</span> 拆为 s17/s17b
+  <div class="fixrow"><span class="badge warn">校带</span> <b class="mono">s17</b> 实测 <b class="mono">9.7s</b> 越带 → 建议句边 <span class="mono">c20|c21</span> 拆 s17/s17b
     <button class="iconbtn">采纳拆分</button><button class="iconbtn">保持越带</button></div>
-  <div class="fixrow"><span class="badge warn">校带</span> <b class="mono">s31</b> 实测 <b class="mono">7.2s</b> 轻越带 → 可保持 (弹性带内) 或并邻镜
+  <div class="fixrow"><span class="badge warn">校带</span> <b class="mono">s31</b> 实测 <b class="mono">7.2s</b> 轻越带 → 弹性带内可保持
     <button class="iconbtn">保持</button></div>
-  <div class="gatebar"><span class="ti">🖨 盖章</span><span class="note">全部 — 待盖章 字段此刻填充实测值; 花字时窗/上屏@秒/beats/时长核验一次完成</span>
-    <span style="flex:1"></span><button class="go">确认盖章 → K2 就绪</button></div>
-</section>
 
-<!-- ═══ ④⑤⑥⑦ 执行段 ═══ -->
-<section id="s4">
-  <div class="h2row"><h2 class="h2"><span class="no">④–⑦</span> K2 · 人检 · H3 · 装配</h2>
-    <span class="sub">沿用现有看板与购物篮, 界面不变 <span class="spec">8</span></span></div>
-  <div class="sum">
-    <div class="panel"><b>🎨 K2</b><br>42 镜 planned → img_done<br><span class="note">~15s/镜, GPU 托管</span></div>
-    <div class="panel"><b>🔍 人检</b><br>过审 / 🔁打回 / 购物篮重做<br><span class="note">R 标·QC 与现版一致</span></div>
-    <div class="panel"><b>🎬 H3</b><br>approved → anim_done<br><span class="note">上屏字事件随镜渲染</span></div>
-    <div class="panel"><b>🎞 装配</b><br>剪映草稿 · 花字卡锚<br><span class="note">时窗已在盖章期定死</span></div>
-  </div>
-</section>
+  <div class="gatebar"><span class="ti">🖨 盖章</span>
+    <span class="note">— 待盖章 字段全部填实: t_start/t_end · 花字时窗 · 上屏@秒 · beats · 时长核验 <span class="spec">1</span></span>
+    <span style="flex:1"></span><button class="go act">确认盖章 → K2 就绪</button></div>
 
-<!-- ═══ 规格清单 (功能定死) ═══ -->
-<section>
-  <div class="h2row"><h2 class="h2">规格 · 定死清单</h2><span class="sub">UI 即契约: 编号与页面 ① 角标一一对应, 开发按此反推</span></div>
   <ol class="specs">
-    <li><b>动线重排</b>: 音频门从 🧭 挪到 ② — 立意/分镜/字卡在无音频时即可开工 (旧版无音频全禁用)。</li>
-    <li><b>结构锁</b>: 总审放行后 弧/镜/花字/上屏内容只读 🔒; 任何改动走"打回本场"= 局部重开文字段, 不触发 TTS/GPU。</li>
-    <li><b>盖章注入</b>: 文字阶段所有时长列显示 <span class="tbd">— 待盖章</span>; ③ 一次填充 t_start/t_end/花字时窗/上屏@秒/beats。</li>
-    <li><b>语速旋钮</b>: 块级 0.80–1.25×, 只改该块时长; 品牌句冻结; 改动后仅需重盖章 (确定性)。</li>
-    <li><b>块级修复</b>: 单块 重合成/钉选, 失败域=块, 其余 41 镜媒体不作废 (需 TTS adopt 从 job 级升级为块级)。</li>
-    <li><b>校带 pass</b>: 越带镜给句边拆/并建议, 人工确认采纳; 拆点=句边, 文字结构零破坏。</li>
-    <li><b>三联号</b>: 镜 s·句 c·块 blk 全程互链可点, 任一号跳对应行 (四套编号映射可见性)。</li>
-    <li><b>执行段不动</b>: K2/人检/H3/装配沿用现有看板·购物篮·R 标·QC。</li>
-    <li><b>出口闸前置</b>: writer 出口闸状态列在文字阶段实时显示 (文字载体申报/锚定链/景深配额), 修复=零成本重掷。</li>
-    <li><b>放行前零支出</b>: ① 任何字段行内编辑都不触发 TTS/GPU; 钱从 ② 才开始花。</li>
+    <li><b>盖章=确定性换算</b> (零 LLM): 块实测时长 → 句→镜→全场→特区 一次性回填; 换语速/重合成块后仅重盖章。</li>
+    <li><b>校带 pass</b>: 越带镜给句边拆/并建议, 人工确认; 拆点=句边, 文字结构零破坏。</li>
+    <li><b>特区 60s</b>: 时间轴虚线即吸附位 (±1s 吸附最近块边), 跨界碎片类结构性消灭。</li>
   </ol>
 </section>
-
-<footer>动画工坊 v3 · UI 定稿稿 (样例数据取自 1105 ep6 实弹) · 对应提案: docs/improvements/进行中-20261105-分镜续跑升级.md v3 条目</footer>
 </div>
+
+<!-- ════════ P5 执行段 ════════ -->
+<div class="page" id="p5">
+<section>
+  <div class="h2row"><h2 class="h2"><span class="no">⑤</span> 执行 · K2 → H3 → 装配</h2>
+    <span class="sub">沿用现有动画工坊看板 (anim.html), 界面不动 — 本页只做入口聚合</span></div>
+  <div class="sum">
+    <div class="panel"><b>🎨 K2</b><br>42 镜 planned → img_done<br><span class="note">~15s/镜 · GPU 托管</span></div>
+    <div class="panel"><b>🔍 人检</b><br>过审 / 🔁打回 / 购物篮<br><span class="note">R 标 · QC 同现版</span></div>
+    <div class="panel"><b>🎬 H3</b><br>approved → anim_done<br><span class="note">上屏字事件随镜渲染</span></div>
+    <div class="panel"><b>🎞 装配</b><br>剪映草稿 · 花字卡锚<br><span class="note">时窗已在 ④ 定死</span></div>
+  </div>
+  <div class="gatebar"><span class="ti">→ 动画工坊看板</span>
+    <span class="note">K2/H3/对齐/装配/购物篮/重排镜号 全部在现版页面完成, 零改动</span>
+    <span style="flex:1"></span><button class="go act">打开看板 →</button></div>
+  <ol class="specs">
+    <li><b>不动执行段</b>: v3 改的只有 ①-④ 的结构产生方式; K2/H3 吃的 shots.json 字段兼容。</li>
+  </ol>
+</section>
+</div>
+
+<footer>动画工坊 v3 · 一站一页五页套件 · UI 定稿稿 (样例=1105 ep6 实弹) · 提案: docs/improvements/进行中-20261105-分镜续跑升级.md v3 条目</footer>
+</div>
+
+<script>
+// 页面切换: hash 路由, 一页一事, 浏览器后退可用
+const pages = [...document.querySelectorAll('.page')];
+const steps = [...document.querySelectorAll('#rail .step')];
+function go() {
+  const h = (location.hash || '#p1').slice(1);
+  const hit = pages.some(p => p.id === h) ? h : 'p1';
+  pages.forEach(p => p.classList.toggle('on', p.id === hit));
+  steps.forEach(s => s.classList.toggle('now', s.getAttribute('href') === '#' + hit));
+  window.scrollTo(0, 0);
+}
+window.addEventListener('hashchange', go);
+go();
+</script>
