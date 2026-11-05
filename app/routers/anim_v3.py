@@ -604,7 +604,8 @@ def v3_tts_get(book_id: str, ep: int):
         audio = fetch_episode_audio(book_id, ep)
     except Exception as exc:  # noqa: BLE001 — 无音频不炸页
         return {"has_audio": False, "reason": str(exc)[:200], "blocks": []}
-    blocks = [{"i": i, "text": str(b.get("text") or "")[:120],
+    blocks = [{"i": i, "id": b.get("id"), "seg": bool(b.get("segment_id")),
+               "text": str(b.get("text") or "")[:120],
                "dur_s": b.get("dur_s"), "file": str(b.get("file") or "")}
               for i, b in enumerate(audio.get("files") or [])]
     return {"has_audio": True, "job_id": audio.get("job_id"),

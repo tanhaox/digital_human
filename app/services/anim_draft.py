@@ -754,7 +754,8 @@ def fetch_episode_audio(book_id: str, ep: int) -> dict[str, Any]:
             if not p.exists():
                 continue
             dur = seg_durs.get(f.filename) or (f.duration if f.duration and f.duration > 0 else _wav_duration(p))
-            files.append({"file": str(p), "name": f.filename,
+            files.append({"file": str(p), "name": f.filename, "id": f.id,
+                          "segment_id": f.segment_id,
                           "text": texts.get(f.filename, ""), "dur_s": round(float(dur), 3),
                           "module_id": mod_ids.get(f.filename)})
         if not files:

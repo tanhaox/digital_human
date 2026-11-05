@@ -3,7 +3,32 @@
        border:1px solid var(--line); border-radius:10px; margin-bottom:6px;
        background:var(--panel); }
 .blk .bno { font-family:var(--mono); color:var(--faint); font-size:12.5px; flex:0 0 34px; }
-.blk .btx { flex:1; min-width:0; color:var(--txt); font-size:14.5px; line-height:1.6; }
+.blk .btx { min-width:0; color:var(--txt); font-size:14.5px; line-height:1.6; }
+.bmain { flex:1; min-width:0; }
+.bops { display:flex; gap:5px; margin-top:4px; flex-wrap:wrap; }
+.bops-na { color:var(--faint); font-size:12px; }
+.ob { background:#2a3442; color:#cfd8e3; border:1px solid var(--line2); border-radius:7px;
+      font:12px var(--sans); padding:2px 9px; cursor:pointer; }
+.ob:hover { color:var(--cyan); border-color:var(--cyan); }
+.ob:disabled { opacity:.5; cursor:default; }
+.ob-warn:hover { color:var(--bad-t); border-color:var(--bad-t); }
+.ob-go { background:#3a2a5e; border-color:#5b3a8e; padding:3px 16px; }
+/* ✎编辑 modal (CSP: 全类名) */
+.sekov { position:fixed; inset:0; background:rgba(0,0,0,.65); z-index:90;
+         display:none; align-items:center; justify-content:center; }
+.sekov.on { display:flex; }
+.sebox { background:var(--panel); border:1px solid var(--line2); border-radius:12px;
+         padding:18px 20px; width:min(560px,92vw); max-height:80vh; overflow-y:auto; }
+.sehead { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; }
+.sesub { color:var(--faint); font-size:12px; font-weight:400; }
+.seta { width:100%; box-sizing:border-box; background:#0f172a; color:var(--txt);
+        border:1px solid var(--line2); border-radius:8px; padding:10px;
+        font:14px/1.6 var(--sans); resize:vertical; }
+.sequick { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; align-items:center; }
+.sepy { width:100%; box-sizing:border-box; margin-top:8px; background:#0f172a;
+        color:var(--amber); border:1px solid var(--line2); border-radius:8px;
+        padding:7px 10px; font:13px var(--sans); }
+.sefoot { display:flex; justify-content:space-between; align-items:center; margin-top:12px; gap:10px; }
 .blk .bdur { font-family:var(--mono); color:var(--dim); font-size:12.5px; white-space:nowrap; }
 .blk audio { height:32px; flex:0 0 240px; }
 .pinned { color:var(--gold); font-size:12px; }
