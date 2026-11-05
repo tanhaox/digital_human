@@ -113,10 +113,12 @@ function cardsOf(sid) {
     .map(c => {
       const label = c.kind || STYLE_ZH[c.style] || c.style;
       const how = STYLE_ZH[c.style] || c.style;
-      // 配图出走 HTML 渲染 (封面同源), 不占 GPU
-      const btn = c.image
-        ? `<a class="iconbtn kimg" href="${BASE}/shots/card/${encodeURIComponent(c.image)}" target="_blank" title="已出图, 点击预览">🖼</a>`
-        : `<button class="iconbtn" data-act="render" data-cid="${c.cid}" title="用封面同款 HTML 渲染出图 (零 GPU)">🖼</button>`;
+      // 只有「公式」类才出图 — 其余纯文字走剪映后期卡 (用户令: 没必要的 PNG 不做)
+      const isFormula = (c.kind === '公式') || c.style === 'img';
+      const btn = !isFormula ? ''
+        : (c.image
+            ? `<a class="iconbtn kimg" href="${BASE}/shots/card/${encodeURIComponent(c.image)}" target="_blank" title="公式图已生成, 点击预览">🖼</a>`
+            : `<button class="iconbtn" data-act="render" data-cid="${c.cid}" title="公式/流程/表格 → HTML 排版出图 (剪映画不出精确图形)">🖼</button>`);
       return `<span class="kard kard-${esc(c.style)}" title="内容类型: ${esc(label)} · 渲染方式: ${esc(how)}">`
         + `${esc(label)}「${esc(c.text)}」</span>${btn}`;
     })
