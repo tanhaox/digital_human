@@ -82,5 +82,7 @@ def test_wiring_v1():
     assert "/triage/save" in src and "det_check" in src     # 保存重检接线
     assert "/triage\"" in src                               # 数据端点
     assert Path("web/v3/triage.html").exists()
-    html = Path("web/v3/triage.html").read_text(encoding="utf-8")
-    assert "一句一行" in html and "v3_triage" in html        # 页面: 清单+相位触发
+    # CSP 外置后页面=壳, 逻辑在 triage.js — html+js 合体断言
+    both = (Path("web/v3/triage.html").read_text(encoding="utf-8")
+            + Path("web/v3/triage.js").read_text(encoding="utf-8"))
+    assert "一句一行" in both and "v3_triage" in both        # 页面: 清单+相位触发
