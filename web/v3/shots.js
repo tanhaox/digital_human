@@ -29,8 +29,40 @@ async function refresh() {
   ISSUES = d.issues || {}; WARNINGS = d.warnings || [];
   $('sub').textContent = `${st.book_title} · 第${st.ep}集`;
   renderHeader(); renderRail(st, d.gates); renderAxis();
-  renderBlocks(); renderSide(); renderGate(d.gates?.shots, d.ready);
+  renderSysWarn(); renderBlocks(); renderSide(); renderGate(d.gates?.shots, d.ready);
   refreshDirty();
+}
+
+/* 系统自查: 叙事/书证/人设弧缺「视觉世界」→ 一键补全 (用户令: 缺字段是系统的锅) */
+const NEED_WORLD = ['narr', 'persona', 'quote'];
+function missingWorlds() {
+  return ARCS.filter(a => NEED_WORLD.includes(a.type) && !String(a.world || '').trim());
+}
+
+function renderSysWarn() {
+  const miss = missingWorlds();
+  const box = $('syswarn');
+  if (!miss.length) { box.innerHTML = ''; box.hidden = true; return; }
+  box.hidden = false;
+  box.className = 'syswarn';
+  box.innerHTML = `<span class="txt">⚠ ${miss.length} 条弧缺「视觉世界」(${miss.map(a => a.arc_id).join('/')})
+    — 写手没有世界可继承, 画面句会退化成通用场景</span>
+    <button class="btn-fix" id="btn-fillworld" title="由系统调 LLM 定点补全这些弧的视觉世界 (只补缺的)">🔧 系统补全</button>`;
+  const b = document.getElementById('btn-fillworld');
+  b.onclick = async () => {
+    b.disabled = true; b.textContent = '⏳ 补全中…';
+    try {
+      const r = await (await fetch(`${BASE}/concept/fill-worlds`, { method: 'POST',
+        headers: { 'Content-Type': 'application/json' }, body: '{}' })).json();
+      await refresh();
+      toast(r.remaining
+        ? `补全 ${r.filled} 条, 仍缺 ${r.remaining} 条`
+        : `✓ 补全 ${r.filled} 条视觉世界 — 重跑分镜后画面句才会用上`);
+    } catch (e) {
+      toast('补全失败: ' + e.message);
+      b.disabled = false; b.textContent = '🔧 系统补全';
+    }
+  };
 }
 
 function shotIssues(sid) { return ISSUES[sid] || []; }
@@ -101,15 +133,21 @@ function renderBlocks() {
     const type = a.type || shots[0].arc_type || 'narr';
     const world = String(a.world || '').trim();
     const est = Math.round(shots.reduce((x, s) => x + (s.est_s || 0), 0));
+    const needWorld = NEED_WORLD.includes(type);
     const wTitle = world
       ? `视觉世界: ${world}${a.metaphor ? ' / 隐喻: ' + a.metaphor : ''}`
-      : '视觉世界为空 — 写手无世界可继承, 画面句会退化成通用场景';
+      : (needWorld
+          ? '视觉世界为空 — 写手无世界可继承, 画面句会退化成通用场景 (系统可一键补全)'
+          : '非叙事位: 系列冻结语言, 不分配立意世界');
+    const wCell = !needWorld
+      ? `<span class="world na" title="${esc(wTitle)}">— 非叙事位</span>`
+      : `<span class="world${world ? '' : ' miss'}" title="${esc(wTitle)}">${world ? esc(world) : '⚠ 缺视觉世界'}</span>`;
     out.push(`<section class="arc" data-type="${esc(type)}" data-arc="${esc(aid)}">
       <header class="ah">
         <span class="aid">${esc(aid)}</span>
         <span class="atype">${esc(TYPE_ZH[type] || type)}</span>
         ${a.no_start ? `<span class="lspan">L${a.no_start}–${a.no_end}</span>` : ''}
-        <span class="world${world ? '' : ' miss'}" title="${esc(wTitle)}">${world ? esc(world) : '⚠ 无视觉世界'}</span>
+        ${wCell}
         <span class="est">${shots.length} 镜 · ~${est}s</span>
       </header>
       ${shots.map(shotBlock).join('')}

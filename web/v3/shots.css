@@ -12,6 +12,13 @@ main { min-width:0; }
 .ctitle { font-weight:700; font-size:14.5px; display:flex; align-items:center; gap:8px; }
 .qnote { color:var(--faint); font-size:12.5px; margin:2px 0 6px; }
 
+/* 系统自查横幅 (缺字段是系统的锅, 给一键修复) */
+.syswarn { display:flex; gap:10px; align-items:center; flex-wrap:wrap;
+  background:rgba(240,180,90,.08); border:1px solid #4a3a1c; border-radius:10px;
+  padding:9px 12px; margin:0 0 12px; font-size:14px; color:var(--warn-t); }
+.syswarn .txt { flex:1; min-width:220px; }
+.syswarn .btn-fix { color:var(--warn-t); border-color:#4a3a1c; }
+
 /* ── 弧分块 ─────────────────────────────────────────────── */
 .arc { border:1px solid var(--line); border-radius:11px; margin:0 0 14px; overflow:hidden;
        background:var(--panel2); }
@@ -29,6 +36,7 @@ main { min-width:0; }
 .ah .world { color:var(--cyan); font-size:13px; max-width:46%; white-space:nowrap;
              overflow:hidden; text-overflow:ellipsis; }
 .ah .world.miss { color:var(--warn-t); }
+.ah .world.na { color:var(--faint); }
 .ah .est { margin-left:auto; font-family:var(--mono); color:var(--faint); font-size:12.5px;
            white-space:nowrap; }
 

@@ -86,3 +86,50 @@ def test_wiring_v2():
                 exec(line, {})
     for f in ("web/v3/concept.html", "web/v3/concept.js", "web/v3/concept.css"):
         assert Path(f).exists(), f
+
+
+def test_missing_worlds_only_creative_arcs():
+    """钩子/行动召/品牌位本就无世界; 叙事/书证/人设缺 world = 系统缺陷, 要自查。"""
+    sk = arcs.build_skeleton(arcs.modules_of(_lines()))
+    miss = {a["arc_id"] for a in arcs.missing_worlds(sk)}
+    # _lines() 里: 钩子(A1)/书证(A2)/评论(A3)/人设(A4)/行动召(A5)
+    by_type = {a["arc_id"]: a["type"] for a in sk}
+    assert miss == {aid for aid, t in by_type.items() if t in ("narr", "quote", "persona")}
+    assert not any(by_type[aid] in ("hook", "cta", "brand") for aid in miss)
+    for a in sk:
+        if a["type"] in ("narr", "quote", "persona"):
+            a["world"] = "工厂流水线，工人逐项勾选清单"
+    assert arcs.missing_worlds(sk) == []
+
+
+def test_fill_missing_worlds_applies_llm_result(monkeypatch):
+    """补全是定点调用: 只补缺的弧, 已填的不动 (1105 用户令: 系统自己补, 不甩给人)。"""
+    sk = arcs.build_skeleton(arcs.modules_of(_lines()))
+    missing = {a["arc_id"] for a in arcs.missing_worlds(sk)}
+    assert missing
+
+    class _LLM:
+        def chat(self, *a, **kw):
+            assert kw.get("tag") == "v3_arcs_world"
+            body = a[1]
+            ids = [ln.split("|")[0] for ln in body.splitlines() if ln.startswith("A")]
+            return ('{"arcs":[%s]}'
+                    % ",".join('{"arc_id":"%s","world":"无护栏的悬崖盘山公路"}' % i
+                               for i in ids))
+
+    class _Svc:
+        @staticmethod
+        def get_llm_service():
+            return _LLM()
+
+        @staticmethod
+        def _parse_json(raw):
+            import json
+            return json.loads(raw)
+
+    monkeypatch.setitem(sys.modules, "app.services.llm_service", _Svc)
+    n = arcs.fill_missing_worlds(sk, _lines(), "测试书", 1)
+    assert n == len(missing)
+    assert arcs.missing_worlds(sk) == []
+    assert all(a["world"] == "无护栏的悬崖盘山公路"
+               for a in sk if a["arc_id"] in missing)

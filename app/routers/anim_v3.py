@@ -158,6 +158,27 @@ def v3_concept_get(book_id: str, ep: int):
             "ready": bool(arcs)}
 
 
+@router.post("/ep/{book_id}/{ep}/concept/fill-worlds")
+def v3_concept_fill_worlds(book_id: str, ep: int):
+    """系统自查自补: 叙事/书证/人设弧缺「视觉世界」→ LLM 定点补全 (用户令: 不甩给人)。"""
+    from app.services.anim_pipeline.v3_pipeline.arcs import (fill_missing_worlds,
+                                                             missing_worlds)
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    with anim_service.ep_guard(book_id, ep):
+        doc = _load_v3_doc(book_title, ep)
+        v3 = doc.setdefault("v3", {})
+        arcs = v3.get("arcs") or []
+        n = fill_missing_worlds(arcs, v3.get("lines") or [], book_title, ep)
+        if n:
+            from app.services.anim_pipeline import shots as shots_mod
+            shots_mod.save(doc)
+    return {"filled": n, "remaining": len(missing_worlds(arcs))}
+
+
 class ShotSaveBody(BaseModel):
     shots: list[dict[str, Any]] = []
     cards: list[dict[str, Any]] | None = None

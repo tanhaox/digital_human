@@ -169,6 +169,62 @@ def _llm_fill(arcs: list[dict[str, Any]], lines: list[dict[str, Any]],
     return out, [str(h)[:120] for h in (data.get("hints") or [])][:6]
 
 
+# ── 视觉世界补全 (1105 用户令: 缺字段是系统的事, 不该甩给人) ────────────
+# 实锤: ep5 17 弧里 6 条叙事弧 world 为空 (A2/A3/A9/A11/A13/A16) — 写手没有世界可继承,
+# 画面句退化成通用办公室 (s2 铁证)。原实现只在 prompt 里"要求", LLM 漏了没人查。
+NEED_WORLD = ("narr", "persona", "quote")
+
+_WORLD_SYS = """你在补全短视频分镜立意缺失的「视觉世界」。输入若干弧
+(弧号|语态|行区间|本弧口播摘录|已有隐喻)。为每个弧补一个 world:
+- 可拍的物理场景 / 装置 / 机械 / 空间, 8-20 字, 禁止抽象概念;
+- 必须能承载该弧的隐喻 (隐喻里的装置优先);
+- 弧与弧之间不得重复同一世界。
+只输出缺的那些弧, 严格 JSON: {"arcs":[{"arc_id":"A2","world":"..."}]}"""
+
+
+def missing_worlds(arcs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """叙事/书证/人设弧缺 world 的清单 (钩子/行动召/品牌位本就为空, 不算)。"""
+    return [a for a in arcs
+            if str(a.get("type") or "") in NEED_WORLD
+            and not str(a.get("world") or "").strip()]
+
+
+def fill_missing_worlds(arcs: list[dict[str, Any]], lines: list[dict[str, Any]],
+                        book_title: str, ep: int) -> int:
+    """只补 world 的一次定点调用 (确定性校验 + LLM 创作)。返回补上的数量。"""
+    miss = missing_worlds(arcs)
+    if not miss:
+        return 0
+    from app.services.llm_service import get_llm_service, _parse_json
+    text_of = {ln["no"]: str(ln.get("text") or "") for ln in lines}
+    rows = []
+    for a in miss:
+        seg = " / ".join(text_of.get(no, "") for no in
+                         range(a["no_start"], min(a["no_end"], a["no_start"] + 5) + 1))
+        rows.append(f'{a["arc_id"]}|{a.get("mode")}|L{a["no_start"]}-L{a["no_end"]}'
+                    f'|{seg[:120]}|{str(a.get("metaphor") or "")[:80]}')
+    body = f"《{book_title}》第{ep}集\n\n" + "\n".join(rows)
+    try:
+        raw = get_llm_service().chat(_WORLD_SYS, body, model="flash", temperature=0.5,
+                                     response_format={"type": "json_object"},
+                                     tag="v3_arcs_world")
+        data = _parse_json(raw)
+    except Exception as exc:  # noqa: BLE001 — 补全失败不阻断, 留待下轮
+        logger.warning("[v3:arcs] 视觉世界补全失败: %s", exc)
+        return 0
+    got = {str(r.get("arc_id") or ""): str(r.get("world") or "").strip()[:40]
+           for r in (data.get("arcs") or [])}
+    n = 0
+    for a in miss:
+        w = got.get(a["arc_id"], "")
+        if w:
+            a["world"] = w
+            n += 1
+    if n:
+        logger.info("[v3:arcs] 视觉世界补全 %d/%d 弧", n, len(miss))
+    return n
+
+
 def run(job: dict[str, Any]) -> None:
     """v3_arcs 相位本体: 读 v3.lines → 模块 → 骨架 → LLM 创作 → 执法 → 落盘。"""
     from app.services.anim_pipeline import shots as shots_mod
@@ -200,6 +256,15 @@ def run(job: dict[str, Any]) -> None:
     except Exception as exc:  # noqa: BLE001 — LLM 失败退骨架, 人闸手填
         logger.warning("[v3:arcs] LLM 创作失败 (退骨架, 立意待手填): %s", exc)
 
+    # 漏字段自查+补全 (1105 用户令: 缺 world 是系统的 bug, 系统自己补, 不甩给人)
+    world_filled = 0
+    try:
+        world_filled = fill_missing_worlds(arcs, lines,
+                                           doc.get("book_title") or job["book_title"],
+                                           job["ep"])
+    except Exception as exc:  # noqa: BLE001 — 补全失败不阻断立意落盘
+        logger.warning("[v3:arcs] 视觉世界补全异常 (跳过): %s", exc)
+
     issues = boundary_issues(arcs, lines)
     long_mods = [a for a in mods if len(a["lines"]) > SPLIT_SUGGEST_LINES]
     for m in long_mods:
@@ -214,6 +279,8 @@ def run(job: dict[str, Any]) -> None:
     v3["arcs_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
     shots_mod.save(doc)
     job["result"] = {"arcs": len(arcs), "issues": len(issues),
-                     "with_metaphor": sum(1 for a in arcs if a["metaphor"])}
+                     "with_metaphor": sum(1 for a in arcs if a["metaphor"]),
+                     "world_filled": world_filled,
+                     "missing_world": len(missing_worlds(arcs))}
     logger.info("[v3:arcs] %s ep%d: %d 弧 (执法问题 %d) → shots.json v3 ✓",
                 job["book_title"], job["ep"], len(arcs), len(issues))
