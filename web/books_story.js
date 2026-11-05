@@ -546,12 +546,20 @@ async function applyV3Line(bookId) {
       _v3lineCache[bookId] = (await r.json()).line || 'v2';
     }
     if (_v3lineCache[bookId] !== 'v3') return;
+    // 双轨并行 (用户令): 橙钮 v2 原样不动, 绿钮 v3 并排新增 — 两线随时可入, 回退通道物理保证
     document.querySelectorAll('a.v3-anim').forEach(a => {
       const ep = a.dataset.ep || 1;
-      a.href = `/web/v3/index.html?book_id=${encodeURIComponent(bookId)}&ep_index=${ep}`;
-      a.title = 'v3 八页线 (书级绑定): 分诊→立意→分镜文字→导演→K2∥TTS→盖章→H3 — v2 工坊仍可从动画工坊页进入';
-      a.textContent = '🎬 动画v3 ↗';
-      a.style.background = '#1e5c3a';
+      const href = `/web/v3/index.html?book_id=${encodeURIComponent(bookId)}&ep_index=${ep}`;
+      let b3 = a.nextElementSibling;
+      if (b3 && b3.classList.contains('v3-added')) { b3.href = href; return; }
+      b3 = document.createElement('a');
+      b3.className = 'ep-prod-btn v3-added';
+      b3.target = '_blank';
+      b3.href = href;
+      b3.style.cssText = 'background:#1e5c3a;color:#fff;padding:0.3rem 0.65rem;font-size:0.82rem;border-radius:4px;text-decoration:none';
+      b3.title = 'v3 八页线: 分诊→立意→分镜文字→导演→K2∥TTS→盖章→H3 (并行双轨 — 左侧橙钮仍为 v2 工坊)';
+      b3.textContent = '🎬 动画v3 ↗';
+      a.after(b3);
     });
   } catch (e) { /* 查询失败 = v2 原样, 入口不炸 */ }
 }

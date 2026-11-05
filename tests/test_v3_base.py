@@ -79,5 +79,8 @@ def test_wiring_source_asserts():
     assert '/line/' in src2                                    # 书级选线端点
     bs = Path("web/books_story.js").read_text(encoding="utf-8")
     assert "v3-anim" in bs and "applyV3Line" in bs             # 入口分流按钮+实现
+    # 双轨并行 (用户令): 不得吞掉 v2 橙钮 — v3 绿钮是并排新增 (a.after + v3-added), 原钮零改动
+    assert "v3-added" in bs and "a.after(b3)" in bs
+    assert "a.textContent = '🎬 动画v3" not in bs              # 禁换链式覆盖 (旧 bug 回归哨)
     bj = Path("web/books.js").read_text(encoding="utf-8")
     assert "applyV3Line" in bj                                 # 渲染后挂载
