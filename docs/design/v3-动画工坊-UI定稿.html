@@ -74,9 +74,18 @@ td { padding:7px 11px; border-bottom:1px solid var(--line); vertical-align:top; 
   font-family:var(--mono); font-size:12.5px; padding:1px 6px; color:#fff; }
 .sc1 { background:#1d3a5f; } .sc2 { background:#1d5f4c; }
 .sc3 { background:#5f4a1d; } .sc4 { background:#4a1d5f; }
-tr.sent-row td { padding:3px 11px 3px 34px; color:var(--txt); text-align:left;
-  background:rgba(19,28,47,.55); border-bottom:1px solid var(--line); }
-tr.sent-row .cards { margin-left:12px; }
+tr.sent-row td { padding:3px 11px 3px 20px; color:var(--txt); text-align:left;
+  background:rgba(19,28,47,.55); border-bottom:1px solid var(--line);
+  display:flex; align-items:center; gap:10px; }
+tr.sent-row .stext { flex:1; min-width:0; }
+tr.sent-row .scards { display:flex; align-items:center; gap:5px; padding-left:12px;
+  border-left:1px dashed var(--line); flex-wrap:wrap; justify-content:flex-end; }
+tr.sent-row .scards:empty { display:none; }
+tr.sent-row .scards .kard { font-size:11.5px; padding:1px 7px; }
+tr.sent-row .scards .iconbtn { opacity:.5; }
+tr.sent-row .scards .iconbtn:hover, tr.sent-row .scards .kard:hover + .iconbtn { opacity:1; }
+tr.sent-row .scards .add { font-size:11.5px; opacity:.55; }
+tr.sent-row .scards .add:hover { opacity:1; }
 tr:last-child td { border-bottom:none; }
 .mono { font-family:var(--mono); font-variant-numeric:tabular-nums; }
 td .dim2 { color:var(--faint); }
@@ -353,31 +362,31 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
     </thead>
     <tbody>
       <tr><td><span class="scell sc1">1</span></td><td class="mono">s01</td><td><span class="editable">岔路口全景, 绿光坦途向远方延伸, 阶段路标立牌</span> <button class="iconbtn">✎</button></td><td class="tbd">— 待盖章</td><td><span class="badge ok">✓</span></td></tr>
-      <tr class="sent-row"><td colspan="5" title="c01 · blk000">客户信任崩塌之前，其实有三个阶段——蜜月期、怀疑期、重建期。 <span class="add">＋卡</span></td></tr>
+      <tr class="sent-row"><td colspan="5" title="c01 · blk000"><span class="stext">客户信任崩塌之前，其实有三个阶段——蜜月期、怀疑期、重建期。</span><span class="scards"> <span class="add">＋卡</span></span></td></tr>
       <tr><td></td><td class="mono">s04</td><td><span class="editable">黄灯颠簸路段, 路标翻牌, 决策树分流装置启动</span> <button class="iconbtn">✎</button></td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
-      <tr class="sent-row"><td colspan="5" title="c04 · blk004">黄灯亮起的时候，路标会翻牌，决策树开始分流。<span class="cards"><span class="kard kard-ev">「怀疑坎」</span> <button class="iconbtn">✎</button><button class="iconbtn del">✕</button></span> <span class="add">＋卡</span></td></tr>
+      <tr class="sent-row"><td colspan="5" title="c04 · blk004"><span class="stext">黄灯亮起的时候，路标会翻牌，决策树开始分流。 <button class="iconbtn">✎</button><button class="iconbtn del">✕</button></span></span><span class="scards"><span class="kard kard-ev">「怀疑坎」 <span class="add">＋卡</span></span></td></tr>
       <tr><td></td><td class="mono">s08</td><td><span class="editable">蜜月期油门误踩怀疑期路段, 车身倾斜将翻</span> <button class="iconbtn">✎</button></td><td class="tbd">—</td><td><span class="badge warn">载体申报</span> <button class="iconbtn">修</button></td></tr>
-      <tr class="sent-row"><td colspan="5" title="c08 · blk009">在怀疑期踩蜜月期的油门，车就会翻。<span class="cards"><span class="kard kard-quote">用错阶段的应对<br>就是翻车前兆</span> <button class="iconbtn">✎</button><button class="iconbtn del">✕</button></span> <span class="add">＋卡</span></td></tr>
+      <tr class="sent-row"><td colspan="5" title="c08 · blk009"><span class="stext">在怀疑期踩蜜月期的油门，车就会翻。 <button class="iconbtn">✎</button><button class="iconbtn del">✕</button></span></span><span class="scards"><span class="kard kard-quote">用错阶段的应对<br>就是翻车前兆 <span class="add">＋卡</span></span></td></tr>
       <tr><td><span class="scell sc2">2</span></td><td class="mono">s12</td><td><span class="editable">修复工坊大门开启, 机械组装线点亮</span> <button class="iconbtn">✎</button></td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
-      <tr class="sent-row"><td colspan="5" title="c12 · blk013">走进修复工坊，组装线开始运转。<span class="cards"><span class="kard kard-ev">「怀疑期」</span> <button class="iconbtn">✎</button><button class="iconbtn del">✕</button></span> <span class="add">＋卡</span></td></tr>
+      <tr class="sent-row"><td colspan="5" title="c12 · blk013"><span class="stext">走进修复工坊，组装线开始运转。 <button class="iconbtn">✎</button><button class="iconbtn del">✕</button></span></span><span class="scards"><span class="kard kard-ev">「怀疑期」 <span class="add">＋卡</span></span></td></tr>
       <tr><td></td><td class="mono">s13</td><td><span class="editable">传送带首块玻璃模块落入卡槽</span> <button class="iconbtn">✎</button></td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
-      <tr class="sent-row"><td colspan="5" title="c13 · blk014">第一块玻璃模块落进卡槽，这就是小块交付。<span class="cards"><span class="kard kard-ev">「蜜月期」<span class="tbd">· 弹出时点盖章时定</span></span> <button class="iconbtn">✎</button><button class="iconbtn del">✕</button></span> <span class="add">＋卡</span></td></tr>
+      <tr class="sent-row"><td colspan="5" title="c13 · blk014"><span class="stext">第一块玻璃模块落进卡槽，这就是小块交付。</span> <button class="iconbtn">✎</button><button class="iconbtn del">✕</button></span></span><span class="scards"><span class="kard kard-ev">「蜜月期」<span class="tbd">· 弹出时点盖章时定 <span class="add">＋卡</span></span></td></tr>
       <tr><td></td><td class="mono">s17</td><td><span class="editable">预警灯塔扫出红光斑, 组装线全速拼装</span> <button class="iconbtn">✎</button></td><td class="tbd">— (估 8.7s ⚠)</td><td><span class="badge ok">✓</span></td></tr>
-      <tr class="sent-row"><td colspan="5" title="c19 · blk019">预警灯塔提前扫出红光斑。<span class="cards"><span class="kard kard-ev">「重建期」</span> <button class="iconbtn">✎</button><button class="iconbtn del">✕</button></span> <span class="add">＋卡</span></td></tr>
-      <tr class="sent-row"><td colspan="5" title="c20 · blk020">看见风险先说风险，别等人问。<span class="cards"><span class="kard kard-quote">先说风险不是认输<br>是重新掌握主动权</span> <button class="iconbtn">✎</button><button class="iconbtn del">✕</button></span> <span class="add">＋卡</span></td></tr>
-      <tr class="sent-row"><td colspan="5" title="c21 · blk021">主动简报，就是定期递出的发光信封。<span class="cards"><span class="kard kard-list">简报三件套<br>进度 · 风险 · 下一步</span> <button class="iconbtn">✎</button><button class="iconbtn del">✕</button></span> <span class="add">＋卡</span></td></tr>
+      <tr class="sent-row"><td colspan="5" title="c19 · blk019"><span class="stext">预警灯塔提前扫出红光斑。 <button class="iconbtn">✎</button><button class="iconbtn del">✕</button></span></span><span class="scards"><span class="kard kard-ev">「重建期」 <span class="add">＋卡</span></span></td></tr>
+      <tr class="sent-row"><td colspan="5" title="c20 · blk020"><span class="stext">看见风险先说风险，别等人问。 <button class="iconbtn">✎</button><button class="iconbtn del">✕</button></span></span><span class="scards"><span class="kard kard-quote">先说风险不是认输<br>是重新掌握主动权 <span class="add">＋卡</span></span></td></tr>
+      <tr class="sent-row"><td colspan="5" title="c21 · blk021"><span class="stext">主动简报，就是定期递出的发光信封。 <button class="iconbtn">✎</button><button class="iconbtn del">✕</button></span></span><span class="scards"><span class="kard kard-list">简报三件套<br>进度 · 风险 · 下一步 <span class="add">＋卡</span></span></td></tr>
       <tr><td></td><td class="mono">s22</td><td><span class="editable">发光信封定时报送, 收件匣指示灯亮起</span> <button class="iconbtn">✎</button></td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
-      <tr class="sent-row"><td colspan="5" title="c25 · blk024">信封定时报送，收件匣的灯亮了又亮。<span class="cards"><span class="kard kard-ev">「提前告知」</span> <button class="iconbtn">✎</button><button class="iconbtn del">✕</button></span> <span class="add">＋卡</span></td></tr>
+      <tr class="sent-row"><td colspan="5" title="c25 · blk024"><span class="stext">信封定时报送，收件匣的灯亮了又亮。 <button class="iconbtn">✎</button><button class="iconbtn del">✕</button></span></span><span class="scards"><span class="kard kard-ev">「提前告知」 <span class="add">＋卡</span></span></td></tr>
       <tr><td><span class="scell sc3">3</span></td><td class="mono">s30</td><td><span class="editable">闸门拉下, 金币流截断, 剩余资源入袋</span> <button class="iconbtn">✎</button></td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
-      <tr class="sent-row"><td colspan="5" title="c33 · blk034">拉下闸门，金币流被截断，剩下的才是你的。<span class="cards"><span class="kard kard-ev">「体面退出」</span> <button class="iconbtn">✎</button><button class="iconbtn del">✕</button></span> <span class="add">＋卡</span></td></tr>
+      <tr class="sent-row"><td colspan="5" title="c33 · blk034"><span class="stext">拉下闸门，金币流被截断，剩下的才是你的。 <button class="iconbtn">✎</button><button class="iconbtn del">✕</button></span></span><span class="scards"><span class="kard kard-ev">「体面退出」 <span class="add">＋卡</span></span></td></tr>
       <tr><td></td><td class="mono">s33</td><td><span class="editable">止损原则刻度盘, 两轮标记后指针归零</span> <button class="iconbtn">✎</button></td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
-      <tr class="sent-row"><td colspan="5" title="c37 · blk038">止损原则：两轮尝试，闸门还不开，就该体面退场。<span class="cards"><span class="kard kard-ev">「止损原则」</span> <button class="iconbtn">✎</button><button class="iconbtn del">✕</button></span> <span class="add">＋卡</span></td></tr>
+      <tr class="sent-row"><td colspan="5" title="c37 · blk038"><span class="stext">止损原则：两轮尝试，闸门还不开，就该体面退场。 <button class="iconbtn">✎</button><button class="iconbtn del">✕</button></span></span><span class="scards"><span class="kard kard-ev">「止损原则」 <span class="add">＋卡</span></span></td></tr>
       <tr><td><span class="scell sc4">4</span></td><td class="mono">s36</td><td><span class="editable">工具墙收藏柜逐格点亮, 六件工具齐整</span> <button class="iconbtn">✎</button></td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
-      <tr class="sent-row"><td colspan="5" title="c40 · blk041">工具墙六件套，一件一件点亮。<span class="cards"><span class="kard kard-list">六件工具完整体系<br>急救卡 · 简报模板 · 止损表 …</span> <button class="iconbtn">✎</button><button class="iconbtn del">✕</button></span> <span class="add">＋卡</span></td></tr>
+      <tr class="sent-row"><td colspan="5" title="c40 · blk041"><span class="stext">工具墙六件套，一件一件点亮。 <button class="iconbtn">✎</button><button class="iconbtn del">✕</button></span></span><span class="scards"><span class="kard kard-list">六件工具完整体系<br>急救卡 · 简报模板 · 止损表 … <span class="add">＋卡</span></span></td></tr>
       <tr><td></td><td class="mono">s38</td><td><span class="editable">投递站窗口亮起, 玻璃工具卡滑出</span> <button class="iconbtn">✎</button></td><td class="tbd">—</td><td><span class="badge warn">锚定链</span> <button class="iconbtn">修</button></td></tr>
-      <tr class="sent-row"><td colspan="5" title="c43 · blk044">明早投递第一份小块交付简报。<span class="cards"><span class="kard kard-ev">「小块交付」<span class="tbd">· 弹出时点盖章时定</span></span> <button class="iconbtn">✎</button><button class="iconbtn del">✕</button></span> <span class="add">＋卡</span></td></tr>
+      <tr class="sent-row"><td colspan="5" title="c43 · blk044"><span class="stext">明早投递第一份小块交付简报。</span> <button class="iconbtn">✎</button><button class="iconbtn del">✕</button></span></span><span class="scards"><span class="kard kard-ev">「小块交付」<span class="tbd">· 弹出时点盖章时定 <span class="add">＋卡</span></span></td></tr>
       <tr><td></td><td class="mono">s42</td><td class="locked">收官品牌卡 (我是老谭 · 拆一本书 · 翻一座山)</td><td class="tbd">— 原子</td><td><span class="badge lock">🔒 品牌</span></td></tr>
-      <tr class="sent-row"><td colspan="5" title="c48 · blk046">我是老谭，拆一本书，翻一座山。<span class="tbd">（原子锁定，无卡入口）</span></td></tr>
+      <tr class="sent-row"><td colspan="5" title="c48 · blk046"><span class="stext">我是老谭，拆一本书，翻一座山。<span class="tbd">（原子锁定，无卡入口）</span></span></td></tr>
       <tr><td colspan="5" class="dim2">… 全 42 镜 · 48 句 · 大字卡挂任意口播句后 (非首句特权; s17 三句各一张演示) · 质检「修」=零成本重掷 …</td></tr>
     </tbody>
   </table>
