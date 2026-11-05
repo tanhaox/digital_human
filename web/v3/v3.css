@@ -62,3 +62,21 @@ a { color:var(--cyan); text-decoration:none; }
 .flex1 { flex:1; }
 .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
   background:#14532d; color:#fff; padding:8px 18px; border-radius:9px; z-index:9; }
+
+/* 入口页进度条 (index.js) */
+.progress { display:flex; flex-direction:column; gap:6px; margin:2px 0 12px; }
+.prow { display:flex; align-items:baseline; gap:12px; padding:9px 12px;
+  border:1px solid var(--line); border-radius:8px; background:#0f141b;
+  text-decoration:none; color:var(--txt); }
+a.prow:hover { border-color:var(--line2); }
+.prow .pn { font-family:var(--mono); color:var(--faint); }
+.prow .plabel { font-weight:700; min-width:6.2em; }
+.prow .pv { color:var(--dim); font-size:14px; flex:1; }
+.prow .pst { font-family:var(--mono); font-size:13px; color:var(--faint); white-space:nowrap; }
+.prow.done .pst { color:var(--ok-t); }
+.prow.now { border-color:var(--gold); background:rgba(201,162,94,.06); }
+.prow.now .pst { color:var(--gold); }
+.nextline { margin:2px 0 8px; }
+.rail a.step.lock { opacity:.55; }
+.rail a.step[aria-disabled="true"] { cursor:default; }
+.rail a.step[aria-disabled="true"]:hover { border-color:transparent; }

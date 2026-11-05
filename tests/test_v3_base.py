@@ -103,3 +103,20 @@ def test_wiring_source_asserts():
         src = js.read_text(encoding="utf-8")
         assert ' style="' not in src, f"{js} 含 style= 属性 (CSP 必拦, 改 CSSOM)"
         assert "cssText" not in src, f"{js} 用 cssText 写内联样式 (CSP 必拦, 改类名)"
+
+
+def test_rail_gate_keys_match_backend():
+    """回归哨 (1105 实锤): 轨上步骤 id 与闸态键不同名 (concept vs arcs) → ② 永不亮 ✓,
+    入口页看起来像从头开始; 且未建页面的步骤必须有 gate/null 归类, 不许漏。"""
+    import re
+    from pathlib import Path
+    from app.services.anim_pipeline.v3_pipeline import GATE_CHAIN
+    src = Path("web/v3/rail.js").read_text(encoding="utf-8")
+    rows = re.findall(
+        r"\{\s*n:\s*'[^']+',\s*id:\s*'([^']+)',\s*gate:\s*(null|'[^']+')", src)
+    assert len(rows) == 8, rows
+    by_id = {pid: (None if g == "null" else g.strip("'")) for pid, g in rows}
+    for g in by_id.values():
+        assert g is None or g in GATE_CHAIN, f"未知闸键: {g}"
+    assert by_id["concept"] == "arcs"      # 立意页的闸键叫 arcs (相位名), 不叫 concept
+    assert by_id["shots"] == "shots" and by_id["triage"] == "triage"

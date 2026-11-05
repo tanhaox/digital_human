@@ -65,9 +65,17 @@ def v3_state(book_id: str, ep: int):
                    and j["ep"] == ep), None)
         if rj:
             running = anim_service._job_view(rj)
+    v3d = doc_line or {}
+    counts = {"lines": len(v3d.get("lines") or []),
+              "arcs": len(v3d.get("arcs") or []),
+              "shots": len(v3d.get("shots") or []),
+              "cards": len(v3d.get("cards") or []),
+              "shot_issues": sum(len(v) for k, v in (v3d.get("shot_issues") or {}).items()
+                                 if k != "弧级")}
     return {"book_id": book_id, "book_title": book_title, "ep": ep,
             "line": line, "gates": gates,
-            "lines_done": bool((doc_line or {}).get("lines")),
+            "lines_done": bool(v3d.get("lines")),
+            "counts": counts,
             "running_job": running}
 
 
