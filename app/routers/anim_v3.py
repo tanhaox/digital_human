@@ -232,20 +232,27 @@ def v3_card_render(book_id: str, ep: int, body: CardRenderBody):
                 lines = parts[1:5] or parts[:1]
         else:
             title, lines = text[:20], [text]
-        from app.services.anim_pipeline.v3_pipeline.card_render import render_card
+        from app.services.anim_pipeline.v3_pipeline.card_render import (render_card,
+                                                                       render_diagram)
+        from app.services.anim_pipeline.v3_pipeline.shots import sanitize_diagram
         from app.services.jy_draft_service.quote_card import cards_dir
         # 文件名用 ASCII (实锤: 中文名在 URL 里需编码, 预览/跨端不稳)
         safe = f"v3_{body.cid}"
         out = cards_dir(book_title) / f"{safe}.png"
+        _dg = sanitize_diagram(card.get("diagram") or {})
         try:
-            render_card(kind, title, lines, out, size=body.size)
+            if _dg and _dg.get("children"):
+                render_diagram(_dg, out, size=body.size)   # 脑图/流程图
+            else:
+                render_card(kind, title, lines, out, size=body.size)   # 文字版式
         except Exception as exc:  # noqa: BLE001
             raise HTTPException(status_code=500, detail=f"渲染失败: {exc}")
         card["image"] = safe          # 装配钉图按此名取 data/l0/{书名}/cards/{safe}.png
         card["image_file"] = out.name
         from app.services.anim_pipeline import shots as shots_mod
         shots_mod.save(doc)
-    return {"cid": body.cid, "image": safe, "path": str(out), "rendered": True}
+    return {"cid": body.cid, "image": safe, "path": str(out), "rendered": True,
+            "layout": "diagram" if (_dg and _dg.get("children")) else "text"}
 
 
 @router.post("/ep/{book_id}/{ep}/shots/autocards")

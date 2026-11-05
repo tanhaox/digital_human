@@ -124,6 +124,29 @@ def _refresh_last(s: dict[str, Any], line_of: dict[int, dict]) -> None:
 _BREAK = "。！？；，、,.!?;"
 
 
+def sanitize_diagram(node: Any, depth: int = 0, budget: list[int] | None = None) -> dict | None:
+    """LLM 图示结构清洗: ≤3 层, 总节点 ≤12, 节点名 ≤10 字; 非法返回 None。"""
+    if not isinstance(node, dict) or depth > 2:
+        return None
+    if budget is None:
+        budget = [12]
+    if budget[0] <= 0:
+        return None
+    name = str(node.get("name") or "").strip()[:10]
+    if not name:
+        return None
+    budget[0] -= 1
+    out: dict[str, Any] = {"name": name}
+    kids = []
+    for c in (node.get("children") or [])[:6]:
+        k = sanitize_diagram(c, depth + 1, budget)
+        if k:
+            kids.append(k)
+    if kids:
+        out["children"] = kids
+    return out
+
+
 def _clip(s: str, n: int) -> str:
     """截断到 n 字内, 尽量在标点处断开 (实锤: 硬截 40 字会切在「这本书叫《值得信」)。"""
     s = str(s or "").strip()
@@ -191,10 +214,16 @@ def build_cards(v3: dict[str, Any], shots: list[dict[str, Any]]) -> list[dict[st
         if key in seen:
             continue
         seen.add(key)
-        cards.append({"cid": f"c{len(cards) + 1:02d}",
-                      "kind": _SUGG_KIND.get(kind, "总结"),
-                      "style": style, "text": text,
-                      "line_no": no, "sid": line2sid.get(no, ""), "from": "adopted"})
+        _card = {"cid": f"c{len(cards) + 1:02d}",
+                 "kind": _SUGG_KIND.get(kind, "总结"),
+                 "style": style, "text": text,
+                 "line_no": no, "sid": line2sid.get(no, ""), "from": "adopted"}
+        # 图示类: 带上 LLM 产出的结构 (脑图/流程图), 无则退回文字版式
+        _dg = next((g.get("diagram") for g in (ln.get("suggs") or [])
+                    if g.get("kind") == kind and g.get("diagram")), None)
+        if _dg:
+            _card["diagram"] = _dg
+        cards.append(_card)
     return cards
 
 

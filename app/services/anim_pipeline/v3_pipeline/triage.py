@@ -121,12 +121,19 @@ mode 语义 (严格区分, 判错会毁立意):
 ② 转述"书里有个案例/书里给的解法" ≠ quote (没有原话引号就是转述), 是 comm
 ③ "我是老谭…" 开头一律 brand, 不是 persona
 issue 只报: 结构失衡(连续书证无承接/缺钩子/缺行动召/语态突兀)、明显书面语不宜口播。
-suggs 每行给 0-2 条创作建议, kind∈"quote"(对仗短句有金句相)/"img"(仅限**图示**类: 公式/图表/流程图/表格 — 需要精确图形排版的内容宜出图; 普通文字一律走剪映文字卡, 不要建议配图)/
+suggs 每行给 0-2 条创作建议, kind∈"quote"(对仗短句有金句相)/"img"(**图示**类: 公式/方程、流程图、步骤链、对照表格、多维矩阵、并列清单≥3项 —
+这类"结构性信息"一旦念出来听众记不住, 必须上图示; 纯抒情/观点句不要给 img)/
 "book"(转述书中观点宜调原句直出)/"event"(核心概念词宜上事件金字), text=一句中文建议。
 另给 card_text = 建议实际上屏的卡文字 (严格按 kind 控制长度):
 - event 事件金字: ≤8 个字的**核心词** (如「怀疑坎」「体面退出」「丑话清单」), 绝不要整句
 - quote 金句卡: ≤30 字, 取句中最有劲的那一段
 - img 图示: ≤30 字的公式/图表/流程图/表格内容 (只有这类才出图; 金句清单结论一律不出图)
+  且 kind="img" 时必须额外给 diagram = **图示的结构化数据** (树形 JSON):
+  {"name":"根","children":[{"name":"分支","children":[{"name":"叶"}]}]}
+  例子: 「信任=可信度×可靠度×亲密度÷自我导向」
+    → diagram: {"name":"信任","children":[{"name":"可信度"},{"name":"可靠度"},
+                 {"name":"亲密度"},{"name":"自我导向"}]}
+  规则: 2-3 层, 每个节点 ≤10 字, 总节点 ≤12; 纯公式无维度可拆则 diagram 给 null。
 - list 清单卡: ≤50 字"""
 
 
@@ -191,8 +198,11 @@ def run(job: dict[str, Any]) -> None:
                 ln["flag"] = m["issue"]
             for s in m.get("suggs") or []:
                 if s.get("kind") in ("quote", "img", "book", "event") and s.get("text"):
-                    ln["suggs"].append({"kind": s["kind"], "text": str(s["text"])[:80],
-                                        "card_text": str(s.get("card_text") or "")[:60]})
+                    _sug = {"kind": s["kind"], "text": str(s["text"])[:80],
+                            "card_text": str(s.get("card_text") or "")[:60]}
+                    if s.get("diagram"):
+                        _sug["diagram"] = s["diagram"]
+                    ln["suggs"].append(_sug)
         logger.info("[v3:triage] LLM 标注 %d 行 ✓", len(marked))
     except Exception as exc:  # noqa: BLE001 — LLM 失败退确定性层, 人闸补 unknown
         logger.warning("[v3:triage] LLM 标注失败 (退确定性层): %s", exc)
