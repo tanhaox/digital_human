@@ -538,3 +538,18 @@ def test_direct_prompt_carries_the_rules():
         assert k in D._SYS
     assert "6" in D._SYS and "固定是默认" in D._SYS
     assert "相邻镜景别" in D._SYS
+
+
+def test_narrative_feeds_both_prompts():
+    """产消审计 (1105 用户令) 实锤孤岛修复: arcs.narrative 只有人闸在看,
+    ③④写手不知道弧的叙事任务 → s2 画面接不住口播爆点。两处提示必须带。"""
+    arc = {"A1": {"world": "悬崖公路", "metaphor": "边界=护栏",
+                  "narrative": "专家执行到位仍被客户翻脸"}}
+    from app.services.anim_pipeline.v3_pipeline.shots import _batch_prompt as p3
+    r3 = p3([{"sid": "s1", "arc_id": "A1", "narration": "口播", "est_s": 5}],
+            arc, {}, {})
+    assert "本弧讲什么" in r3 and "专家执行到位" in r3
+    from app.services.anim_pipeline.v3_pipeline.direct import _batch_prompt as p4
+    r4 = p4([{"sid": "s1", "arc_id": "A1", "est_s": 5, "keyframe_zh": "画面"}],
+            arc, {"s1": "全景"})
+    assert "本弧讲什么" in r4 and "专家执行到位" in r4

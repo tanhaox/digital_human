@@ -159,9 +159,9 @@ def _batch_prompt(batch: list[dict[str, Any]], arc_of: dict[str, dict],
     for s in batch:
         a = arc_of.get(str(s.get("arc_id")) or "") or {}
         rows.append(f'{s["sid"]}|{s.get("est_s")}s|{guess_of.get(s["sid"], "中景")}'
-                    f'|{str(a.get("world") or "")[:20]}'
+                    f'|{str(a.get("world") or "")[:20]}|{str(a.get("narrative") or "")[:30]}'
                     f'|{str(s.get("keyframe_zh") or "")[:80]}')
-    return "镜号|槽长|景别预填|视觉世界|画面句摘要\n" + "\n".join(rows)
+    return "镜号|槽长|景别预填|视觉世界|本弧讲什么|画面句摘要\n" + "\n".join(rows)
 
 
 def _llm_fill(shots: list[dict[str, Any]], arcs: list[dict[str, Any]],

@@ -483,9 +483,12 @@ def _batch_prompt(batch: list[dict[str, Any]], arc_of: dict[str, dict],
         text = str(s.get("narration") or "")[:100]
         tag = "[hook]" if zone_of.get(s["sid"]) == "hook" else ""
         rows.append(f'{s["sid"]}{tag}|{a.get("world", "")}|{a.get("metaphor", "")[:60]}|'
-                    f'{text}|{s["est_s"]}s')
+                    f'{str(a.get("narrative") or "")[:40]}|{text}|{s["est_s"]}s')
     quota = batch_quota(batch, zone_of)
-    return (quota + "\n" if quota else "") + "镜号|视觉世界|立意|口播原文|目标时长\n" + "\n".join(rows)
+    # narrative (本弧讲什么) 必须进提示 — 实锤 s2: 只给世界+隐喻, 写手不知道
+    # 弧的叙事任务, 画面接不住口播爆点 (客户拍桌画成了一个人发呆)
+    return (quota + "\n" if quota else "") \
+        + "镜号|视觉世界|立意|本弧讲什么|口播原文|目标时长\n" + "\n".join(rows)
 
 
 def _llm_fill(shots: list[dict[str, Any]], arcs: list[dict[str, Any]],
