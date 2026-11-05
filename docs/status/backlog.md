@@ -2174,6 +2174,43 @@ laotan-tech 加【科技版专属约束】（高于通用规则）：
 - **描述**: 钉图机制目前只消费 cards/ 人产素材 (信任公式.png 用户手作实锤)。公式卡本质是排版非绘画: 钉行文本自带结构 (X等于A加B加C再除以D 句式确定性可解析), PIL 真分式渲染零幻觉, 配色对齐金句卡 (金字黑底半透明)。触发=钉卡无【图:名】时先试自动生图, 解不出回退文字卡。定制图 (【图:名】) 优先级更高。家底: ppt_pipeline._render_card_png + watermark PIL 先例
 - **涉及模块**: jy_draft_service.quote_card / job_draft
 
+### ID-131：【动画·v3】英文化批 (keyframe_en/motion_en) 挂 ④放行动作
+
+- **状态**: pending
+- **优先级**: P1
+- **提出时间**: 2026-11-05
+- **开发周期**: V4 收尾
+- **描述**: 产消审计缺口 — K2 英文优先路 (k2.py:540 用户令) 与 H3 锚定链吃 keyframe_en/motion_en/opening_desc, v3 全中文未产。做成 ④ 导演放行动作的一部分: 放行时批量翻译一次 (34 镜一批, ~几千 token)。
+- **动机/背景**: 挂点唯一性: ⑤ K2 要吃 (不晚于⑤); ④ 放行=文字终锁, 提前翻会被人工改稿作废 (不早于放行)。opening_desc 逐字==keyframe_en, 同一份译文。
+- **涉及模块**: v3_pipeline/direct.py (放行钩子), llm_service (tag=v3_en)
+- **备注**: 验收 = ④放行后 100% 镜有 keyframe_en; K2 走英文路比例 (对照中文路质量)。
+
+### ID-132：【动画·v3】anim.beats 骨架挂 ⑦ 盖章
+
+- **状态**: pending
+- **优先级**: P1
+- **提出时间**: 2026-11-05
+- **开发周期**: V5
+- **描述**: H3 吃 anim.opening_desc + beats.motion (assembler:14)。beats 的 t_start/t_end 依赖 TTS 实测时长 → 盖章相位 (确定性换算) 一并组装: opening_desc 取 ID-131 译文, beats.motion 取 direct.motion 的英译 + 盖章秒数。
+- **备注**: 验收 = 盖章后 100% 镜有 anim 骨架, beats 时窗与块表对齐。
+
+### ID-133：【动画·v3】seed 产+落盘 挂 V6 K2 薄壳
+
+- **状态**: pending
+- **优先级**: P1
+- **提出时间**: 2026-11-05
+- **开发周期**: V6
+- **描述**: K2 吃 seed, v3 未产。K2 适配时沿用 v2 机制: 首跑随机+落盘, reroll 换 seed。同批决定 direct.light/size 的消费方式 (出图 prompt 景别/光影仲裁) 或砍。
+- **备注**: 验收 = K2 首镜前 seed 落盘率 100%; light/size 有明确消费或删除决定。
+
+### ID-134：【动画·v3】死壳断言 (in_image_text/text_layer 恒空)
+
+- **状态**: pending
+- **优先级**: P3
+- **提出时间**: 2026-11-05
+- **开发周期**: V5
+- **描述**: v3 停用图内字通道后两字段恒 [], v2 链读空合法。V5 回填时加回归断言 (恒空写入), 不加值不加删。
+
 ### ID-130：【动画】gpu 卡卫兵存活实例认领 — 后端重启洗 tracked_pids 误报自家 ComfyUI
 
 - **状态**: pending
