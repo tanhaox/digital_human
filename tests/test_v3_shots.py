@@ -152,6 +152,27 @@ def test_carrier_false_positive_exemptions():
         assert not v3shots._carrier_already_blanked(msg, txt), txt
 
 
+def test_carrier_blanked_overlap_and_real_props():
+    """1105 ep5 实锤: 「空白板面」的「空白」跨在载体词上 → 前后文窗口永远看不到, 7 镜假红字;
+    而便签/屏幕当氛围道具画 (无空白限定) 是真问题, 不许一起放过。"""
+    yes = [
+        # 「空」在前文、「白」是载体首字 — 旧实现 pre/post 都看不到「空白」
+        ("s1 画面句含文字载体「白板」但未申报", "前景散落着几页草稿。空白板面。镜头低角度特写"),
+        # 同一无字物件: 先写空白, 后文只提反光, 无内容动词
+        ("s31 画面句含文字载体「白板」但未申报",
+         "他身后一块立式白板板面空白，板面边缘还很新；白板板面在余光里微微反光"),
+    ]
+    for msg, txt in yes:
+        assert v3shots._carrier_already_blanked(msg, txt), txt
+    no = [
+        ("s5 画面句含文字载体「便签」但未申报", "身后玻璃墙上贴着几张便签，其中一张被气流掀起一角"),
+        ("s8 画面句含文字载体「屏幕」但未申报", "手机屏幕亮起，显示来电界面，但无文字；焦点在手机屏幕的光亮"),
+        ("s27 画面句含文字载体「便签」但未申报", "右侧一张便签纸被穿堂风掀起一角"),
+    ]
+    for msg, txt in no:
+        assert not v3shots._carrier_already_blanked(msg, txt), txt
+
+
 def test_brand_shots_excluded_from_text_qc():
     """品牌镜走冻结骨架, 不参与 LLM 文字层质检 (实锤: s9/s34 品牌镜被报引号问题)."""
     brand_shot = {"sid": "s9", "arc_id": "A3", "line_refs": [22], "est_s": 5,

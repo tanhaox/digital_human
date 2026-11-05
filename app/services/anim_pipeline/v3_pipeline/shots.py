@@ -310,7 +310,9 @@ ARC_LEVEL_KEY = "弧级"      # 无法归因到单镜的场级问题 (宪法配�
 
 # ── 误报豁免 (v2 writer_failures 的已知局限, v3 层过滤保 v2 零扰动) ──
 _CARRIER_HIT = re.compile(r"含文字载体「(.+?)」")
-_BLANK_LIMIT = re.compile(r"空白|留白|无字|未写|空无一字|没有字|不写字|净面|光面")
+_BLANK_LIMIT = re.compile(r"空白|留白|无字|无文字|未写|空无一字|没有字|不写字|净面|光面")
+# 载体旁出现「写着/显示/字样」等内容动词 → 即便别处写了空白, 也不算同一无字物件
+_TEXT_CONTENT = re.compile(r"写着|写了|字样|字迹|写满|刻着|刻字|显示|印着|标着")
 _NEG_PREFIX = re.compile(r"[无没不][^，。；,;]{0,6}$")   # 紧贴载体词前的否定: 「无反光字迹」
 # 引号镜位标注豁免 (实锤: LLM 用「图纸台前」: 标镜位, 不是要渲进画面的文字)
 _QUOTED = re.compile(r"[「『\"]([^」』\"]{1,12})[」』\"](\s*[：:])?")
@@ -335,13 +337,21 @@ def _carrier_already_blanked(msg: str, text: str) -> bool:
     hits = list(re.finditer(re.escape(word), text))
     if not hits:
         return False
+    blank_n = 0
     for h in hits:
-        pre = text[max(0, h.start() - 14):h.start()]
-        post = text[h.end():h.end() + 14]
-        if _BLANK_LIMIT.search(pre) or _BLANK_LIMIT.search(post) or _NEG_PREFIX.search(pre):
-            continue
-        return False          # 任一次出现未限定空白 → 真问题
-    return True
+        # 窗口收窄 (实锤: 14 字窗口会把上一句的「无文字」算到同句第二个载体头上)
+        pre = text[max(0, h.start() - 8):h.start()]
+        post = text[h.end():h.end() + 12]
+        # 含载体自身的窄窗口 — 实锤: 「空白板面」的「空白」跨在载体词上,
+        # 只查前后文永远看不到 → 7 镜假红字 (白板 的 白 就是 空白 的白)
+        span = text[max(0, h.start() - 2):h.end() + 2]
+        if (_BLANK_LIMIT.search(span) or _BLANK_LIMIT.search(pre)
+                or _BLANK_LIMIT.search(post) or _NEG_PREFIX.search(pre)):
+            blank_n += 1
+    if blank_n == len(hits):
+        return True
+    # 同一载体在别处已明确留白, 且全句无内容动词 → 同一无字物件 (「立式白板板面空白…白板板面微微反光」)
+    return bool(blank_n) and not _TEXT_CONTENT.search(text)
 
 
 
@@ -377,7 +387,7 @@ def text_layer_issues(shots: list[dict[str, Any]]) -> dict[str, list[str]]:
             if any(m in f for m in _LATER_PHASE_MARKERS):
                 continue
             # 误报豁免: 载体已限定「空白/无字」→ 合规; 品牌镜已在上方剔除
-            mm = re.match(r"^(s\d+)", str(f))
+            mm = re.match(r"^(s\d+)\b", str(f))
             _txt = text_of.get(mm.group(1), "") if mm else ""
             if mm and _carrier_already_blanked(str(f), _txt):
                 continue
