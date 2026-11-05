@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>③ 分镜文字 · v3</title>
+<link rel="stylesheet" href="./v3.css">
+<link rel="stylesheet" href="./shots.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="h2row pt">
+    <h1 class="h2">③ 分镜 · 文字总审</h1>
+    <span class="sub" id="sub">加载中…</span>
+    <span id="counts"></span>
+  </div>
+  <div class="railwrap"><div class="rail" id="rail"></div></div>
+  <div id="axis" class="mini"></div>
+
+  <div class="bar"><b>一行 = 一镜, 缩进行 = 口播句</b>
+    <span class="note">画面句/卡内容 行内直接改 · 质检=产线同一把尺 (文字层可判项)</span></div>
+  <div id="issues"></div>
+  <div id="warns"></div>
+
+  <div class="gwrap"><div class="grid" id="grid"></div></div>
+
+  <div class="savebar">
+    <span class="note" id="dirty">改稿 0 处未保存</span>
+    <span class="flex1"></span>
+    <button class="ghost" id="btn-run">🎨 重跑分镜</button>
+    <button class="go" id="btn-save"><span id="save-label">💾 保存分镜</span><span id="n-dirty"> (0)</span></button>
+    <button class="go" id="btn-next" disabled title="分镜闸未开">④ 导演 →</button>
+  </div>
+  <div class="gatebar" id="gate"></div>
+
+  <div class="panel specs"><b>规格</b>
+    <ol>
+      <li>镜分组确定: 弧内句按字数估时装包成镜 (3–7.5s 密度带), 镜号 s1..sN 全局连续。</li>
+      <li>LLM 只写画面句 (每镜 80–200 字, 起点帧, 禁文字载体, 禁终态), 批 8 镜一次。</li>
+      <li>大字卡挂句: ①卡指令行 + ②分诊采纳的建议 (事件/金句/清单/配图/书证) → 词挂在句上, 句映射到镜。</li>
+      <li>质检 = writer_failures 文字层可判项 (载体申报/过短/终态/花字重复); motion 族归 ④ 导演。</li>
+      <li>零 GPU: 全部文字, 出口闸病族在花钱前亮灯。</li>
+    </ol>
+  </div>
+</div>
+<script type="module" src="./shots.js"></script>
+</body>
+</html>

@@ -56,14 +56,20 @@ def test_gates_view_chain():
 
 
 def test_run_phase_stub_and_dispatch():
+    """占位相位抛「建设中」, 已上线相位不抛 — 自动识别, 免得每批手改本测试 (实锤三次)。"""
+    import inspect
     import pytest
-    # V1 起 triage / V2 起 arcs 是真相位 (不再"建设中"); shots/direct/stamp 仍占位
-    with pytest.raises(SystemExit, match="建设中"):
-        v3_pipeline.run_phase({"phase": "v3_shots"})
+
+    def _is_stub(fn):
+        return "_stub(" in inspect.getsource(fn)
+
+    stubs = [p for p, h in v3_pipeline._HANDLERS.items() if _is_stub(h)]
+    for phase in stubs:
+        with pytest.raises(SystemExit, match="建设中"):
+            v3_pipeline.run_phase({"phase": f"v3_{phase}"})
+    assert "triage" not in stubs and "arcs" not in stubs and "shots" not in stubs
     with pytest.raises(SystemExit, match="v3 相位"):
         v3_pipeline.run_phase({"phase": "v3_unknown"})
-    assert v3_pipeline._HANDLERS["triage"] is v3_pipeline._h_triage
-    assert v3_pipeline._HANDLERS["arcs"] is v3_pipeline._h_arcs
 
 
 def test_wiring_source_asserts():

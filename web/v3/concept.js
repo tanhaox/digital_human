@@ -20,13 +20,11 @@ let ARCS = [], LINES_OF_ARC = {}, dirty = new Set();
 
 let GATE_OPEN = false;
 function refreshDirty() {
-  $('n-dirty').textContent = dirty.size;
+  const confirmMode = !dirty.size && !GATE_OPEN;
+  $('save-label').textContent = confirmMode ? '✅ 确认放行立意' : '💾 保存立意';
+  $('n-dirty').textContent = confirmMode ? '' : ` (${dirty.size})`;   // 常驻节点, 不重建
   $('dirty').innerHTML = dirty.size
     ? `改稿 <b class="gold-t">${dirty.size} 处未保存</b>` : '改稿 0 处未保存';
-  // 无改动 + 闸未开: 保存即「确认放行」(人闸语义显性, 实锤: 用户不知保存=放行)
-  const sb = $('btn-save');
-  if (!dirty.size && !GATE_OPEN) sb.textContent = '✅ 确认放行立意';
-  else sb.innerHTML = `💾 保存立意 (<span id="n-dirty">${dirty.size}</span>)`;
 }
 
 async function refresh() {

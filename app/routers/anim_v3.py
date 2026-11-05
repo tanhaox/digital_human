@@ -149,6 +149,76 @@ def v3_concept_get(book_id: str, ep: int):
             "ready": bool(arcs)}
 
 
+class ShotSaveBody(BaseModel):
+    shots: list[dict[str, Any]] = []
+    cards: list[dict[str, Any]] | None = None
+
+
+@router.get("/ep/{book_id}/{ep}/shots")
+def v3_shots_get(book_id: str, ep: int):
+    """分镜文字数据源: v3.shots + cards + issues + 按镜分组的句 + 闸态。"""
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    try:
+        doc = _load_v3_doc(book_title, ep)
+    except FileNotFoundError:
+        return {"shots": [], "cards": [], "issues": {}, "gates": {}, "ready": False}
+    v3 = doc.get("v3") or {}
+    lines = {ln["no"]: ln for ln in (v3.get("lines") or [])}
+    shots = v3.get("shots") or []
+    for s in shots:
+        s["sents"] = [{"no": no, "text": str(lines.get(no, {}).get("text") or "")}
+                      for no in s.get("line_refs") or [] if no in lines]
+    cards = v3.get("cards") or []
+    return {"shots": shots, "cards": cards, "issues": v3.get("shot_issues") or {},
+            "warnings": v3.get("shot_warnings") or [],
+            "gates": v3_pipeline.gates_view(doc), "ready": bool(shots)}
+
+
+@router.post("/ep/{book_id}/{ep}/shots/save")
+def v3_shots_save(book_id: str, ep: int, body: ShotSaveBody):
+    """分镜文字编辑保存: 画面句/卡 回写 + 质检复跑 + 分镜闸开合。"""
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    with anim_service.ep_guard(book_id, ep):
+        doc = _load_v3_doc(book_title, ep)
+        v3 = doc.setdefault("v3", {})
+        cur = {s["sid"]: s for s in v3.get("shots") or []}
+        n_edit = 0
+        for row in body.shots:
+            s = cur.get(str(row.get("sid") or ""))
+            if not s:
+                continue
+            for k in ("keyframe_zh",):
+                if row.get(k) is not None and str(row[k]).strip() != str(s.get(k) or ""):
+                    s[k] = str(row[k]).strip()[:600]
+                    n_edit += 1
+            if row.get("in_image_text") is not None:
+                s["in_image_text"] = [str(x)[:40] for x in row["in_image_text"]][:4]
+            if row.get("text_layer") is not None:
+                s["text_layer"] = [str(x)[:40] for x in row["text_layer"]][:6]
+        if body.cards is not None:
+            v3["cards"] = [{"cid": str(c.get("cid") or ""), "style": str(c.get("style") or "list"),
+                            "text": str(c.get("text") or "")[:60], "sid": str(c.get("sid") or ""),
+                            "line_no": int(c.get("line_no") or 0),
+                            "from": str(c.get("from") or "manual")}
+                           for c in body.cards]
+        from app.services.anim_pipeline.v3_pipeline.shots import text_layer_issues
+        issues = text_layer_issues(list(cur.values()))
+        v3["shot_issues"] = issues
+        v3.setdefault("gates", {})["shots"] = not issues
+        from app.services.anim_pipeline import shots as shots_mod
+        shots_mod.save(doc)
+    return {"saved": len(body.shots), "edited": n_edit,
+            "issues": issues, "gate": not issues}
+
+
 @router.post("/ep/{book_id}/{ep}/concept/save")
 def v3_concept_save(book_id: str, ep: int, body: ArcSaveBody):
     """立意编辑保存: world/metaphor/narrative 回写 + 执法复检 + 立意闸开合。"""
