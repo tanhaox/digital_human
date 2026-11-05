@@ -221,49 +221,102 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
 </nav>
 
 <div class="railwrap"><div class="rail" id="rail">
-  <a class="step now" href="#p1"><span class="n">①</span>立意<span class="st">确认中</span></a><span class="sep">→</span>
-  <a class="step" href="#p2"><span class="n">②</span>分镜文字<span class="st">🔒待①</span></a><span class="sep">→</span>
-  <a class="step" href="#p3"><span class="n">③</span>导演<span class="st">🔒</span></a><span class="sep">→</span>
-  <a class="step" href="#p4"><span class="n">④</span>K2 生图<span class="st">零音频·排队</span></a><span class="sep" title="数据互不依赖; GPU 单卡串行">→∥→</span>
-  <a class="step" href="#p5"><span class="n">⑤</span>TTS<span class="st">🔒</span></a><span class="sep">→</span>
-  <a class="step" href="#p6"><span class="n">⑥</span>盖章<span class="st">只等⑤</span></a><span class="sep">→</span>
-  <a class="step" href="#p7"><span class="n">⑦</span>H3 视频<span class="st">汇合 ④∪⑥</span></a>
+  <a class="step now" href="#p1"><span class="n">①</span>文稿分诊<span class="st">体检中</span></a><span class="sep">→</span>
+  <a class="step" href="#p2"><span class="n">②</span>立意<span class="st">🔒待①</span></a><span class="sep">→</span>
+  <a class="step" href="#p3"><span class="n">③</span>分镜文字<span class="st">🔒待②</span></a><span class="sep">→</span>
+  <a class="step" href="#p4"><span class="n">④</span>导演<span class="st">🔒</span></a><span class="sep">→</span>
+  <a class="step" href="#p5"><span class="n">⑤</span>K2 生图<span class="st">零音频·排队</span></a><span class="sep" title="数据互不依赖; GPU 单卡串行">→∥→</span>
+  <a class="step" href="#p6"><span class="n">⑥</span>TTS<span class="st">🔒</span></a><span class="sep">→</span>
+  <a class="step" href="#p7"><span class="n">⑦</span>盖章<span class="st">只等⑥</span></a><span class="sep">→</span>
+  <a class="step" href="#p8"><span class="n">⑧</span>H3 视频<span class="st">汇合 ⑤∪⑦</span></a>
 </div></div>
 
-<!-- ════════ P1 立意 (独立页 · 借现版立意面板) ════════ -->
+<!-- ════════ P1 文稿分诊 · AI 体检 (新首页) ════════ -->
 <div class="page on" id="p1">
 <section>
-  <div class="h2row"><h2 class="h2"><span class="no">①</span> 立意 · 叙事六拍分配</h2>
+  <div class="h2row"><h2 class="h2"><span class="no">①</span> 文稿 · 分诊体检</h2>
+    <span class="sub">本页只做一件事: 保证进立意的稿是干净的 — AI 逐行体检提醒 + 三去向分诊, 全处置完才放行</span>
+    <span class="badge bad">🔴 拦截 1</span><span class="badge warn">🟡 提醒 4</span><span class="badge">52 行 · 48 句</span></div>
+
+  <!-- 渐进轴 · P1 起点: 稿层 + 分诊状态 -->
+  <div class="mini"><div class="lanes">
+    <div class="lane script">
+      <div class="seg sc-hook" style="width:6%"><span class="lb">钩子</span></div>
+      <div class="seg sc-quote" style="width:8%"><span class="lb">书证①</span></div>
+      <div class="seg sc-comm" style="width:19%"><span class="lb">评论①</span></div>
+      <div class="seg sc-persona" style="width:6%"><span class="lb">人设①</span></div>
+      <div class="seg sc-quote" style="width:7%"><span class="lb">书证②</span></div>
+      <div class="seg sc-comm" style="width:26%"><span class="lb">评论②</span></div>
+      <div class="seg sc-quote" style="width:6%"><span class="lb">书证③</span></div>
+      <div class="seg sc-comm" style="width:17%"><span class="lb">评论③</span></div>
+      <div class="seg sc-cta" style="width:8%"><span class="lb">CTA</span></div>
+      <div class="seg sc-brand" style="width:3.8%"><span class="lb">牌</span></div>
+      <div class="seg" style="position:absolute; left:14.2%; width:1.2%; top:0; bottom:0; background:rgba(224,80,80,.55); border-radius:3px" title="L07 伪指令拦截"></div>
+    </div>
+  </div>
+  <div class="axisline"><span>0s</span><span>60</span><span>120</span><span>180</span><span>~234s 估</span></div>
+  <div class="cap">稿层诞生页: 语态着色 + 分诊状态 (红段=拦截行 L07) — 本页轴只有稿层, 弧层②起叠加</div></div>
+
+  <div class="concept-bar"><b style="color:var(--gold)">🩺 AI 体检 · 不合理处提醒</b>
+    <span class="note">AI=提醒层减量, 确定性闸=执法 (LLM 比抖音松, 出口闸是主防线)</span></div>
+  <div class="twrap">
+  <table>
+    <thead><tr><th>级</th><th>定位</th><th>问题</th><th>AI 建议</th><th>处置</th></tr></thead>
+    <tbody>
+      <tr><td><span class="badge bad">🔴 拦截</span></td><td class="mono">L07</td><td>伪指令残留「【大字卡、直接上屏】」— 非语态、非合法标记 (AI 粘入)</td><td>转为卡内容 (文字入③大字卡槽) 或整行清洗</td><td><button class="iconbtn">转为卡</button> <button class="iconbtn">清洗</button> <button class="iconbtn">归为口播</button></td></tr>
+      <tr><td><span class="badge warn">🟡 提醒</span></td><td class="mono">L21–L26</td><td>书证② 段 6 行连续引用, 无评论承接 — 听感易疲劳</td><td>拆两条书证, 中间插一句承接评论</td><td><button class="iconbtn">采纳建议</button> <button class="iconbtn">忽略</button></td></tr>
+      <tr><td><span class="badge warn">🟡 提醒</span></td><td class="mono">L33</td><td>案例时间「2021年某客户」— 违反案例时间铁律 (2020 线, 听众切身感)</td><td>改「前年一位客户」</td><td><button class="iconbtn">采纳建议</button> <button class="iconbtn">忽略</button></td></tr>
+      <tr><td><span class="badge warn">🟡 提醒</span></td><td class="mono">L45</td><td>62 字长句无标点 — 听感歧义风险 (听感歧义=废句)</td><td>在「才明白」后断句</td><td><button class="iconbtn">采纳建议</button> <button class="iconbtn">忽略</button></td></tr>
+      <tr><td><span class="badge warn">🟡 提醒</span></td><td class="mono">全稿</td><td>无人设自述段 — 回忆镜缺位 (②立意将无回忆弧可选)</td><td>可选: 加一段「我当年…」自述 (~2句)</td><td><button class="iconbtn">生成建议</button> <button class="iconbtn">忽略</button></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="fixrow"><span class="badge ok">分诊汇总</span> 语态行 49 · 结构指令 2（【卡:止损两问】→③卡槽 ·【图:信任公式】→钉图, 已路由不进口播）· 🔴 拦截 1 待处置 · 忽略 0</div>
+
+  <div class="gatebar"><span class="ti">◉ 文稿放行</span>
+    <span class="note">全部🔴处置完 + 语态标注落定 → ②立意 (标注随稿带入); 改稿动作回流文字加工线留痕</span>
+    <span style="flex:1"></span><button class="gold act">✅ 稿净 → 立意</button></div>
+
+  <ol class="specs">
+    <li><b>逐行三去向</b> (抓bug 产物): 语态行→②弧分配 / 合法结构指令 (【卡:】→③卡槽、【图:】→钉图) 路由不进口播 / 无法分类→🔴拦截人工分诊 — 指令残留到 TTS 才现形的洞在此堵死。</li>
+    <li><b>AI 体检=提醒层</b>: 伪指令/结构失衡/案例时间铁律(2020线)/听感歧义/长句/缺语态 — 提醒减量, 执法仍是确定性闸; 每条一键处置 (采纳/忽略/人工), 处置留痕回流文字加工线。</li>
+    <li><b>渐进轴起点</b>: 稿层在本页诞生 (语态色+分诊状态), 弧层②起叠加 — 八页一轴到底。</li>
+  </ol>
+</section>
+</div>
+
+<!-- ════════ P2 立意 (独立页 · 借现版立意面板) ════════ -->
+<div class="page" id="p2">
+<section>
+  <div class="h2row"><h2 class="h2"><span class="no">②</span> 立意 · 叙事六拍分配</h2>
     <span class="sub">本页只做一件事: 给<b>叙事体</b> (原句×评论组) 定弧; 钩子/CTA/品牌是非叙事位, 不占立意</span>
     <span class="badge ok">0 警告</span><span class="badge">4 叙事场 · 非叙事位 3</span></div>
 
-  <div class="fixrow" style="margin:0 0 10px"><span class="badge bad">准入闸</span> <b>文稿分诊</b> (逐行三去向): 语态行→弧分配 · 结构指令【卡:】→②卡槽/【图:】→钉图 (路由, 不进口播) · <b style="color:var(--bad-t)">无法分类=拦截</b>
-    <span class="badge warn">⚠ 1 行待分诊: L07「【大字卡、直接上屏】」— AI 粘入伪指令, 非语态非合法标记</span>
-    <button class="iconbtn">清洗</button><button class="iconbtn">转为卡内容</button><button class="iconbtn">归为口播</button></div>
 
   <!-- 渐进轴 · P1: 稿层(语态模式) × 弧层(画面模式) 对照 -->
   <div class="mini"><div class="lanes" style="position:relative">
     <div class="grid" aria-hidden="true"><i style="left:25.6%"></i><i style="left:51.2%"></i><i style="left:76.8%"></i></div>
     <div class="lane script">
       <div class="seg sc-hook" style="width:6%; opacity:.5" title="钩子 (非叙事)"><span class="lb">钩子</span></div>
-      <div class="seg sc-quote" style="width:8%" title="原书怎么说①"><span class="lb">书证①</span></div>
-      <div class="seg sc-comm" style="width:19%" title="老谭评论①"><span class="lb">评论①</span></div>
-      <div class="seg sc-persona" style="width:6%" title="人设自述① (我当年…)"><span class="lb">人设①</span></div>
-      <div class="seg sc-quote" style="width:7%" title="原书怎么说②"><span class="lb">书证②</span></div>
-      <div class="seg sc-comm" style="width:26%" title="老谭评论②"><span class="lb">评论②</span></div>
-      <div class="seg sc-quote" style="width:6%" title="原书怎么说③"><span class="lb">书证③</span></div>
-      <div class="seg sc-comm" style="width:17%" title="老谭评论③"><span class="lb">评论③</span></div>
+      <div class="seg sc-quote" style="width:8%" title="原书怎么说②"><span class="lb">书证②</span></div>
+      <div class="seg sc-comm" style="width:19%" title="老谭评论②"><span class="lb">评论②</span></div>
+      <div class="seg sc-persona" style="width:6%" title="人设自述② (我当年…)"><span class="lb">人设②</span></div>
+      <div class="seg sc-quote" style="width:7%" title="原书怎么说③"><span class="lb">书证③</span></div>
+      <div class="seg sc-comm" style="width:26%" title="老谭评论③"><span class="lb">评论③</span></div>
+      <div class="seg sc-quote" style="width:6%" title="原书怎么说④"><span class="lb">书证④</span></div>
+      <div class="seg sc-comm" style="width:17%" title="老谭评论④"><span class="lb">评论④</span></div>
       <div class="seg sc-cta" style="width:8%; opacity:.5" title="行动CTA (非叙事)"><span class="lb">CTA</span></div>
       <div class="seg sc-brand" style="width:3.8%; opacity:.5" title="品牌句 (系列冻结)"><span class="lb">牌</span></div>
     </div>
     <div class="lane arc">
       <div class="seg" style="width:6%; background:#22304a"><span class="lb" style="color:var(--faint)">钩子语言</span></div>
-      <div class="seg" style="width:8%; background:#3a5f6e; background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.18) 0 1px, transparent 1px 5px)"><span class="lb">书证镜①</span></div>
+      <div class="seg" style="width:8%; background:#3a5f6e; background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.18) 0 1px, transparent 1px 5px)"><span class="lb">书证镜②</span></div>
       <div class="seg" style="width:19%; background:#1d5f4c; background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.14) 0 1px, transparent 1px 6.25%)"><span class="lb">A1 修复工坊</span></div>
       <div class="seg" style="width:6%; background:#6e3a5a"><span class="lb">回忆镜</span></div>
-      <div class="seg" style="width:7%; background:#3a5f6e; background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.18) 0 1px, transparent 1px 5px)"><span class="lb">书证②</span></div>
+      <div class="seg" style="width:7%; background:#3a5f6e; background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.18) 0 1px, transparent 1px 5px)"><span class="lb">书证③</span></div>
       <div class="seg" style="width:26%; background:#5f4a1d; background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.14) 0 1px, transparent 1px 7.69%)"><span class="lb">A2 闸门室</span></div>
-      <div class="seg" style="width:6%; background:#3a5f6e"><span class="lb">书证③</span></div>
+      <div class="seg" style="width:6%; background:#3a5f6e"><span class="lb">书证④</span></div>
       <div class="seg" style="width:17%; background:#4a1d5f; background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.14) 0 1px, transparent 1px 14.29%)"><span class="lb">A3 投递站</span></div>
       <div class="seg" style="width:12%; background:#22304a"><span class="lb" style="color:var(--faint)">CTA/牌</span></div>
     </div>
@@ -289,13 +342,13 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
     <thead><tr><th>段</th><th>弧型</th><th>稿模块 <span class="spec">1</span></th><th>行号</th><th>视觉语言</th><th>立意核心</th><th>镜数</th><th>预估 <span class="spec">2</span></th></tr></thead>
     <tbody>
       <tr><td class="mono" style="color:var(--faint)">钩</td><td style="color:var(--faint)">非叙事位</td><td class="mono" style="color:var(--faint)">钩子</td><td class="mono" style="color:var(--faint)">L01–L02</td><td style="color:var(--faint)">系列钩子语言 (快切悬念)</td><td style="color:var(--faint)">— 不分配</td><td class="mono" style="color:var(--faint)">2</td><td class="mono" style="color:var(--faint)">~13s</td></tr>
-      <tr><td class="mono">书①</td><td class="mono" style="color:#7cc4e8">书证镜</td><td class="mono">原书怎么说①</td><td class="mono">L03–L05</td><td><span class="wl-chip">书的视角</span> 书页/引文排印/作者声口</td><td class="editable">引文即权威 — 书原话直出, 零转译</td><td class="mono">3</td><td class="mono">~14s</td></tr>
-      <tr><td class="mono">A1</td><td class="mono">叙事弧</td><td class="mono">评论①</td><td class="mono">L06–L15</td><td><span class="wl-chip">修复工坊</span></td><td class="editable">信任重建=机械组装线 · 小块交付=传送带玻璃模块</td><td class="mono">12</td><td class="mono">~70s</td></tr>
-      <tr><td class="mono">人①</td><td class="mono" style="color:#e08aa8">回忆镜</td><td class="mono">人设自述①</td><td class="mono">L16–L17</td><td><span class="wl-chip">老谭出镜</span> 回忆镜头 (不加泛黄也是人在讲)</td><td class="editable">我当年丢掉大客户才懂: 信任塌了, 补救要小块交付</td><td class="mono">2</td><td class="mono">~11s</td></tr>
-      <tr><td class="mono">书②</td><td class="mono" style="color:#7cc4e8">书证镜</td><td class="mono">原书怎么说②</td><td class="mono">L18–L20</td><td><span class="wl-chip">书的视角</span></td><td class="editable">作者说: 两轮法则 — 止损的量化边界</td><td class="mono">3</td><td class="mono">~13s</td></tr>
-      <tr><td class="mono">A2</td><td class="mono">叙事弧</td><td class="mono">评论②</td><td class="mono">L21–L40</td><td><span class="wl-chip">闸门控制室</span></td><td class="editable">止损=闸门资源分配 · 体面退出=拉闸断流失</td><td class="mono">12</td><td class="mono">~68s</td></tr>
-      <tr><td class="mono">书③</td><td class="mono" style="color:#7cc4e8">书证镜</td><td class="mono">原书怎么说③</td><td class="mono">L41–L43</td><td><span class="wl-chip">书的视角</span></td><td class="editable">作者说: 主动简报是信任的利息</td><td class="mono">2</td><td class="mono">~9s</td></tr>
-      <tr><td class="mono">A3</td><td class="mono">叙事弧</td><td class="mono">评论③</td><td class="mono">L44–L48</td><td><span class="wl-chip">投递站</span></td><td class="editable">行动召唤=投递站即时启动 · 急救卡=玻璃工具卡</td><td class="mono">4</td><td class="mono">~20s</td></tr>
+      <tr><td class="mono">书②</td><td class="mono" style="color:#7cc4e8">书证镜</td><td class="mono">原书怎么说②</td><td class="mono">L03–L05</td><td><span class="wl-chip">书的视角</span> 书页/引文排印/作者声口</td><td class="editable">引文即权威 — 书原话直出, 零转译</td><td class="mono">3</td><td class="mono">~14s</td></tr>
+      <tr><td class="mono">A1</td><td class="mono">叙事弧</td><td class="mono">评论②</td><td class="mono">L06–L15</td><td><span class="wl-chip">修复工坊</span></td><td class="editable">信任重建=机械组装线 · 小块交付=传送带玻璃模块</td><td class="mono">12</td><td class="mono">~70s</td></tr>
+      <tr><td class="mono">人②</td><td class="mono" style="color:#e08aa8">回忆镜</td><td class="mono">人设自述②</td><td class="mono">L16–L17</td><td><span class="wl-chip">老谭出镜</span> 回忆镜头 (不加泛黄也是人在讲)</td><td class="editable">我当年丢掉大客户才懂: 信任塌了, 补救要小块交付</td><td class="mono">2</td><td class="mono">~11s</td></tr>
+      <tr><td class="mono">书③</td><td class="mono" style="color:#7cc4e8">书证镜</td><td class="mono">原书怎么说③</td><td class="mono">L18–L20</td><td><span class="wl-chip">书的视角</span></td><td class="editable">作者说: 两轮法则 — 止损的量化边界</td><td class="mono">3</td><td class="mono">~13s</td></tr>
+      <tr><td class="mono">A2</td><td class="mono">叙事弧</td><td class="mono">评论③</td><td class="mono">L21–L40</td><td><span class="wl-chip">闸门控制室</span></td><td class="editable">止损=闸门资源分配 · 体面退出=拉闸断流失</td><td class="mono">12</td><td class="mono">~68s</td></tr>
+      <tr><td class="mono">书④</td><td class="mono" style="color:#7cc4e8">书证镜</td><td class="mono">原书怎么说④</td><td class="mono">L41–L43</td><td><span class="wl-chip">书的视角</span></td><td class="editable">作者说: 主动简报是信任的利息</td><td class="mono">2</td><td class="mono">~9s</td></tr>
+      <tr><td class="mono">A3</td><td class="mono">叙事弧</td><td class="mono">评论④</td><td class="mono">L44–L48</td><td><span class="wl-chip">投递站</span></td><td class="editable">行动召唤=投递站即时启动 · 急救卡=玻璃工具卡</td><td class="mono">4</td><td class="mono">~20s</td></tr>
       <tr><td class="mono" style="color:var(--faint)">CTA</td><td style="color:var(--faint)">非叙事位</td><td class="mono" style="color:var(--faint)">行动CTA</td><td class="mono" style="color:var(--faint)">L49–L51</td><td style="color:var(--faint)">行动指令语言</td><td style="color:var(--faint)">— 不分配</td><td class="mono" style="color:var(--faint)">2</td><td class="mono" style="color:var(--faint)">~12s</td></tr>
     </tbody>
   </table>
@@ -310,14 +363,13 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
   </div>
 
   <div class="gatebar"><span class="ti">◉ 立意放行</span>
-    <span class="note">放行 = 弧结构锁定 (行号区间不可再改, 改=打回本页) → 进入 ② 分镜</span>
+    <span class="note">放行 = 弧结构锁定 (行号区间不可再改, 改=打回本页) → 进入 ③ 分镜</span>
     <span style="flex:1"></span><button class="gold act">✅ 立意 OK → 分镜</button></div>
 
   <ol class="specs">
     <li><b>借现版立意面板</b>: 六拍分配表/单场重掷/编辑保存交互原样迁入, 仅增 行号/句区间/镜数 三列 (结构引用)。</li>
-    <li><b>预估列</b>: 字数×语率估算, 供拍子比例参考; 真实时长 ⑥ 盖章注入 (本页永远不显示精确秒)。</li>
-    <li><b>零音频依赖</b>: 本页无音频也可开工 (旧版音频门挪到 ③ TTS)。</li>
-    <li><b>文稿准入·语态分诊闸</b> (用户令 1105 抓 bug): 每行三去向 — 语态行进弧 / 合法结构指令 (【卡:】→②大字卡槽、【图:】→钉图) 路由不进口播 / 无法分类 (AI 粘入伪指令如「【大字卡、直接上屏】") 红痕拦截人工分诊 — 指令残留活到 ⑤TTS 才被抓的洞在此堵死 (现状: 1103 Z+ TTS 终端剥前缀=事后擦)。</li>
+    <li><b>预估列</b>: 字数×语率估算, 供拍子比例参考; 真实时长 ⑦ 盖章注入 (本页永远不显示精确秒)。</li>
+    <li><b>零音频依赖</b>: 本页无音频也可开工 (旧版音频门挪到 ④ TTS)。</li>
 <li><b>语态模式×画面模式分配</b> (用户令第五轮): 稿件 = 语态序列 — 原书怎么说→<b>书证镜</b> (独立弧型: 书的视角, 引文零转译), 人设自述("我当年…")→<b>回忆镜</b> (老谭出镜, 即使不加泛黄也是人在讲), 老谭评论→<b>叙事隐喻弧</b> (A=B 世界), 钩子/CTA/品牌→非叙事位 (系列冻结)。当前实病: 三种语态搅进同一立意, 隐喻被稀释、书证和人设没有自己的画面语言。</li>
 <li><b>弧界=稿模块边界</b> (执法): 渐进轴稿层×弧层对照, 弧界切进模块内自动红痕、放行闸拦截; 品牌位=书级冻结条 (开场预留+收官仪式句), 零立意零分镜。</li>
   </ol>
@@ -325,9 +377,9 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
 </div>
 
 <!-- ════════ P2 分镜 (镜·句·块 总审, 独立页) ════════ -->
-<div class="page" id="p2">
+<div class="page" id="p3">
 <section>
-  <div class="h2row"><h2 class="h2"><span class="no">②</span> 分镜 · 镜句块总审</h2>
+  <div class="h2row"><h2 class="h2"><span class="no">③</span> 分镜 · 镜句块总审</h2>
     <span class="sub">本页只做一件事: 42 镜的文字结构 (画面句/花字/上屏字) 定稿</span>
     <span class="badge warn">出口闸 3 处待修</span><span class="badge gold">42 镜 · 48 句 · 46 块</span></div>
 
@@ -412,14 +464,14 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
 <div class="r"><span></span><span></span><span class="dim2">… 全 42 镜 · 48 句 · 大字卡挂任意口播句后 · 质检「修」=零成本重掷 …</span><span></span><span></span><span></span></div></div></div>
 
   <div class="gatebar"><span class="ti">◉ 分镜放行</span>
-    <span class="note">放行 = 镜/花字/上屏<b>内容</b>锁定 → 进入 ③ TTS; 时长列仍空 (④ 盖章注入)</span>
+    <span class="note">放行 = 镜/花字/上屏<b>内容</b>锁定 → 进入 ④ TTS; 时长列仍空 (⑤ 盖章注入)</span>
     <span style="flex:1"></span>
     <button class="ghost act">↩ 打回立意</button><button class="gold act">✅ 42 镜 OK → 导演台</button></div>
 
   <ol class="specs">
     <li><b>画面句 ✎改</b>: 虚线点文本或点 ✎ 均可改 (行内编辑器); 品牌原子镜🔒无入口; 放行后全列只读。</li>
     <li><b>编号分层</b>: 场列在组首行给色块号 (与时间轴四场同色), 组内不重复; 镜行只留镜号 s; 句号 c/块号 blk 悬停口播句行可见 (title) — 用户面零编号噪音, 审计按需取。</li>
-    <li><b>口播句全量展示</b>: 每镜下缩进挂所属句 (c 号+块号+文稿原文) — 正式文稿 48 句一句不落, 孤儿句/漏配画面一眼现形 (有稿必有字幕的审计面); 句文本只读 (要改字→打回①或走文字加工线)。</li>
+    <li><b>口播句全量展示</b>: 每镜下缩进挂所属句 (c 号+块号+文稿原文) — 正式文稿 48 句一句不落, 孤儿句/漏配画面一眼现形 (有稿必有字幕的审计面); 句文本只读 (要改字→打回②或走文字加工线)。</li>
     <li><b>大字卡句级锚定·三样式</b>: 卡挂任意口播句后 (非首句特权; s17 三句各一张演示); 样式对齐装配代码 — 灰底清单卡 (#0D0D12·多行) / 金句卡 (两三行·红边白字) / 事件金字 (h3·弹出时点盖章时定); 句尾 ＋卡 按样式分流新建; 字幕轨强调词装配全自动降维, 不进本表。</li>
     <li><b>质检列</b> (原出口闸): writer 文字合规检查实时亮灯 — 载体申报=画面句里的文字载体须申报二段化 / 锚定链=开画面描述与英文keyframe须一致 / 引号文本=引号内容须上卡; ⚠项「修」=单镜零成本重掷, 全✓才可放行。</li>
     <li><b>场过滤 chips</b>: 全部/单场/仅病镜三视角切换, 总审时按场过。</li>
@@ -430,9 +482,9 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
 
 <!-- ════════ P3 TTS (独立页) ════════ -->
 <!-- ════════ P3 导演 · 镜头语言台 (新页: 法层驱动, 怎么拍) ════════ -->
-<div class="page" id="p3">
+<div class="page" id="p4">
 <section>
-  <div class="h2row"><h2 class="h2"><span class="no">③</span> 导演 · 镜头语言台</h2>
+  <div class="h2row"><h2 class="h2"><span class="no">④</span> 导演 · 镜头语言台</h2>
     <span class="sub">本页只做一件事: 定<b>怎么拍</b> — 景别/运镜/光影/连续性 (法层驱动, 全文字阶段零 GPU)</span>
     <span class="badge ok">景深配额 A2 4/13 ✓</span><span class="badge">42 镜 · 4 场</span></div>
 
@@ -443,9 +495,9 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
       <div class="seg" style="width:8%; background:#3a5f6e"><span class="lb">书证</span></div>
       <div class="seg" style="width:19%; background:#1d5f4c"><span class="lb">A1</span></div>
       <div class="seg" style="width:6%; background:#6e3a5a"><span class="lb">人</span></div>
-      <div class="seg" style="width:7%; background:#3a5f6e"><span class="lb">书②</span></div>
+      <div class="seg" style="width:7%; background:#3a5f6e"><span class="lb">书③</span></div>
       <div class="seg" style="width:26%; background:#5f4a1d"><span class="lb">A2</span></div>
-      <div class="seg" style="width:6%; background:#3a5f6e"><span class="lb">书③</span></div>
+      <div class="seg" style="width:6%; background:#3a5f6e"><span class="lb">书④</span></div>
       <div class="seg" style="width:17%; background:#4a1d5f"><span class="lb">A3</span></div>
       <div class="seg" style="width:5%; background:#22304a"><span class="lb">CTA</span></div>
     </div>
@@ -476,9 +528,9 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
   </div></div>
 
   <div class="gatebar"><span class="ti">◉ 导演放行</span>
-    <span class="note">景深配额/连续性/运镜纪律全绿 → 进入 ④ TTS; 改动零 TTS/GPU 成本</span>
+    <span class="note">景深配额/连续性/运镜纪律全绿 → 进入 ⑤ TTS; 改动零 TTS/GPU 成本</span>
     <span style="flex:1"></span>
-    <button class="ghost act">↩ 打回分镜文字</button><button class="gold act">✅ 镜头语言 OK → ④K2 与 ⑤TTS 并行开工</button></div>
+    <button class="ghost act">↩ 打回分镜文字</button><button class="gold act">✅ 镜头语言 OK → ⑤K2 与 ⑥TTS 并行开工</button></div>
 
   <ol class="specs">
     <li><b>法层驱动</b>: 镜头序/光影/连续性 (shooting_script) 逐场卡置顶, 分镜按此填空 — 与现产线法层一致。</li>
@@ -491,10 +543,10 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
 </div>
 
 <!-- ════════ P4 K2 生图+人检 (零音频, 与 TTS 并行) ════════ -->
-<div class="page" id="p4">
+<div class="page" id="p5">
 <section>
-  <div class="h2row"><h2 class="h2"><span class="no">④</span> K2 · 生图 + 人检</h2>
-    <span class="sub">看图/人检 = 现版看板零改动 · 与 ⑤ 互不依赖 (非同时上卡: 单卡 GPU 队列串行, 独占锁保证) — 真并行的是 人检图/人耳验收 与 GPU 错峰</span>
+  <div class="h2row"><h2 class="h2"><span class="no">⑤</span> K2 · 生图 + 人检</h2>
+    <span class="sub">看图/人检 = 现版看板零改动 · 与 ⑥ 互不依赖 (非同时上卡: 单卡 GPU 队列串行, 独占锁保证) — 真并行的是 人检图/人耳验收 与 GPU 错峰</span>
     <span class="badge">42 镜 · ~15s/镜 GPU</span><span class="badge warn">人检 3 待审</span></div>
 
   <!-- 渐进轴 · P4: 状态层 (生图进度) -->
@@ -504,9 +556,9 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
       <div class="seg" style="width:8%; background:#3a5f6e"><span class="lb">书证</span></div>
       <div class="seg" style="width:19%; background:#1d5f4c"><span class="lb">A1</span></div>
       <div class="seg" style="width:6%; background:#6e3a5a"><span class="lb">人</span></div>
-      <div class="seg" style="width:7%; background:#3a5f6e"><span class="lb">书②</span></div>
+      <div class="seg" style="width:7%; background:#3a5f6e"><span class="lb">书③</span></div>
       <div class="seg" style="width:26%; background:#5f4a1d"><span class="lb">A2</span></div>
-      <div class="seg" style="width:6%; background:#3a5f6e"><span class="lb">书③</span></div>
+      <div class="seg" style="width:6%; background:#3a5f6e"><span class="lb">书④</span></div>
       <div class="seg" style="width:17%; background:#4a1d5f"><span class="lb">A3</span></div>
       <div class="seg" style="width:5%; background:#22304a"><span class="lb">CTA</span></div>
     </div>
@@ -542,27 +594,27 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
   <div class="sum">
     <div class="panel"><b>🎨 批生图</b><br>planned → img_done<br><span class="note">~15s/镜 · GPU 独占托管</span></div>
     <div class="panel"><b>🔍 人检</b><br>过审 / 🔁打回(填负面词=删子句) / 购物篮重做<br><span class="note">R 标 · QC 同现版</span></div>
-    <div class="panel"><b>⚡ 并行位</b><br>本页不等 TTS/验收/盖章<br><span class="note">③放行即开烧; 人检完成集进 ⑦H3 队列</span></div>
+    <div class="panel"><b>⚡ 并行位</b><br>本页不等 TTS/验收/盖章<br><span class="note">④放行即开烧; 人检完成集进 ⑧H3 队列</span></div>
   </div>
 
   <div class="gatebar"><span class="ti">◉ K2 收口</span>
-    <span class="note">人检全过审 (approved) 即本页完成 — H3 只等 盖章(秒数) 与 本页(图), 两头齐即开 ⑦</span>
+    <span class="note">人检全过审 (approved) 即本页完成 — H3 只等 盖章(秒数) 与 本页(图), 两头齐即开 ⑧</span>
     <span style="flex:1"></span>
     <button class="ghost act">↩ 打回导演台</button><button class="go act">🖼 打开现版看板 (看图·人检)</button><button class="go act">✅ 全部过审 (H3 队列就绪)</button></div>
 
   <ol class="specs">
-    <li><b>K2 零音频依赖 ∥ 数据级</b> (查码实锤): k2.py 全链只吃 画面句+风格+seed — ③放行即入 GPU 队列, 不等 ⑤。<b>硬件不并行</b> (用户令: 单 4090 + ComfyUI 独占卡纪律): TTS/K2 单卡排队串行; 真并行 = 人机错峰 — 人检图叠 TTS 烧卡、人耳验收叠 K2 烧卡。</li>
-    <li><b>人检界面零重造</b> (用户令): ④的操作面 = 现版 anim.html 看板原样 (卡片墙/灯箱/过审打回/购物篮/R标/QC); v3 只给它挂导航轨与状态轴。</li>
-<li><b>人检前移</b>: 图的过审/打回/购物篮与 音频验收/盖章 叠做; H3 门槛 = 本页 approved ∪ ⑥盖章。</li>
-    <li><b>校带拆镜处置</b>: ⑥盖章若拆已生图镜 → 父镜图共享首帧或补生一张 (~15s, 罕见); 换文案仍走媒体失效。</li>
+    <li><b>K2 零音频依赖 ∥ 数据级</b> (查码实锤): k2.py 全链只吃 画面句+风格+seed — ④放行即入 GPU 队列, 不等 ⑥。<b>硬件不并行</b> (用户令: 单 4090 + ComfyUI 独占卡纪律): TTS/K2 单卡排队串行; 真并行 = 人机错峰 — 人检图叠 TTS 烧卡、人耳验收叠 K2 烧卡。</li>
+    <li><b>人检界面零重造</b> (用户令): ⑤的操作面 = 现版 anim.html 看板原样 (卡片墙/灯箱/过审打回/购物篮/R标/QC); v3 只给它挂导航轨与状态轴。</li>
+<li><b>人检前移</b>: 图的过审/打回/购物篮与 音频验收/盖章 叠做; H3 门槛 = 本页 approved ∪ ⑦盖章。</li>
+    <li><b>校带拆镜处置</b>: ⑦盖章若拆已生图镜 → 父镜图共享首帧或补生一张 (~15s, 罕见); 换文案仍走媒体失效。</li>
     <li><b>渐进轴 · 状态层</b>: 生图进度一目; 点段跳看板卡。</li>
   </ol>
 </section>
 </div>
 
-<div class="page" id="p5">
+<div class="page" id="p6">
 <section>
-  <div class="h2row"><h2 class="h2"><span class="no">⑤</span> TTS · 纯渲染</h2>
+  <div class="h2row"><h2 class="h2"><span class="no">⑥</span> TTS · 纯渲染</h2>
     <span class="sub">本页只做一件事: 把已锁定的文字结构变成音频 (块=句, 不跨弧)</span>
     <span class="badge">46 块 · 预估 234s</span><span class="badge warn">韵律微调 1</span></div>
 
@@ -612,7 +664,7 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
 
   <div class="twrap">
   <table>
-    <thead><tr><th>块</th><th>场</th><th>文本 (🔒=②已锁定, 改=打回)</th><th>语速 <span class="spec">1</span></th><th>时长</th><th>操作 <span class="spec">2</span></th></tr></thead>
+    <thead><tr><th>块</th><th>场</th><th>文本 (🔒=③已锁定, 改=打回)</th><th>语速 <span class="spec">1</span></th><th>时长</th><th>操作 <span class="spec">2</span></th></tr></thead>
     <tbody>
       <tr><td class="mono">blk000</td><td>A1</td><td class="locked">客户信任崩塌之前，其实有三个阶段…</td>
         <td><span class="rate"><input type="range" min="80" max="125" value="100" oninput="this.nextElementSibling.textContent=(this.value/100).toFixed(2)+'×'"><b>1.00×</b></span></td>
@@ -631,24 +683,24 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
   </div>
 
   <div class="gatebar"><span class="ti">◉ 音频验收</span>
-    <span class="note">人耳过块 (只听标记块) → 采用; 采用后进入 ④ 盖章, 语速改动需重盖章 (确定性)</span>
+    <span class="note">人耳过块 (只听标记块) → 采用; 采用后进入 ⑤ 盖章, 语速改动需重盖章 (确定性)</span>
     <span style="flex:1"></span>
     <button class="ghost act">↩ 打回分镜</button><button class="go act">🎧 验收采用 → 盖章</button></div>
 
   <ol class="specs">
     <li><b>语速旋钮</b> 块级 0.80–1.25×; 品牌句冻结; 上屏字承载信息冗余 → 语速是渲染旋钮不是结构约束。</li>
     <li><b>块级钉选/重合成</b>: adopt 从 job 级升级为块级; 单块修复=失败域一块 (需 TTS 服务侧配合)。</li>
-    <li><b>文本🔒</b>: 块文本来自 ② 已锁结构; 要改字 → 打回 ② (局部), 不在本页偷改。</li>
+    <li><b>文本🔒</b>: 块文本来自 ③ 已锁结构; 要改字 → 打回 ③ (局部), 不在本页偷改。</li>
     <li><b>渐进轴 · +块层</b>: 弧/镜虚化为底, 块刻度主角; 块状态 (合成/调整/品牌) 一眼看, 未合成段轴上留空。</li>
   </ol>
 </section>
 </div>
 
 <!-- ════════ P4 盖章校带 (独立页) ════════ -->
-<div class="page" id="p6">
+<div class="page" id="p7">
 <section>
-  <div class="h2row"><h2 class="h2"><span class="no">⑥</span> 盖章 · 校带</h2>
-    <span class="sub">门槛=⑤验收采用 (不等④K2, 两路并行); ⑤一到就先盖 — 校带拆镜赶在 K2 生到之前, 图片处置成本归零</span>
+  <div class="h2row"><h2 class="h2"><span class="no">⑦</span> 盖章 · 校带</h2>
+    <span class="sub">门槛=⑥验收采用 (不等⑤K2, 两路并行); ⑥一到就先盖 — 校带拆镜赶在 K2 生到之前, 图片处置成本归零</span>
     <span class="badge gold">234.4s 实测</span></div>
 
   <div class="panel">
@@ -728,10 +780,10 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
 </div>
 
 <!-- ════════ P5 执行段 ════════ -->
-<div class="page" id="p7">
+<div class="page" id="p8">
 <section>
-  <div class="h2row"><h2 class="h2"><span class="no">⑦</span> H3 · 视频 → 装配</h2>
-    <span class="sub">唯一吃实测时长的相位 (duration_s→帧数) — 门槛: ④图 approved ∪ ⑥盖章秒数</span></div>
+  <div class="h2row"><h2 class="h2"><span class="no">⑧</span> H3 · 视频 → 装配</h2>
+    <span class="sub">唯一吃实测时长的相位 (duration_s→帧数) — 门槛: ⑤图 approved ∪ ⑦盖章秒数</span></div>
 
   <!-- 渐进轴 · P5: 镜层按产线状态重着色 (样例进度) -->
   <div class="mini"><div class="lanes">
@@ -773,13 +825,13 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
 
   <div class="sum">
     <div class="panel"><b>🎬 H3 批生视频</b><br>approved → anim_done (~102s/10s镜)<br><span class="note">运镜三元组/上屏事件随镜渲染 · 败镜换seed重roll</span></div>
-    <div class="panel"><b>🎞 装配</b><br>剪映草稿 · 大字卡锚 · 字幕轨 · 打字卡<br><span class="note">时窗已在 ⑥ 定死</span></div>
+    <div class="panel"><b>🎞 装配</b><br>剪映草稿 · 大字卡锚 · 字幕轨 · 打字卡<br><span class="note">时窗已在 ⑦ 定死</span></div>
   </div>
   <div class="gatebar"><span class="ti">→ 动画工坊看板</span>
     <span class="note">K2/H3/对齐/装配/购物篮/重排镜号 全部在现版页面完成, 零改动</span>
     <span style="flex:1"></span><button class="go act">打开看板 →</button></div>
   <ol class="specs">
-    <li><b>H3 双门槛</b>: ④图 approved ∪ ⑥盖章秒数 — 缺一不开烧; K2/H3 界面沿用现有看板不动。</li>
+    <li><b>H3 双门槛</b>: ⑤图 approved ∪ ⑦盖章秒数 — 缺一不开烧; K2/H3 界面沿用现有看板不动。</li>
     <li><b>渐进轴 · 状态层</b>: 镜段产线状态色 (样例: 已生图13·已批12·败1·待跑16); 败镜红段直跳重roll。</li>
   </ol>
 </section>
