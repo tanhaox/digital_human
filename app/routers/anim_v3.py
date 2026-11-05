@@ -9,6 +9,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
+from pathlib import Path
 from typing import Any
 
 from app.services import anim_service
@@ -608,9 +609,52 @@ def v3_tts_get(book_id: str, ep: int):
                "text": str(b.get("text") or "")[:120],
                "dur_s": b.get("dur_s"), "file": str(b.get("file") or "")}
               for i, b in enumerate(audio.get("files") or [])]
+    # 完整段落 (full_paragraph.wav): fetch_episode_audio 按时间轴纯度剔除它,
+    # 这里单独回传试听信息 (combined 行 = 无 segment_id 的 AudioFile)
+    import wave as _w
+    from contextlib import closing as _closing
+    from app.database import get_session_maker as _gsm
+    from app.models import AudioFile as _AF
+    combined = None
+    try:
+        with _closing(_gsm()()) as db:
+            row = (db.query(_AF)
+                   .filter(_AF.audio_job_id == audio.get("job_id"),
+                           _AF.segment_id.is_(None),
+                           _AF.filename == "full_paragraph.wav").first())
+            if row is not None:
+                p = Path(row.file_path)
+                if p.exists():
+                    dur = row.duration or 0
+                    if not dur:
+                        with _w.open(str(p), "rb") as _wf:
+                            dur = _wf.getnframes() / float(_wf.getframerate() or 1)
+                    combined = {"dur_s": round(float(dur), 2)}
+    except Exception as _exc:  # noqa: BLE001 — 大段信息缺不炸页 (但要留痕)
+        import logging as _lg
+        _lg.getLogger(__name__).warning("[v3:tts] combined 元数据失败: %s", _exc)
+        combined = None
     return {"has_audio": True, "job_id": audio.get("job_id"),
             "pinned": bool(audio.get("pinned")), "blocks": blocks,
+            "combined": combined,
             "total_s": round(sum(float(b.get("dur_s") or 0) for b in blocks), 1)}
+
+
+@router.get("/ep/{book_id}/{ep}/tts/combined")
+def v3_tts_combined(book_id: str, ep: int):
+    """⑥ 完整段落试听: full_paragraph.wav (输出目录直取)。"""
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    from app.services.anim_draft import fetch_episode_audio
+    from pathlib import Path as _P
+    audio = fetch_episode_audio(book_id, ep)
+    p = _P(str(audio.get("output_dir") or "")) / "full_paragraph.wav"
+    if not p.exists():
+        raise HTTPException(status_code=404, detail="full_paragraph.wav 不存在 — 先重拼/重生成")
+    return FileResponse(str(p))
 
 
 @router.get("/ep/{book_id}/{ep}/tts/file/{idx}")

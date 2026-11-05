@@ -2,6 +2,7 @@
 .blk { display:flex; gap:10px; align-items:center; padding:8px 12px;
        border:1px solid var(--line); border-radius:10px; margin-bottom:6px;
        background:var(--panel); }
+.blk.combined { border-color:var(--gold); background:rgba(201,162,94,.07); }
 .blk .bno { font-family:var(--mono); color:var(--faint); font-size:12.5px; flex:0 0 34px; }
 .blk .btx { min-width:0; color:var(--txt); font-size:14.5px; line-height:1.6; }
 .bmain { flex:1; min-width:0; }

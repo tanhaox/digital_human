@@ -47,7 +47,16 @@ async function boot() {
     `<span class="badge">${d.blocks.length} 块</span>` +
     `<span class="badge">~${d.total_s}s</span>` +
     (d.pinned ? '<span class="badge warn">钉选版</span>' : '');
-  $('body').innerHTML = d.blocks.map(b => `
+  const vQ = ver.__combined ? `?v=${ver.__combined}` : '';
+  const combinedRow = d.combined ? `
+    <div class="blk combined">
+      <span class="bno">🎙️</span>
+      <div class="bmain"><div class="btx"><b>完整段落音频</b> (${d.combined.dur_s}s)</div></div>
+      <button class="ob" id="btn-repin" title="段级 reroll/修复后从当前段 wav 重建大段, 并回写时长">🔄重拼</button>
+      <span class="bdur">${d.combined.dur_s}s</span>
+      <audio controls preload="none" src="${BASE}/tts/combined${vQ}"></audio>
+    </div>` : '';
+  $('body').innerHTML = combinedRow + d.blocks.map(b => `
     <div class="blk" data-id="${esc(b.id)}">
       <span class="bno">b${String(b.i).padStart(2, '0')}</span>
       <div class="bmain">
@@ -66,19 +75,31 @@ async function boot() {
       <audio controls preload="none" src="${BASE}/tts/file/${b.i}${ver[b.id] ? '?v=' + ver[b.id] : ''}"></audio>
     </div>`).join('');
   bindOps(d.blocks);
+  const rp = $('btn-repin');
+  if (rp) rp.onclick = async () => {
+    rp.disabled = true; rp.textContent = '⏳';
+    releasePlayers();
+    try {
+      const r = await api('POST', `/api/audio/jobs/${d.job_id}/rebuild-combined`);
+      ver.__combined = Date.now();
+      toast(`重拼 ✓ ${r.segments} 段 / ${r.duration}s`);
+      await boot();
+    } catch (e) { toast('重拼失败: ' + e.message); rp.disabled = false; rp.textContent = '🔄重拼'; }
+  };
   $('stat').textContent = `${d.blocks.length} 块 · ~${d.total_s}s — ${d.pinned ? '钉选版' : '最新验收版'} · 可进 ⑦ 盖章 (V5)`;
 }
 
 function bindOps(blocks) {
-  document.querySelectorAll('.blk').forEach(row => {
+  document.querySelectorAll('.blk[data-id]').forEach(row => {
     const id = row.dataset.id;
+    if (!id) return;                       // combined 行无 data-id, 不属块操作族
     const b = blocks.find(x => String(x.id) === id) || {};
     if (!b.seg) {                   // 无段映射 (v2 同判): 不可重roll族, 只留试听
       row.querySelector('.bops').innerHTML =
         '<span class="bops-na">— 无段映射 (史前包), 编辑族去音频工坊 —</span>';
       return;
     }
-    row.querySelectorAll('.ob').forEach(btn => {
+    row.querySelectorAll('.ob[data-op]').forEach(btn => {
       btn.onclick = () => op(btn.dataset.op, id, btn, b);
     });
   });
