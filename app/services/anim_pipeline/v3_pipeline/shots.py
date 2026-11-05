@@ -415,7 +415,9 @@ _SYS = """你是动画分镜的画师。给定「镜」清单 (镜号|所属弧�
 3. 画面里**不出现任何文字**: 禁画有字的载体 (白板写满/算盘刻度字/书页字/屏幕内容/招牌),
    也不要写"申报""二段合成"这类元说明。确需载体时只写「空白白板/空白便签/空白存折」。
    剧情标签 (该拨未拨/先存本金) 是给你理解用的, 不许写进画面句。
-4. 继承所属弧的视觉世界与隐喻, 相邻镜构图不重复。
+   **禁写"大字/巨大字幕/字体"这类字面** — 上屏大字走剪映卡, 不归画面句。
+4. 继承所属弧的视觉世界与隐喻; **相邻镜剥掉景别词后的构图相似度必须 <70%** (只换景别词
+   = 换皮克隆, 打回)。
 5. **画面句里一个引号都不许用** (「」『』"" 全禁): 主题词直接描述, 不要括起来。
 6. **景深节奏**: 每 4 镜至少 1 镜大场景 (大全景/俯瞰/辽阔环境, 主体占比小+参照物显纵深);
    特写/桌面级不得超过半数, 连排特写必拆。
@@ -443,6 +445,13 @@ def fill_brand_shots(shots: list[dict[str, Any]], bible: dict | None) -> int:
         except Exception as exc:  # noqa: BLE001 — 单镜失败不炸
             logger.warning("[v3:shots] 品牌镜骨架注入失败 %s: %s", s.get("sid"), exc)
     return n
+
+
+def is_big_scene(text: str) -> bool:
+    """大场景判定 — 与 final_gate.depth_quota_issues 同一套词表 (生成期自检用)。"""
+    from app.services.anim_pipeline import constitution as CST
+    t = str(text or "")
+    return any(w in t for w in tuple(CST.depth_big_words()))
 
 
 def batch_quota(batch: list[dict[str, Any]], zone_of: dict[str, str]) -> str:
@@ -503,11 +512,32 @@ def _llm_fill(shots: list[dict[str, Any]], arcs: list[dict[str, Any]],
                 sys_p += "\n\n【特区宪法 — 钩子/行动召镜必须遵守】\n" + str(ZONE_RULES)
             except Exception:  # noqa: BLE001
                 pass
-        raw = get_llm_service().chat(sys_p, _batch_prompt(batch, arc_of, line_of, zone_of),
+        prompt = _batch_prompt(batch, arc_of, line_of, zone_of)
+        raw = get_llm_service().chat(sys_p, prompt,
                                      model="pro", temperature=0.6,
                                      response_format={"type": "json_object"}, tag="v3_shots")
         got = {str(r.get("sid")): str(r.get("keyframe_zh") or "")[:600]
                for r in (_parse_json(raw).get("shots") or [])}
+        # 批内自检 (用户令: 机制放在生成时, 不留给事后整集重掷):
+        # 景深配额不达标 → 只重投这一批一次, 代价 1/5 集而不是一整集
+        need_big = max(1, -(-len(batch) // 4))
+        n_big = sum(1 for t in got.values() if is_big_scene(t))
+        if n_big < need_big:
+            logger.info("[v3:shots] 批 %s 大场景 %d/%d 不达标, 补投一次",
+                        batch[0]["sid"], n_big, need_big)
+            try:
+                raw2 = get_llm_service().chat(
+                    sys_p,
+                    prompt + f"\n【上一版不达标: 大场景 {n_big}/{len(batch)}, "
+                             f"至少要 {need_big} 镜是全景/俯瞰/辽阔环境。整批重写。】",
+                    model="pro", temperature=0.5,
+                    response_format={"type": "json_object"}, tag="v3_shots")
+                got2 = {str(r.get("sid")): str(r.get("keyframe_zh") or "")[:600]
+                        for r in (_parse_json(raw2).get("shots") or [])}
+                if sum(1 for t in got2.values() if is_big_scene(t)) >= need_big:
+                    got = got2
+            except Exception as exc:  # noqa: BLE001 — 补投失败沿用首版
+                logger.warning("[v3:shots] 批补投失败 (沿用首版): %s", exc)
         for s in batch:
             if got.get(s["sid"]):
                 s["keyframe_zh"] = got[s["sid"]]
@@ -646,6 +676,9 @@ def text_layer_issues(shots: list[dict[str, Any]]) -> dict[str, list[str]]:
                 _q = _QUOTE_IN_TEXT.search(text_of.get(key, ""))
                 txt = (f"{key} 画面句含引号文字{_q.group(0) if _q else ''} — "
                        "v3 图内字通道已停用: 删掉引号, 改成普通描述 (上屏字走剪映卡)")
+            elif "大字" in txt and "字面" in txt:
+                txt = (f"{key} 画面句出现「大字/字幕」字面 — v3 上屏大字走剪映卡, "
+                       "画面句只描述构图, 不描述字")
             out.setdefault(key, []).append(txt[:160])
     # ── 全集口径配额 (一次算全片) ─────────────────────────────────────
     arc_q: list[str] = []

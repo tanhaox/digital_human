@@ -449,3 +449,29 @@ def test_batch_quota_feeds_rules_to_writer():
     row = v3shots._batch_prompt([{"sid": "s1", "arc_id": "A1", "narration": "口播", "est_s": 5}],
                                 {"A1": {}}, {}, {"s1": "hook"})
     assert "s1[hook]" in row
+
+
+def test_every_text_qc_rule_is_stated_in_prompt():
+    """用户令: 一切机制放在生成时 — 检查器有的规则, 提示词必须有对应条款。
+
+    这张表就是契约: 新增 QC 规则时必须同步 prompt (否则写手不知道 → 事后重挑 → token 暴涨)。
+    """
+    pairs = [
+        ("画面句过短", "80-200"),
+        ("文字载体", "空白白板"),
+        ("引号文本", "引号"),
+        ("终态词", "终态"),
+        ("大字字面", "大字"),
+        ("相邻镜克隆", "换皮克隆"),
+        ("景深配额", "大场景"),
+        ("分区人物配额", "人物"),
+    ]
+    prompt = v3shots._SYS + v3shots.batch_quota([{"sid": f"s{i}"} for i in range(8)],
+                                                {"s1": "hook"})
+    for rule, word in pairs:
+        assert word in prompt, f"QC 规则「{rule}」没进生成提示 (关键词: {word})"
+
+
+def test_is_big_scene_matches_depth_words():
+    assert v3shots.is_big_scene("黄昏的悬崖盘山公路大全景俯瞰，一辆黑色豪车")
+    assert not v3shots.is_big_scene("过肩近景，驾驶员双手紧握方向盘，指节发白")
