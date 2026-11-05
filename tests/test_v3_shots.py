@@ -133,3 +133,38 @@ def test_brand_skeleton_is_deterministic():
     b = brand.shot_design(5.0, {"color_palette": "暖橙"})
     assert a["keyframe_zh"] == b["keyframe_zh"]
     assert a["anim"]["opening_desc"] == b["anim"]["opening_desc"]
+
+
+def test_carrier_false_positive_exemptions():
+    """实锤误报: 已写「空白/无字/无反光」的载体曾被抓成问题。"""
+    yes = [
+        ("s2 画面句含文字载体「字迹」但未申报", "…窗户玻璃无反光字迹，礼盒…"),
+        ("s17 画面句含文字载体「标签」但未申报", "…格面标签留白无字，顶光…"),
+        ("s26 画面句含文字载体「便签」但未申报", "…听筒旁贴着一张空白便签…"),
+    ]
+    for msg, txt in yes:
+        assert v3shots._carrier_already_blanked(msg, txt), txt
+    no = [
+        ("s1 画面句含文字载体「白板」但未申报", "会议室白板前的顾问，双手摊开示意…"),
+        ("s3 画面句含文字载体「白板」但未申报", "白板上密密麻麻写满公式，顾问指着…"),
+    ]
+    for msg, txt in no:
+        assert not v3shots._carrier_already_blanked(msg, txt), txt
+
+
+def test_brand_shots_excluded_from_text_qc():
+    """品牌镜走冻结骨架, 不参与 LLM 文字层质检 (实锤: s9/s34 品牌镜被报引号问题)."""
+    brand_shot = {"sid": "s9", "arc_id": "A3", "line_refs": [22], "est_s": 5,
+                  "keyframe_zh": "山顶岩石上的登山客读书，书页摊开（内容留白）…" * 3,
+                  "in_image_text": [], "text_layer": [], "brand_card": True}
+    issues = v3shots.text_layer_issues([brand_shot])
+    assert "s9" not in issues
+
+
+def test_quote_position_labels_exempt():
+    """实锤误报: LLM 用「图纸台前」: 标镜位, 被当成画内文字报错。"""
+    assert v3shots._quotes_are_position_labels('深夜书房微位「图纸台前」：近景俯角，老谭指尖悬在模型上方…')
+    assert v3shots._quotes_are_position_labels('「窗边旧椅」：中景侧逆光，瑞贝卡抱膝而坐…')
+    # 真·画内文字 → 不豁免
+    assert not v3shots._quotes_are_position_labels('白板上写着「止损两问」四个大字，顾问指着…')
+    assert not v3shots._quotes_are_position_labels('没有引号的普通画面句，桌上摊着文件…')

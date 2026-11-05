@@ -149,7 +149,8 @@ _SYS = """你是动画分镜的画师。给定「镜」清单 (镜号|所属弧�
 3. 禁出现文字载体 (白板/标签/屏幕字/书页字/招牌…), 除非该镜另有申报;
    无字载体写「空白板面/空白留白」。
 4. 继承所属弧的视觉世界与隐喻, 相邻镜构图不重复。
-5. 每条只输出画面句, 严格 JSON: {"shots":[{"sid":"s1","keyframe_zh":"..."}]}"""
+5. 禁在画面句里用引号标注镜位/场景名 (「图纸台前」: … 这类写法会被当成画内文字渲染) — 直接描述即可。
+6. 每条只输出画面句, 严格 JSON: {"shots":[{"sid":"s1","keyframe_zh":"..."}]}"""
 
 
 def fill_brand_shots(shots: list[dict[str, Any]], bible: dict | None) -> int:
@@ -218,6 +219,42 @@ def _llm_fill(shots: list[dict[str, Any]], arcs: list[dict[str, Any]],
 
 ARC_LEVEL_KEY = "弧级"      # 无法归因到单镜的场级问题 (宪法配额等)
 
+# ── 误报豁免 (v2 writer_failures 的已知局限, v3 层过滤保 v2 零扰动) ──
+_CARRIER_HIT = re.compile(r"含文字载体「(.+?)」")
+_BLANK_LIMIT = re.compile(r"空白|留白|无字|未写|空无一字|没有字|不写字|净面|光面")
+_NEG_PREFIX = re.compile(r"[无没不][^，。；,;]{0,6}$")   # 紧贴载体词前的否定: 「无反光字迹」
+# 引号镜位标注豁免 (实锤: LLM 用「图纸台前」: 标镜位, 不是要渲进画面的文字)
+_QUOTED = re.compile(r"[「『\"]([^」』\"]{1,12})[」』\"](\s*[：:])?")
+_QUOTE_HIT = re.compile(r"含引号文本")
+
+
+def _quotes_are_position_labels(text: str) -> bool:
+    """所有引号都紧跟冒号 = 镜位标注 (「图纸台前」: …), 非画内文字。"""
+    hits = list(_QUOTED.finditer(text or ""))
+    return bool(hits) and all(h.group(2) for h in hits)
+
+
+def _carrier_already_blanked(msg: str, text: str) -> bool:
+    """载体词全部出现在「空白/留白/无字」等限定语境里 → 已合规, 非真问题。
+
+    实锤误报: 「窗户玻璃无反光字迹」「格面标签留白无字」「一张空白便签」全被抓。
+    """
+    m = _CARRIER_HIT.search(msg)
+    if not m or not text:
+        return False
+    word = m.group(1)
+    hits = list(re.finditer(re.escape(word), text))
+    if not hits:
+        return False
+    for h in hits:
+        pre = text[max(0, h.start() - 14):h.start()]
+        post = text[h.end():h.end() + 14]
+        if _BLANK_LIMIT.search(pre) or _BLANK_LIMIT.search(post) or _NEG_PREFIX.search(pre):
+            continue
+        return False          # 任一次出现未限定空白 → 真问题
+    return True
+
+
 
 def text_layer_issues(shots: list[dict[str, Any]]) -> dict[str, list[str]]:
     """按弧跑 writer_failures, 过滤掉 ④ 导演才产的项。
@@ -231,6 +268,10 @@ def text_layer_issues(shots: list[dict[str, Any]]) -> dict[str, list[str]]:
         by_arc.setdefault(s["arc_id"], []).append(s)
     out: dict[str, list[str]] = {}
     for arc_id, arc_shots in by_arc.items():
+        # 品牌镜走冻结骨架 (brand.shot_design 确定性产物), 不参与 LLM 文字层质检
+        arc_shots = [s for s in arc_shots if not s.get("brand_card")]
+        if not arc_shots:
+            continue
         fake = {"shots": [{"shot_id": s["sid"], "arc_id": s["arc_id"],
                            "t_start": 0, "keyframe_zh": s["keyframe_zh"],
                            "in_image_text": s.get("in_image_text") or [],
@@ -242,9 +283,17 @@ def text_layer_issues(shots: list[dict[str, Any]]) -> dict[str, list[str]]:
             logger.warning("[v3:shots] 弧 %s 质检异常 (跳过): %s", arc_id, exc)
             continue
         valid_sids = {s["sid"] for s in arc_shots}
+        text_of = {s["sid"]: str(s.get("keyframe_zh") or "") for s in arc_shots}
         for f in fails:
             if any(m in f for m in _LATER_PHASE_MARKERS):
                 continue
+            # 误报豁免: 载体已限定「空白/无字」→ 合规; 品牌镜已在上方剔除
+            mm = re.match(r"^(s\d+)", str(f))
+            _txt = text_of.get(mm.group(1), "") if mm else ""
+            if mm and _carrier_already_blanked(str(f), _txt):
+                continue
+            if _QUOTE_HIT.search(str(f)) and _quotes_are_position_labels(_txt):
+                continue          # 引号全是镜位标注 → 非画内文字
             # 只有「以镜号开头」才算镜级 (实锤: 场级「…需≥1 — 补 s1」正文带 s1 被误归)
             m = re.match(r"^(s\d+)\b", str(f))
             key = m.group(1) if (m and m.group(1) in valid_sids) else ARC_LEVEL_KEY
