@@ -134,6 +134,8 @@ def validate(direct: dict[str, dict[str, Any]], shots: list[dict[str, Any]]
 
 # ── LLM: 四元组 + 运动光影 (规范用语前移; 枚举由 CAM_DEFS 注入) ────────
 
+SIZES_STR = "/".join(SIZES)
+
 _SYS = f"""你是短视频的动画导演。输入镜清单 (镜号|槽长秒|景别预填|视觉世界|画面句摘要),
 为每镜定: 景别 / 运镜 / 主体运动 / 光影。
 
@@ -144,10 +146,11 @@ _SYS = f"""你是短视频的动画导演。输入镜清单 (镜号|槽长秒|�
 创作铁律 (违反即打回):
 1. **固定是默认** — 运镜是叙事工具: 场景揭示/规模呈现/跟随主体才用。
 2. 槽长 <{MIN_MOVE_SLOT_S:g}s 的镜只准 固定 (短槽物理上折成小幅, 写了也白写)。
-3. 大幅配慢速是稳定组合; 快速是激进档, 少用。
-4. 景别节奏: 大场景+全景 约每 4 镜 1 镜; 特写不过半; **相邻镜景别必须换一档**。
-5. 主体运动只动画面句里已有的实体, 禁添画面外动物/器物。
-6. 光影与相邻镜连续 (同一场光源方向/色温不变), 写一句 (如 窗光侧逆)。
+3. 大幅配慢速是稳定组合; 快速是激进档, 少用; **每弧运镜镜至多 2 个**。
+4. 景别**封闭枚举, 只准从中选**: {SIZES_STR} — 不准自创词 (大全景/中近景/远景 都非法)。
+5. 景别节奏: 大场景+全景 约每 4 镜 1 镜; 特写不过半; **相邻镜景别必须换一档**。
+6. 主体运动只动画面句里已有的实体, 禁添画面外动物/器物。
+7. 光影与相邻镜连续 (同一场光源方向/色温不变), 写一句 (如 窗光侧逆)。
 每镜一条 JSON: {{"shots":[{{"sid":"s1","size":"中景",
   "cam":{{"kind":"固定","dir":"","amp":"","speed":""}},
   "motion":"一句中文","light":"一句中文"}}]}}"""
@@ -170,6 +173,8 @@ def _llm_fill(shots: list[dict[str, Any]], arcs: list[dict[str, Any]],
     """按批生成四元组; 批内自检 (枚举/槽长/相邻景别) 不达标整批补投一次。"""
     from app.services.llm_service import get_llm_service, _parse_json
     arc_of = {a["arc_id"]: a for a in arcs}
+    _SIZE_FIX = {"大全景": "大场景", "远景": "大场景", "中近景": "近景",
+                 "全远": "大场景", "特近": "特写"}
     direct: dict[str, dict[str, Any]] = {}
     total_b = -(-len(shots) // 8)
     for bi, i in enumerate(range(0, len(shots), 8)):
@@ -206,7 +211,7 @@ def _llm_fill(shots: list[dict[str, Any]], arcs: list[dict[str, Any]],
             cam = r.get("cam") or {}
             kind = str(cam.get("kind") or "固定")
             direct[s["sid"]] = {
-                "size": str(r.get("size") or "中景"),
+                "size": _SIZE_FIX.get(str(r.get("size")), str(r.get("size") or "中景")),
                 "cam": {"kind": kind,
                         "dir": str(cam.get("dir") or ""),
                         "amp": "" if kind in NO_MOVE else str(cam.get("amp") or ""),
@@ -214,7 +219,50 @@ def _llm_fill(shots: list[dict[str, Any]], arcs: list[dict[str, Any]],
                 "motion": str(r.get("motion") or "")[:120],
                 "light": str(r.get("light") or "")[:80],
             }
+    # 每弧运镜 ≤MAX_MOVE_PER_ARC: 超额确定性降级为固定 (按镜序保留前 N 个)
+    per_arc: dict[str, list[str]] = {}
+    for s in shots:
+        sid = str(s["sid"])
+        d = direct.get(sid)
+        if not d:
+            continue
+        aid = str(s.get("arc_id") or "")
+        if str((d.get("cam") or {}).get("kind")) not in NO_MOVE:
+            per_arc.setdefault(aid, []).append(sid)
+    for aid, sids in per_arc.items():
+        for sid in sids[MAX_MOVE_PER_ARC:]:
+            direct[sid]["cam"] = {"kind": "固定", "dir": "", "amp": "", "speed": ""}
+            logger.info("[v3:direct] 弧 %s 运镜超额, %s 降级固定", aid, sid)
+    _fix_adjacency(direct, shots)
     return direct
+
+
+def _fix_adjacency(direct: dict[str, dict[str, Any]], shots: list[dict[str, Any]]) -> int:
+    """相邻镜景别相同 → 确定性换档 (挑与前后镜都不同的最近邻档)。
+
+    批内自检看不见跨批边界 (s8/s9 相邻但不同批) — 整集终检在此修。
+    """
+    n = 0
+    for i in range(1, len(shots)):
+        sid = str(shots[i]["sid"])
+        d = direct.get(sid)
+        prev = direct.get(str(shots[i - 1]["sid"]))
+        if not d or not prev:
+            continue
+        if d.get("size") != prev.get("size"):
+            continue
+        nxt = direct.get(str(shots[i + 1]["sid"])) if i + 1 < len(shots) else None
+        cur = SIZES.index(d["size"])
+        forbid = {prev.get("size"), (nxt or {}).get("size")}
+        for delta in (1, -1, 2, -2):
+            j = cur + delta
+            if 0 <= j < len(SIZES) and SIZES[j] not in forbid:
+                d["size"] = SIZES[j]
+                n += 1
+                break
+    if n:
+        logger.info("[v3:direct] 相邻同景别确定性换档 %d 处", n)
+    return n
 
 
 def reroll_one(shots: list[dict[str, Any]], arcs: list[dict[str, Any]],

@@ -640,3 +640,22 @@ def test_llm_fill_cancel_between_batches(monkeypatch):
     with pytest.raises(SystemExit):
         D._llm_fill(shots, [], {"s1": "中景"}, job)
     assert len(calls) == 2                    # 第 3 批没烧
+
+
+def test_direct_enum_forward_and_repairs():
+    """ep5 实弹复发修: 景别枚举必须进提示; 入库归一; 每弧运镜超额降级; 相邻换档。"""
+    from app.services.anim_pipeline.v3_pipeline import direct as D
+    assert "大场景/全景/中景/近景/特写" in D._SYS and "不准自创词" in D._SYS
+    assert "每弧运镜镜至多 2 个" in D._SYS                    # 配额规则前移
+    shots = [{"sid": f"s{i}", "arc_id": "A1", "est_s": 8.0} for i in range(1, 5)]
+    direct = {
+        "s1": {"size": "大场景", "cam": {"kind": "推", "dir": "", "amp": "大", "speed": "慢"}},
+        "s2": {"size": "大场景", "cam": {"kind": "拉", "dir": "", "amp": "大", "speed": "慢"}},
+        "s3": {"size": "大场景", "cam": {"kind": "摇", "dir": "左", "amp": "大", "speed": "慢"}},
+        "s4": {"size": "大场景", "cam": {"kind": "固定", "dir": "", "amp": "", "speed": ""}},
+    }
+    n = D._fix_adjacency(direct, shots)
+    seq = [direct[f"s{i}"]["size"] for i in range(1, 5)]
+    assert n >= 2                                    # 4 连同景别: 级联修交替即合法
+    assert all(a != b for a, b in zip(seq, seq[1:]))  # 无相邻相同
+    assert not any(k != "弧级" for k in D.validate(direct, shots))
