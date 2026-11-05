@@ -6,7 +6,12 @@
 .blk .bno { font-family:var(--mono); color:var(--faint); font-size:12.5px; flex:0 0 34px; }
 .blk .btx { min-width:0; color:var(--txt); font-size:14.5px; line-height:1.6; }
 .bmain { flex:1; min-width:0; }
-.bops { display:flex; gap:5px; margin-top:4px; flex-wrap:wrap; }
+.bops { display:flex; gap:5px; margin-top:4px; flex-wrap:wrap; align-items:center; }
+/* 操作族折叠 (用户令: 不用时收起): ⋯ 展开本块; 操作完自动收回 */
+.bops-more { display:none; gap:5px; flex-wrap:wrap; }
+.blk.ops-open .bops-more { display:inline-flex; }
+.blk.ops-open .ob-toggle { color:var(--gold); border-color:var(--gold); }
+.ob-toggle { min-width:30px; text-align:center; }
 .bops-na { color:var(--faint); font-size:12px; }
 .ob { background:#2a3442; color:#cfd8e3; border:1px solid var(--line2); border-radius:7px;
       font:12px var(--sans); padding:2px 9px; cursor:pointer; }

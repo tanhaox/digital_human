@@ -62,6 +62,8 @@ async function boot() {
       <div class="bmain">
         <div class="btx">${esc(b.text)}</div>
         <div class="bops">
+        <button class="ob ob-toggle" data-op="__open" title="展开本块操作 (重roll/编辑/变速/基准/屏蔽)">⋯</button>
+        <span class="bops-more">
           <button class="ob" data-op="reroll" title="采样重生成 → 自动回听复检; 语气词/插字/吞字类大概率消失">↻重roll</button>
           <button class="ob" data-op="edit" title="统一编辑: 改字 + 停顿(气口) + 注音 — 一个文本框全搞定">✎编辑</button>
           <button class="ob" data-op="faster" title="技术变速 atempo (变速不变调): 每点快~5%, 从原始一次成型零损耗">⏩加速</button>
@@ -69,6 +71,7 @@ async function boot() {
           <button class="ob" data-op="reset" title="还原原始 take, 清除累计倍率">⟲还原</button>
           <button class="ob" data-op="anchor" title="登记语速基准: 实测本行含气口字/s, 按区位写入音色 — 同区行自动校正回锚">📌基准</button>
           <button class="ob ob-warn" data-op="mute" title="本单移出播放+大段, 文稿段反勾选 (重生成不再出镜); 恢复=音频工坊重新勾选">🔇屏蔽</button>
+        </span>
         </div>
       </div>
       <span class="bdur">${b.dur_s ?? '?'}s</span>
@@ -99,8 +102,18 @@ function bindOps(blocks) {
         '<span class="bops-na">— 无段映射 (史前包), 编辑族去音频工坊 —</span>';
       return;
     }
-    row.querySelectorAll('.ob[data-op]').forEach(btn => {
-      btn.onclick = () => op(btn.dataset.op, id, btn, b);
+    const tog = row.querySelector('.ob-toggle');
+    if (tog) tog.onclick = () => {
+      const open = row.classList.toggle('ops-open');
+      tog.textContent = open ? '⋯✕' : '⋯';
+    };
+    row.querySelectorAll('.ob[data-op]:not(.ob-toggle)').forEach(btn => {
+      btn.onclick = async () => {
+        await op(btn.dataset.op, id, btn, b);
+        row.classList.remove('ops-open');
+        const t2 = row.querySelector('.ob-toggle');
+        if (t2) t2.textContent = '⋯';
+      };
     });
   });
 }
