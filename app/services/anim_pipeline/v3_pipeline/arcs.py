@@ -39,7 +39,7 @@ def modules_of(lines: list[dict[str, Any]]) -> list[dict[str, Any]]:
     last_mode: str | None = None
     for ln in lines:
         mode = str(ln.get("mode") or "unknown")
-        if mode in ("section", "card", "img"):
+        if mode in ("section", "card", "img", "note"):
             last_mode = None            # 硬断点
             continue
         if not str(ln.get("text") or "").strip() or mode == "unknown":
@@ -80,7 +80,7 @@ def effective_nos(lines: list[dict[str, Any]]) -> set[int]:
     """参与分弧的有效行 (段标/卡图指令/未分诊/空行除外)。"""
     return {ln["no"] for ln in lines
             if str(ln.get("text") or "").strip()
-            and str(ln.get("mode") or "") not in ("section", "card", "img", "unknown")}
+            and str(ln.get("mode") or "") not in ("section", "card", "img", "note", "unknown")}
 
 
 def boundary_issues(arcs: list[dict[str, Any]],

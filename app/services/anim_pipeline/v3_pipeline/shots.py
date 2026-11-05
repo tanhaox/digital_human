@@ -49,7 +49,7 @@ def pack_shots(arcs: list[dict[str, Any]], lines: list[dict[str, Any]]
             # 非叙事位: 整段一镜 (系列冻结语言, 不切碎)
             refs = [no for no in range(a["no_start"], a["no_end"] + 1)
                     if no in line_of and str(line_of[no].get("text") or "").strip()
-                    and line_of[no].get("mode") not in ("section", "card", "img", "unknown")]
+                    and line_of[no].get("mode") not in ("section", "card", "img", "note", "unknown")]
             if refs:
                 shots.append(_mk_shot(a, refs, line_of))
             continue
@@ -58,7 +58,7 @@ def pack_shots(arcs: list[dict[str, Any]], lines: list[dict[str, Any]]
             ln = line_of.get(no)
             if not ln or not str(ln.get("text") or "").strip():
                 continue
-            if str(ln.get("mode") or "") in ("section", "card", "img", "unknown"):
+            if str(ln.get("mode") or "") in ("section", "card", "img", "note", "unknown"):
                 continue
             cur.append(no)
             dur = est_s(cur, line_of)
@@ -106,6 +106,20 @@ def _refresh_last(s: dict[str, Any], line_of: dict[int, dict]) -> None:
 
 # ── 卡: 分诊产物 + 采纳建议 → 挂句 ────────────────────────────────────
 
+_BREAK = "。！？；，、,.!?;"
+
+
+def _clip(s: str, n: int) -> str:
+    """截断到 n 字内, 尽量在标点处断开 (实锤: 硬截 40 字会切在「这本书叫《值得信」)。"""
+    s = str(s or "").strip()
+    if len(s) <= n:
+        return s
+    for i in range(n, 1, -1):
+        if s[i - 1] in _BREAK:
+            return s[:i].rstrip(_BREAK)
+    return s[:n]
+
+
 def build_cards(v3: dict[str, Any], shots: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """卡来源二路: ①卡指令行 (v3.cards) + ②分诊采纳的建议 (line.adopted)。
     全部挂到「句」(line_no), 再映射到包含该句的镜 (sid)。"""
@@ -149,7 +163,11 @@ def build_cards(v3: dict[str, Any], shots: list[dict[str, Any]]) -> list[dict[st
         kind = min(adopted, key=lambda k: _SUGG_PRIORITY.get(k, 99))
         style = CARD_OF_SUGG[kind]
         no = int(ln["no"])
-        text = str(ln.get("text") or "").strip()[:40]
+        # 卡文字优先用分诊给的 card_text (事件字已压到 ≤8 字), 退回行文本
+        _ct = next((str(g.get("card_text") or "") for g in (ln.get("suggs") or [])
+                    if g.get("kind") == kind and g.get("card_text")), "")
+        text = _clip(_ct or str(ln.get("text") or "").strip(),
+                     40 if style != "event" else 12)
         key = (no, style)
         if key in seen:
             continue

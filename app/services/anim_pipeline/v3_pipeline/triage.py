@@ -19,6 +19,10 @@ RE_CARD = re.compile(r"^【卡[:：](?P<name>[^】]{1,24})】(?P<body>.*)$")
 RE_IMG = re.compile(r"^【图[:：](?P<name>[^】]{1,48})】$")
 # 稿件段标 (拆书线节目标题, ep6 实弹: 【0–60 秒｜全新打磨开篇】en-dash+空格变体)
 RE_SECTION = re.compile(r"^【\d+\s*[–\-—]\s*\d+\s*[sS秒]?\s*[｜|][^】]*】$")
+# writer 注释前缀 (1103 Z+T 白名单): "金句：xxx" 非口播 — 剥前缀, 内容直接成卡
+RE_NOTE = re.compile(r"^(金句|口诀|结论|标题|提示|总结|注释|备注)[：:]\s*(?P<body>.+)$")
+_NOTE_STYLE = {"金句": "quote", "口诀": "quote", "结论": "event", "标题": "list",
+               "提示": "list", "总结": "list", "注释": "list", "备注": "list"}
 RE_ANY_MARKER = re.compile(r"^【[^】]*】")
 
 # ── 确定性病检 ─────────────────────────────────────────────────────────
@@ -27,10 +31,11 @@ TIME_LINE = 2020            # 北斗星: 案例时间铁律 2020 线 (听众切�
 LONG_LEN, LONG_PUNCT = 60, 2   # 长句: >60字且标点<2 → 听感歧义风险
 LIST_STARTERS = ("第一", "第二", "第三", "首先", "其次", "再次", "最后")
 
-MODES = ("hook", "quote", "comm", "persona", "cta", "brand", "card", "img", "section", "unknown")
+MODES = ("hook", "quote", "comm", "persona", "cta", "brand", "card", "img",
+         "note", "section", "unknown")
 MODE_ZH = {"hook": "钩子", "quote": "书证", "comm": "评论", "persona": "人设",
            "cta": "行动召", "brand": "牌", "card": "卡指令", "img": "图指令",
-           "section": "段标", "unknown": "未分诊"}
+           "section": "段标", "note": "注释卡", "unknown": "未分诊"}
 
 
 def det_check(text: str) -> dict[str, Any] | None:
@@ -38,6 +43,8 @@ def det_check(text: str) -> dict[str, Any] | None:
     t = text.strip()
     if not t:
         return None
+    if RE_NOTE.match(t):
+        return None          # writer 注释行: 剥前缀成卡, 非病
     if RE_ANY_MARKER.match(t) and not (RE_CARD.match(t) or RE_IMG.match(t) or RE_SECTION.match(t)):
         return {"level": "block", "kind": "fake_marker",
                 "msg": "伪指令/残留标记 — 非语态、非合法【卡:】【图:】格式",
@@ -86,6 +93,10 @@ def route_markers(text: str) -> tuple[str, dict[str, Any] | None]:
         return "img", {"style": "img", "name": RE_IMG.match(t).group("name").strip(), "text": ""}
     if RE_SECTION.match(t):
         return "section", None
+    m = RE_NOTE.match(t)
+    if m:
+        return "note", {"style": _NOTE_STYLE.get(m.group(1), "list"),
+                        "name": m.group(1), "text": m.group("body").strip()[:60]}
     return "", None
 
 
@@ -110,7 +121,12 @@ mode 语义 (严格区分, 判错会毁立意):
 ③ "我是老谭…" 开头一律 brand, 不是 persona
 issue 只报: 结构失衡(连续书证无承接/缺钩子/缺行动召/语态突兀)、明显书面语不宜口播。
 suggs 每行给 0-2 条创作建议, kind∈"quote"(对仗短句有金句相)/"img"(流程公式结构宜配图)/
-"book"(转述书中观点宜调原句直出)/"event"(核心概念词宜上事件金字), text=一句中文建议。"""
+"book"(转述书中观点宜调原句直出)/"event"(核心概念词宜上事件金字), text=一句中文建议。
+另给 card_text = 建议实际上屏的卡文字 (严格按 kind 控制长度):
+- event 事件金字: ≤8 个字的**核心词** (如「怀疑坎」「体面退出」「丑话清单」), 绝不要整句
+- quote 金句卡: ≤30 字, 取句中最有劲的那一段
+- img 配图: ≤30 字的**画面描述** (画什么, 不是这句口播)
+- list 清单卡: ≤50 字"""
 
 
 def llm_triage(lines: list[dict[str, Any]]) -> dict[int, dict[str, Any]]:
@@ -174,7 +190,8 @@ def run(job: dict[str, Any]) -> None:
                 ln["flag"] = m["issue"]
             for s in m.get("suggs") or []:
                 if s.get("kind") in ("quote", "img", "book", "event") and s.get("text"):
-                    ln["suggs"].append({"kind": s["kind"], "text": str(s["text"])[:80]})
+                    ln["suggs"].append({"kind": s["kind"], "text": str(s["text"])[:80],
+                                        "card_text": str(s.get("card_text") or "")[:60]})
         logger.info("[v3:triage] LLM 标注 %d 行 ✓", len(marked))
     except Exception as exc:  # noqa: BLE001 — LLM 失败退确定性层, 人闸补 unknown
         logger.warning("[v3:triage] LLM 标注失败 (退确定性层): %s", exc)
