@@ -328,6 +328,7 @@ def finalize(doc: dict[str, Any]) -> dict[str, Any]:
                     d["motion_en"] = str(r.get("motion_en"))[:400]
                 done += 1
     v3["frozen_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+    v3.setdefault("gates", {})["direct"] = True     # 放行=开闸 (轨/⑤ 的 direct 闸点亮)
     logger.info("[v3:direct] 放行英文化 %d/%d 镜, frozen_at=%s", done, len(todo), v3["frozen_at"])
     return {"frozen": True, "translated": done, "total": len(todo)}
 
