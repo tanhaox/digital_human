@@ -84,3 +84,9 @@ def test_wiring_source_asserts():
     assert "a.textContent = '🎬 动画v3" not in bs              # 禁换链式覆盖 (旧 bug 回归哨)
     bj = Path("web/books.js").read_text(encoding="utf-8")
     assert "applyV3Line" in bj                                 # 渲染后挂载
+    # CSP 家规 (实锤事故: inline module 被 script-src 'self' 静默拦, 页面卡加载中):
+    # /web/v3/ 全部页面零内联 script/style, 逻辑与样式一律外置
+    for pg in Path("web/v3").glob("*.html"):
+        h = pg.read_text(encoding="utf-8")
+        assert "<script type="module">" not in h, f"{pg} 含内联 module (CSP 必拦)"
+        assert "<style>" not in h, f"{pg} 含内联 style (CSP 必拦)"
