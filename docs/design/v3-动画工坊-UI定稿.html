@@ -70,6 +70,13 @@ tr.hgroup th + th { border-left:1px solid var(--line); }
 th { text-align:left; font-weight:600; color:var(--dim); font-size:13.5px; letter-spacing:.4px;
   padding:8px 11px; background:var(--panel2); border-bottom:1px solid var(--line2); white-space:nowrap; }
 td { padding:7px 11px; border-bottom:1px solid var(--line); vertical-align:top; }
+.docline { display:flex; gap:8px; align-items:baseline; padding:3px 10px;
+  border-left:3px solid transparent; border-bottom:1px solid var(--line); }
+.docline .ln { font-family:var(--mono); font-size:11.5px; color:var(--faint); min-width:36px; }
+.docline .lm { font-size:11px; border-radius:7px; padding:0 7px; color:#fff; min-width:44px; text-align:center; }
+.docline .txt { flex:1; min-width:0; }
+.docline.flg-r { border-left-color:var(--bad-t); background:rgba(110,32,32,.18); }
+.docline.flg-y { border-left-color:var(--amber); background:rgba(122,74,30,.12); }
 .scell { display:inline-block; min-width:22px; text-align:center; border-radius:5px;
   font-family:var(--mono); font-size:12.5px; padding:1px 6px; color:#fff; }
 .sc1 { background:#1d3a5f; } .sc2 { background:#1d5f4c; }
@@ -272,6 +279,23 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
   </table>
   </div>
 
+  <div class="concept-bar" style="margin-top:12px"><b style="color:var(--gold)">📄 文稿全文 · 行内直接改</b>
+    <span class="note">点体检行跳到这里 · 每行可编辑/改语态标 · 改稿留痕回流文字加工线</span>
+    <span style="flex:1"></span><button class="iconbtn">✎ 全文编辑模式</button></div>
+  <div class="twrap">
+  <table style="min-width:820px">
+    <thead><tr><th>行</th><th>语态</th><th>文稿 (行内编辑)</th><th></th></tr></thead>
+    <tbody>
+      <tr><td class="mono">L05</td><td><span class="lm sc-quote">书证</span></td><td class="editable">书里说：信任是一点一滴存出来的账户。</td><td><button class="iconbtn">✎</button></td></tr>
+      <tr class="flg-r"><td class="mono">L07</td><td><span class="badge bad">🔴 未分诊</span></td><td class="editable">【大字卡、直接上屏】</td><td><button class="iconbtn">✎</button> <select style="font:inherit;background:var(--panel2);color:var(--txt);border:1px solid var(--line2);border-radius:6px"><option>改标…</option><option>→书证</option><option>→评论</option><option>→卡指令</option></select></td></tr>
+      <tr><td class="mono">L08</td><td><span class="lm sc-comm">评论</span></td><td class="editable">这话我信。但你账户塌的时候，第一个念头是补，第二个念头是躲。</td><td><button class="iconbtn">✎</button></td></tr>
+      <tr class="flg-y"><td class="mono">L33</td><td><span class="lm sc-persona">人设</span></td><td class="editable">2021年某客户跟我谈了三轮，最后一夜他把我微信删了。</td><td><button class="iconbtn">✎</button></td></tr>
+      <tr class="flg-y"><td class="mono">L45</td><td><span class="lm sc-comm">评论</span></td><td class="editable">止损这件事最反人性的一点是你明明知道该走却总觉得再撑一把就能翻盘才明白早走是止损晚走是止血压。</td><td><button class="iconbtn">✎</button></td></tr>
+      <tr><td colspan="4" class="dim2">… 全 52 行在列 · 语态标可点改 (分诊重算) · 🟡/🔴 行与体检表互跳 …</td></tr>
+    </tbody>
+  </table>
+  </div>
+
   <div class="fixrow"><span class="badge ok">分诊汇总</span> 语态行 49 · 结构指令 2（【卡:止损两问】→③卡槽 ·【图:信任公式】→钉图, 已路由不进口播）· 🔴 拦截 1 待处置 · 忽略 0</div>
 
   <div class="gatebar"><span class="ti">◉ 文稿放行</span>
@@ -280,7 +304,8 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
 
   <ol class="specs">
     <li><b>逐行三去向</b> (抓bug 产物): 语态行→②弧分配 / 合法结构指令 (【卡:】→③卡槽、【图:】→钉图) 路由不进口播 / 无法分类→🔴拦截人工分诊 — 指令残留到 TTS 才现形的洞在此堵死。</li>
-    <li><b>AI 体检=提醒层</b>: 伪指令/结构失衡/案例时间铁律(2020线)/听感歧义/长句/缺语态 — 提醒减量, 执法仍是确定性闸; 每条一键处置 (采纳/忽略/人工), 处置留痕回流文字加工线。</li>
+    <li><b>文稿即面板</b> (用户令: 差修改编辑位): 全文行内可见可改 — 每行 ✎ 编辑、语态标点改 (分诊实时重算)、体检行↔文稿行互跳; 改稿留痕回流文字加工线。</li>
+<li><b>AI 体检=提醒层</b>: 伪指令/结构失衡/案例时间铁律(2020线)/听感歧义/长句/缺语态 — 提醒减量, 执法仍是确定性闸; 每条一键处置 (采纳/忽略/人工), 处置留痕回流文字加工线。</li>
     <li><b>渐进轴起点</b>: 稿层在本页诞生 (语态色+分诊状态), 弧层②起叠加 — 八页一轴到底。</li>
   </ol>
 </section>
