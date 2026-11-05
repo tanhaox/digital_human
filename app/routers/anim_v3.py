@@ -297,54 +297,32 @@ def v3_shots_autocards(book_id: str, ep: int):
 
 @router.post("/ep/{book_id}/{ep}/shots/fix")
 def v3_shots_fix(book_id: str, ep: int):
-    """一键合规: 文字载体未申报 → 自动申报 in_image_text (确定性, 内容取卡/口播)。
+    """一键合规: 文字载体 → 就地写成「空白XX」(确定性改写)。
 
-    终态词属语义改写, 不自动动刀 (返回待人工清单)。改完复跑质检并更新闸态。
+    1105 用户令: v3 停用图内字通道 (上屏字走剪映卡/图示 PNG), 所以不再申报
+    in_image_text — 载体只能写成空白或换陈设。量词/的 后面才敢插「空白」
+    (几张便签→几张空白便签); 「手机屏幕」这类不出量词的返回待人工。
+    终态词属语义改写, 不自动动刀。
     """
-    import re as _re
+    from app.services.anim_pipeline.v3_pipeline.shots import (blankify_carriers,
+                                                              text_layer_issues)
     try:
         book_id, book_title = anim_service.resolve_ep(book_id, ep)
     except anim_service.AnimNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc))
     _line_gate(book_title)
-    _CARRIER = _re.compile(r"含文字载体「(.+?)」")
-    fixed, manual = 0, []
     with anim_service.ep_guard(book_id, ep):
         doc = _load_v3_doc(book_title, ep)
         v3 = doc.setdefault("v3", {})
-        shots = {s["sid"]: s for s in v3.get("shots") or []}
-        cards = v3.get("cards") or []
-        lines = {ln["no"]: ln for ln in (v3.get("lines") or [])}
-        for sid, issues in (v3.get("shot_issues") or {}).items():
-            if sid == "弧级":
-                continue
-            s = shots.get(sid)
-            if not s:
-                continue
-            for iss in issues:
-                m = _CARRIER.search(iss)
-                if not m:
-                    if "终态" in iss:
-                        manual.append(f"{sid}: {iss[:80]}")
-                    continue
-                if s.get("in_image_text"):
-                    continue                       # 已有申报, 不动
-                # 申报内容: 优先该镜的卡文字, 其次口播首句前 10 字
-                text = next((c.get("text") for c in cards if c.get("sid") == sid
-                             and c.get("text")), "")
-                if not text:
-                    no = (s.get("line_refs") or [None])[0]
-                    text = str(lines.get(no, {}).get("text") or "").strip()[:10]
-                s["in_image_text"] = [text or m.group(1)]
-                fixed += 1
-        from app.services.anim_pipeline.v3_pipeline.shots import text_layer_issues
-        issues = text_layer_issues(list(shots.values()))
+        shots = list(v3.get("shots") or [])
+        fixed, manual = blankify_carriers(shots, v3.get("shot_issues") or {})
+        issues = text_layer_issues(shots)
         v3["shot_issues"] = issues
         v3.setdefault("gates", {})["shots"] = not issues
         from app.services.anim_pipeline import shots as shots_mod
         shots_mod.save(doc)
-    return {"fixed": fixed, "manual": manual, "issues": issues,
-            "gate": not issues}
+    return {"fixed": len(fixed), "fixed_sids": fixed, "manual": manual,
+            "issues": issues, "gate": not issues}
 
 
 @router.post("/ep/{book_id}/{ep}/shots/save")

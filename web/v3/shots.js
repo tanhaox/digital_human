@@ -74,15 +74,15 @@ function renderIssues(issues, warns) {
   const arcHead = arcItems.length
     ? `<div class="hint">弧级 ${arcItems.length} 项 (策略提醒 — 宪法配额, 人检可保留)</div>` : '';
   const fixBtn = shotItems.length
-    ? '<div class="fixrow"><button class="go" id="btn-autofix" title="文字载体未申报 → 自动申报(内容取该镜卡/口播); 终态词需人工改">🔧 一键合规</button>'
-      + '<span class="note">只处理「载体未申报」; 终态词属语义改写, 需手改</span></div>'
+    ? '<div class="fixrow"><button class="go" id="btn-autofix" title="文字载体 → 就地补「空白」(空白便签/空白白板); 出不了量词的需手改; 终态词需人工改">🔧 一键空白化</button>'
+      + '<span class="note">把载体补成「空白XX」(v3 图内字通道已停用); 终态词属语义改写, 需手改</span></div>'
     : '';
   $('issues').innerHTML = head + shotItems.join('') + fixBtn + arcHead + arcItems.join('');
   const af = document.getElementById('btn-autofix');
   if (af) af.onclick = async () => {
     const r = await (await fetch(`${BASE}/shots/fix`, { method: 'POST',
       headers: { 'Content-Type': 'application/json' }, body: '{}' })).json();
-    toast(`已自动申报 ${r.fixed} 镜` + (r.manual.length ? ` · ${r.manual.length} 项需手改` : ''));
+    toast(`已空白化 ${r.fixed} 镜` + (r.manual.length ? ` · ${r.manual.length} 项需手改` : ''));
     await refresh();
     if (r.manual.length) console.info('需人工处理:', r.manual);
   };

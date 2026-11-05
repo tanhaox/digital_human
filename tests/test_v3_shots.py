@@ -294,3 +294,35 @@ def test_diagram_html_builds():
     kids = opt["series"][0]["data"][0]["children"]
     leaf = kids[0]["children"][0]
     assert leaf.get("symbolSize") == 0
+
+
+def test_blankify_carriers():
+    """1105 用户令: v3 停用图内字通道 — 一键合规改成把载体写成「空白XX」, 不再申报。"""
+    shots = [
+        {"sid": "s5", "keyframe_zh": "玻璃墙上贴着几张便签，其中一张被气流掀起一角"},
+        {"sid": "s8", "keyframe_zh": "手机屏幕亮起，显示来电界面"},
+        {"sid": "s23", "keyframe_zh": "他的手停在中间位置，画面凝固"},
+    ]
+    issues = {
+        "s5": ["s5 画面句含文字载体「便签」未写成空白 — …"],
+        "s8": ["s8 画面句含文字载体「屏幕」未写成空白 — …"],
+        "s23": ["s23 画面句含终态词 (停在中间位置) — …"],
+    }
+    fixed, manual = v3shots.blankify_carriers(shots, issues)
+    assert fixed == ["s5"]                                   # 量词后才敢插
+    assert "几张空白便签" in shots[0]["keyframe_zh"]
+    assert shots[1]["keyframe_zh"].startswith("手机屏幕")     # 「手机屏幕」不出量词 → 不硬插
+    assert "in_image_text" not in shots[0]                    # 不再写申报字段
+    assert len(manual) == 2 and any("s8" in m for m in manual)
+
+
+def test_arc_level_quotas_are_episode_scoped():
+    """1105 用户令: v3 图内字停用 → 不报零申报; 人物/景深改全集口径 (弧≠场, 1 镜弧不是场)。"""
+    zh = ("深夜书房里，一位顾问俯身在橡木桌旁摊开图纸，台灯暖光从左侧斜切下来，"
+          "黄铜镇纸压住纸角，窗外是虚化的城市轮廓，前景散落着几页草稿。")
+    shots = [{"sid": f"s{i}", "arc_id": f"A{i}", "est_s": 5.0, "keyframe_zh": zh,
+              "in_image_text": [], "text_layer": []} for i in (1, 2, 3)]
+    issues = v3shots.text_layer_issues(shots)
+    arc = " ".join(issues.get("弧级", []))
+    assert "整场零申报" not in arc          # 通道停用
+    assert "场A" not in arc                 # 不再按单弧喊配额

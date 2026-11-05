@@ -308,11 +308,19 @@ def _llm_fill(shots: list[dict[str, Any]], arcs: list[dict[str, Any]],
 
 ARC_LEVEL_KEY = "弧级"      # 无法归因到单镜的场级问题 (宪法配额等)
 
+# 1105 用户令 (v3 口径调整, v2 不动): 弧 ≠ 场。
+# v3 弧是按语态切的立意单元 — ep5 实测 34 镜/17 弧 (平均 2 镜), 其中 11 个弧只有 1 镜;
+# 把 v2 的场级配额 (每场 1-2 镜申报 / 每场有人物 / 每场大场景) 按弧套上去 = 对小弧强制 100%。
+#   · 图内字通道在 v3 停用 (上屏字统一走剪映卡, 图示走 PNG) → 零申报不再报;
+#   · 人物/景深配额改全集口径 (一次算全片, 与 final_gate 全场尺同源)。
+_ARC_QUOTA_MARKERS = ("整场零申报", "分区人物配额", "景深配额")
+_CARRIER_MSG = re.compile(r"^(s\d+) 画面句含文字载体「(.+?)」但未申报 in_image_text")
+
 # ── 误报豁免 (v2 writer_failures 的已知局限, v3 层过滤保 v2 零扰动) ──
 _CARRIER_HIT = re.compile(r"含文字载体「(.+?)」")
 _BLANK_LIMIT = re.compile(r"空白|留白|无字|无文字|未写|空无一字|没有字|不写字|净面|光面")
 # 载体旁出现「写着/显示/字样」等内容动词 → 即便别处写了空白, 也不算同一无字物件
-_TEXT_CONTENT = re.compile(r"写着|写了|字样|字迹|写满|刻着|刻字|显示|印着|标着")
+_TEXT_CONTENT = re.compile(r"写着|写了|字样|字迹|写满|刻着|刻字|显示(?!器|屏)|印着|标着")
 _NEG_PREFIX = re.compile(r"[无没不][^，。；,;]{0,6}$")   # 紧贴载体词前的否定: 「无反光字迹」
 # 引号镜位标注豁免 (实锤: LLM 用「图纸台前」: 标镜位, 不是要渲进画面的文字)
 _QUOTED = re.compile(r"[「『\"]([^」』\"]{1,12})[」』\"](\s*[：:])?")
@@ -395,6 +403,8 @@ def text_layer_issues(shots: list[dict[str, Any]]) -> dict[str, list[str]]:
         for f in fails:
             if any(m in f for m in _LATER_PHASE_MARKERS):
                 continue
+            if any(m in f for m in _ARC_QUOTA_MARKERS):
+                continue          # 弧级配额走全集口径, 循环外统一算
             # 误报豁免: 载体已限定「空白/无字」→ 合规; 品牌镜已在上方剔除
             mm = re.match(r"^(s\d+)\b", str(f))
             _txt = text_of.get(mm.group(1), "") if mm else ""
@@ -405,11 +415,83 @@ def text_layer_issues(shots: list[dict[str, Any]]) -> dict[str, list[str]]:
             # 只有「以镜号开头」才算镜级 (实锤: 场级「…需≥1 — 补 s1」正文带 s1 被误归)
             m = re.match(r"^(s\d+)\b", str(f))
             key = m.group(1) if (m and m.group(1) in valid_sids) else ARC_LEVEL_KEY
-            out.setdefault(key, []).append(str(f)[:160])
+            txt = str(f)
+            cm = _CARRIER_MSG.match(txt)   # v3 无申报通道 → 提示改成「空白XX」而非申报
+            if cm:
+                txt = (f"{cm.group(1)} 画面句含文字载体「{cm.group(2)}」未写成空白 — "
+                       f"改写为「空白{cm.group(2)}」或换别的陈设 "
+                       "(v3 图内字通道已停用, 上屏字走剪映卡/图示 PNG)")
+            out.setdefault(key, []).append(txt[:160])
+    # ── 全集口径配额 (一次算全片) ─────────────────────────────────────
+    arc_q: list[str] = []
+    try:
+        from app.services.anim_pipeline.final_gate import (depth_quota_issues,
+                                                           zone_quota_issues)
+        all_fake = {"shots": [{"shot_id": s["sid"], "arc_id": "",
+                               "t_start": t0_of.get(str(s["sid"]), 0.0),
+                               "keyframe_zh": s.get("keyframe_zh"),
+                               "camera": s.get("camera"),
+                               "in_image_text": []} for s in shots]}
+        arc_q = zone_quota_issues(all_fake) + depth_quota_issues(all_fake, arc_id=None)
+        arc_q = [x.replace("场[", "全集[").replace("景深配额: 场 ", "景深配额: 全集 ")
+                 for x in arc_q]
+    except Exception as exc:  # noqa: BLE001 — 质检失败不炸产线
+        logger.warning("[v3:shots] 全集配额质检异常 (跳过): %s", exc)
+    if arc_q:
+        out.setdefault(ARC_LEVEL_KEY, []).extend(arc_q)
     # 弧级排后 (前端先看镜级)
     if ARC_LEVEL_KEY in out:
         out[ARC_LEVEL_KEY] = out.pop(ARC_LEVEL_KEY)
     return out
+
+
+# ── 一键空白化 (1105 用户令: v3 停用图内字通道) ────────────────────────
+
+_CARRIER_WORD = re.compile(r"含文字载体「(.+?)」")
+_BLANK_PRE = re.compile(r"[张块面些的页幅副]$")   # 载体词前是量词/结构助词才敢插「空白」
+
+
+def blankify_carriers(shots: list[dict[str, Any]],
+                      issues: dict[str, list[str]]) -> tuple[list[str], list[str]]:
+    """把问题镜的载体就地补「空白」(几张便签→几张空白便签)。
+
+    返回 (改过的 sid, 待人工清单)。「手机屏幕」这类不出量词的插不进去 → 手改。
+    终态词属语义改写, 一律不自动动刀。
+    """
+    by_sid = {s["sid"]: s for s in shots}
+    fixed: list[str] = []
+    manual: list[str] = []
+    for sid, lst in (issues or {}).items():
+        if sid == ARC_LEVEL_KEY:
+            continue
+        s = by_sid.get(sid)
+        if not s:
+            continue
+        zh = str(s.get("keyframe_zh") or "")
+        for iss in lst:
+            m = _CARRIER_WORD.search(iss)
+            if not m:
+                if "终态" in iss:
+                    manual.append(f"{sid}: {iss[:80]}")
+                continue
+            word = m.group(1)
+            inserted = resolved = False
+            for h in re.finditer(re.escape(word), zh):
+                pre = zh[max(0, h.start() - 2):h.start()]
+                if "空白" in pre or "留白" in pre:
+                    resolved = True                 # 早已写过空白 → 无需动, 也不算改
+                    break
+                if _BLANK_PRE.search(pre):
+                    zh = zh[:h.start()] + "空白" + zh[h.start():]
+                    inserted = resolved = True
+                    break
+            if inserted:
+                s["keyframe_zh"] = zh
+                if sid not in fixed:
+                    fixed.append(sid)
+            elif not resolved:
+                manual.append(f"{sid}: 载体「{word}」需手改 — 写成「空白{word}」或换别的陈设")
+    return fixed, manual
 
 
 # ── 相位本体 ─────────────────────────────────────────────────────────
