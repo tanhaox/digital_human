@@ -57,12 +57,13 @@ def test_gates_view_chain():
 
 def test_run_phase_stub_and_dispatch():
     import pytest
-    # V1 起 triage 是真相位 (不再"建设中"); 其余 V2+ 仍占位
+    # V1 起 triage / V2 起 arcs 是真相位 (不再"建设中"); shots/direct/stamp 仍占位
     with pytest.raises(SystemExit, match="建设中"):
-        v3_pipeline.run_phase({"phase": "v3_arcs"})
+        v3_pipeline.run_phase({"phase": "v3_shots"})
     with pytest.raises(SystemExit, match="v3 相位"):
         v3_pipeline.run_phase({"phase": "v3_unknown"})
     assert v3_pipeline._HANDLERS["triage"] is v3_pipeline._h_triage
+    assert v3_pipeline._HANDLERS["arcs"] is v3_pipeline._h_arcs
 
 
 def test_wiring_source_asserts():
