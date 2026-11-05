@@ -65,6 +65,8 @@ section { margin:0 0 24px; }
 .concept-bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:0 0 10px; }
 .twrap { overflow-x:auto; border:1px solid var(--line); border-radius:10px; }
 table { border-collapse:collapse; width:100%; min-width:900px; font-size:12.5px; }
+tr.hgroup th { font-size:11px; color:var(--faint); border-bottom:none; padding:6px 10px 2px; letter-spacing:.6px; }
+tr.hgroup th + th { border-left:1px solid var(--line); }
 th { text-align:left; font-weight:600; color:var(--dim); font-size:11.5px; letter-spacing:.4px;
   padding:7px 10px; background:var(--panel2); border-bottom:1px solid var(--line2); white-space:nowrap; }
 td { padding:6px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
@@ -301,26 +303,34 @@ footer { color:var(--faint); font-size:11.5px; margin:24px 0 18px; }
   <div class="axisline"><span>0s</span><span>60</span><span>120</span><span>180</span><span>~234s 估</span></div>
   <div class="cap">+ 镜层: 镜段宽度=字数预估 · ⚠出口闸镜琥珀 (s08/s38/s41) · s42 品牌金 — 点镜段跳表格行</div></div>
 
+  <div class="cap" style="margin:0 0 8px"><b style="color:var(--dim)">一行 = 一镜。</b>镜/句/块是同一段时间的三个名字: <b class="mono">s</b> 给成片镜头、<b class="mono">c</b> 给口播句子、<b class="mono">blk</b> 给 TTS 音频块 — 三列对齐看, 几句并成一镜一目了然 (如 s17 = c19–c21 三句并一镜)。花字 = 后期剪映贴的大字; 上屏字 = 生成在画面里的字。</div>
+
   <div class="twrap">
   <table>
-    <thead><tr>
-      <th>镜 · 句 · 块 <span class="spec">1</span></th><th>场</th><th>画面句 (keyframe_zh) <span class="spec">2</span></th>
-      <th>花字 · 装配</th><th>上屏字 · H3</th><th>时长</th><th>出口闸 <span class="spec">3</span></th>
-    </tr></thead>
+    <thead>
+      <tr class="hgroup"><th colspan="4">定位 · 这镜在哪</th><th colspan="3">本镜写什么 · 行内直接编辑</th><th colspan="2">状态</th></tr>
+      <tr>
+        <th>镜</th><th>句</th><th>块</th><th>场</th>
+        <th>画面句 (这一镜画什么) <span class="spec">2</span></th>
+        <th>花字 <span class="note">(后期大字)</span></th>
+        <th>上屏字 <span class="note">(画内字)</span></th>
+        <th>时长</th><th>出口闸 <span class="spec">3</span></th>
+      </tr>
+    </thead>
     <tbody>
-      <tr><td class="mono">s01 · c01 · blk000</td><td>A1</td><td class="editable">岔路口全景, 绿光坦途向远方延伸, 阶段路标立牌</td><td class="tbd">—</td><td class="tbd">—</td><td class="tbd">— 待盖章</td><td><span class="badge ok">✓</span></td></tr>
-      <tr><td class="mono">s04 · c04 · blk004</td><td>A1</td><td class="editable">黄灯颠簸路段, 路标翻牌, 决策树分流装置启动</td><td><b>「怀疑坎」</b> <span class="dim2">卡锚</span></td><td class="tbd">—</td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
-      <tr><td class="mono">s08 · c08 · blk009</td><td>A1</td><td class="editable">蜜月期油门误踩怀疑期路段, 车身倾斜将翻</td><td><b>「信任波动」</b></td><td class="tbd">—</td><td class="tbd">—</td><td><span class="badge warn">载体申报</span> <button class="iconbtn">修</button></td></tr>
-      <tr><td class="mono">s12 · c12 · blk013</td><td>A2</td><td class="editable">修复工坊大门开启, 机械组装线点亮</td><td><b>「怀疑期」</b></td><td class="tbd">—</td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
-      <tr><td class="mono">s13 · c13 · blk014</td><td>A2</td><td class="editable">传送带首块玻璃模块落入卡槽</td><td class="tbd">—</td><td><b>「蜜月期」</b> <span class="tbd">@—</span></td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
-      <tr><td class="mono">s17 · c19–c21 · blk019-021</td><td>A2</td><td class="editable">预警灯塔扫出红光斑, 组装线全速拼装</td><td><b>「重建期」</b></td><td class="tbd">—</td><td class="tbd">— (估 8.7s ⚠)</td><td><span class="badge ok">✓</span></td></tr>
-      <tr><td class="mono">s22 · c25 · blk024</td><td>A2</td><td class="editable">发光信封定时报送, 收件匣指示灯亮起</td><td><b>「提前告知」</b></td><td class="tbd">—</td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
-      <tr><td class="mono">s30 · c33 · blk034</td><td>A3</td><td class="editable">闸门拉下, 金币流截断, 剩余资源入袋</td><td><b>「体面退出」</b></td><td class="tbd">—</td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
-      <tr><td class="mono">s33 · c37 · blk038</td><td>A3</td><td class="editable">止损原则刻度盘, 两轮标记后指针归零</td><td><b>「止损原则」</b></td><td class="tbd">—</td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
-      <tr><td class="mono">s38 · c43 · blk044</td><td>A4</td><td class="editable">投递站窗口亮起, 玻璃工具卡滑出</td><td class="tbd">—</td><td><b>「小块交付」</b> <span class="tbd">@—</span></td><td class="tbd">—</td><td><span class="badge warn">锚定链</span> <button class="iconbtn">修</button></td></tr>
-      <tr><td class="mono">s41 · c47 · blk045</td><td>A4</td><td class="editable">工具墙收藏柜逐格点亮, 六件工具齐整</td><td class="tbd">—</td><td class="tbd">—</td><td class="tbd">—</td><td><span class="badge warn">引号文本</span> <button class="iconbtn">修</button></td></tr>
-      <tr><td class="mono">s42 · c48 · blk046</td><td>A4</td><td class="locked">收官品牌卡 (我是老谭 · 拆一本书 · 翻一座山)</td><td class="tbd">—</td><td class="tbd">—</td><td class="tbd">— 原子</td><td><span class="badge lock">🔒 品牌</span></td></tr>
-      <tr><td colspan="7" class="dim2">… 全 42 镜 · 出口闸行内「修」= 文字阶段零成本重掷 (不触发 TTS/GPU) …</td></tr>
+      <tr><td class="mono">s01</td><td class="mono">c01</td><td class="mono">blk000</td><td>A1</td><td class="editable">岔路口全景, 绿光坦途向远方延伸, 阶段路标立牌</td><td class="tbd">—</td><td class="tbd">—</td><td class="tbd">— 待盖章</td><td><span class="badge ok">✓</span></td></tr>
+      <tr><td class="mono">s04</td><td class="mono">c04</td><td class="mono">blk004</td><td>A1</td><td class="editable">黄灯颠簸路段, 路标翻牌, 决策树分流装置启动</td><td><b>「怀疑坎」</b></td><td class="tbd">—</td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
+      <tr><td class="mono">s08</td><td class="mono">c08</td><td class="mono">blk009</td><td>A1</td><td class="editable">蜜月期油门误踩怀疑期路段, 车身倾斜将翻</td><td><b>「信任波动」</b></td><td class="tbd">—</td><td class="tbd">—</td><td><span class="badge warn">载体申报</span> <button class="iconbtn">修</button></td></tr>
+      <tr><td class="mono">s12</td><td class="mono">c12</td><td class="mono">blk013</td><td>A2</td><td class="editable">修复工坊大门开启, 机械组装线点亮</td><td><b>「怀疑期」</b></td><td class="tbd">—</td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
+      <tr><td class="mono">s13</td><td class="mono">c13</td><td class="mono">blk014</td><td>A2</td><td class="editable">传送带首块玻璃模块落入卡槽</td><td class="tbd">—</td><td><b>「蜜月期」</b> <span class="tbd">@—</span></td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
+      <tr><td class="mono">s17</td><td class="mono">c19–c21</td><td class="mono">blk019–021</td><td>A2</td><td class="editable">预警灯塔扫出红光斑, 组装线全速拼装</td><td><b>「重建期」</b></td><td class="tbd">—</td><td class="tbd">— (估 8.7s ⚠)</td><td><span class="badge ok">✓</span></td></tr>
+      <tr><td class="mono">s22</td><td class="mono">c25</td><td class="mono">blk024</td><td>A2</td><td class="editable">发光信封定时报送, 收件匣指示灯亮起</td><td><b>「提前告知」</b></td><td class="tbd">—</td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
+      <tr><td class="mono">s30</td><td class="mono">c33</td><td class="mono">blk034</td><td>A3</td><td class="editable">闸门拉下, 金币流截断, 剩余资源入袋</td><td><b>「体面退出」</b></td><td class="tbd">—</td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
+      <tr><td class="mono">s33</td><td class="mono">c37</td><td class="mono">blk038</td><td>A3</td><td class="editable">止损原则刻度盘, 两轮标记后指针归零</td><td><b>「止损原则」</b></td><td class="tbd">—</td><td class="tbd">—</td><td><span class="badge ok">✓</span></td></tr>
+      <tr><td class="mono">s38</td><td class="mono">c43</td><td class="mono">blk044</td><td>A4</td><td class="editable">投递站窗口亮起, 玻璃工具卡滑出</td><td class="tbd">—</td><td><b>「小块交付」</b> <span class="tbd">@—</span></td><td class="tbd">—</td><td><span class="badge warn">锚定链</span> <button class="iconbtn">修</button></td></tr>
+      <tr><td class="mono">s41</td><td class="mono">c47</td><td class="mono">blk045</td><td>A4</td><td class="editable">工具墙收藏柜逐格点亮, 六件工具齐整</td><td class="tbd">—</td><td class="tbd">—</td><td class="tbd">—</td><td><span class="badge warn">引号文本</span> <button class="iconbtn">修</button></td></tr>
+      <tr><td class="mono">s42</td><td class="mono">c48</td><td class="mono">blk046</td><td>A4</td><td class="locked">收官品牌卡 (我是老谭 · 拆一本书 · 翻一座山)</td><td class="tbd">—</td><td class="tbd">—</td><td class="tbd">— 原子</td><td><span class="badge lock">🔒 品牌</span></td></tr>
+      <tr><td colspan="9" class="dim2">… 全 42 镜 · 出口闸行内「修」= 文字阶段零成本重掷 (不触发 TTS/GPU) …</td></tr>
     </tbody>
   </table>
   </div>
