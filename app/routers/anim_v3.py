@@ -332,6 +332,8 @@ def v3_shots_fix(book_id: str, ep: int):
     终态词属语义改写, 不自动动刀。
     """
     from app.services.anim_pipeline.v3_pipeline.shots import (blankify_carriers,
+                                                              has_blocking_issues,
+                                                              strip_quoted_labels,
                                                               text_layer_issues)
     try:
         book_id, book_title = anim_service.resolve_ep(book_id, ep)
@@ -342,14 +344,18 @@ def v3_shots_fix(book_id: str, ep: int):
         doc = _load_v3_doc(book_title, ep)
         v3 = doc.setdefault("v3", {})
         shots = list(v3.get("shots") or [])
-        fixed, manual = blankify_carriers(shots, v3.get("shot_issues") or {})
+        cur_issues = v3.get("shot_issues") or {}
+        fixed, manual = blankify_carriers(shots, cur_issues)
+        f2, m2 = strip_quoted_labels(shots, cur_issues)   # 引号标签/申报注释就地删
+        fixed += [x for x in f2 if x not in fixed]
+        manual += m2
         issues = text_layer_issues(shots)
         v3["shot_issues"] = issues
-        v3.setdefault("gates", {})["shots"] = not issues
+        v3.setdefault("gates", {})["shots"] = not has_blocking_issues(issues)
         from app.services.anim_pipeline import shots as shots_mod
         shots_mod.save(doc)
     return {"fixed": len(fixed), "fixed_sids": fixed, "manual": manual,
-            "issues": issues, "gate": not issues}
+            "issues": issues, "gate": not has_blocking_issues(issues)}
 
 
 @router.post("/ep/{book_id}/{ep}/shots/save")
@@ -383,14 +389,15 @@ def v3_shots_save(book_id: str, ep: int, body: ShotSaveBody):
                             "line_no": int(c.get("line_no") or 0),
                             "from": str(c.get("from") or "manual")}
                            for c in body.cards]
+        from app.services.anim_pipeline.v3_pipeline.shots import has_blocking_issues
         from app.services.anim_pipeline.v3_pipeline.shots import text_layer_issues
         issues = text_layer_issues(list(cur.values()))
         v3["shot_issues"] = issues
-        v3.setdefault("gates", {})["shots"] = not issues
+        v3.setdefault("gates", {})["shots"] = not has_blocking_issues(issues)
         from app.services.anim_pipeline import shots as shots_mod
         shots_mod.save(doc)
     return {"saved": len(body.shots), "edited": n_edit,
-            "issues": issues, "gate": not issues}
+            "issues": issues, "gate": not has_blocking_issues(issues)}
 
 
 @router.post("/ep/{book_id}/{ep}/concept/resplit")

@@ -326,3 +326,29 @@ def test_arc_level_quotas_are_episode_scoped():
     arc = " ".join(issues.get("弧级", []))
     assert "整场零申报" not in arc          # 通道停用
     assert "场A" not in arc                 # 不再按单弧喊配额
+
+
+def test_strip_quoted_labels():
+    """1105 用户令: v3 画面里不许有字 — 引号标签与模型自造的申报注释就地删。"""
+    shots = [
+        {"sid": "s27", "keyframe_zh": "听筒垂挂，光从亭顶漏下，凝在「该拨未拨」的静默前一刻。"},
+        {"sid": "s31", "keyframe_zh": "身后一块白板（申报文字载体：白板返工记录），板面被打亮。"},
+    ]
+    issues = {
+        "s27": ["s27 画面句含引号文字「该拨未拨」 — v3 图内字通道已停用"],
+        "s31": ["s31 画面句含引号文本未申报 in_image_text (二段化只认显式申报)"],
+    }
+    fixed, manual = v3shots.strip_quoted_labels(shots, issues)
+    assert fixed == ["s27", "s31"]
+    assert "该拨未拨" not in shots[0]["keyframe_zh"]
+    assert "静默前一刻" in shots[0]["keyframe_zh"]      # 不留病句片
+    assert "的的" not in shots[0]["keyframe_zh"]
+    assert "申报" not in shots[1]["keyframe_zh"]
+    assert manual == []
+
+
+def test_arc_reminders_do_not_block_gate():
+    """弧级=策略提醒 (人检可保留), 只有镜级才拦闸 (实锤: 旧实现 `not issues` 闸永久锁死)。"""
+    assert v3shots.has_blocking_issues({}) is False
+    assert v3shots.has_blocking_issues({"弧级": ["景深配额: 全集 …"]}) is False
+    assert v3shots.has_blocking_issues({"s8": ["…"], "弧级": ["…"]}) is True

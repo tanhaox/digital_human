@@ -235,10 +235,11 @@ _SYS = """你是动画分镜的画师。给定「镜」清单 (镜号|所属弧�
 硬性要求 (违反即被打回):
 1. 80-200 字, 写清楚这一镜**画什么**: 主体 + 动作前一刻的静态构图 + 环境/光源/景深。
 2. 必须是**动画起点帧** — 禁写终态 ("已完成""落定""熄灭后" 一律不行)。
-3. 禁出现文字载体 (白板/标签/屏幕字/书页字/招牌…), 除非该镜另有申报;
-   无字载体写「空白板面/空白留白」。
+3. 画面里**不出现任何文字**: 禁画有字的载体 (白板写满/算盘刻度字/书页字/屏幕内容/招牌),
+   也不要写"申报""二段合成"这类元说明。确需载体时只写「空白白板/空白便签/空白存折」。
+   剧情标签 (该拨未拨/先存本金) 是给你理解用的, 不许写进画面句。
 4. 继承所属弧的视觉世界与隐喻, 相邻镜构图不重复。
-5. 禁在画面句里用引号标注镜位/场景名 (「图纸台前」: … 这类写法会被当成画内文字渲染) — 直接描述即可。
+5. **画面句里一个引号都不许用** (「」『』"" 全禁): 主题词直接描述, 不要括起来。
 6. 每条只输出画面句, 严格 JSON: {"shots":[{"sid":"s1","keyframe_zh":"..."}]}"""
 
 
@@ -315,6 +316,7 @@ ARC_LEVEL_KEY = "弧级"      # 无法归因到单镜的场级问题 (宪法配�
 #   · 人物/景深配额改全集口径 (一次算全片, 与 final_gate 全场尺同源)。
 _ARC_QUOTA_MARKERS = ("整场零申报", "分区人物配额", "景深配额")
 _CARRIER_MSG = re.compile(r"^(s\d+) 画面句含文字载体「(.+?)」但未申报 in_image_text")
+_QUOTE_IN_TEXT = re.compile(r"[「『\"“][^」』\"”]{1,20}[」』\"”]")
 
 # ── 误报豁免 (v2 writer_failures 的已知局限, v3 层过滤保 v2 零扰动) ──
 _CARRIER_HIT = re.compile(r"含文字载体「(.+?)」")
@@ -361,6 +363,15 @@ def _carrier_already_blanked(msg: str, text: str) -> bool:
     # 同一载体在别处已明确留白, 且全句无内容动词 → 同一无字物件 (「立式白板板面空白…白板板面微微反光」)
     return bool(blank_n) and not _TEXT_CONTENT.search(text)
 
+
+
+def has_blocking_issues(issues: dict[str, list[str]] | None) -> bool:
+    """闸只看镜级: 弧级是策略提醒 (宪法配额, 人检可保留), 不拦闸。
+
+    实锤: 旧实现 `not issues` 把弧级提醒也算进闸 → 镜级清零后闸仍锁死,
+    而弧级 (人物/景深配额) 在 v3 是全集口径的长期目标, 会永久挡路。
+    """
+    return any(v for k, v in (issues or {}).items() if k != ARC_LEVEL_KEY)
 
 
 def text_layer_issues(shots: list[dict[str, Any]]) -> dict[str, list[str]]:
@@ -421,6 +432,10 @@ def text_layer_issues(shots: list[dict[str, Any]]) -> dict[str, list[str]]:
                 txt = (f"{cm.group(1)} 画面句含文字载体「{cm.group(2)}」未写成空白 — "
                        f"改写为「空白{cm.group(2)}」或换别的陈设 "
                        "(v3 图内字通道已停用, 上屏字走剪映卡/图示 PNG)")
+            elif "含引号文本" in txt:
+                _q = _QUOTE_IN_TEXT.search(text_of.get(key, ""))
+                txt = (f"{key} 画面句含引号文字{_q.group(0) if _q else ''} — "
+                       "v3 图内字通道已停用: 删掉引号, 改成普通描述 (上屏字走剪映卡)")
             out.setdefault(key, []).append(txt[:160])
     # ── 全集口径配额 (一次算全片) ─────────────────────────────────────
     arc_q: list[str] = []
@@ -491,6 +506,42 @@ def blankify_carriers(shots: list[dict[str, Any]],
                     fixed.append(sid)
             elif not resolved:
                 manual.append(f"{sid}: 载体「{word}」需手改 — 写成「空白{word}」或换别的陈设")
+    return fixed, manual
+
+
+# ── 去引号/去申报注释 (1105 用户令: v3 画面里不许有任何字) ──────────────
+
+_RE_DECL_NOTE = re.compile(r"[（(]\s*申报[^）)]{0,40}[）)]")        # 模型自造的元说明
+_RE_QT_OF = re.compile(r"[「『\"“][^」』\"”]{1,20}[」』\"”]\s*的")   # 「该拨未拨」的 → 整段删
+_RE_QT = re.compile(r"[「『\"“][^」』\"”]{1,20}[」』\"”]")
+
+
+def strip_quoted_labels(shots: list[dict[str, Any]],
+                        issues: dict[str, list[str]]) -> tuple[list[str], list[str]]:
+    """把画面句里的引号标签就地删掉 (删后不留病句片).
+
+    LLM 常把桥段标签写成「该拨未拨」, 或自造 (申报文字载体: …) 元说明。
+    v3 图内字通道已停用, 画面里不许有任何字 → 确定性删除; 删不干净的交人工。
+    """
+    by_sid = {s["sid"]: s for s in shots}
+    fixed: list[str] = []
+    manual: list[str] = []
+    for sid, lst in (issues or {}).items():
+        if sid == ARC_LEVEL_KEY:
+            continue
+        s = by_sid.get(sid)
+        if not s or not any("引号" in x for x in lst):
+            continue
+        zh = str(s.get("keyframe_zh") or "")
+        new = _RE_DECL_NOTE.sub("", zh)
+        new = _RE_QT_OF.sub("", new)
+        new = _RE_QT.sub("", new)
+        new = re.sub(r"的的|，，|。。|；；", lambda m: m.group(0)[0], new)
+        if new != zh and not _RE_QT.search(_RE_DECL_NOTE.sub("", new)):
+            s["keyframe_zh"] = new.strip()
+            fixed.append(sid)
+        elif new != zh:
+            manual.append(f"{sid}: 引号文字需手改 — 删掉引号或改写成普通描述")
     return fixed, manual
 
 

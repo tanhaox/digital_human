@@ -247,13 +247,14 @@ function renderSide() {
 function renderGate(open, ready) {
   GATE_OPEN = !!open;
   const nIss = SHOTS.reduce((a, s) => a + shotIssues(s.sid).length, 0);
-  const hasCarrier = SHOTS.some(s => shotIssues(s.sid).some(t => t.includes('文字载体')));
+  const hasFixable = SHOTS.some(s => shotIssues(s.sid).some(
+    t => t.includes('文字载体') || t.includes('引号')));
   const box = $('gatecard');
   box.className = 'card gatebar' + (open ? '' : ' locked');
   box.innerHTML = open
     ? '<div class="gt gold-t">◉ 分镜已放行</div><div class="note">可进 ④ 导演 (景别/运镜/光影)</div>'
     : `<div class="gt">🔒 分镜闸未开</div><div class="note">${ready ? `镜级 ${nIss} 项待清` : '尚未切镜'}</div>`
-      + (hasCarrier ? '<div class="fixrow"><button class="btn-fix" id="btn-autofix" title="把载体补成「空白XX」(v3 图内字通道已停用); 出不了量词的需手改">🔧 一键空白化</button></div>' : '')
+      + (hasFixable ? '<div class="fixrow"><button class="btn-fix" id="btn-autofix" title="载体补「空白XX」+ 删引号标签/申报注释 (v3 画面里不许有字); 判不了的返回手改">🔧 一键合规</button></div>' : '')
       + (!CARDS.length ? '<div class="fixrow"><button class="btn-fix" id="btn-autocards" title="把①分诊给出的金句/清单/配图/书证/事件建议一次建成卡">＋ 一键建卡</button></div>' : '');
   const ac = document.getElementById('btn-autocards');
   if (ac) ac.onclick = async () => {
@@ -266,7 +267,7 @@ function renderGate(open, ready) {
   if (af) af.onclick = async () => {
     const r = await (await fetch(`${BASE}/shots/fix`, { method: 'POST',
       headers: { 'Content-Type': 'application/json' }, body: '{}' })).json();
-    toast(`已空白化 ${r.fixed} 镜` + (r.manual.length ? ` · ${r.manual.length} 项需手改` : ''));
+    toast(`已自动合规 ${r.fixed_sids.length} 镜` + (r.manual.length ? ` · ${r.manual.length} 项需手改` : ''));
     await refresh();
     if (r.manual.length) toast('需手改: ' + r.manual[0]);
   };
