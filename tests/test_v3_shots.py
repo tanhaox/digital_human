@@ -201,7 +201,8 @@ def test_one_card_per_line_priority():
     v3 = {"cards": [], "lines": [
         {"no": 7, "text": "第一项…", "adopted": ["list", "img"], "suggs": both}]}
     cs = v3shots.build_cards(v3, sh)
-    assert len(cs) == 1 and cs[0]["style"] == "list"       # 都有卡文字时 文字卡优先
+    # 都有卡文字时图示优先 (1105 二次修正: 分诊只在"念不出来必须上图示"时才给 img)
+    assert len(cs) == 1 and cs[0]["style"] == "img"
     # 只有配图建议时才建配图卡
     v3b = {"cards": [], "lines": [{"no": 7, "text": "某句。", "adopted": ["img"],
            "suggs": [{"kind": "img", "card_text": "信任=可信度×可靠度"}]}]}
@@ -225,7 +226,7 @@ def test_stale_adopted_cards_not_duplicated():
                      "suggs": [{"kind": "list", "card_text": "①会做 ②不做"},
                                {"kind": "img", "card_text": "会做/不做/边界"}]}]}
     cs = v3shots.build_cards(v3, sh)
-    assert len(cs) == 1 and cs[0]["style"] == "list"
+    assert len(cs) == 1 and cs[0]["style"] == "img"     # 图示优先, 旧 adopted 卡不复活
     # 稿件指令卡 (marker) 必须保留
     v3b = {"cards": [{"cid": "c01", "style": "list", "text": "稿件卡",
                       "line_no": 41, "from": "marker"}],
@@ -389,3 +390,31 @@ def test_build_cards_skips_suggestion_without_card_text():
         "no": 5, "text": "第一项，会做什么。第二项，不会做什么。第三项，边界在哪。",
         "adopted": ["list"], "suggs": [{"kind": "list", "text": "成清单排比"}]}]}
     assert v3shots.build_cards(v3, [{"sid": "s1", "line_refs": [5]}]) == []
+
+
+def test_merge_same_list_cards():
+    """实锤 ep5 丑话清单: L35 11项 / L41 前三项 / L43 4-9项 三张卡 → 只留最全那张。"""
+    cards = [
+        {"cid": "c01", "kind": "图示", "style": "img", "line_no": 35,
+         "text": "丑话清单11项：范围/配合/分析/计划/沟通/汇报/报告/审核/交付/验收/评价",
+         "diagram": {"name": "丑话清单"}},
+        {"cid": "c02", "kind": "图示", "style": "img", "line_no": 41,
+         "text": "丑话清单①会/不会做 ②配合/不配合 ③分析边界",
+         "diagram": {"name": "丑话清单前三项"}},
+        {"cid": "c03", "kind": "图示", "style": "img", "line_no": 43,
+         "text": "丑话清单4-9：计划/沟通/汇报/报告/审核/交付",
+         "diagram": {"name": "过程与产出"}},
+        {"cid": "c04", "kind": "图示", "style": "img", "line_no": 69,
+         "text": "客户含糊→写进清单｜拒绝划界→标高风险",
+         "diagram": {"name": "客户反应判定"}},
+    ]
+    out = v3shots._merge_same_list(cards)
+    assert len(out) == 2                       # 丑话清单三合一 + 客户反应判定
+    assert [c["line_no"] for c in out] == [35, 69]
+    assert "11项" in out[0]["text"]            # 留覆盖最全的
+    assert [c["cid"] for c in out] == ["c01", "c02"]   # 重编号
+
+
+def test_list_kind_summary_vs_hint():
+    assert v3shots._list_kind("第二项…第三项…") == "提示"      # 清单提醒, 不是总结
+    assert v3shots._list_kind("回顾一下这节课的总结") == "总结"

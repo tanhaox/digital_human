@@ -44,8 +44,17 @@ KIND_STYLE = {"金句": "quote", "口诀": "quote", "结论": "event",
 _SUGG_KIND = {"quote": "金句", "book": "金句", "event": "结论",
               "list": "总结", "img": "图示"}
 # 同一句多建议时只建一张卡 (实锤: 配图+清单同句各出一张, 文字完全相同=重叠)
-# 取舍: 文字卡优先 (清单/金句/事件/书证), 配图仅在没有文字卡时使用
-_SUGG_PRIORITY = {"list": 0, "quote": 1, "book": 2, "event": 3, "img": 9}
+# 取舍 (1105 二次修正): 图示优先。分诊只在"念不出来必须上图示"时才给 img,
+# 实锤 L35「期望管理清单·十一项」的完整图示被同行「边界前置」事件字挤掉, 结果
+# 整条清单只剩 L41/L43 两张半截卡 → 用户: "后面的字跟不上"。
+_SUGG_PRIORITY = {"img": 0, "list": 1, "quote": 2, "book": 3, "event": 4}
+# 清单卡的内容性质: 回顾型=总结, 提醒型=提示 (实锤: 丑话清单被标成「总结」)
+_SUMMARY_WORDS = ("总结", "回顾", "以上", "这节课", "本集", "总之", "一句话说", "复盘")
+
+
+def _list_kind(text: str) -> str:
+    t = str(text or "")
+    return "总结" if any(w in t for w in _SUMMARY_WORDS) else "提示"
 
 
 # ── 确定性: 句 → 镜 ──────────────────────────────────────────────────
@@ -223,8 +232,10 @@ def build_cards(v3: dict[str, Any], shots: list[dict[str, Any]]) -> list[dict[st
         if key in seen:
             continue
         seen.add(key)
+        _kind = _SUGG_KIND.get(kind) or (_list_kind(ln.get("text")) if kind == "list"
+                                         else "总结")
         _card = {"cid": f"c{len(cards) + 1:02d}",
-                 "kind": _SUGG_KIND.get(kind, "总结"),
+                 "kind": _kind,
                  "style": style, "text": text,
                  "line_no": no, "sid": line2sid.get(no, ""), "from": "adopted"}
         # 图示类: 带上 LLM 产出的结构 (脑图/流程图), 无则退回文字版式
@@ -233,7 +244,59 @@ def build_cards(v3: dict[str, Any], shots: list[dict[str, Any]]) -> list[dict[st
         if _dg:
             _card["diagram"] = _dg
         cards.append(_card)
-    return cards
+    return _merge_same_list(cards)
+
+
+_LISTISH_KINDS = ("图示", "提示", "总结")
+
+
+def _grams(t: str, n: int = 4) -> set[str]:
+    t = re.sub(r"\s+", "", str(t or ""))
+    return {t[i:i + n] for i in range(max(0, len(t) - n + 1))}
+
+
+def _merge_same_list(cards: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """同一条清单被拆成多张卡 → 只留覆盖最全的一张。
+
+    实锤 (ep5 丑话清单): L35 完整 11 项 / L41 前三项 / L43 4-9 项, 三行各建一张卡,
+    同一条清单上三次屏且每次只上一截 (用户: "后面的字跟不上")。
+    判定: 相邻 (≤12 行) 的两张清单/图示卡, 卡文字或图示根名有 ≥4 字公共片段 → 同一清单,
+    保留覆盖更全的那张 (文字更长 / 节点更多)。cid 合并后重编号。
+    """
+    def _anchor(c: dict[str, Any]) -> set[str]:
+        return _grams(c.get("text")) | _grams((c.get("diagram") or {}).get("name"))
+
+    def _score(c: dict[str, Any]) -> tuple[int, int]:
+        return (len(str(c.get("text") or "")), len(str(c.get("diagram") or "")))
+
+    keep: list[dict[str, Any]] = []
+    dropped: list[str] = []
+    for c in cards:
+        if c.get("kind") not in _LISTISH_KINDS:
+            keep.append(c)
+            continue
+        merged = False
+        for i, k in enumerate(keep):
+            if k.get("kind") not in _LISTISH_KINDS:
+                continue
+            if abs(int(k.get("line_no") or 0) - int(c.get("line_no") or 0)) > 12:
+                continue
+            if not (_anchor(c) & _anchor(k)):
+                continue
+            if _score(c) > _score(k):
+                dropped.append(str(k.get("cid")))
+                keep[i] = c
+            else:
+                dropped.append(str(c.get("cid")))
+            merged = True
+            break
+        if not merged:
+            keep.append(c)
+    if dropped:
+        logger.info("[v3:shots] 清单卡合并, 丢弃重复: %s", ",".join(dropped))
+    for i, c in enumerate(keep, 1):
+        c["cid"] = f"c{i:02d}"
+    return keep
 
 
 # ── LLM: 画面句 ───────────────────────────────────────────────────────
