@@ -488,3 +488,53 @@ def test_person_words_match_prompt_wording():
     after = zone_quota_issues(doc, extra_words=v3shots._PERSON_EXTRA)
     assert before and not after
     assert "背影" in v3shots._PERSON_EXTRA
+
+
+def test_direct_cam_table_and_clause():
+    """④ 单一事实源: LLM 吐四元组, 程序渲染官方句 (UI/H3/校验同表)。"""
+    from app.services.anim_pipeline.v3_pipeline import direct as D
+    assert D.cam_clause({"kind": "摇", "dir": "左", "amp": "大", "speed": "慢"}) \
+        == "The camera pans left with large amplitude at slow speed."
+    assert D.cam_clause({"kind": "推", "dir": "", "amp": "中", "speed": "中"}) \
+        == "The camera pushes in."
+    assert D.cam_clause({"kind": "固定", "dir": "", "amp": "大", "speed": "快"}) \
+        == "The camera holds a static shot."       # 固定镜无幅速
+    assert D.cam_clause({"kind": "环绕"}) == ""      # 未注册型 → 空
+
+
+def test_direct_execution_policy():
+    """步数/工位是程序独占: 素材 12 其余 8; 运镜锁 h3 (r2v 裸奔挂账)。"""
+    from app.services.anim_pipeline.v3_pipeline import direct as D
+    assert D.steps_for({}) == 8
+    assert D.steps_for({"asset_ref": {"image": "t.png"}}) == 12
+    assert D.station_for({"kind": "摇"}) == "h3"
+    assert D.station_for({"kind": "固定"}) == "auto"
+
+
+def test_direct_validate_rules():
+    """枚举/方向/固定纪律/槽长闸/相邻景别 — 生成时执法 (1105 用户令)。"""
+    from app.services.anim_pipeline.v3_pipeline import direct as D
+    shots = [{"sid": "s1", "arc_id": "A1", "est_s": 8.0},
+             {"sid": "s2", "arc_id": "A1", "est_s": 4.5}]
+    ok = {"s1": {"size": "全景", "cam": {"kind": "摇", "dir": "左", "amp": "大", "speed": "慢"}},
+          "s2": {"size": "特写", "cam": {"kind": "固定", "dir": "", "amp": "", "speed": ""}}}
+    assert D.validate(ok, shots) == {}
+    bad = {"s1": {"size": "全景", "cam": {"kind": "环绕", "dir": "", "amp": "", "speed": ""}},
+           "s2": {"size": "全景", "cam": {"kind": "推", "dir": "上", "amp": "大", "speed": "慢"}}}
+    iss = D.validate(bad, shots)
+    assert any("不在枚举内" in x for x in iss["s1"])
+    assert any("方向只准" in x or "无方向" in x for x in iss["s2"])
+    assert any("槽长" in x for x in iss["s2"])          # 4.5s 短槽运镜 → 拦
+    assert any("相邻镜景别相同" in x for x in iss["s2"])  # s1 全景 s2 全景
+    static_amp = {"s1": ok["s1"], "s2": {"size": "特写",
+                   "cam": {"kind": "固定", "dir": "", "amp": "大", "speed": ""}}}
+    assert any("固定镜不带幅速" in x for x in D.validate(static_amp, shots)["s2"])
+
+
+def test_direct_prompt_carries_the_rules():
+    """规则前移契约: 枚举/槽长/固定默认 必须在生成提示里 (否则写手不知道)。"""
+    from app.services.anim_pipeline.v3_pipeline import direct as D
+    for k in D.CAM_DEFS:
+        assert k in D._SYS
+    assert "6" in D._SYS and "固定是默认" in D._SYS
+    assert "相邻镜景别" in D._SYS

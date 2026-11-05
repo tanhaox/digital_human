@@ -38,6 +38,7 @@ const TYPE_ZH = { narr: '叙事弧', quote: '书证镜', persona: '人设镜',
   hook: '钩子', cta: '行动召', brand: '品牌' };
 
 let SHOTS = [], ARCS = [], STATE = {}, DIRTY = new Set(), GATES = {};
+let MIN_SLOT = 6;
 
 async function boot() {
   const [d, st] = await Promise.all([
@@ -45,6 +46,15 @@ async function boot() {
     (await fetch(`${BASE}/state`)).json(),
   ]);
   SHOTS = d.shots || []; ARCS = d.arcs || []; GATES = d.gates || {};
+  // 词表以服务端为准 (单一事实源: 后端 CAM_DEFS = H3 壳 = 校验器 = 本页预览)
+  if (d.cam_defs) {
+    Object.keys(CAM_DEFS).forEach(k => delete CAM_DEFS[k]);
+    Object.assign(CAM_DEFS, d.cam_defs);
+    CAMS.length = 0; CAMS.push('待定', ...Object.keys(CAM_DEFS));
+  }
+  if (d.sizes) { SIZES.length = 0; SIZES.push(...d.sizes); }
+  d.sizes.forEach(z => { SIZE_LV[z] = d.sizes.length - d.sizes.indexOf(z); });
+  MIN_SLOT = d.min_move_slot_s || MIN_SLOT;
   $('sub').textContent = `${st.book_title} · 第${st.ep}集`;
   for (const s of SHOTS) {
     const saved = s.direct || {};
@@ -61,6 +71,60 @@ async function boot() {
   }
   rail($('rail'), { line: st.line, gates: GATES, active: 'direct' });
   renderBlocks(); renderRhythm(); renderCounts(); renderSide();
+  const run = $('btn-run'), save = $('btn-save');
+  run.disabled = false; run.title = 'LLM 按官方词表填四元组 (程序管步数/工位)';
+  save.disabled = false; save.title = '保存导演参数 + 复检放行';
+  run.onclick = runDirect; save.onclick = saveDirect;
+}
+
+/* ── 生成 / 保存 ──────────────────────────────────────── */
+async function runDirect() {
+  const r = await fetch(`${BASE}/v3_direct`, { method: 'POST',
+    headers: { 'Content-Type': 'application/json' }, body: '{}' });
+  if (!r.ok) { toast('启动失败: ' + (await r.json()).detail); return; }
+  const j = await r.json();
+  $('btn-run').disabled = true; $('btn-run').textContent = '⏳ 生成中…';
+  toast('导演参数生成中 (LLM 四元组, 批内自检)');
+  for (let i = 0; i < 100; i++) {
+    await new Promise(x => setTimeout(x, 4000));
+    let d; try { d = await (await fetch(`/api/anim/job/${j.id}`)).json(); } catch { continue; }
+    if (d.status !== 'running') {
+      $('btn-run').disabled = false; $('btn-run').textContent = '🎬 生成导演';
+      toast(d.status === 'completed'
+        ? `✓ ${d.result?.shots ?? '?'} 镜 (运镜 ${d.result?.moves ?? 0}, 待清 ${d.result?.issues ?? 0})`
+        : '生成失败: ' + (d.error || d.status));
+      boot(); return;
+    }
+  }
+  $('btn-run').disabled = false; $('btn-run').textContent = '🎬 生成导演';
+}
+
+async function saveDirect() {
+  const confirmMode = !DIRTY.size && GATES.direct;
+  $('save-label').textContent = '⏳ 保存中…';
+  const direct = {};
+  for (const s of SHOTS) {
+    const st = STATE[s.sid];
+    if (!st.filled) continue;
+    direct[s.sid] = { size: st.size,
+      cam: { kind: st.cam.kind === '待定' ? '固定' : st.cam.kind,
+             dir: st.cam.dir || '', amp: NO_MOVE.includes(st.cam.kind) ? '' : st.cam.amp,
+             speed: NO_MOVE.includes(st.cam.kind) ? '' : st.cam.speed },
+      motion: st.motion, light: st.light };
+  }
+  try {
+    const r = await (await fetch(`${BASE}/direct/save`, { method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ direct }) })).json();
+    DIRTY.clear();
+    if (r.gate) toast('✓ 导演放行 — 可进 ⑤');
+    else {
+      const first = Object.entries(r.issues || {}).find(([k]) => k !== '弧级');
+      toast(first ? `待清: ${first[1][0]}` : '已保存 (弧级提醒不拦闸)');
+    }
+    await boot();
+  } catch (e) { toast('保存失败: ' + e.message); }
+  $('save-label').textContent = '💾 保存导演';
 }
 
 /* ── 顶栏 ─────────────────────────────────────────────── */
@@ -129,16 +193,20 @@ function opts(list, cur, labels) {
   return list.map(x => `<option value="${esc(x)}"${x === cur ? ' selected' : ''}>${esc((labels && labels[x]) || x)}</option>`).join('');
 }
 
-/** 生成 H3 原文 (官方句式; 中幅/常速省略) */
+/** 生成 H3 原文 (官方句式; 中幅/常速省略) — en 兼容 函数/对象/字符串 (后端 JSON 下发) */
 function camClause(st) {
   const def = CAM_DEFS[st.cam.kind];
   if (!def) return '';
+  if (def.static) return 'The camera holds a static shot.';
+  let head;
+  if (typeof def.en === 'function') head = def.en(st.cam.dir);
+  else if (def.en && typeof def.en === 'object')
+    head = def.en[st.cam.dir] || Object.values(def.en)[0];
+  else head = def.en;
   const amp = st.cam.amp === '小' ? 'with small amplitude'
             : st.cam.amp === '大' ? 'with large amplitude' : '';
   const spd = st.cam.speed === '慢' ? 'at slow speed'
             : st.cam.speed === '快' ? 'at fast speed' : '';
-  const head = def.en(st.cam.dir);
-  if (def.static) return `The camera ${head}.`;   // 固定镜无幅度/速度
   return `The camera ${[head, amp, spd].filter(Boolean).join(' ')}.`;
 }
 
@@ -252,9 +320,18 @@ function renderSide() {
 }
 
 function refreshDirty() {
+  const confirmMode = !DIRTY.size && GATES.direct;
+  $('save-label').textContent = confirmMode ? '✅ 确认放行导演' : '💾 保存导演';
   $('dirty').innerHTML = DIRTY.size
     ? `改稿 <b class="gold-t">${DIRTY.size} 处未保存</b>` : '改稿 0 处未保存';
   $('n-dirty').textContent = DIRTY.size ? ` (${DIRTY.size})` : '';
 }
 
 boot();
+
+function toast(m) {
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = m;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 3500);
+}

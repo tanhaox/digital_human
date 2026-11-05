@@ -208,13 +208,18 @@ def v3_shots_get(book_id: str, ep: int):
     arcs = [{k: a.get(k) for k in ("arc_id", "type", "mode", "no_start", "no_end",
                                    "line_count", "est_s", "world", "metaphor")}
             for a in (v3.get("arcs") or [])]
-    # ④ 导演: 已填数据 + 景别预填 (UI 空态也有内容可看)
+    # ④ 导演: 已填数据 + 景别预填 + 词表 (单一事实源 → UI 与 H3 壳同表)
     from app.services.anim_pipeline.v3_pipeline.shots import suggest_size
-    direct = {str(d.get("sid")): d for d in (v3.get("direct") or []) if d.get("sid")}
+    from app.services.anim_pipeline.v3_pipeline import direct as v3_direct
+    direct = v3.get("direct") or {}
     for s in shots:
-        s["direct"] = direct.get(str(s["sid"])) or None
+        d = direct.get(str(s["sid"]))
+        s["direct"] = d
         s["size_guess"] = suggest_size(s.get("keyframe_zh"))
     return {"shots": shots, "cards": cards, "arcs": arcs,
+            "cam_defs": v3_direct.CAM_DEFS,
+            "sizes": v3_direct.SIZES, "no_move": list(v3_direct.NO_MOVE),
+            "min_move_slot_s": v3_direct.MIN_MOVE_SLOT_S,
             "issues": v3.get("shot_issues") or {},
             "direct_issues": v3.get("direct_issues") or {},
             "warnings": v3.get("shot_warnings") or [],
@@ -391,6 +396,51 @@ def v3_shots_fix(book_id: str, ep: int):
         shots_mod.save(doc)
     return {"fixed": len(fixed), "fixed_sids": fixed, "manual": manual,
             "issues": issues, "gate": not has_blocking_issues(issues)}
+
+
+class DirectSaveBody(BaseModel):
+    direct: dict[str, dict[str, Any]] = {}      # {sid: {size, cam{kind,dir,amp,speed}, motion, light}}
+
+
+@router.post("/ep/{book_id}/{ep}/direct/save")
+def v3_direct_save(book_id: str, ep: int, body: DirectSaveBody):
+    """保存 ④ 导演参数 (UI 手改或生成结果): 固化执行参数 + 复检 + 闸态。"""
+    from app.services.anim_pipeline.v3_pipeline import direct as v3_direct
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    with anim_service.ep_guard(book_id, ep):
+        doc = _load_v3_doc(book_title, ep)
+        v3 = doc.setdefault("v3", {})
+        shots = {s["sid"]: s for s in (v3.get("shots") or [])}
+        merged = dict(v3.get("direct") or {})
+        for sid, d in body.direct.items():
+            if sid in shots and d:
+                merged[sid] = {"size": str(d.get("size") or "中景"),
+                               "cam": {"kind": str((d.get("cam") or {}).get("kind") or "固定"),
+                                       "dir": str((d.get("cam") or {}).get("dir") or ""),
+                                       "amp": str((d.get("cam") or {}).get("amp") or ""),
+                                       "speed": str((d.get("cam") or {}).get("speed") or "")},
+                               "motion": str(d.get("motion") or "")[:120],
+                               "light": str(d.get("light") or "")[:80]}
+        # 执行参数随镜固化 (步数/工位/英文句 — 程序独占, LLM 无感)
+        for sid, d in merged.items():
+            sh = shots.get(sid)
+            if sh and d:
+                d["steps"] = v3_direct.steps_for(sh)
+                d["station"] = v3_direct.station_for(d.get("cam"))
+                d["clause"] = v3_direct.cam_clause(d.get("cam"))
+        issues = v3_direct.validate(merged, list(shots.values()))
+        v3["direct"] = merged
+        v3["direct_issues"] = issues
+        blocking = any(k != "弧级" for k in issues)
+        v3.setdefault("gates", {})["direct"] = not blocking and len(merged) >= len(shots)
+        from app.services.anim_pipeline import shots as shots_mod
+        shots_mod.save(doc)
+    return {"saved": len(merged), "issues": issues,
+            "gate": v3["gates"]["direct"]}
 
 
 @router.post("/ep/{book_id}/{ep}/shots/save")
