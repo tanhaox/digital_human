@@ -129,6 +129,11 @@ td .dim2 { color:var(--faint); }
 .p2g .cardcell .iconbtn:hover { opacity:1; }
 .p2g .dim2 { color:var(--faint); }
 .p2g .tbd { color:var(--faint); font-family:var(--mono); }
+.p2g.dg .r { grid-template-columns:52px 62px 84px 104px minmax(280px,1fr) minmax(240px,340px); }
+.sizelane { display:flex; align-items:flex-end; gap:2px; height:30px;
+  border:1px solid var(--line2); border-radius:5px; background:#0a0d12; padding:2px 3px; }
+.sizelane i { flex:1; border-radius:2px 2px 0 0;
+  background:linear-gradient(180deg, var(--gold-dim), #2a3752); min-width:2px; }
 
 /* ── P3 TTS ── */
 .rate { display:flex; align-items:center; gap:6px; font-family:var(--mono); font-size:12.5px; color:var(--dim); }
@@ -214,10 +219,11 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
 
 <div class="railwrap"><div class="rail" id="rail">
   <a class="step now" href="#p1"><span class="n">①</span>立意<span class="st">确认中</span></a><span class="sep">→</span>
-  <a class="step" href="#p2"><span class="n">②</span>分镜<span class="st">🔒待①</span></a><span class="sep">→</span>
-  <a class="step" href="#p3"><span class="n">③</span>TTS<span class="st">🔒</span></a><span class="sep">→</span>
-  <a class="step" href="#p4"><span class="n">④</span>盖章<span class="st">🔒</span></a><span class="sep">→</span>
-  <a class="step" href="#p5"><span class="n">⑤</span>执行<span class="st">K2/H3</span></a>
+  <a class="step" href="#p2"><span class="n">②</span>分镜文字<span class="st">🔒待①</span></a><span class="sep">→</span>
+  <a class="step" href="#p3"><span class="n">③</span>导演<span class="st">🔒</span></a><span class="sep">→</span>
+  <a class="step" href="#p4"><span class="n">④</span>TTS<span class="st">🔒</span></a><span class="sep">→</span>
+  <a class="step" href="#p5"><span class="n">⑤</span>盖章<span class="st">🔒</span></a><span class="sep">→</span>
+  <a class="step" href="#p6"><span class="n">⑥</span>执行<span class="st">K2/H3</span></a>
 </div></div>
 
 <!-- ════════ P1 立意 (独立页 · 借现版立意面板) ════════ -->
@@ -301,7 +307,7 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
 
   <ol class="specs">
     <li><b>借现版立意面板</b>: 六拍分配表/单场重掷/编辑保存交互原样迁入, 仅增 行号/句区间/镜数 三列 (结构引用)。</li>
-    <li><b>预估列</b>: 字数×语率估算, 供拍子比例参考; 真实时长 ④ 盖章注入 (本页永远不显示精确秒)。</li>
+    <li><b>预估列</b>: 字数×语率估算, 供拍子比例参考; 真实时长 ⑤ 盖章注入 (本页永远不显示精确秒)。</li>
     <li><b>零音频依赖</b>: 本页无音频也可开工 (旧版音频门挪到 ③ TTS)。</li>
     <li><b>语态模式×画面模式分配</b> (用户令第五轮): 稿件 = 语态序列 — 原书怎么说→<b>书证镜</b> (独立弧型: 书的视角, 引文零转译), 人设自述("我当年…")→<b>回忆镜</b> (老谭出镜, 即使不加泛黄也是人在讲), 老谭评论→<b>叙事隐喻弧</b> (A=B 世界), 钩子/CTA/品牌→非叙事位 (系列冻结)。当前实病: 三种语态搅进同一立意, 隐喻被稀释、书证和人设没有自己的画面语言。</li>
 <li><b>弧界=稿模块边界</b> (执法): 渐进轴稿层×弧层对照, 弧界切进模块内自动红痕、放行闸拦截; 品牌位=书级冻结条 (开场预留+收官仪式句), 零立意零分镜。</li>
@@ -399,7 +405,7 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
   <div class="gatebar"><span class="ti">◉ 分镜放行</span>
     <span class="note">放行 = 镜/花字/上屏<b>内容</b>锁定 → 进入 ③ TTS; 时长列仍空 (④ 盖章注入)</span>
     <span style="flex:1"></span>
-    <button class="ghost act">↩ 打回立意</button><button class="gold act">✅ 42 镜 OK → TTS</button></div>
+    <button class="ghost act">↩ 打回立意</button><button class="gold act">✅ 42 镜 OK → 导演台</button></div>
 
   <ol class="specs">
     <li><b>画面句 ✎改</b>: 虚线点文本或点 ✎ 均可改 (行内编辑器); 品牌原子镜🔒无入口; 放行后全列只读。</li>
@@ -414,9 +420,69 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
 </div>
 
 <!-- ════════ P3 TTS (独立页) ════════ -->
+<!-- ════════ P3 导演 · 镜头语言台 (新页: 法层驱动, 怎么拍) ════════ -->
 <div class="page" id="p3">
 <section>
-  <div class="h2row"><h2 class="h2"><span class="no">③</span> TTS · 纯渲染</h2>
+  <div class="h2row"><h2 class="h2"><span class="no">③</span> 导演 · 镜头语言台</h2>
+    <span class="sub">本页只做一件事: 定<b>怎么拍</b> — 景别/运镜/光影/连续性 (法层驱动, 全文字阶段零 GPU)</span>
+    <span class="badge ok">景深配额 A2 4/13 ✓</span><span class="badge">42 镜 · 4 场</span></div>
+
+  <!-- 渐进轴 · P3: 景别节奏层 (柱高=景别大小, 景深配额一眼验收) -->
+  <div class="mini"><div class="lanes" style="position:relative">
+    <div class="lane arc ghost">
+      <div class="seg" style="width:6%; background:#22304a"><span class="lb">钩</span></div>
+      <div class="seg" style="width:8%; background:#3a5f6e"><span class="lb">书证</span></div>
+      <div class="seg" style="width:19%; background:#1d5f4c"><span class="lb">A1</span></div>
+      <div class="seg" style="width:6%; background:#6e3a5a"><span class="lb">人</span></div>
+      <div class="seg" style="width:7%; background:#3a5f6e"><span class="lb">书②</span></div>
+      <div class="seg" style="width:26%; background:#5f4a1d"><span class="lb">A2</span></div>
+      <div class="seg" style="width:6%; background:#3a5f6e"><span class="lb">书③</span></div>
+      <div class="seg" style="width:17%; background:#4a1d5f"><span class="lb">A3</span></div>
+      <div class="seg" style="width:5%; background:#22304a"><span class="lb">CTA</span></div>
+    </div>
+    <div class="sizelane">
+      <i style="height:30%"></i><i style="height:55%"></i><i style="height:100%"></i><i style="height:45%"></i><i style="height:30%"></i><i style="height:65%"></i><i style="height:30%"></i><i style="height:80%"></i><i style="height:50%"></i><i style="height:30%"></i><i style="height:40%"></i><i style="height:100%"></i><i style="height:45%"></i><i style="height:60%"></i><i style="height:35%"></i><i style="height:30%"></i><i style="height:55%"></i><i style="height:75%"></i><i style="height:40%"></i><i style="height:30%"></i><i style="height:100%"></i><i style="height:50%"></i><i style="height:65%"></i><i style="height:45%"></i><i style="height:30%"></i><i style="height:55%"></i><i style="height:40%"></i><i style="height:60%"></i>
+    </div>
+  </div>
+  <div class="axisline"><span>0s</span><span>60</span><span>120</span><span>180</span><span>~234s 估</span></div>
+  <div class="cap">+ 景别节奏层: 柱高=景别 (满高=大场景, 矮=特写) — 景深配额 (每场大场景≥N) 一眼验收, 全特写段落即露馅</div></div>
+
+  <div class="fixrow" style="margin:0 0 10px"><span class="badge gold">法层 · A2</span> <b>镜头序</b> ELS开场 → MS节奏 → CU落点 · <b>光影</b> 窗光侧逆 · <b>连续性</b> 眼动链 左→右 · 道具 玻璃模块不换手
+    <button class="iconbtn">✎ 改法层</button><span class="note">— 镜头序/光影/连续性是本页宪法, 分镜按此填空 (shooting_script)</span></div>
+
+  <div class="p2wrap"><div class="p2g dg">
+    <div class="r"><span class="hd">场</span><span class="hd">镜</span><span class="hd">景别</span><span class="hd">运镜 <span class="note">视点</span></span><span class="hd">画面主体运动 <span class="note">内容</span></span><span class="hd">光影 · 连续性</span></div>
+    <div class="r"><span class="mono"><span class="scell sc1">1</span></span><span class="mono">s01</span><span>全景</span><span>固定</span><span class="editable">岔路口装置整体亮起, 路标翻牌</span><span class="dim2">晨光正面 · 眼动 左→右</span></div>
+    <div class="r"><span></span><span class="mono">s04</span><span>特写</span><span>微推</span><span class="editable">决策树分流装置启动, 指针拨动</span><span class="dim2">同上 · 道具 路标牌右手</span></div>
+    <div class="r"><span></span><span class="mono">s08</span><span>中景</span><span>固定</span><span class="editable">车身倾斜将翻, 悬挂物摇晃</span><span class="dim2">同上 · 承 s04 眼动</span></div>
+    <div class="r"><span class="mono"><span class="scell sc2">2</span></span><span class="mono">s12</span><span>中景</span><span>固定</span><span class="editable">工坊大门开启, 组装线逐段点亮</span><span class="dim2">窗光侧逆 · 眼动 左→右</span></div>
+    <div class="r"><span></span><span class="mono">s13</span><span>特写</span><span>微推</span><span class="editable">玻璃模块落入卡槽, 卡扣咬合</span><span class="dim2">同上 · 模块右手 (道具锁)</span></div>
+    <div class="r"><span></span><span class="mono">s17</span><span>大场景</span><span>横移</span><span class="editable">灯塔光束扫过, 红光斑掠过整条产线</span><span class="dim2">顶光+红光斑 · 接 s18 左入</span></div>
+    <div class="r"><span></span><span class="mono">s18</span><span>全景</span><span>跟</span><span class="editable">传送带载模块流转, 机械臂接力</span><span class="dim2">窗光侧逆 · 眼动随带向右</span></div>
+    <div class="r"><span class="mono"><span class="scell sc3">3</span></span><span class="mono">s30</span><span>全景</span><span>固定</span><span class="editable">闸门下落, 金币流截断入袋</span><span class="dim2">冷顶光 · 眼动 中→下</span></div>
+    <div class="r"><span></span><span class="mono">s33</span><span>特写</span><span>固定</span><span class="editable">刻度盘两轮标记, 指针归零</span><span class="dim2">同上 · 道具 刻度盘左手</span></div>
+    <div class="r"><span class="mono"><span class="scell sc4">4</span></span><span class="mono">s38</span><span>中景</span><span>微拉</span><span class="editable">投递窗口亮起, 工具卡滑出至手</span><span class="dim2">暖光 · 眼动 中→左</span></div>
+    <div class="r"><span></span><span class="mono">s42</span><span>全景</span><span>固定</span><span class="locked">品牌卡定稿 (零 GPU 直通)</span><span class="dim2">— 原子</span></div>
+    <div class="r"><span></span><span></span><span class="dim2">…</span><span class="dim2">…</span><span class="dim2">… 全 42 镜 · 运镜八步封顶 (推拉摇移跟升降固定) · 内容运动 ≠ 视点运动分列 …</span><span class="dim2">…</span></div>
+  </div></div>
+
+  <div class="gatebar"><span class="ti">◉ 导演放行</span>
+    <span class="note">景深配额/连续性/运镜纪律全绿 → 进入 ④ TTS; 改动零 TTS/GPU 成本</span>
+    <span style="flex:1"></span>
+    <button class="ghost act">↩ 打回分镜文字</button><button class="gold act">✅ 镜头语言 OK → TTS</button></div>
+
+  <ol class="specs">
+    <li><b>法层驱动</b>: 镜头序/光影/连续性 (shooting_script) 逐场卡置顶, 分镜按此填空 — 与现产线法层一致。</li>
+    <li><b>景别节奏层</b> (渐进轴): 柱高=景别大小; 景深配额 (每场大场景≥N) 可视化验收, ep6 A2 "13镜仅3镜大场景"类病在此页现形。</li>
+    <li><b>内容运动 ≠ 视点运动</b>: 两列分家 (画面主体运动 vs 运镜); 反运镜暗坑 (1026 三处) 进质检亮灯; 运镜八步封顶。</li>
+    <li><b>纯文字阶段</b>: 导演语言也是文本, 本页改动零 TTS/GPU; 放行后随结构锁定。</li>
+  </ol>
+</section>
+</div>
+
+<div class="page" id="p4">
+<section>
+  <div class="h2row"><h2 class="h2"><span class="no">④</span> TTS · 纯渲染</h2>
     <span class="sub">本页只做一件事: 把已锁定的文字结构变成音频 (块=句, 不跨弧)</span>
     <span class="badge">46 块 · 预估 234s</span><span class="badge warn">韵律微调 1</span></div>
 
@@ -499,9 +565,9 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
 </div>
 
 <!-- ════════ P4 盖章校带 (独立页) ════════ -->
-<div class="page" id="p4">
+<div class="page" id="p5">
 <section>
-  <div class="h2row"><h2 class="h2"><span class="no">④</span> 盖章 · 校带</h2>
+  <div class="h2row"><h2 class="h2"><span class="no">⑤</span> 盖章 · 校带</h2>
     <span class="sub">本页只做一件事: 实测秒数一次性注入结构 + 越带镜处理</span>
     <span class="badge gold">234.4s 实测</span></div>
 
@@ -582,9 +648,9 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
 </div>
 
 <!-- ════════ P5 执行段 ════════ -->
-<div class="page" id="p5">
+<div class="page" id="p6">
 <section>
-  <div class="h2row"><h2 class="h2"><span class="no">⑤</span> 执行 · K2 → H3 → 装配</h2>
+  <div class="h2row"><h2 class="h2"><span class="no">⑥</span> 执行 · K2 → H3 → 装配</h2>
     <span class="sub">沿用现有动画工坊看板 (anim.html), 界面不动 — 本页只做入口聚合</span></div>
 
   <!-- 渐进轴 · P5: 镜层按产线状态重着色 (样例进度) -->
