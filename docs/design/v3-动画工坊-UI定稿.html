@@ -61,11 +61,6 @@ section { margin:0 0 24px; }
 .spec { display:inline-flex; align-items:center; justify-content:center; min-width:18px; height:18px;
   border-radius:9px; background:#233246; color:var(--cyan); font-family:var(--mono); font-size:11px; margin:0 4px; }
 
-/* v2/v3 对照 (P1 顶部) */
-.vs { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
-.vs .panel { padding:10px 14px; font-size:12.5px; }
-.vs b { font-family:var(--mono); } .vs .old b { color:var(--faint); } .vs .new b { color:var(--gold); }
-
 /* ── P1 立意: 六拍分配表 (借现版立意面板) ── */
 .concept-bar { display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin:0 0 10px; }
 .twrap { overflow-x:auto; border:1px solid var(--line); border-radius:10px; }
@@ -157,7 +152,7 @@ button.ghost { background:transparent; border:1px solid var(--line2); color:var(
   font-family:var(--mono); font-size:11px; margin-right:8px; }
 .specs b { color:var(--txt); }
 footer { color:var(--faint); font-size:11.5px; margin:24px 0 18px; }
-@media (max-width:640px){ .vs { grid-template-columns:1fr; } table { min-width:760px; } }
+@media (max-width:640px){ table { min-width:760px; } }
 </style>
 
 <div class="wrap">
@@ -213,11 +208,6 @@ footer { color:var(--faint); font-size:11.5px; margin:24px 0 18px; }
     <span><i class="sc-cta"></i>行动CTA</span><span><i class="sc-brand"></i>品牌句</span>
     <span style="color:var(--bad-t)">▎红痕=弧界切进原句③ 尾部 (人闸要看的正是这种错位)</span></div>
   <div class="cap">稿层×弧层对照: 弧界是否落在模块边界上, 分配合理/立意准不准一眼判断; 虚线标尺 (60/120/180s) 贯通两层</div></div>
-
-  <div class="vs" style="margin-bottom:14px">
-    <div class="panel old">v2&nbsp; <b>文稿 → TTS → 立意 → …</b><br><span class="note">立意确认前先烧 TTS; 弧边界在时间轴上猜</span></div>
-    <div class="panel new">v3&nbsp; <b>文稿 → 立意 → …</b><br><span class="note">改判/重掷零音频成本; 弧=行号区间, 天然句边对齐</span></div>
-  </div>
 
   <div class="concept-bar">
     <b style="color:var(--gold)">📜 立意 (人闸 — 可编辑, 保存即生效)</b>
