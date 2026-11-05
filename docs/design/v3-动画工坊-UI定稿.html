@@ -194,15 +194,15 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
 <!-- ════════ P1 立意 (独立页 · 借现版立意面板) ════════ -->
 <div class="page on" id="p1">
 <section>
-  <div class="h2row"><h2 class="h2"><span class="no">①</span> 立意 · 六拍分配</h2>
-    <span class="sub">本页只做一件事: 定弧 (段落→场), 确认后放行分镜</span>
-    <span class="badge ok">0 警告</span><span class="badge">4 场 · 52 行 · 48 句</span></div>
+  <div class="h2row"><h2 class="h2"><span class="no">①</span> 立意 · 叙事六拍分配</h2>
+    <span class="sub">本页只做一件事: 给<b>叙事体</b> (原句×评论组) 定弧; 钩子/CTA/品牌是非叙事位, 不占立意</span>
+    <span class="badge ok">0 警告</span><span class="badge">4 叙事场 · 非叙事位 3</span></div>
 
-  <!-- 渐进轴 · P1: 稿层(钩子/原句/评论) × 弧层 对照 + 贯通标尺 -->
+  <!-- 渐进轴 · P1: 稿层 × 弧层对照 (弧只覆盖叙事区; 钩子/CTA/牌为非叙事带) -->
   <div class="mini"><div class="lanes" style="position:relative">
     <div class="grid" aria-hidden="true"><i style="left:25.6%"></i><i style="left:51.2%"></i><i style="left:76.8%"></i></div>
     <div class="lane script">
-      <div class="seg sc-hook" style="width:6%" title="钩子"><span class="lb">钩子</span></div>
+      <div class="seg sc-hook" style="width:6%; opacity:.5" title="钩子 (非叙事)"><span class="lb">钩子</span></div>
       <div class="seg sc-quote" style="width:10%" title="书中原句①"><span class="lb">原句①</span></div>
       <div class="seg sc-comm" style="width:9.2%" title="评论①"><span class="lb">评论①</span></div>
       <div class="seg sc-quote" style="width:11%" title="书中原句②"><span class="lb">原句②</span></div>
@@ -211,22 +211,28 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
       <div class="seg sc-comm" style="width:9%" title="评论③"><span class="lb">评论③</span></div>
       <div class="seg sc-quote" style="width:11%" title="书中原句④"><span class="lb">原句④</span></div>
       <div class="seg sc-comm" style="width:10%" title="评论④"><span class="lb">评论④</span></div>
-      <div class="seg sc-cta" style="width:8%" title="行动CTA"><span class="lb">CTA</span></div>
-      <div class="seg sc-brand" style="width:3.8%" title="品牌句"><span class="lb">牌</span></div>
+      <div class="seg sc-cta" style="width:8%; opacity:.5" title="行动CTA (非叙事)"><span class="lb">CTA</span></div>
+      <div class="seg sc-brand" style="width:3.8%; opacity:.5" title="品牌句 (系列冻结)"><span class="lb">牌</span></div>
     </div>
     <div class="lane arc">
-      <div class="seg" style="width:25.2%; background:#1d3a5f; background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.14) 0 1px, transparent 1px 9.09%)"><span class="lb">A1 岔路口 ·~59s</span></div>
-      <div class="seg" style="width:29.9%; background:#1d5f4c; background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.14) 0 1px, transparent 1px 6.25%)"><span class="lb">A2 修复工坊 ·~70s</span></div>
-      <div class="seg" style="width:31.5%; background:#5f4a1d; background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.14) 0 1px, transparent 1px 7.69%)"><span class="lb">A3 闸门室 ·~74s</span><b class="misalign" style="left:0"></b></div>
-      <div class="seg" style="width:13.2%; background:#4a1d5f; background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.14) 0 1px, transparent 1px 14.29%)"><span class="lb">A4 ·~31s</span></div>
+      <div class="seg" style="width:6%; background:#22304a"><span class="lb" style="color:var(--faint)">— 钩子不占立意</span></div>
+      <div class="seg" style="width:19%; background:#1d3a5f; background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.14) 0 1px, transparent 1px 9.09%)"><span class="lb">A1 岔路口</span></div>
+      <div class="seg" style="width:30%; background:#1d5f4c; background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.14) 0 1px, transparent 1px 6.25%)"><span class="lb">A2 修复工坊</span></div>
+      <div class="seg" style="width:20.5%; background:#5f4a1d; background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.14) 0 1px, transparent 1px 7.69%)"><span class="lb">A3 闸门室</span></div>
+      <div class="seg" style="width:12.5%; background:#4a1d5f; background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.14) 0 1px, transparent 1px 14.29%)"><span class="lb">A4 投递站</span></div>
+      <div class="seg" style="width:12%; background:#22304a"><span class="lb" style="color:var(--faint)">— CTA/牌不占立意</span></div>
     </div>
   </div>
   <div class="axisline"><span>0s</span><span>60</span><span>120</span><span>180</span><span>~234s 估</span></div>
   <div class="legend" style="margin-top:6px">
     <span><i class="sc-hook"></i>钩子</span><span><i class="sc-quote"></i>书中原句</span><span><i class="sc-comm"></i>评论</span>
     <span><i class="sc-cta"></i>行动CTA</span><span><i class="sc-brand"></i>品牌句</span>
-    <span style="color:var(--bad-t)">▎红痕=弧界切进原句③ 尾部 (人闸要看的正是这种错位)</span></div>
-  <div class="cap">稿层×弧层对照: 弧界是否落在模块边界上, 分配合理/立意准不准一眼判断; 虚线标尺 (60/120/180s) 贯通两层</div></div>
+    <span><i style="background:#22304a"></i>非叙事带 (立意不覆盖)</span>
+    <span style="color:var(--bad-t)">▎错位红痕自动标 (弧界切进模块内即拦, 放行闸执法)</span></div>
+  <div class="cap">弧只铺叙事区, 两端留白=非叙事带; 弧界必须落在 稿模块 (原句/评论) 边界上 — 治"钩子/引导评论套叙事立意产废画面"</div></div>
+
+  <div class="fixrow" style="margin:0 0 10px"><span class="badge gold">系列冻结</span> <b>品牌位</b> (不在六拍表): 开场 5.5s 预留 + 收官仪式句「我是老谭 · 拆一本书 · 翻一座山」
+    <span class="note">— 书级资产, 全系列复用, 零立意零分镜</span></div>
 
   <div class="concept-bar">
     <b style="color:var(--gold)">📜 立意 (人闸 — 可编辑, 保存即生效)</b>
@@ -235,12 +241,14 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
   </div>
   <div class="twrap">
   <table>
-    <thead><tr><th>拍</th><th>行号 <span class="spec">1</span></th><th>句区间</th><th>视觉世界</th><th>隐喻核心 (A=B)</th><th>镜数</th><th>预估 <span class="spec">2</span></th></tr></thead>
+    <thead><tr><th>拍</th><th>稿模块 <span class="spec">1</span></th><th>行号</th><th>句区间</th><th>视觉世界</th><th>隐喻核心 (A=B)</th><th>镜数</th><th>预估 <span class="spec">2</span></th></tr></thead>
     <tbody>
-      <tr><td class="mono">A1</td><td class="mono">L01–L12</td><td class="mono">c01–c11</td><td><span class="wl-chip">岔路口装置</span></td><td class="editable">信任波动=三阶段路径 (蜜月绿光→怀疑黄灯→重建红光攀爬)</td><td class="mono">11</td><td class="mono">~59s</td></tr>
-      <tr><td class="mono">A2</td><td class="mono">L13–L31</td><td class="mono">c12–c27</td><td><span class="wl-chip">修复工坊</span></td><td class="editable">信任重建=机械组装线 · 小块交付=传送带玻璃模块</td><td class="mono">12</td><td class="mono">~70s</td></tr>
-      <tr><td class="mono">A3</td><td class="mono">L32–L44</td><td class="mono">c28–c41</td><td><span class="wl-chip">闸门控制室</span></td><td class="editable">止损=闸门资源分配 · 体面退出=拉闸断流失</td><td class="mono">13</td><td class="mono">~74s</td></tr>
-      <tr><td class="mono">A4</td><td class="mono">L45–L52</td><td class="mono">c42–c48</td><td><span class="wl-chip">投递站</span></td><td class="editable">行动召唤=投递站即时启动 · 急救卡=玻璃工具卡</td><td class="mono">6</td><td class="mono">~31s</td></tr>
+      <tr><td class="mono" style="color:var(--faint)">钩</td><td class="mono" style="color:var(--faint)">钩子</td><td class="mono" style="color:var(--faint)">L01–L02</td><td class="mono" style="color:var(--faint)">—</td><td style="color:var(--faint)">系列钩子语言 (快切悬念)</td><td style="color:var(--faint)">非叙事 — 不分配立意</td><td class="mono" style="color:var(--faint)">2</td><td class="mono" style="color:var(--faint)">~13s</td></tr>
+      <tr><td class="mono">A1</td><td class="mono">原句①+评论①</td><td class="mono">L03–L12</td><td class="mono">c03–c11</td><td><span class="wl-chip">岔路口装置</span></td><td class="editable">信任波动=三阶段路径 (蜜月绿光→怀疑黄灯→重建红光攀爬)</td><td class="mono">9</td><td class="mono">~50s</td></tr>
+      <tr><td class="mono">A2</td><td class="mono">原句②+评论②</td><td class="mono">L13–L26</td><td class="mono">c12–c25</td><td><span class="wl-chip">修复工坊</span></td><td class="editable">信任重建=机械组装线 · 小块交付=传送带玻璃模块</td><td class="mono">12</td><td class="mono">~70s</td></tr>
+      <tr><td class="mono">A3</td><td class="mono">原句③+评论③</td><td class="mono">L27–L40</td><td class="mono">c26–c40</td><td><span class="wl-chip">闸门控制室</span></td><td class="editable">止损=闸门资源分配 · 体面退出=拉闸断流失</td><td class="mono">12</td><td class="mono">~68s</td></tr>
+      <tr><td class="mono">A4</td><td class="mono">原句④+评论④</td><td class="mono">L41–L48</td><td class="mono">c41–c46</td><td><span class="wl-chip">投递站</span></td><td class="editable">行动召唤=投递站即时启动 · 急救卡=玻璃工具卡</td><td class="mono">4</td><td class="mono">~20s</td></tr>
+      <tr><td class="mono" style="color:var(--faint)">CTA</td><td class="mono" style="color:var(--faint)">行动CTA</td><td class="mono" style="color:var(--faint)">L49–L51</td><td class="mono" style="color:var(--faint)">c47–c48</td><td style="color:var(--faint)">行动指令语言</td><td style="color:var(--faint)">非叙事 — 不分配立意</td><td class="mono" style="color:var(--faint)">2</td><td class="mono" style="color:var(--faint)">~12s</td></tr>
     </tbody>
   </table>
   </div>
@@ -261,7 +269,8 @@ footer { color:var(--faint); font-size:13px; margin:24px 0 18px; }
     <li><b>借现版立意面板</b>: 六拍分配表/单场重掷/编辑保存交互原样迁入, 仅增 行号/句区间/镜数 三列 (结构引用)。</li>
     <li><b>预估列</b>: 字数×语率估算, 供拍子比例参考; 真实时长 ④ 盖章注入 (本页永远不显示精确秒)。</li>
     <li><b>零音频依赖</b>: 本页无音频也可开工 (旧版音频门挪到 ③ TTS)。</li>
-    <li><b>渐进轴 · 稿层×弧层</b>: 原稿模块 (钩子/原句/评论/CTA) 与弧切分上下对照 + 贯通标尺 — 弧界切没切在模块边界上, 分配合理/立意准否一眼判断; 错位红痕自动标出 (人闸证据)。</li>
+    <li><b>立意只管叙事体</b> (用户令): 弧只覆盖 原句×评论组; 钩子/CTA/品牌 = 非叙事位 (系列冻结视觉语言), 不进六拍表不占立意 — 治"钩子/引导评论套叙事隐喻, 同一立意稀释成废画面"。</li>
+<li><b>弧界=稿模块边界</b> (执法): 渐进轴稿层×弧层对照, 弧界切进模块内自动红痕、放行闸拦截; 品牌位=书级冻结条 (开场预留+收官仪式句), 零立意零分镜。</li>
   </ol>
 </section>
 </div>
