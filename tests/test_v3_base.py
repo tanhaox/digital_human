@@ -75,3 +75,9 @@ def test_wiring_source_asserts():
     main = Path("app/main.py").read_text(encoding="utf-8")
     assert "anim_v3.router" in main and '"/web/v3/")' in main  # 注册 + CSP
     assert Path("web/v3/timeline.js").exists() and Path("web/v3/rail.js").exists()
+    src2 = inspect.getsource(anim_v3)
+    assert '/line/' in src2                                    # 书级选线端点
+    bs = Path("web/books_story.js").read_text(encoding="utf-8")
+    assert "v3-anim" in bs and "applyV3Line" in bs             # 入口分流按钮+实现
+    bj = Path("web/books.js").read_text(encoding="utf-8")
+    assert "applyV3Line" in bj                                 # 渲染后挂载

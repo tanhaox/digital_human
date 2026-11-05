@@ -27,6 +27,18 @@ def _line_gate(book_title: str) -> None:
             "写 outputs/动画/_资产/产线绑定_书名.json {\"line\":\"v3\"} 后重试")
 
 
+@router.get("/line/{book_id}")
+def v3_line(book_id: str):
+    """书级选线查询 (讲书页入口分流用, 无需集号)。"""
+    try:
+        from app.services.anim_pipeline.planner import resolve_book
+        from app.services.anim_pipeline.config import load
+        _, book_title = resolve_book(load().db_path, book_id)
+    except Exception as exc:  # noqa: BLE001 — 解析失败按 v2 (fail-open, 入口不炸)
+        raise HTTPException(status_code=404, detail=str(exc))
+    return {"line": pipeline_line(book_title), "book_title": book_title}
+
+
 @router.get("/ep/{book_id}/{ep}/state")
 def v3_state(book_id: str, ep: int):
     """v3 线状态: 选线 + 八页放行闸 (轨/页锁数据源)。"""

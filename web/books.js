@@ -91,6 +91,7 @@ async function loadBook(id) {
   BOOKS.cur = await api('/books/' + id);
   renderBookShell();
   if (typeof renderPage === 'function') renderPage(BOOKS.cur);
+  if (typeof applyV3Line === 'function') applyV3Line(BOOKS.cur.id);   // 1105 v3 双轨入口分流
 }
 
 // 通用动作: 门禁已由各页控制, 此处 busy 锁 + POST + 刷新 + toast

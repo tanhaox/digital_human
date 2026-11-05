@@ -57,7 +57,8 @@ function renderPage(b) {
       btns.push(`<button class="sm ep-prod-btn" style="background:#4c1d95" onclick="location.href='/web/publish_card.html?book_id=${encodeURIComponent(BOOKS.cur.id)}&ep=${e.ep}'" title="本集封面(横/竖, HF模板化) + 发布三件套(标题/简介/标签), 数据全对应本集">📋发布卡</button>`);
       btns.push(`<a class="ep-prod-btn" href="/web/audio.html?script_id=${e.script_id}&book_id=${encodeURIComponent(BOOKS.cur.id)}&ep_index=${e.ep}" target="_blank" style="background:#334155;color:#e2e8f0;padding:0.3rem 0.65rem;font-size:0.82rem;border-radius:4px;text-decoration:none">音频页 ↗</a>`);
       // 0914 动画产线系统化 (与 📐页单工坊 二选一): 动线=文字→音频→分镜→K2→人检→H3→剪映草稿
-      btns.push(`<a class="ep-prod-btn" href="/web/anim.html?book_id=${encodeURIComponent(BOOKS.cur.id)}&ep_index=${e.ep}" target="_blank" style="background:#9a3412;color:#fff;padding:0.3rem 0.65rem;font-size:0.82rem;border-radius:4px;text-decoration:none" title="动画产线工坊 (与页单工坊二选一): 音频→规划(吃真实音频)→K2生图→人检→H3视频→剪映草稿">🎬 动画 ↗</a>`);
+      // 1105 v3 双轨: 书级选线分流 — 绑定 v3 的书由 applyV3Line 渲染后换 v3 八页线入口
+      btns.push(`<a class="ep-prod-btn v3-anim" data-ep="${e.ep}" href="/web/anim.html?book_id=${encodeURIComponent(BOOKS.cur.id)}&ep_index=${e.ep}" target="_blank" style="background:#9a3412;color:#fff;padding:0.3rem 0.65rem;font-size:0.82rem;border-radius:4px;text-decoration:none" title="动画产线工坊 (与页单工坊二选一): 音频→规划(吃真实音频)→K2生图→人检→H3视频→剪映草稿">🎬 动画 ↗</a>`);
       // 重跑进产线 (2026-08-20): 删旧 Script 重建, 换新产线/发现错误时用
       btns.push(`<button class="sm warn ep-prod-btn" onclick="rerunProduce(${e.ep})" title="删旧产线产物, 重新进产线">重跑进产线</button>`);
       btns.push(`<button class="sm ep-bs1-btn" style="display:none;background:#14532d"
@@ -532,3 +533,25 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (id) await loadBook(id);
   else $('#page-content').innerHTML = '<div class="hint">未指定书，从 <a href="/web/books.html">书库</a> 选择</div>';
 });
+
+
+// 1105 v3 双轨: 🎬动画 按钮按书级选线换链 (绑定 v3 → /web/v3/; 查询失败保持 v2, 入口永不炸)
+const _v3lineCache = {};
+async function applyV3Line(bookId) {
+  if (!bookId) return;
+  try {
+    if (!_v3lineCache[bookId]) {
+      const r = await fetch(`/api/anim/v3/line/${encodeURIComponent(bookId)}`);
+      if (!r.ok) return;
+      _v3lineCache[bookId] = (await r.json()).line || 'v2';
+    }
+    if (_v3lineCache[bookId] !== 'v3') return;
+    document.querySelectorAll('a.v3-anim').forEach(a => {
+      const ep = a.dataset.ep || 1;
+      a.href = `/web/v3/index.html?book_id=${encodeURIComponent(bookId)}&ep_index=${ep}`;
+      a.title = 'v3 八页线 (书级绑定): 分诊→立意→分镜文字→导演→K2∥TTS→盖章→H3 — v2 工坊仍可从动画工坊页进入';
+      a.textContent = '🎬 动画v3 ↗';
+      a.style.background = '#1e5c3a';
+    });
+  } catch (e) { /* 查询失败 = v2 原样, 入口不炸 */ }
+}
