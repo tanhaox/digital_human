@@ -79,8 +79,10 @@ def zone_quota_issues(doc: dict[str, Any], skip_placeholders: bool = True) -> li
         need = len(ss) if need_frac >= 1 else max(1, _math.ceil(len(ss) * need_frac))
         np_ = sum(1 for s in ss if _has_person_words(str(s.get("keyframe_zh") or ""), words))
         if np_ < need:
-            no = "/".join(s["shot_id"] for s in ss
-                          if not _has_person_words(str(s.get("keyframe_zh") or ""), words))[:4]
+            # 只截候选镜数, 不截字符串 (实锤: [:4] 把 "s2/s5/s9" 砍成 "s2/s", 没法照做)
+            _ids = [s["shot_id"] for s in ss
+                    if not _has_person_words(str(s.get("keyframe_zh") or ""), words)]
+            no = "/".join(_ids[:6]) + ("…" if len(_ids) > 6 else "")
             issues.append(f"分区人物配额: 场{a}[{z}] {len(ss)}镜仅{np_}镜有人物 (需≥{need}) — 补 {no}")
     return issues
 
