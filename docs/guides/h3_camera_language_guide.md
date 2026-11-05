@@ -136,3 +136,20 @@ Part 2: 主体 → 场景 → 事件 → 镜头 → 声音 (镜头句嵌在事�
   - **R3 照片对照（同雪山图跨机制 A/B）：完美**——贴图路线 0/2（飞入+林肯）vs 参考通道 12 步完美。两类素材（文字表 + 照片）双验证通过；照片配方加 "completely static, like a printed poster" 定向疫苗（防画中物动画化）。**⑤路已固化（1024 B-ASSET1，5cea57c+8f7796d）**：镜级字段 `{image(相对ep_dir), anchor_en, content_en, has_text, hold_en}` → 映射句+定格持镜+text-only 分支+12 步档+软超时×2；工位路由显式意图优先；refs=[人物…, 素材, 场景]（ordinal 自动）。**操作铁律：素材镜 reroll 重跑，永不 redo-queue**（规划覆写手改字段）；素材镜宜 ≥6s 槽（settle+hold+可读）。
   - **content_en 枚举铁律（1025 s15 产线首跑实锤）**：content_en 必须逐项枚举素材内容（标题/栏头/行标/数值、"nine cells only, one value per cell"）——只写 "a time-audit table" 一句话 = 结构对但**字级漂变+格子增殖**（10h 满屏、值帧间不稳）。R2"完美"的关键细节就是枚举。
   - **稳定性定律（1024 用户定稿）：入画 > 入文字**——图类素材（照片/图形/图表形）参考入镜最稳；文字是最脆模态（生成 90% 字准、参考通道需 12 步+逐字 QC）。素材能画成图就别写字，逐字精确的文字走后期叠层。- 挂账：①环绕焦点能否 prompt 指定；②幅度锁定（起止构图句）；③白板上写字（画外发明物+物面文字组合技）。
+
+---
+
+## 附: 官方完整运镜词表 (1105 网络核对, 与产线 6 词白名单的关系)
+
+官方 `h3-prompt-writing` 风格: 动词写进句子, 不是标签堆叠。完整 20 种:
+`Zoom In/Out` · `Push In/Pull Out` · `Pan Left/Right` · `Truck Left/Right` ·
+`Tilt Up/Down` · `Pedestal Up/Down` · `Arc Shot` · `Tracking Shot` · `Static Shot` ·
+`Shake Slightly/Strongly` · `POV` · `Roll Clockwise/Counterclockwise`。
+
+幅度 `with small amplitude` / `with large amplitude`; 速度 `at slow speed` / `at fast speed`。
+**中幅与常速 = 省略不写** (medium/normal 无独立词)。固定镜不带幅速。
+
+句式范例 (官方): `The camera pans right with large amplitude at fast speed, revealing the open doorway.`
+
+产线现状: h3.py `_CAM_PERMIT` 只落了 6 词 (左右摇/上下摇/拉近/拉远) — 这是**已实测**的子集;
+推/移/升降/跟/弧/变焦 官方有词, 产线未验, v3 ④导演页可选但走 A/B 判读。

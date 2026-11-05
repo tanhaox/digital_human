@@ -61,6 +61,9 @@ select:disabled { opacity:.45; }
 .r2 { display:flex; gap:10px; align-items:center; margin-top:7px; flex-wrap:wrap; }
 .r2 label { color:var(--faint); font-size:12.5px; }
 .r2 input[type="text"] { flex:1; min-width:180px; }
+.cam-en { margin-top:6px; font-family:var(--mono); font-size:12.5px; color:var(--cyan);
+          opacity:.9; }
+.cam-en:hover { opacity:1; }
 .kf { margin-top:7px; color:var(--dim); font-size:13.5px; line-height:1.7;
       max-height:3.45em; overflow:hidden; }
 .kf.open { max-height:none; }

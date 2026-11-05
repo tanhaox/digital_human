@@ -8,16 +8,32 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g,
   m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 
-// 1105 用户令「运镜三元组 型·幅·速」: 型八步封顶, 默认 大·慢 = 现产线行为零改动
+// 1105 用户令「运镜三元组 型·幅·速」× MiniMax H3 官方词表
+// 官方: 动词写进句子 (The camera pans left with large amplitude at slow speed),
+// 幅 small/large amplitude, 速 slow/fast speed — 中/常速 **省略不写**.
 const SIZES = ['大场景', '全景', '中景', '近景', '特写'];
 const SIZE_LV = { 大场景: 5, 全景: 4, 中景: 3, 近景: 2, 特写: 1 };
-const CAMS = ['待定', '固定', '推', '拉', '摇', '移', '跟', '升', '降'];
+
+const CAM_DEFS = {
+  '固定':   { dirs: [], static: true, en: () => 'holds a static shot' },
+  '推':     { dirs: [], en: () => 'pushes in' },
+  '拉':     { dirs: [], en: () => 'pulls out' },
+  '变焦推': { dirs: [], en: () => 'zooms in' },
+  '变焦拉': { dirs: [], en: () => 'zooms out' },
+  '摇':     { dirs: ['左', '右', '上', '下'],
+             en: d => (d === '上' ? 'tilts up' : d === '下' ? 'tilts down'
+                       : d === '右' ? 'pans right' : 'pans left') },
+  '移':     { dirs: ['左', '右'], en: d => (d === '右' ? 'trucks right' : 'trucks left') },
+  '升降':   { dirs: ['上', '下'], en: d => (d === '上' ? 'pedestals up' : 'pedestals down') },
+  '跟':     { dirs: ['左', '右'], en: d => (d === '右' ? 'tracks right' : 'tracks left') },
+  '弧':     { dirs: [], en: () => 'arcs around the subject' },
+};
+const CAMS = ['待定', '固定', '推', '拉', '变焦推', '变焦拉', '摇', '移', '升降', '跟', '弧'];
 const AMPS = ['小', '中', '大'];
 const SPEEDS = ['慢', '中', '快'];
+const AMP_LAB = { 小: '小', 中: '中(省略)', 大: '大' };
+const SPD_LAB = { 慢: '慢', 中: '中(省略)', 快: '快' };
 const NO_MOVE = ['待定', '固定'];
-// 方向: 摇/移/跟 才有 (H3 壳拼进运镜行: pans left / tilts up / trucks right)
-const DIRS = ['无', '左', '右', '上', '下'];
-const NO_DIR = ['待定', '固定', '推', '拉', '升', '降'];
 const TYPE_ZH = { narr: '叙事弧', quote: '书证镜', persona: '人设镜',
   hook: '钩子', cta: '行动召', brand: '品牌' };
 
@@ -109,14 +125,28 @@ function renderBlocks() {
   bindRows();
 }
 
-function opts(list, cur) {
-  return list.map(x => `<option value="${esc(x)}"${x === cur ? ' selected' : ''}>${esc(x)}</option>`).join('');
+function opts(list, cur, labels) {
+  return list.map(x => `<option value="${esc(x)}"${x === cur ? ' selected' : ''}>${esc((labels && labels[x]) || x)}</option>`).join('');
+}
+
+/** 生成 H3 原文 (官方句式; 中幅/常速省略) */
+function camClause(st) {
+  const def = CAM_DEFS[st.cam.kind];
+  if (!def) return '';
+  const amp = st.cam.amp === '小' ? 'with small amplitude'
+            : st.cam.amp === '大' ? 'with large amplitude' : '';
+  const spd = st.cam.speed === '慢' ? 'at slow speed'
+            : st.cam.speed === '快' ? 'at fast speed' : '';
+  const head = def.en(st.cam.dir);
+  if (def.static) return `The camera ${head}.`;   // 固定镜无幅度/速度
+  return `The camera ${[head, amp, spd].filter(Boolean).join(' ')}.`;
 }
 
 function rowHTML(s) {
   const st = STATE[s.sid];
   const fixed = NO_MOVE.includes(st.cam.kind);
-  const noDir = NO_DIR.includes(st.cam.kind);
+  const dirs = (CAM_DEFS[st.cam.kind] || { dirs: [] }).dirs;
+  const noDir = dirs.length === 0;
   return `<div class="row" data-sid="${esc(s.sid)}">
     <div class="r1">
       <span class="sid">${esc(s.sid)}</span>
@@ -124,9 +154,9 @@ function rowHTML(s) {
       ${st.filled ? '' : '<span class="warn-dot" title="尚未生成导演参数"></span>'}
       <select class="sel-size" data-k="size" title="景别">${opts(SIZES, st.size)}</select>
       <select class="sel-cam" data-k="cam.kind" title="运镜型 (八步封顶)">${opts(CAMS, st.cam.kind)}</select>
-      <select class="sel-dir" data-k="cam.dir" title="运镜方向 (摇/移/跟 才有)"${noDir ? ' disabled' : ''}>${opts(DIRS, st.cam.dir)}</select>
-      <select class="sel-amp" data-k="cam.amp" title="运镜幅度"${fixed ? ' disabled' : ''}>${opts(AMPS, st.cam.amp)}</select>
-      <select class="sel-speed" data-k="cam.speed" title="运镜速度"${fixed ? ' disabled' : ''}>${opts(SPEEDS, st.cam.speed)}</select>
+      <select class="sel-dir" data-k="cam.dir" title="运镜方向"${noDir ? ' disabled' : ''}>${opts(dirs.length ? dirs : ['无'], noDir ? '无' : st.cam.dir)}</select>
+      <select class="sel-amp" data-k="cam.amp" title="运镜幅度 (H3: small/large amplitude, 中没有词)"${fixed ? ' disabled' : ''}>${opts(AMPS, st.cam.amp, AMP_LAB)}</select>
+      <select class="sel-speed" data-k="cam.speed" title="运镜速度 (H3: slow/fast speed, 常速没有词)"${fixed ? ' disabled' : ''}>${opts(SPEEDS, st.cam.speed, SPD_LAB)}</select>
       <span class="flex1"></span>
       <button class="kf-btn" data-act="kf" title="展开画面句">画面句 ▸</button>
     </div>
@@ -134,6 +164,7 @@ function rowHTML(s) {
       <label>主体运动</label><input type="text" data-k="motion" value="${esc(st.motion)}" placeholder="只动画面句已有的实体">
       <label>光影</label><input type="text" data-k="light" value="${esc(st.light)}" placeholder="光源方向/色温, 与相邻镜连续">
     </div>
+    <div class="cam-en" title="实际发给 H3 的运镜句">${esc(camClause(st) || '— 未选运镜 —')}</div>
     <div class="kf">${esc(s.keyframe_zh || '')}</div>
   </div>`;
 }
@@ -150,6 +181,9 @@ function bindRows() {
         STATE[sid].filled = true;
         DIRTY.add(sid);
         if (k === 'cam.kind') refreshRow(row, sid);
+        else if (k.startsWith('cam.')) {
+          row.querySelector('.cam-en').textContent = camClause(STATE[sid]) || '— 未选运镜 —';
+        }
         renderRhythm(); renderCounts(); renderSide(); refreshDirty();
       });
       el.addEventListener('input', () => {
@@ -171,14 +205,15 @@ function bindRows() {
 function refreshRow(row, sid) {
   const kind = STATE[sid].cam.kind;
   const fixed = NO_MOVE.includes(kind);
-  const noDir = NO_DIR.includes(kind);
+  const dirs = (CAM_DEFS[kind] || { dirs: [] }).dirs;
   row.querySelector('.sel-amp').disabled = fixed;
   row.querySelector('.sel-speed').disabled = fixed;
-  row.querySelector('.sel-dir').disabled = noDir;
-  if (noDir && STATE[sid].cam.dir !== '无') {
-    STATE[sid].cam.dir = '无';
-    row.querySelector('.sel-dir').value = '无';
-  }
+  const dirSel = row.querySelector('.sel-dir');
+  dirSel.disabled = dirs.length === 0;
+  if (dirs.length && !dirs.includes(STATE[sid].cam.dir)) STATE[sid].cam.dir = dirs[0];
+  dirSel.innerHTML = opts(dirs.length ? dirs : ['无'], dirs.length ? STATE[sid].cam.dir : '无');
+  dirSel.value = dirs.length ? STATE[sid].cam.dir : '无';
+  row.querySelector('.cam-en').textContent = camClause(STATE[sid]) || '— 未选运镜 —';
 }
 
 /* ── 配额 ─────────────────────────────────────────────── */
