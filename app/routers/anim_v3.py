@@ -219,6 +219,66 @@ def v3_shots_save(book_id: str, ep: int, body: ShotSaveBody):
             "issues": issues, "gate": not issues}
 
 
+@router.post("/ep/{book_id}/{ep}/concept/resplit")
+def v3_concept_resplit(book_id: str, ep: int):
+    """按语态变化点把跨语态的弧拆回多弧 (确定性修复, 保留首段立意文字)。
+
+    实锤: 人闸合并了不同语态的相邻弧 (书证+评论+书证) → 弧界未落模块边界。
+    """
+    from app.services.anim_pipeline.v3_pipeline.arcs import (boundary_issues,
+                                                             est_seconds, TYPE_OF_MODE)
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    with anim_service.ep_guard(book_id, ep):
+        doc = _load_v3_doc(book_title, ep)
+        v3 = doc.setdefault("v3", {})
+        lines = v3.get("lines") or []
+        line_of = {ln["no"]: ln for ln in lines}
+        valid = {ln["no"] for ln in lines
+                 if str(ln.get("text") or "").strip()
+                 and str(ln.get("mode") or "") not in ("section", "card", "img", "unknown")}
+        before = len(v3.get("arcs") or [])
+        out: list[dict] = []
+        for a in v3.get("arcs") or []:
+            seg = [no for no in range(int(a["no_start"]), int(a["no_end"]) + 1) if no in valid]
+            if not seg:
+                continue
+            # 按语态变化点切段
+            groups: list[list[int]] = []
+            for no in seg:
+                mode = str(line_of[no].get("mode") or "")
+                if groups and str(line_of[groups[-1][-1]].get("mode") or "") == mode:
+                    groups[-1].append(no)
+                else:
+                    groups.append([no])
+            for gi, grp in enumerate(groups):
+                mode = str(line_of[grp[0]].get("mode") or "")
+                sub = [line_of[n] for n in grp]
+                out.append({
+                    **{k: v for k, v in a.items() if k not in ("no_start", "no_end", "line_count", "est_s")},
+                    "no_start": grp[0], "no_end": grp[-1],
+                    "mode": mode, "type": TYPE_OF_MODE.get(mode, "narr"),
+                    "line_count": len(sub), "est_s": est_seconds(sub),
+                    # 首段保留原立意, 拆出的后续段留空待人填
+                    "world": a.get("world", "") if gi == 0 else "",
+                    "metaphor": a.get("metaphor", "") if gi == 0 else "",
+                    "narrative": a.get("narrative", "") if gi == 0 else "",
+                })
+        out.sort(key=lambda x: int(x["no_start"]))
+        for i, a in enumerate(out, 1):
+            a["arc_id"] = f"A{i}"
+        v3["arcs"] = out
+        issues = boundary_issues(out, lines)
+        v3["arc_issues"] = issues
+        v3.setdefault("gates", {})["arcs"] = not issues
+        from app.services.anim_pipeline import shots as shots_mod
+        shots_mod.save(doc)
+    return {"arcs_before": before, "arcs_after": len(out), "issues": issues}
+
+
 @router.post("/ep/{book_id}/{ep}/concept/save")
 def v3_concept_save(book_id: str, ep: int, body: ArcSaveBody):
     """立意编辑保存: world/metaphor/narrative 回写 + 执法复检 + 立意闸开合。"""

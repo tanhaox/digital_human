@@ -49,9 +49,20 @@ async function refresh() {
 }
 
 function renderIssues(list) {
-  $('issues').innerHTML = list.length
-    ? '<div class="tblwrap-issues">' + list.map(x => `<div class="issue">▎${esc(x)}</div>`).join('') + '</div>'
+  if (!list.length) { $('issues').innerHTML = ''; return; }
+  const fix = list.some(x => x.includes('跨语态'))
+    ? '<button class="go" id="btn-resplit" title="按语态变化点把跨语态的弧拆回多个弧 (保留立意文字)">🔧 按语态重切</button>'
     : '';
+  $('issues').innerHTML = '<div class="tblwrap-issues">'
+    + list.map(x => `<div class="issue">▎${esc(x)}</div>`).join('')
+    + (fix ? `<div class="fixrow">${fix}</div>` : '') + '</div>';
+  const rb = document.getElementById('btn-resplit');
+  if (rb) rb.onclick = async () => {
+    const r = await (await fetch(`${BASE}/concept/resplit`, { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: '{}' })).json();
+    toast(`重切完成: ${r.arcs_before} → ${r.arcs_after} 弧 (剩余红痕 ${r.issues.length})`);
+    await refresh();
+  };
 }
 function renderHints(list) {
   $('hints').innerHTML = list.length
@@ -135,6 +146,11 @@ $('tbody').addEventListener('click', ev => {
     renderTable(); renderAxis(); refreshDirty();
   } else if (b.dataset.act === 'merge' && i > 0) {
     const prev = ARCS[i - 1], cur = ARCS[i];
+    if (prev.mode !== cur.mode) {          // 跨语态合并必破执法 (实锤: A8 两段书证夹评论)
+      toast(`不能合并: ${prev.arc_id}(${MODE_ZH[prev.mode] || prev.mode}) 与 `
+            + `${cur.arc_id}(${MODE_ZH[cur.mode] || cur.mode}) 语态不同 — 弧内必须单一语态`);
+      return;
+    }
     prev.no_end = cur.no_end;
     prev.line_count = (prev.line_count || 0) + (cur.line_count || 0);
     prev.est_s = +((prev.est_s || 0) + (cur.est_s || 0)).toFixed(1);
