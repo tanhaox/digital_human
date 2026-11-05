@@ -41,7 +41,9 @@ def _note_quota_429(base_url: str, status: int, text: str) -> None:
                        base_url, _QUOTA_COOLDOWN / 60)
 
 
-def _chat_once(base_url: str, api_key: str, model: str, system: str, user: str, max_tokens: int) -> str:
+def _chat_once(base_url: str, api_key: str, model: str, system: str, user: str,
+               max_tokens: int) -> tuple[str, dict]:
+    """返回 (content, usage) — usage 供台账 (1105 批6 T1: 此栈原先完全不记)."""
     payload = {
         "model": model,
         "temperature": 1,  # kimi 硬约束
@@ -63,10 +65,22 @@ def _chat_once(base_url: str, api_key: str, model: str, system: str, user: str, 
     if r.status_code >= 400:
         _note_quota_429(base_url, r.status_code, r.text)
         raise RuntimeError(f"LLM HTTP {r.status_code} ({base_url}): {r.text[:300]}")
-    content = (r.json().get("choices") or [{}])[0].get("message", {}).get("content")
+    body = r.json()
+    content = (body.get("choices") or [{}])[0].get("message", {}).get("content")
     if not content:
         raise RuntimeError(f"LLM 空 content ({base_url})")
-    return content
+    return content, (body.get("usage") or {})
+
+
+def _note_llm_usage(usage: dict, provider: str, tag: str) -> None:
+    """1105 批6 (T1): usage 进台账 (有 llm_scope 才落 — 页面/CLI 调用不记)。"""
+    try:
+        from .ledger import note_usage
+        note_usage(tag, provider.split("//")[-1].split("/")[0][:20] or "?",
+                   int((usage or {}).get("prompt_tokens") or 0),
+                   int((usage or {}).get("completion_tokens") or 0))
+    except Exception:  # noqa: BLE001 — 台账永不破主流程
+        pass
 
 
 def _qwen_cfg() -> tuple[str, str, str] | None:
@@ -82,7 +96,8 @@ def _qwen_cfg() -> tuple[str, str, str] | None:
     return None
 
 
-def chat_json(llm: LLMConfig, system: str, user: str) -> dict:
+def chat_json(llm: LLMConfig, system: str, user: str, *,
+              tag: str = "chat_json") -> dict:
     """调用 LLM 返回 JSON dict. 三级链 kimi → qwen(套餐) → deepseek; JSON 截断重试一次.
 
     0916: 中段插 qwen — kimi 限额日直接落 deepseek, 其 8K tokens 顶格装不下
@@ -107,16 +122,18 @@ def chat_json(llm: LLMConfig, system: str, user: str) -> dict:
                 raise RuntimeError(_QUOTA_SKIP)
             if skip_primary:
                 raise RuntimeError("上轮 primary 输出截断, 本轮直取兜底链")
-            raw = _chat_once(llm.base_url, key, llm.model, system, user, primary_max)
+            raw, _u = _chat_once(llm.base_url, key, llm.model, system, user, primary_max)
             provider = llm.base_url
+            _note_llm_usage(_u, provider, tag)   # 1105 批6: 台账 (有 scope 才落)
         except (httpx.HTTPError, RuntimeError) as exc:
             if not str(exc).startswith(_QUOTA_SKIP):
                 logger.warning("[llm] kimi 失败切兜底: %s", exc)
             if fb_key:
                 try:
-                    raw = _chat_once(llm.fallback_base_url, fb_key, llm.fallback_model,
-                                     system, user, fallback_max)
+                    raw, _u = _chat_once(llm.fallback_base_url, fb_key, llm.fallback_model,
+                                         system, user, fallback_max)
                     provider = llm.fallback_base_url
+                    _note_llm_usage(_u, provider, tag)
                 except (httpx.HTTPError, RuntimeError) as exc2:
                     logger.warning("[llm] deepseek 兜底失败: %s", exc2)
                     raw = None
@@ -124,8 +141,9 @@ def chat_json(llm: LLMConfig, system: str, user: str) -> dict:
                 # 1017 用户令: 本地 Qwen3.6-35B 保底 (12348; 拉起过 gpu_mutex,
                 # ComfyUI 占卡拒上卡 → fail-open 由调用方退路)
                 try:
-                    raw = _local_qwen_chat(system, user, primary_max)
+                    raw, _u = _local_qwen_chat(system, user, primary_max)
                     provider = "local-qwen36"
+                    _note_llm_usage(_u, provider, tag)
                 except (httpx.HTTPError, RuntimeError) as exc3:
                     last_err = exc3 or exc2
                     continue
@@ -187,7 +205,7 @@ def _ensure_local_qwen() -> bool:
     return False
 
 
-def _local_qwen_chat(system: str, user: str, max_tokens: int) -> str:
+def _local_qwen_chat(system: str, user: str, max_tokens: int) -> tuple[str, dict]:
     """本地 35B 兜底 (OpenAI 兼容 /v1; 无 response_format — 靠围栏解析)。"""
     if not _ensure_local_qwen():
         raise RuntimeError("本地 qwen 不可用 (离线且显卡被占)")
@@ -202,10 +220,11 @@ def _local_qwen_chat(system: str, user: str, max_tokens: int) -> str:
                       {"role": "user", "content": user}]})
     if r.status_code >= 400:
         raise RuntimeError(f"本地 qwen HTTP {r.status_code}: {r.text[:200]}")
-    content = (r.json().get("choices") or [{}])[0].get("message", {}).get("content")
+    body = r.json()
+    content = (body.get("choices") or [{}])[0].get("message", {}).get("content")
     if not content:
         raise RuntimeError("本地 qwen 空 content")
-    return content
+    return content, (body.get("usage") or {})
 
 
 def _parse_json(raw: str) -> dict:

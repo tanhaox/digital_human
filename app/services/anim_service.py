@@ -272,6 +272,12 @@ def start_phase(book_ref: str, ep: int, phase: str, *, only: set[str] | None = N
 def _run_job(job: dict[str, Any]) -> None:
     bridge = _JobLogBridge(job)
     logging.getLogger().addHandler(bridge)
+    # 1105 批6 (T1): LLM token 台账上下文 — 本 job 线程所有 LLM usage
+    # (两套栈共用 ledger.note_usage) 逐调用落 llm_ledger.jsonl 并累计;
+    # 手动 enter/exit 免整段重缩进 (所有异常均被下方 handler 吞掉, 必到终态行)
+    from app.services.anim_pipeline.ledger import llm_scope
+    _llm_cm = llm_scope(job["book_title"], job["ep"], job["phase"])
+    _llm_sc = _llm_cm.__enter__()
     try:
         _publish(job["id"], {"type": "anim_started", "phase": job["phase"],
                              "book": job["book_title"], "ep": job["ep"]})
@@ -317,6 +323,20 @@ def _run_job(job: dict[str, Any]) -> None:
         logging.getLogger().removeHandler(bridge)
         if job["phase"] in GPU_PHASES:
             _GPU_JOB_LOCK.release()
+    # 1105 批6 (T1): 台账收尾 — 终态统一回报 (completed/cancelled/failed 都带)
+    _llm_cm.__exit__(None, None, None)
+    if _llm_sc.calls:
+        with _JOBS_LOCK:
+            _res = job.get("result") or {}
+            _res["llm_tokens"] = {
+                "ptok": _llm_sc.ptok, "ctok": _llm_sc.ctok,
+                "calls": _llm_sc.calls,
+                "top_tags": {t: v[1] + v[2] for t, v in
+                             sorted(_llm_sc.by_tag.items(),
+                                    key=lambda kv: -(kv[1][1] + kv[1][2]))[:5]}}
+            job["result"] = _res
+        logger.info("[anim] job %s token 台账: %d 次调用 · prompt %d + completion %d",
+                    job["id"][:8], _llm_sc.calls, _llm_sc.ptok, _llm_sc.ctok)
 
 
 def _fail_job(job: dict[str, Any], message: str) -> None:

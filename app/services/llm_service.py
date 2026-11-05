@@ -253,6 +253,10 @@ class LLMService:
             logger.info("[llm:usage] tag=%s provider=%s model=%s ptok=%d ctok=%d cached=%d",
                         tag or "无标", provider, str(data.get("model") or "-")[:40],
                         ptok, ctok, cached)
+            # 1105 批6 (T1): 有台账上下文 (anim job 线程) → 逐调用落
+            # llm_ledger.jsonl + job 级累计; 无上下文 (页面同步调用) 只进日志
+            from app.services.anim_pipeline.ledger import note_usage
+            note_usage(tag or "无标", provider, ptok, ctok, cached)
         except Exception:  # noqa: BLE001
             pass
 

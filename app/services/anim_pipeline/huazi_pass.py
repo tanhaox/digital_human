@@ -100,7 +100,8 @@ def enrich_text_route(doc: dict[str, Any]) -> dict[str, str]:
         try:
             out = chat_json(llm_cfg, _SYSTEM,
                             _TPL.format(thesis=thesis, passage=passage,
-                                        shots=shots_desc))
+                                        shots=shots_desc),
+                            tag="huazi")   # 1105 批6: 台账归因 (原先无标黑洞)
         except Exception as exc:  # noqa: BLE001 — fail-open, 不炸规划
             # 1101 F3: 失败留痕 (旧版静默跳过 — 弧级花字缺失无人知)
             doc.setdefault("_huazi_warnings", []).append(
