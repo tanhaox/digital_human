@@ -9,7 +9,7 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g,
   m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 
-const TYPE_ZH = { narr: '叙事弧', quote: '书证镜', persona: '回忆镜',
+const TYPE_ZH = { narr: '叙事弧', quote: '书证镜', persona: '人设镜',
   hook: '钩子', cta: 'CTA', brand: '品牌' };
 const MODE_ZH = { hook: '钩子', quote: '书证', comm: '评论', persona: '人设',
   cta: 'CTA', brand: '牌' };
@@ -79,7 +79,7 @@ function renderAxis() {
   timeline($('axis'), {
     script, bands, arcGhost: false,
     axisLabel: `~${Math.round(ARCS.reduce((s, a) => s + (a.est_s || 0), 0))}s 估`,
-    caption: '上层=稿层语态 (钩/书证/评论/人设/CTA) · 下层=弧 (叙事/书证镜/回忆镜) — 两带对齐即弧界落模块边界',
+    caption: '上层=稿层语态 (钩/书证/评论/人设/CTA) · 下层=弧 (叙事/书证镜/人设镜) — 两带对齐即弧界落模块边界',
   });
 }
 
@@ -96,11 +96,15 @@ function renderTable() {
     const meta = isNarr
       ? `<span class="editable" contenteditable="true" data-aid="${a.arc_id}" data-k="metaphor">${esc(a.metaphor || '')}</span>`
       : '<span class="muted">— 不分配立意</span>';
+    const i = ARCS.indexOf(a);
     return `<tr>
       <td class="mono">${esc(a.arc_id)}</td>
-      <td><span class="ty ty-${esc(a.type)}">${esc(TYPE_ZH[a.type] || a.type)}</span></td>
+      <td><button class="ty ty-${esc(a.type)} tybtn" data-act="type" data-aid="${a.arc_id}"
+            title="点改弧型 (叙事/书证/人设/钩子/CTA/品牌)">${esc(TYPE_ZH[a.type] || a.type)}</button></td>
       <td>${esc(MODE_ZH[a.mode] || a.mode)}</td>
-      <td class="mono">L${a.no_start}–L${a.no_end}</td>
+      <td class="mono">L${a.no_start}–L${a.no_end}
+        ${i > 0 ? `<button class="iconbtn" data-act="merge" data-aid="${a.arc_id}"
+          title="并入上一弧 (两弧行区间合并成一弧)">⬆合并</button>` : ''}</td>
       <td>${world}</td><td>${meta}</td>
       <td class="mono">${a.line_count}</td><td class="mono">~${a.est_s}s</td></tr>`;
   }).join('');
@@ -118,6 +122,36 @@ function renderGate(open, ready) {
     : `<b class="note">🔒 立意闸未开</b> <span class="note">— ${ready ? '有红痕待处置' : '尚未切弧'}</span>`;
 }
 
+const TYPE_ORDER = ['narr', 'quote', 'persona', 'hook', 'cta', 'brand'];
+$('tbody').addEventListener('click', ev => {
+  const b = ev.target.closest('button'); if (!b) return;
+  const aid = b.dataset.aid;
+  const i = ARCS.findIndex(a => a.arc_id === aid);
+  if (i < 0) return;
+  if (b.dataset.act === 'type') {
+    const cur = ARCS[i].type;
+    ARCS[i].type = TYPE_ORDER[(TYPE_ORDER.indexOf(cur) + 1) % TYPE_ORDER.length];
+    dirty.add(aid + '.type');
+    renderTable(); renderAxis(); refreshDirty();
+  } else if (b.dataset.act === 'merge' && i > 0) {
+    const prev = ARCS[i - 1], cur = ARCS[i];
+    prev.no_end = cur.no_end;
+    prev.line_count = (prev.line_count || 0) + (cur.line_count || 0);
+    prev.est_s = +((prev.est_s || 0) + (cur.est_s || 0)).toFixed(1);
+    const pool = Object.values(LINES_OF_ARC).flat().sort((x, y) => x.no - y.no);
+    ARCS.splice(i, 1);                                  // 删掉被并弧
+    ARCS.forEach((a, k) => { a.arc_id = 'A' + (k + 1); });
+    // 重编号后按行区间重新分配句 (键也随编号更新)
+    const remap = {};
+    ARCS.forEach(a => {
+      remap[a.arc_id] = pool.filter(l => l.no >= a.no_start && l.no <= a.no_end);
+    });
+    LINES_OF_ARC = remap;
+    dirty.add('merge');
+    renderTable(); renderAxis(); refreshDirty();
+  }
+});
+
 $('tbody').addEventListener('input', ev => {
   const t = ev.target;
   if (!t.dataset?.aid) return;
@@ -127,7 +161,7 @@ $('tbody').addEventListener('input', ev => {
 
 async function saveConcept() {
   const arcs = ARCS.map(a => ({
-    arc_id: a.arc_id,
+    arc_id: a.arc_id, type: a.type, no_start: a.no_start, no_end: a.no_end,
     world: document.querySelector(`[data-aid="${a.arc_id}"][data-k="world"]`)?.textContent ?? a.world,
     metaphor: document.querySelector(`[data-aid="${a.arc_id}"][data-k="metaphor"]`)?.textContent ?? a.metaphor,
   }));

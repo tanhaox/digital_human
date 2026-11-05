@@ -90,11 +90,24 @@ def route_markers(text: str) -> tuple[str, dict[str, Any] | None]:
 
 
 _LLM_SYS = """你是短视频口播文稿的分诊医官。对每一行输出一个判定, 严格 JSON, 不要多余文字。
-字段: {"lines":[{"no":行号,"mode":"hook|quote|comm|persona|cta|unknown",
+字段: {"lines":[{"no":行号,"mode":"hook|quote|comm|persona|cta|brand|unknown",
   "issue":null或{"level":"block|warn","kind":"英文短名","msg":"一句中文问题","sugg":"一句中文建议"},
   "suggs":[]}]}
-mode 语义: hook=开场钩子 / quote=原书怎么说(书证/引文) / comm=老谭的评论观点 /
-persona=人设自述("我当年…"第一人称经历) / cta=行动召唤/关注引导 / unknown=无法归类。
+mode 语义 (严格区分, 判错会毁立意):
+- hook = 开场钩子 (悬念/冲突/利益点, 只为留人)
+- quote = **书里原话直出**: 必须带引号引用原文, 或明写"书里原话/原文/作者写道/书里写"
+- comm = **老谭自己的话**: 包括转述书的内容、概括、举例、介绍书和作者、列举清单 —
+  即使内容来自书, 只要不是原话引用, 一律归 comm
+- persona = **老谭亲身经历自述**: "我当年…""我管市场部时…" 第一人称做过的事
+- cta = 行动召唤/关注引导/互动提问
+- brand = **系列品牌句/仪式句**: "我是老谭, 读一本书, 多一个硬本事" /
+  "我是老谭, 拆一本书, 翻一座山, 咱们下一集见" — 系列冻结, 每集固定位置出现
+- unknown = 无法归类
+
+关键区分 (高频误判, 务必照做):
+① 介绍书/作者/推荐语 ≠ quote, 是 comm
+② 转述"书里有个案例/书里给的解法" ≠ quote (没有原话引号就是转述), 是 comm
+③ "我是老谭…" 开头一律 brand, 不是 persona
 issue 只报: 结构失衡(连续书证无承接/缺钩子/缺CTA/语态突兀)、明显书面语不宜口播。
 suggs 每行给 0-2 条创作建议, kind∈"quote"(对仗短句有金句相)/"img"(流程公式结构宜配图)/
 "book"(转述书中观点宜调原句直出)/"event"(核心概念词宜上事件金字), text=一句中文建议。"""

@@ -232,6 +232,10 @@ def v3_concept_save(book_id: str, ep: int, body: ArcSaveBody):
         doc = _load_v3_doc(book_title, ep)
         v3 = doc.setdefault("v3", {})
         cur = {a["arc_id"]: a for a in v3.get("arcs") or []}
+        lines = v3.get("lines") or []
+        line_of = {ln["no"]: ln for ln in lines}
+        from app.services.anim_pipeline.v3_pipeline.arcs import est_seconds, TYPE_OF_MODE
+        new_list: list[dict] = []
         n_edit = 0
         for row in body.arcs:
             a = cur.get(str(row.get("arc_id") or ""))
@@ -241,7 +245,26 @@ def v3_concept_save(book_id: str, ep: int, body: ArcSaveBody):
                 if row.get(k) is not None and str(row[k]).strip() != str(a.get(k) or ""):
                     a[k] = str(row[k]).strip()[:200]
                     n_edit += 1
-        issues = boundary_issues(list(cur.values()), v3.get("lines") or [])
+            # 结构编辑 (人闸: 合并/改型) — 只认合法值, 其余保留原值
+            if row.get("type") in TYPE_OF_MODE.values() and row["type"] != a.get("type"):
+                a["type"] = row["type"]
+                n_edit += 1
+            for k in ("no_start", "no_end"):
+                if row.get(k) is not None and int(row[k]) != int(a.get(k) or 0):
+                    a[k] = int(row[k])
+                    n_edit += 1
+            seg = [line_of[no] for no in range(int(a["no_start"]), int(a["no_end"]) + 1)
+                   if no in line_of and str(line_of[no].get("text") or "").strip()
+                   and line_of[no].get("mode") not in ("section", "card", "img", "unknown")]
+            a["line_count"] = len(seg)
+            a["est_s"] = est_seconds(seg)
+            new_list.append(a)
+        # 重编号 (合并后序号连续) + 时间序
+        new_list.sort(key=lambda x: int(x["no_start"]))
+        for i, a in enumerate(new_list, 1):
+            a["arc_id"] = f"A{i}"
+        v3["arcs"] = new_list
+        issues = boundary_issues(new_list, lines)
         v3["arc_issues"] = issues
         v3.setdefault("gates", {})["arcs"] = not issues
         from app.services.anim_pipeline import shots as shots_mod

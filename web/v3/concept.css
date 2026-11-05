@@ -33,3 +33,8 @@ tr:last-child td { border-bottom:none; }
 /* 空 contenteditable 无高度 → 不可见不可点 (实锤): 给占位与最小尺寸 */
 .editable { display:inline-block; min-width:80px; min-height:1.5em; }
 .editable:empty::before { content:'（待填）'; color:var(--faint); }
+.tybtn { border:none; cursor:pointer; font:inherit; font-size:12.5px; }
+.tybtn:hover { outline:1px dashed var(--cyan); }
+.iconbtn { background:#2a3442; color:#cfd8e3; font-family:var(--mono); font-size:11.5px;
+  padding:1px 6px; border-radius:6px; border:none; cursor:pointer; margin-left:6px; }
+.iconbtn:hover { color:var(--cyan); }
