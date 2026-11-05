@@ -8,11 +8,13 @@ const $ = id => document.getElementById(id);
 const esc = s => String(s ?? '').replace(/[&<>"']/g,
   m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 
-const SIZES = ['全景', '中景', '近景', '特写'];
-const SIZE_LV = { 全景: 4, 中景: 3, 近景: 2, 特写: 1 };
-const CAMS = ['固定', '缓推', '拉近', '拉远', '左摇', '右摇', '上摇', '下摇'];
+// 1105 用户令「运镜三元组 型·幅·速」: 型八步封顶, 默认 大·慢 = 现产线行为零改动
+const SIZES = ['大场景', '全景', '中景', '近景', '特写'];
+const SIZE_LV = { 大场景: 5, 全景: 4, 中景: 3, 近景: 2, 特写: 1 };
+const CAMS = ['待定', '固定', '推', '拉', '摇', '移', '跟', '升', '降'];
 const AMPS = ['小', '中', '大'];
 const SPEEDS = ['慢', '中', '快'];
+const NO_MOVE = ['待定', '固定'];
 const TYPE_ZH = { narr: '叙事弧', quote: '书证镜', persona: '人设镜',
   hook: '钩子', cta: '行动召', brand: '品牌' };
 
@@ -29,8 +31,9 @@ async function boot() {
     const saved = s.direct || {};
     STATE[s.sid] = {
       size: saved.size || s.size_guess || '中景',
-      cam: { kind: (saved.cam && saved.cam.kind) || '固定',
-             amp: (saved.cam && saved.cam.amp) || '中',
+      // 未生成 → 运镜「待定」而不是假装「固定」; 一旦选了运动, 幅速默认 大·慢
+      cam: { kind: (saved.cam && saved.cam.kind) || '待定',
+             amp: (saved.cam && saved.cam.amp) || '大',
              speed: (saved.cam && saved.cam.speed) || '慢' },
       motion: saved.motion || '', light: saved.light || '',
       filled: !!s.direct,
@@ -67,7 +70,7 @@ function renderRhythm() {
   });
   const q = quotas();
   $('rhycap').textContent =
-    `一镜一柱 (柱高=景别) · 全景 ${q.big}/${q.needBig} 需 · 特写 ${q.micro}/${q.maxMicro} 上限 · 相邻同景别 ${q.sameAdj} 处`;
+    `一镜一柱 (柱高=景别) · 大场景+全景 ${q.big}/${q.needBig} 需 · 特写 ${q.micro}/${q.maxMicro} 上限 · 相邻同景别 ${q.sameAdj} 处`;
 }
 
 /* ── 主区 ─────────────────────────────────────────────── */
@@ -108,7 +111,7 @@ function opts(list, cur) {
 
 function rowHTML(s) {
   const st = STATE[s.sid];
-  const fixed = st.cam.kind === '固定';
+  const fixed = NO_MOVE.includes(st.cam.kind);
   return `<div class="row" data-sid="${esc(s.sid)}">
     <div class="r1">
       <span class="sid">${esc(s.sid)}</span>
@@ -160,7 +163,7 @@ function bindRows() {
 }
 
 function refreshRow(row, sid) {
-  const fixed = STATE[sid].cam.kind === '固定';
+  const fixed = NO_MOVE.includes(STATE[sid].cam.kind);
   row.querySelector('.sel-amp').disabled = fixed;
   row.querySelector('.sel-speed').disabled = fixed;
 }
@@ -171,7 +174,7 @@ function quotas() {
   let big = 0, micro = 0, sameAdj = 0, prev = null;
   for (const s of SHOTS) {
     const sz = STATE[s.sid].size;
-    if (sz === '全景') big++;
+    if (sz === '大场景' || sz === '全景') big++;
     if (sz === '特写') micro++;
     if (prev === sz) sameAdj++;
     prev = sz;
@@ -183,7 +186,7 @@ function quotas() {
 function renderSide() {
   const q = quotas();
   const rows = [
-    ['全景 ≥⌈n/4⌉', `${q.big} / ${q.needBig}`, q.big >= q.needBig ? 'ok' : 'bad'],
+    ['大场景+全景 ≥⌈n/4⌉', `${q.big} / ${q.needBig}`, q.big >= q.needBig ? 'ok' : 'bad'],
     ['特写 ≤⌈n/2⌉', `${q.micro} / ${q.maxMicro}`, q.micro <= q.maxMicro ? 'ok' : 'bad'],
     ['相邻镜同景别', `${q.sameAdj} 处`, q.sameAdj === 0 ? 'ok' : 'warn'],
   ];

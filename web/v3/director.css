@@ -5,6 +5,7 @@
 .rhy { display:flex; align-items:flex-end; gap:2px; height:78px; padding:6px 8px;
        border:1px solid var(--line); border-radius:10px; background:var(--panel2); }
 .rhy .bar { flex:1; min-width:3px; border-radius:2px 2px 0 0; position:relative; }
+.rhy .bar.s5 { background:#5fae86; }   /* 大场景 */
 .rhy .bar.s4 { background:#4f8f6f; }   /* 全景 */
 .rhy .bar.s3 { background:#3f6f8f; }   /* 中景 */
 .rhy .bar.s2 { background:#6b5a8f; }   /* 近景 */
