@@ -110,7 +110,7 @@ async function op(opk, id, btn, b) {
   } catch (e) { toast('失败: ' + e.message); btn.disabled = false; }
 }
 
-/* ✎编辑 modal (CSP: 全类名, 零内联 — v2 版是 style.cssText, 不能照抄) */
+/* ✎编辑 modal (CSP: 全类名, 零内联 — v2 版是逐元素写内联样式, 不能照抄) */
 function openEditor(id, b) {
   let ov = $('seg-editor');
   if (!ov) {
