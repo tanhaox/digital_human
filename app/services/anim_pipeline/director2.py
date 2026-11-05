@@ -2412,6 +2412,25 @@ def plan_scene(book_id: str, book_title: str, ep: int, arc_id: str,
             scene_slots = scene_slots[1:]
             logger.info("[replan] 场 %s 窗头碎片 %.2fs 并回特区末槽 (尾 %.1fs)",
                         arc["arc_id"], _frag_d, float(_z_last["t_end"]))
+    # 1105 现场修 (病灶14c, ep6 A2 s12 0.67s 三度实锤): 特区末槽自身碎片 —
+    # 场窗起点落在特区内且距特区终点 <1.5s (A2 起 59.3s, 特区止 60.0s) →
+    # 窗∩特区 = 0.67s 碎片被"一槽一镜"忠实成镜, 必踩 validate_doc ≥1.5s 闸;
+    # 1017 头碎片修法治不了它 (那把普通槽并给特区, 这里特区自己就是碎片)。
+    # 对称修法: 特区末槽碎片 (非品牌句) 并入本场首个普通槽 (槽界延伸无缝);
+    # 品牌句原子契约不并; 无普通槽可并则留原样 (闸会拦, 人工介入)。
+    if scene_slots and zone_slots:
+        _zfrag = zone_slots[-1]
+        _zfrag_d = float(_zfrag["t_end"]) - float(_zfrag["t_start"])
+        _zfrag_brand = shots_mod.is_brand_text(
+            shots_mod.norm_for_match(str(_zfrag.get("text") or "")))
+        if (_zfrag_d < 1.5 and not _zfrag_brand
+                and abs(float(scene_slots[0]["t_start"]) - float(_zfrag["t_end"])) < 0.35):
+            scene_slots[0]["t_start"] = _zfrag["t_start"]
+            scene_slots[0]["text"] = (str(_zfrag.get("text") or "")
+                                      + str(scene_slots[0].get("text") or ""))
+            zone_slots.pop()
+            logger.info("[replan] 场 %s 特区末槽碎片 %.2fs 并入首个普通槽 (起 %.1fs)",
+                        arc["arc_id"], _zfrag_d, float(scene_slots[0]["t_start"]))
     slot_mode = bool(zone_slots or scene_slots)
     refs_mode = bool(sent_table) and not slot_mode
     refs_block = ""

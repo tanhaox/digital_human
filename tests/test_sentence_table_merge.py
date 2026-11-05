@@ -83,3 +83,16 @@ def test_planning_path_uses_truth_source():
     src = inspect.getsource(director2)
     assert "_ad.sentence_table(_files)" in src      # replan 场级切点吃真相源
     assert "_ad._sentence_segs(_files)" not in src  # 直调绕源 = 回归
+
+
+def test_zone_tail_sliver_merge_wired():
+    # 1105 现场修 (病灶14c, ep6 A2 s12 0.67s 三度实锤): 特区末槽自身碎片
+    # (场窗起落在特区内, 窗∩特区 <1.5s) 并入本场首个普通槽 — 与 1017 窗头
+    # 碎片修 (ep5 s12) 对称; 品牌句原子契约豁免。
+    import inspect
+    from app.services.anim_pipeline import director2
+    src = inspect.getsource(director2)
+    assert "特区末槽碎片" in src and "并入首个普通槽" in src
+    assert "_zfrag_d < 1.5" in src and "_zfrag_brand" in src   # 判定+豁免齐
+    # 先于 14c 的 1017 头碎片修仍在 (两碎片路径共存)
+    assert "窗头碎片" in src
