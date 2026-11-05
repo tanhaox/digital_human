@@ -26,3 +26,12 @@ button.go { background:#14532d; } button.ghost { background:transparent; border:
 .tag { font-size:12.5px; border-radius:8px; border:1px solid var(--line2); color:var(--dim);
   padding:1px 8px; cursor:pointer; font-family:var(--mono); background:none; }
 .tag:hover { color:var(--cyan); border-color:var(--cyan); }
+/* 空态英雄区 (CSP: 禁内联 style, 全走类) */
+.hero { padding:34px 20px; text-align:center; }
+.hero-t { font-size:17px; margin-bottom:6px; }
+.hero-t.gold { color:var(--gold); }
+.hero-s { margin-bottom:14px; }
+.hero-b { padding:8px 26px; font-size:15px; }
+.gold-t { color:var(--gold); }
+.toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+  background:#14532d; color:#fff; padding:8px 18px; border-radius:9px; z-index:9; }

@@ -16,10 +16,15 @@ export const BANDS = [
 const esc = s => String(s ?? '').replace(/[&<>"']/g,
   m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]));
 
-function laneSegs(lane) {
-  return lane.map(b =>
-    `<div class="seg" style="width:${b.w}%;background:${b.color}">` +
-    (b.w >= 6 ? `<span class="lb">${esc(b.label)}</span>` : '') + `</div>`).join('');
+function laneSegs(parent, lane) {   // CSSOM 赋值: CSP style-src 只拦 style 属性, 不拦 .style.x=
+  for (const b of lane) {
+    const seg = document.createElement('div');
+    seg.className = 'seg';
+    seg.style.width = b.w + '%';
+    seg.style.background = b.color;
+    if (b.w >= 6) { const lb = document.createElement('span'); lb.className = 'lb'; lb.textContent = b.label; seg.appendChild(lb); }
+    parent.appendChild(seg);
+  }
 }
 
 /**
@@ -31,23 +36,33 @@ function laneSegs(lane) {
  */
 export function timeline(el, cfg = {}) {
   const bands = cfg.bands || BANDS;
-  let html = '<div class="lanes">';
-  if (cfg.script) html += `<div class="lane script">${laneSegs(cfg.script)}</div>`;
+  el.innerHTML = '';
+  const lanes = document.createElement('div');
+  lanes.className = 'lanes';
+  el.appendChild(lanes);
+  if (cfg.script) { const l = document.createElement('div'); l.className = 'lane script'; lanes.appendChild(l); laneSegs(l, cfg.script); }
   if (cfg.arc !== false) {
-    const ghost = cfg.arcGhost ? ' ghost' : '';
-    html += `<div class="lane arc${ghost}">${laneSegs(bands)}</div>`;
+    const l = document.createElement('div'); l.className = 'lane arc' + (cfg.arcGhost ? ' ghost' : '');
+    lanes.appendChild(l); laneSegs(l, bands);
   }
   if (cfg.shots) {
-    const g = cfg.shotsGhost ? ';opacity:.55' : '';
-    const divs = cfg.shots.map(s =>
-      `<div class="shot${s.cls ? ' ' + s.cls : ''}" style="left:${s.l}%;width:${s.w}%;${s.c ? 'background:' + s.c + g : ''}"` +
-      (s.title ? ` title="${esc(s.title)}"` : '') + '></div>').join('');
-    html += `<div class="lane shots">${divs}</div>`;
+    const shotsWrap = document.createElement('div'); shotsWrap.className = 'lane shots';
+    lanes.appendChild(shotsWrap);
+    for (const s of cfg.shots) {   // CSSOM 逐镜赋值 (CSP 禁 style 属性)
+      const d = document.createElement('div');
+      d.className = 'shot' + (s.cls ? ' ' + s.cls : '');
+      d.style.left = s.l + '%'; d.style.width = s.w + '%';
+      if (s.c) d.style.background = s.c;
+      if (cfg.shotsGhost) d.style.opacity = '.55';
+      if (s.title) d.title = s.title;
+      shotsWrap.appendChild(d);
+    }
   }
-  if (cfg.blocks) html += '<div class="blklane"></div>';
-  html += '</div>';
-  html += `<div class="axisline"><span>0s</span><span>60</span><span>120</span><span>180</span>` +
-          `<span>${esc(cfg.axisLabel || '~234s 估')}</span></div>`;
-  if (cfg.caption) html += `<div class="cap">${esc(cfg.caption)}</div>`;
-  el.innerHTML = html;
+  if (cfg.blocks) { const b = document.createElement('div'); b.className = 'blklane'; lanes.appendChild(b); }
+  const ax = document.createElement('div'); ax.className = 'axisline';
+  for (const t of ['0s', '60', '120', '180', cfg.axisLabel || '~234s 估']) {
+    const sp = document.createElement('span'); sp.textContent = t; ax.appendChild(sp);
+  }
+  el.appendChild(ax);
+  if (cfg.caption) { const c = document.createElement('div'); c.className = 'cap'; c.textContent = cfg.caption; el.appendChild(c); }
 }

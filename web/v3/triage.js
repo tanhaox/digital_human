@@ -24,19 +24,54 @@ async function refresh() {
     (ns ? `<span class="badge">💡 ${ns}</span>` : '') +
     `<span class="badge">${LINES.length} 行</span>`;
   rail($('rail'), { line: st.line, gates: d.gates, active: 'triage' });
-  renderGate(d.gates?.triage);
+  renderGate(d.gates?.triage, d.triaged);
+  $('btn-run').textContent = d.triaged ? '🩺 重新分诊' : '🩺 开始分诊';
   renderList();
+  // 页面重载时若有分诊 job 在跑 → 续接轮询 (进度可见)
+  if (st.running_job && st.running_job.phase === 'v3_triage') poll(st.running_job.id);
 }
 
-function renderGate(open) {
+function renderGate(open, triaged) {
   $('gate').className = 'gatebar' + (open ? '' : ' locked');
   $('gate').innerHTML = open
-    ? `<b style="color:var(--gold)">◉ 稿净</b> <span class="note">分诊闸已开 → </span>` +
+    ? `<b class="gold-t">◉ 稿净</b> <span class="note">分诊闸已开 → </span>` +
       `<a href="./concept.html${location.search}">② 立意 →</a>`
-    : `<b class="note">🔒 分诊闸未开</b> <span class="note">— 还有未处置的 🔴 拦截行</span>`;
+    : (triaged
+        ? `<b class="note">🔒 分诊闸未开</b> <span class="note">— 还有未处置的 🔴 拦截行</span>`
+        : `<b class="note">🔒 未分诊</b> <span class="note">— 先点「开始分诊」</span>`);
+}
+
+let RUNNING = false, _runT0 = 0;
+function setRunning(on) {
+  RUNNING = on;
+  const b = $('btn-run');
+  b.disabled = on;
+  b.textContent = on ? '⏳ 分诊中…' : (LINES.length ? '🩺 重新分诊' : '🩺 开始分诊');
+  if (on && !LINES.length) {
+    _runT0 = Date.now();
+    const tick = setInterval(() => {
+      if (!RUNNING || document.hidden) return;
+      const s = Math.round((Date.now() - _runT0) / 1000);
+      const h = document.getElementById('run-state');
+      if (h) h.textContent = `⏳ 分诊中… ${s}s (LLM 标注, 静默属正常)`;
+    }, 1000);
+    setTimeout(() => clearInterval(tick), 300000);
+  }
 }
 
 function renderList() {
+  if (!LINES.length) {   // 空态 (未分诊): 给明确首跑入口, 不留死胡同
+    $('doclist').innerHTML =
+      '<div class="hero">' +
+      (RUNNING ? '<div id="run-state" class="hero-t gold">⏳ 分诊中…</div>'
+               : '<div class="hero-t">本集尚未分诊</div>' +
+                 '<div class="note hero-s">载入文稿 → 逐行语态标注 + 病检 + 五类建议 (一次 LLM, 约 1 分钟)</div>' +
+                 '<button class="go hero-b" id="hero-run">🩺 开始分诊</button>') +
+      '</div>';
+    const hero = document.getElementById('hero-run');
+    if (hero) hero.onclick = () => $('btn-run').click();
+    return;
+  }
   $('doclist').innerHTML = LINES.map(l => {
     if (!l.text.trim()) return `<div class="docline blank"><span class="ln">${l.no}</span><span></span><span class="txt">${esc(l.text)||'&nbsp;'}</span><span></span></div>`;
     const flg = l.flag && l.disp !== 'cleaned' && l.disp !== 'converted';
@@ -59,7 +94,7 @@ function renderList() {
 $('doclist').addEventListener('input', ev => {
   const no = +ev.target.dataset.no; dirty.add(no);
   $('n-dirty').textContent = dirty.size;
-  $('dirty').innerHTML = `改稿 <b style="color:var(--gold)">${dirty.size} 处未保存</b>`;
+  $('dirty').innerHTML = `改稿 <b class="gold-t">${dirty.size} 处未保存</b>`;
 });
 $('doclist').addEventListener('click', async ev => {
   const b = ev.target.closest('button'); if (!b) return;
@@ -90,21 +125,42 @@ async function save() {
   if (r.gate) toast('✓ 稿净 — 分诊闸已开');
 }
 $('btn-run').onclick = async () => {
+  if (RUNNING) return;
   if (dirty.size && !confirm('有未保存改动, 先保存再跑?')) return;
   if (dirty.size) await save();
-  const j = await (await fetch(`${BASE}/v3_triage`, { method: 'POST',
-    headers: { 'Content-Type': 'application/json' }, body: '{}' })).json();
-  toast(`${j.phase} 已启动 (${j.id.slice(0,8)}) — LLM 标注约 1 分钟`);
+  const r = await fetch(`${BASE}/v3_triage`, { method: 'POST',
+    headers: { 'Content-Type': 'application/json' }, body: '{}' });
+  if (!r.ok) { toast('启动失败: ' + (await r.json()).detail, true); return; }
+  const j = await r.json();
+  setRunning(true);
+  if (LINES.length) toast('分诊中 (约 1 分钟) — 完成自动刷新');
   poll(j.id);
 };
 async function poll(id) {
-  for (let i = 0; i < 40; i++) {
+  setRunning(true);
+  for (let i = 0; i < 60; i++) {
     await new Promise(r => setTimeout(r, 3000));
-    const d = await (await fetch(`/api/anim/job/${id}`)).json();
-    if (d.status !== 'running') { toast(`分诊完成: ${JSON.stringify(d.result)}`); refresh(); return; }
+    let d; try { d = await (await fetch(`/api/anim/job/${id}`)).json(); }
+    catch { continue; }
+    if (d.status !== 'running') {
+      setRunning(false);
+      if (d.status === 'completed') toast('✓ 分诊完成');
+      else toast('分诊失败: ' + (d.error || d.status));
+      refresh(); return;
+    }
   }
+  setRunning(false);
 }
 function toast(m) { const t = document.createElement('div');
-  t.textContent = m; t.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#14532d;color:#fff;padding:8px 18px;border-radius:9px;z-index:9';
+  t.textContent = m; t.className = 'toast';
   document.body.appendChild(t); setTimeout(() => t.remove(), 3500); }
 refresh();
+
+// autostart (无头/CI 验证): ?autostart=1 载入即点开始分诊
+if (new URLSearchParams(location.search).get('autostart') === '1') {
+  const t = setInterval(() => {
+    const b = document.getElementById('btn-run');
+    if (b && !b.disabled && !RUNNING) { clearInterval(t); b.click(); }
+  }, 800);
+  setTimeout(() => clearInterval(t), 30000);
+}

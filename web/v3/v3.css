@@ -58,3 +58,5 @@ a { color:var(--cyan); text-decoration:none; }
 .h2 { font-size:21px; font-weight:700; margin:0; }
 .h2row { display:flex; align-items:baseline; gap:10px; margin:0 0 10px; flex-wrap:wrap; }
 .sub { color:var(--dim); font-size:14.5px; }
+.pt { padding-top:14px; }
+.flex1 { flex:1; }

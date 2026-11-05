@@ -89,4 +89,10 @@ def test_wiring_source_asserts():
     for pg in Path("web/v3").glob("*.html"):
         h = pg.read_text(encoding="utf-8")
         assert '<script type="module">' not in h, f"{pg} 含内联 module (CSP 必拦)"
-        assert "<style>" not in h, f"{pg} 含内联 style (CSP 必拦)"
+        assert "<style>" not in h, f"{pg} 含内联 style 块 (CSP 必拦)"
+        assert ' style="' not in h, f"{pg} 含 style= 属性 (CSP style-src 必拦, 走类名)"
+    # JS 侧同样禁内联 style 属性 (Playwright 实锤: timeline innerHTML style= 被拦 10 处)
+    for js in Path("web/v3").glob("*.js"):
+        src = js.read_text(encoding="utf-8")
+        assert ' style="' not in src, f"{js} 含 style= 属性 (CSP 必拦, 改 CSSOM)"
+        assert "cssText" not in src, f"{js} 用 cssText 写内联样式 (CSP 必拦, 改类名)"
