@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>② 立意 · v3</title>
+<link rel="stylesheet" href="./v3.css">
+<link rel="stylesheet" href="./concept.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="h2row pt">
+    <h1 class="h2">② 立意 · 语态六拍</h1>
+    <span class="sub" id="sub">加载中…</span>
+    <span id="counts"></span>
+  </div>
+  <div class="railwrap"><div class="rail" id="rail"></div></div>
+  <div id="axis" class="mini"></div>
+
+  <div class="bar"><b>稿层 × 弧层</b>
+    <span class="note">弧界必须落在语态模块边界 (弧内单一语态) · 点行可跳</span></div>
+  <div id="issues"></div>
+  <div id="hints"></div>
+
+  <div class="twrap">
+  <table id="arctbl">
+    <thead><tr>
+      <th>弧</th><th>型</th><th>稿模块</th><th>行号</th><th>视觉世界</th><th>立意核心 (A=B)</th><th>行数</th><th>预估</th>
+    </tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+  </div>
+
+  <div class="savebar">
+    <span class="note" id="dirty">改稿 0 处未保存</span>
+    <span class="flex1"></span>
+    <button class="ghost" id="btn-run">🎲 重跑立意</button>
+    <button class="go" id="btn-save">💾 保存立意 (<span id="n-dirty">0</span>)</button>
+    <button class="go" id="btn-next" disabled title="立意闸未开">③ 分镜文字 →</button>
+  </div>
+  <div class="gatebar" id="gate"></div>
+
+  <div class="panel specs"><b>规格</b>
+    <ol>
+      <li>语态驱动切弧: 连续同语态行聚一模块, 一模块一弧 (确定性); LLM 只产 视觉世界/隐喻核心, 不改切分。</li>
+      <li>弧界执法: 弧内单一语态 + 有效行恰好归属一弧 — 违者红痕列出, 立意闸不放行。</li>
+      <li>弧型: 叙事弧(A=B 世界) / 书证镜(书的视角) / 回忆镜(老谭出镜) / 钩子·CTA·品牌=非叙事位不占立意。</li>
+      <li>本页零音频零 GPU: 改判重掷随时, 真实秒数在 ⑦ 盖章才注入。</li>
+    </ol>
+  </div>
+</div>
+<script type="module" src="./concept.js"></script>
+</body>
+</html>

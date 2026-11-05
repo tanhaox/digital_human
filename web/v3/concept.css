@@ -1,0 +1,35 @@
+/* ② 立意页专有样式 (CSP: 全外置, 禁内联 style 属性) */
+.bar { display:flex; gap:10px; align-items:baseline; margin:0 0 8px; flex-wrap:wrap; }
+.twrap { overflow-x:auto; border:1px solid var(--line); border-radius:10px; }
+table { border-collapse:collapse; width:100%; min-width:1000px; font-size:14.5px; }
+th { text-align:left; font-weight:600; color:var(--dim); font-size:13.5px; letter-spacing:.4px;
+  padding:8px 11px; background:var(--panel2); border-bottom:1px solid var(--line2); white-space:nowrap; }
+td { padding:7px 11px; border-bottom:1px solid var(--line); vertical-align:top; }
+tr:last-child td { border-bottom:none; }
+.mono { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+.editable { color:var(--txt); border-bottom:1px dashed var(--line2); cursor:text; outline:none; }
+.editable:focus { border-bottom-color:var(--cyan); }
+.muted { color:var(--faint); }
+
+/* 弧型标签 (与轴同色系) */
+.ty { display:inline-block; font-size:12.5px; padding:1px 8px; border-radius:9px; color:#fff; }
+.ty-narr { background:#2f6b52; } .ty-quote { background:#3a5f6e; }
+.ty-persona { background:#6e3a5a; } .ty-hook, .ty-cta, .ty-brand { background:#22304a; color:var(--dim); }
+
+/* 红痕 / 提示 */
+.issue { color:var(--bad-t); font-size:13.5px; padding:5px 12px; border-left:3px solid var(--bad-t);
+  background:rgba(110,32,32,.12); border-radius:0 6px 6px 0; margin:0 0 6px; }
+.hint { color:var(--cyan); font-size:13.5px; padding:4px 12px; border-left:3px dashed var(--cyan);
+  margin:0 0 6px; }
+
+.savebar { display:flex; gap:10px; align-items:center; margin-top:12px; }
+.gatebar { margin-top:12px; border:1px solid var(--gold); border-radius:10px; padding:10px 14px;
+  background:linear-gradient(90deg, rgba(201,162,94,.10), transparent 60%); }
+.gatebar.locked { border-color:var(--line2); background:none; }
+.gold-t { color:var(--gold); }
+.specs { font-size:14.5px; color:var(--dim); margin-top:14px; }
+.specs ol { margin:6px 0 0; padding-left:20px; }
+.tblwrap-issues { margin-bottom:10px; }
+/* 空 contenteditable 无高度 → 不可见不可点 (实锤): 给占位与最小尺寸 */
+.editable { display:inline-block; min-width:80px; min-height:1.5em; }
+.editable:empty::before { content:'（待填）'; color:var(--faint); }

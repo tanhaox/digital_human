@@ -40,7 +40,9 @@ def _stub(job: dict[str, Any], name: str) -> None:  # V0 占位, V1+ 替换
 def _h_triage(job: dict[str, Any]) -> None:
     from . import triage
     triage.run(job)
-def _h_arcs(job: dict[str, Any]) -> None: _stub(job, "arcs")
+def _h_arcs(job: dict[str, Any]) -> None:
+    from . import arcs
+    arcs.run(job)
 def _h_shots(job: dict[str, Any]) -> None: _stub(job, "shots")
 def _h_direct(job: dict[str, Any]) -> None: _stub(job, "direct")
 def _h_stamp(job: dict[str, Any]) -> None: _stub(job, "stamp")

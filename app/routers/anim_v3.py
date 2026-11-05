@@ -115,6 +115,71 @@ class TriageSaveBody(BaseModel):
     lines: list[dict[str, Any]] = []
 
 
+# ── ② 立意 (V2) ─────────────────────────────────────────────────────────
+
+class ArcSaveBody(BaseModel):
+    arcs: list[dict[str, Any]] = []
+
+
+@router.get("/ep/{book_id}/{ep}/concept")
+def v3_concept_get(book_id: str, ep: int):
+    """立意数据源: v3.arcs + hints/issues + 按弧分组的稿行 + 闸态。"""
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    try:
+        doc = _load_v3_doc(book_title, ep)
+    except FileNotFoundError:
+        return {"arcs": [], "hints": [], "issues": [], "gates": {}, "ready": False}
+    v3 = doc.get("v3") or {}
+    arcs = v3.get("arcs") or []
+    lines = v3.get("lines") or []
+    by_arc: dict[str, list[dict]] = {}
+    for a in arcs:
+        by_arc[a["arc_id"]] = [
+            {"no": ln["no"], "text": ln["text"], "mode": ln["mode"]}
+            for ln in lines if a["no_start"] <= ln["no"] <= a["no_end"]
+            and str(ln.get("text") or "").strip()]
+    return {"arcs": arcs, "hints": v3.get("arc_hints") or [],
+            "issues": v3.get("arc_issues") or [],
+            "lines_of_arc": by_arc,
+            "gates": v3_pipeline.gates_view(doc),
+            "ready": bool(arcs)}
+
+
+@router.post("/ep/{book_id}/{ep}/concept/save")
+def v3_concept_save(book_id: str, ep: int, body: ArcSaveBody):
+    """立意编辑保存: world/metaphor/narrative 回写 + 执法复检 + 立意闸开合。"""
+    from app.services.anim_pipeline.v3_pipeline.arcs import boundary_issues
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    with anim_service.ep_guard(book_id, ep):
+        doc = _load_v3_doc(book_title, ep)
+        v3 = doc.setdefault("v3", {})
+        cur = {a["arc_id"]: a for a in v3.get("arcs") or []}
+        n_edit = 0
+        for row in body.arcs:
+            a = cur.get(str(row.get("arc_id") or ""))
+            if not a:
+                continue
+            for k in ("narrative", "world", "metaphor"):
+                if row.get(k) is not None and str(row[k]).strip() != str(a.get(k) or ""):
+                    a[k] = str(row[k]).strip()[:200]
+                    n_edit += 1
+        issues = boundary_issues(list(cur.values()), v3.get("lines") or [])
+        v3["arc_issues"] = issues
+        v3.setdefault("gates", {})["arcs"] = not issues
+        from app.services.anim_pipeline import shots as shots_mod
+        shots_mod.save(doc)
+    return {"saved": len(body.arcs), "edited": n_edit,
+            "issues": issues, "gate": not issues}
+
+
 @router.post("/ep/{book_id}/{ep}/triage/save")
 def v3_triage_save(book_id: str, ep: int, body: TriageSaveBody):
     """一句一行编辑保存: 文本/语态/处置回写 + 确定性重检 + 分诊闸自动开合。"""

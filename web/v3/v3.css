@@ -60,3 +60,5 @@ a { color:var(--cyan); text-decoration:none; }
 .sub { color:var(--dim); font-size:14.5px; }
 .pt { padding-top:14px; }
 .flex1 { flex:1; }
+.toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%);
+  background:#14532d; color:#fff; padding:8px 18px; border-radius:9px; z-index:9; }
