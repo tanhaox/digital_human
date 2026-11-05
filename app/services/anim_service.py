@@ -49,9 +49,12 @@ _register_feed("fandeng_full", _load_ff)
 
 PHASES = ("plan", "replan", "redo", "k2", "h3", "brand", "enhance",
           "facefix", "textpass")
-# redo (列队重做) 含 LLM 段但入 GPU_PHASES: 全程持锁, 与 k2/h3/brand 互斥
-# 1018 用户令: facefix/textpass (购物篮修脸/压字) 走 ComfyUI — 同入 GPU 互斥群
-GPU_PHASES = ("redo", "k2", "h3", "brand", "facefix", "textpass")
+# GPU 预取群: start_phase 入口即占 _GPU_JOB_LOCK, 全程持有 (与 comfy 互斥)。
+# 1018 用户令: facefix/textpass (购物篮修脸/压字) 走 ComfyUI — 同入 GPU 互斥群。
+# 1105 批2 (病灶11): redo 移出预取群 — 其 LLM 重设计段 (零 GPU, N×3.5min) 曾
+# 全程占 GPU 锁, 其他书 GPU 批全被挡 (GPU 空转); 现 LLM 段不持锁, 转 GPU
+# 一条龙前现场取锁 (_wait_gpu_lock 带进度日志等待)。
+GPU_PHASES = ("k2", "h3", "brand", "facefix", "textpass")
 _LOG_TAIL = 400
 
 _JOBS: dict[str, dict[str, Any]] = {}
@@ -97,6 +100,25 @@ def ep_guard(book_id: str, ep: int, timeout: float = 10.0):
     lock = _ep_lock(book_id, ep)
     if not lock.acquire(timeout=timeout):
         raise AnimBusyError(f"该集任务进行中 (book {book_id} ep{ep}), 稍后再试")
+    try:
+        yield
+    finally:
+        lock.release()
+
+
+@contextmanager
+def _ep_lock_timed(book_id: str, ep: int, wait: float = 10.0):
+    """1105 批2 (病灶2): plan/replan job 线程的每集写锁超时获取。
+
+    旧版 `with _ep_lock(...)` 无限阻塞 — 同集 GPU 批/长任务期间, 排队的
+    plan job 挂死几十分钟且 job 面板零进度 (UI 无法区分)。同集互斥闸已把
+    常规并发挡在 start_phase 入口, 这是兜底: 拿不到锁直接 fail 带明确文案,
+    不再静默排队。RLock 同线程重入不受影响 (redo 内 replan_shot→ep_guard)。"""
+    lock = _ep_lock(book_id, ep)
+    if not lock.acquire(timeout=wait):
+        raise RuntimeError(
+            f"本集写锁被占 (等待 {wait:.0f}s 超时) — 可能有同步操作 (对齐/装配/"
+            "过审) 或上一任务收尾中, 稍后重试")
     try:
         yield
     finally:
@@ -201,9 +223,16 @@ def start_phase(book_ref: str, ep: int, phase: str, *, only: set[str] | None = N
             f"《{book_title}》 无风格绑定 — 默认皮肤不再悄悄生效; "
             "先在讲书页跑 [🎨 风格选型] (真内容试镜 → 选择板点选)")
 
+    # 1105 批2 (病灶2): 同集互斥闸 — 全相位查同 (book, ep) running job, 且与
+    # 注册同一临界区 (防双开竞态)。旧版只锁 GPU 相位: 同 ep 双 plan job 并存
+    # 注册, 第二个线程阻塞在 _ep_lock 上几十分钟无进度 (GPU 批期间尤甚),
+    # 醒来后多撞"无可续跑"假失败。跨集并行保留 (plan/replan 零 GPU)。
     if phase in GPU_PHASES and not _GPU_JOB_LOCK.acquire(blocking=False):
         with _JOBS_LOCK:
-            cur = next((j for j in _JOBS.values() if j["status"] == "running" and j["phase"] in GPU_PHASES), None)
+            # redo 不在 GPU_PHASES (1105 批2) 但其 GPU 段持锁 — 409 描述把
+            # 它也认出来, 防止"锁被占但 desc 空"的误导
+            cur = next((j for j in _JOBS.values() if j["status"] == "running"
+                        and (j["phase"] in GPU_PHASES or j["phase"] == "redo")), None)
         desc = f"{cur['phase']} {cur['book_id']} ep{cur['ep']}" if cur else ""
         raise AnimBusyError(f"GPU 批任务进行中 ({desc}), 等它完成或取消后再试")
 
@@ -218,11 +247,24 @@ def start_phase(book_ref: str, ep: int, phase: str, *, only: set[str] | None = N
         "progress": None, "result": None, "error": None,
         "log": [], "started_at": time.strftime("%Y-%m-%dT%H:%M:%S"), "finished_at": None,
     }
-    with _JOBS_LOCK:
-        _JOBS[job["id"]] = job
-        if len(_JOBS) > 60:  # 只留最近 60 个 (终态的旧 job 清掉)
-            for old in [j for j in _JOBS.values() if j["status"] != "running"][:-30]:
-                _JOBS.pop(old["id"], None)
+    try:
+        with _JOBS_LOCK:
+            cur_ep = next((j for j in _JOBS.values()
+                           if j["status"] == "running"
+                           and j["book_id"] == book_id and j["ep"] == ep), None)
+            if cur_ep:
+                raise AnimBusyError(
+                    f"本集已有任务进行中 ({cur_ep['phase']} {cur_ep['id'][:8]}), "
+                    "等它完成或 ⛔停止后再试")
+            _JOBS[job["id"]] = job
+            if len(_JOBS) > 60:  # 只留最近 60 个 (终态的旧 job 清掉)
+                for old in [j for j in _JOBS.values() if j["status"] != "running"][:-30]:
+                    _JOBS.pop(old["id"], None)
+    except Exception:
+        # GPU 锁已取但注册失败 (同集闸拦下) — 必须放锁, 否则全局 GPU 死锁
+        if phase in GPU_PHASES:
+            _GPU_JOB_LOCK.release()
+        raise
     threading.Thread(target=_run_job, args=(job,), daemon=True, name=f"anim-{phase}").start()
     return _job_view(job)
 
@@ -288,7 +330,7 @@ def _phase_plan(job: dict[str, Any]) -> None:
     logger.info("[plan] 音频先行 ✓ job %s, %d 包 %.0fs — 圣经检查 + 导演规划 (LLM 2-4 分钟, 期间日志静默属正常)",
                 audio["job_id"][:8], len(audio["files"]),
                 sum(f["dur_s"] for f in audio["files"]))
-    with _ep_lock(job["book_id"], job["ep"]):
+    with _ep_lock_timed(job["book_id"], job["ep"]):
         if job.get("continue_scenes"):
             # ▶️ 分镜续跑 (0917 立意人闸第二段): 立意确认后从骨架续跑逐场
             path = planner.resume_scenes(job["book_id"], job["ep"])
@@ -339,7 +381,7 @@ def _phase_replan(job: dict[str, Any]) -> None:
     """单场重规划相位 (磨合循环: 本场 规划→K2→H3 反复测). LLM 零 GPU, ep 写锁互斥."""
     arc_id = job.get("arc_id") or ""
     logger.info("[replan] 音频先行 ✓ — 场 %s 重规划 (LLM 单窗调用, 1-2 分钟静默属正常)", arc_id.upper())
-    with _ep_lock(job["book_id"], job["ep"]):
+    with _ep_lock_timed(job["book_id"], job["ep"]):
         path = planner.replan_scene(job["book_id"], job["ep"], arc_id)
         doc = shots_mod.load_doc(job["book_title"], job["ep"])
         key = arc_id.lower()
@@ -350,6 +392,24 @@ def _phase_replan(job: dict[str, Any]) -> None:
         logger.info("[replan] 场 %s 重生完成: %d 组 %d 镜 (全集 %d 镜, 其余场未动)",
                     arc_id.upper(), n_groups, len(scene), len(doc["shots"]))
         # 1013 P0: 自动增强退役 (同上)
+
+
+def _wait_gpu_lock(job: dict[str, Any], total: int) -> bool:
+    """1105 批2 (病灶11): redo 的 GPU 段现场取锁 — LLM 重设计段不再预占
+    _GPU_JOB_LOCK (旧版 N×3.5min 零 GPU 段全程占锁, 其他书 GPU 批全被挡,
+    GPU 空转)。拿不到带进度日志分片等待 (15s/片查 cancel), ⛔停止可中断。"""
+    if _GPU_JOB_LOCK.acquire(blocking=False):
+        return True
+    logger.info("[redo] LLM 段完成, 等 GPU 空 (他书批任务进行中)…")
+    while True:
+        if job["cancel"]:
+            return False
+        with _JOBS_LOCK:
+            job["progress"] = {"done": 0, "total": total, "current": "等 GPU 空…"}
+        _publish(job["id"], {"type": "anim_progress", "phase": "redo",
+                             "shot_id": "等 GPU 空…", "done": 0, "total": total})
+        if _GPU_JOB_LOCK.acquire(timeout=15.0):
+            return True
 
 
 def _phase_redo(job: dict[str, Any]) -> None:
@@ -391,7 +451,17 @@ def _phase_redo(job: dict[str, Any]) -> None:
         job["only"] = set(ok)
         # 0927 to_image: 重设计→生图后停在 img_done 走标准人检, 不自动过审不跑 H3
         job["chain_h3"] = not bool(job.get("to_image"))
-        _phase_gpu(job)   # K2 only=成功集 → (chain_h3 时自动过审 → H3 同 comfy session)
+        # 1105 批2: GPU 段现场取锁 (LLM 段未预占); 等待中被 ⛔停止 → 重设计
+        # 成果已落盘 (planned), K2 手动可续, 不算失败
+        if not _wait_gpu_lock(job, len(ok)):
+            logger.warning("[redo] ⏹ 等待 GPU 时被停止 — %d 镜重设计已落盘 (planned), 稍后 🎨K2 手动跑", len(ok))
+            with _JOBS_LOCK:
+                job["result"] = {"redone": ok, "failed": failed, "gpu_skipped": True}
+            return
+        try:
+            _phase_gpu(job)   # K2 only=成功集 → (chain_h3 时自动过审 → H3 同 comfy session)
+        finally:
+            _GPU_JOB_LOCK.release()   # redo 不在 GPU_PHASES, _run_job finally 不再放
         _mark_redo_review(job, ok)
         with _JOBS_LOCK:
             job["result"] = {"redone": ok, "failed": failed, **(job.get("result") or {})}
