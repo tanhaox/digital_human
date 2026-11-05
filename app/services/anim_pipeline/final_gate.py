@@ -38,7 +38,8 @@ def _jaccard(a: str, b: str) -> float:
     return len(A & B) / len(A | B) if (A | B) else 0.0
 
 
-def zone_quota_issues(doc: dict[str, Any], skip_placeholders: bool = True) -> list[str]:
+def zone_quota_issues(doc: dict[str, Any], skip_placeholders: bool = True,
+                      extra_words: tuple[str, ...] = ()) -> list[str]:
     """分区人物配额 (宪法 scene_min_present; brand 豁免; fallback 占位镜豁免)。
 
     1014 一把尺: 本函数是人物在场配额的唯一尺 — 场级闸 (validate_doc)、
@@ -49,7 +50,7 @@ def zone_quota_issues(doc: dict[str, Any], skip_placeholders: bool = True) -> li
     import math as _math
 
     from .director2 import _bible_cache_path, _has_person_words
-    words = list(CST.person_words())
+    words = list(CST.person_words()) + list(extra_words)
     try:
         bt = str(doc.get("book_title") or "")
         if bt:

@@ -519,22 +519,27 @@ def _llm_fill(shots: list[dict[str, Any]], arcs: list[dict[str, Any]],
         got = {str(r.get("sid")): str(r.get("keyframe_zh") or "")[:600]
                for r in (_parse_json(raw).get("shots") or [])}
         # 批内自检 (用户令: 机制放在生成时, 不留给事后整集重掷):
-        # 景深配额不达标 → 只重投这一批一次, 代价 1/5 集而不是一整集
+        # 景深配额/画面句长度不达标 → 只重投这一批一次 (代价 1/5 集, 不是一整集)
         need_big = max(1, -(-len(batch) // 4))
         n_big = sum(1 for t in got.values() if is_big_scene(t))
-        if n_big < need_big:
-            logger.info("[v3:shots] 批 %s 大场景 %d/%d 不达标, 补投一次",
-                        batch[0]["sid"], n_big, need_big)
+        short = [sid for sid, t in got.items() if t and len(t) < KF_MIN_CHARS]
+        if n_big < need_big or short:
+            probs = []
+            if n_big < need_big:
+                probs.append(f"大场景 {n_big}/{len(batch)} (至少要 {need_big} 镜全景/俯瞰/辽阔环境)")
+            if short:
+                probs.append(f"{'/'.join(short)} 画面句不足 {KF_MIN_CHARS} 字")
+            logger.info("[v3:shots] 批 %s 不达标 (%s), 补投一次", batch[0]["sid"], "; ".join(probs))
             try:
                 raw2 = get_llm_service().chat(
-                    sys_p,
-                    prompt + f"\n【上一版不达标: 大场景 {n_big}/{len(batch)}, "
-                             f"至少要 {need_big} 镜是全景/俯瞰/辽阔环境。整批重写。】",
+                    sys_p, prompt + "\n【上一版不达标: " + "; ".join(probs) + "。整批重写。】",
                     model="pro", temperature=0.5,
                     response_format={"type": "json_object"}, tag="v3_shots")
                 got2 = {str(r.get("sid")): str(r.get("keyframe_zh") or "")[:600]
                         for r in (_parse_json(raw2).get("shots") or [])}
-                if sum(1 for t in got2.values() if is_big_scene(t)) >= need_big:
+                ok2 = (sum(1 for t in got2.values() if is_big_scene(t)) >= need_big
+                       and not any(t and len(t) < KF_MIN_CHARS for t in got2.values()))
+                if ok2:
                     got = got2
             except Exception as exc:  # noqa: BLE001 — 补投失败沿用首版
                 logger.warning("[v3:shots] 批补投失败 (沿用首版): %s", exc)
@@ -555,6 +560,9 @@ ARC_LEVEL_KEY = "弧级"      # 无法归因到单镜的场级问题 (宪法配�
 #   · 图内字通道在 v3 停用 (上屏字统一走剪映卡, 图示走 PNG) → 零申报不再报;
 #   · 人物/景深配额改全集口径 (一次算全片, 与 final_gate 全场尺同源)。
 _ARC_QUOTA_MARKERS = ("整场零申报", "分区人物配额", "景深配额")
+# 提示词口径「背影/手/半个身位都算人物」→ 检查器必须同口径
+_PERSON_EXTRA = ("背影", "侧影", "侧身", "身位", "半身", "人影", "人员",
+                 "工程师", "顾问", "客户", "工人", "司机", "柜员", "地勤")
 _CARRIER_MSG = re.compile(r"^(s\d+) 画面句含文字载体「(.+?)」但未申报 in_image_text")
 _QUOTE_IN_TEXT = re.compile(r"[「『\"“][^」』\"”]{1,20}[」』\"”]")
 
@@ -690,7 +698,10 @@ def text_layer_issues(shots: list[dict[str, Any]]) -> dict[str, list[str]]:
                                "keyframe_zh": s.get("keyframe_zh"),
                                "camera": s.get("camera"),
                                "in_image_text": []} for s in shots]}
-        arc_q = zone_quota_issues(all_fake) + depth_quota_issues(all_fake, arc_id=None)
+        # 人物词表补齐提示词里的口径 (背影/半个身位/手 都算人物) — 实锤: 写手写了
+        # 「工程师背影」「地勤人员背影」, 检查器不认 → 4/7 假警报
+        arc_q = (zone_quota_issues(all_fake, extra_words=_PERSON_EXTRA)
+                 + depth_quota_issues(all_fake, arc_id=None))
         arc_q = [x.replace("场[", "全集[").replace("景深配额: 场 ", "景深配额: 全集 ")
                  for x in arc_q]
     except Exception as exc:  # noqa: BLE001 — 质检失败不炸产线

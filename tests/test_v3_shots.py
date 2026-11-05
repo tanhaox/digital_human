@@ -475,3 +475,16 @@ def test_every_text_qc_rule_is_stated_in_prompt():
 def test_is_big_scene_matches_depth_words():
     assert v3shots.is_big_scene("黄昏的悬崖盘山公路大全景俯瞰，一辆黑色豪车")
     assert not v3shots.is_big_scene("过肩近景，驾驶员双手紧握方向盘，指节发白")
+
+
+def test_person_words_match_prompt_wording():
+    """提示词说「背影/半个身位都算人物」, 检查器必须同口径 (实锤: 工程师背影漏判)。"""
+    from app.services.anim_pipeline.final_gate import zone_quota_issues
+    import json as _json
+    txt = "地基深坑里一名戴安全帽的工程师背影蹲在最底层，手捏着一截红色引线"
+    doc = {"shots": [{"shot_id": "s1", "arc_id": "", "t_start": 0, "keyframe_zh": txt,
+                      "in_image_text": []}]}
+    before = zone_quota_issues(doc)                    # 默认词表: 不认「背影」
+    after = zone_quota_issues(doc, extra_words=v3shots._PERSON_EXTRA)
+    assert before and not after
+    assert "背影" in v3shots._PERSON_EXTRA
