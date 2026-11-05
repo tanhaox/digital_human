@@ -88,5 +88,5 @@ def test_wiring_source_asserts():
     # /web/v3/ 全部页面零内联 script/style, 逻辑与样式一律外置
     for pg in Path("web/v3").glob("*.html"):
         h = pg.read_text(encoding="utf-8")
-        assert "<script type="module">" not in h, f"{pg} 含内联 module (CSP 必拦)"
+        assert '<script type="module">' not in h, f"{pg} 含内联 module (CSP 必拦)"
         assert "<style>" not in h, f"{pg} 含内联 style (CSP 必拦)"
