@@ -500,8 +500,34 @@ def sentence_table(files: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
     与 _sentence_segs 同口径 (句末符切 + wav 静音吸附 + 字数比例回退),
     音频轴 0 起。规划镜 refs 引句号 → 系统查表定镜界 — 句级时间的唯一真相源,
-    闸门校验 (镜界落句边) 与规划消费同一张表, 结构上消灭两表打架。"""
-    return _sentence_segs(files)
+    闸门校验 (镜界落句边) 与规划消费同一张表, 结构上消灭两表打架。
+
+    1105 现场修 (病灶14, ep6 job 8320fcbd 实锤): <1.5s 孤立短句 (静默口
+    0.42s / 碎句 1.13s) 并入邻句 — refs 协议下镜界=句边, 短句成镜必然违反
+    validate_doc 的 ≥1.5s 最低时长闸 (director2.py:3660), 且系统查表定界
+    与 LLM 无关 → 两把重掷同死 s12 (0.7s) 的确定性死循环。合并只动本表
+    (规划真相源, 唯一消费方 planner._audio_manifest); _sentence_segs
+    (对齐/归真/时间纪律闸) 保持细粒度 — 合并后的外边界仍是原边界子集,
+    乱纪闸不受影响。"""
+    segs = _sentence_segs(files)
+    out: list[dict[str, Any]] = []
+    for s in segs:
+        _short = (s["t_end"] - s["t_start"]) < 1.5
+        if out and (_short or (out[-1]["t_end"] - out[-1]["t_start"]) < 1.5):
+            # 本句过短 → 并入前句; 或前句过短 (含上轮悬挂的短句) → 前句吸收本句
+            prev = out[-1]
+            prev["t_end"] = s["t_end"]
+            prev["duration"] = round(s["t_end"] - prev["t_start"], 2)
+            prev["text"] = f"{prev['text']}{s['text']}".strip()
+            continue
+        out.append(dict(s))
+    # 尾句悬挂过短 → 并回前句 (全集只有一句的极端态原样返回)
+    if len(out) >= 2 and (out[-1]["t_end"] - out[-1]["t_start"]) < 1.5:
+        last, prev = out.pop(), out[-1]
+        prev["t_end"] = last["t_end"]
+        prev["duration"] = round(last["t_end"] - prev["t_start"], 2)
+        prev["text"] = f"{prev['text']}{last['text']}".strip()
+    return out
 
 
 def _sentence_segs(files: list[dict[str, Any]]) -> list[dict[str, Any]]:
