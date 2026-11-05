@@ -32,6 +32,12 @@ async function refresh() {
 }
 
 function renderGate(open, triaged) {
+  const nx = $('btn-next');
+  if (nx) {
+    nx.disabled = !open;
+    nx.title = open ? '进入 ② 立意 (语态驱动切弧)'
+                    : (triaged ? '还有未处置的 🔴 拦截行' : '先完成分诊');
+  }
   $('gate').className = 'gatebar' + (open ? '' : ' locked');
   $('gate').innerHTML = open
     ? `<b class="gold-t">◉ 稿净</b> <span class="note">分诊闸已开 → </span>` +
@@ -144,6 +150,16 @@ async function save() {
   await refresh();
   if (r.gate) toast('✓ 稿净 — 分诊闸已开');
 }
+$('btn-next').onclick = async () => {
+  if (dirty.size) await save();          // 有未保存改动先落盘 (防丢)
+  const next = './concept.html' + location.search;
+  try {
+    const r = await fetch('./concept.html', { method: 'HEAD' });
+    if (r.ok) { location.href = next; return; }
+  } catch { /* 探测失败按未上线处理 */ }
+  toast('② 立意页建设中 (V2 批次) — 分诊结果已保存, 进度见 docs/improvements/进行中-20261105-分镜续跑升级.md');
+};
+
 $('btn-run').onclick = async () => {
   if (RUNNING) return;
   if (dirty.size && !confirm('有未保存改动, 先保存再跑?')) return;
