@@ -689,3 +689,43 @@ def test_v3_k2_refuses_unfrozen(monkeypatch):
                         lambda *a, **k: {"v3": {"shots": [{"sid": "s1"}]}})
     with pytest.raises(SystemExit, match="未放行"):
         vk2.run({"book_title": "书", "ep": 5})
+
+
+def test_slot_alignment_mechanism():
+    """1106 用户令: 槽位 = K2/TTS/H3 共同轴, 上限 15s。
+    长行拆句 (s5/s12 病根) + 全弧型窗化 (s32 CTA 33.8s 病根) + 双层硬闸。"""
+    from app.services.anim_pipeline.v3_pipeline.triage import split_long_lines, split_text
+    from app.services.anim_pipeline.v3_pipeline import shots as S
+    from app.services.anim_pipeline.v3_pipeline import direct as D
+
+    # 拆句: 79 字复合长句 → 多子行, 每段 ≤40 字; 标注挂首行
+    t = ("上集咱们问：对客户直来直去，还是措辞讲究？答案是——软话说尽，硬事才能办成。"
+         "管理者提升效能一共六件工具——这是第四件，前三件管怎么听、怎么说，这件管怎么划界。")
+    parts = split_text(t)
+    assert len(parts) >= 3 and all(len(p) <= 40 for p in parts)
+    lines = [{"no": 1, "text": t, "mode": "comm", "suggs": [{"kind": "event"}],
+              "adopted": ["event"]}]
+    nl, m = split_long_lines(lines)
+    assert len(m[1]) >= 3 and len(nl) == len(m[1])       # 句级+逗号级拆, 段数≥3
+    assert all(len(x["text"]) <= 40 for x in nl)
+    assert nl[0]["suggs"] and not any(x.get("suggs") for x in nl[1:])  # 建议只挂首行
+
+    # 窗化: CTA 152 字旧逻辑整段一镜 33.8s → 现在切多槽, 全部 ≤15s
+    cta = [{"no": i + 1, "text": x, "mode": "cta"} for i, x in enumerate([
+        "马上能做的一步：今晚翻出你手头的项目，对照十一项清单，看哪几项还没写清楚。标不出来的，明早第一件事就是补。",
+        "有人说对客户就该直来直去，也有人说措辞不讲究方案再好也白搭——你站哪边？",
+        "第四件交完了，整套行动清单统一放在行动册等你。",
+        "身边那个方案硬、单子软的同行，这套丑话清单值得转给他，兴许帮他省下几场白开的会。"])]
+    nl2, _ = split_long_lines(cta)
+    arcs = [{"arc_id": "A15", "type": "cta", "no_start": 1, "no_end": len(nl2),
+             "est_s": 0, "world": "", "metaphor": ""}]
+    sh, warns = S.pack_shots(arcs, nl2)
+    assert len(sh) >= 3 and all(x["est_s"] <= S.SLOT_MAX_S for x in sh)
+
+    # 双层硬闸: 装包 warns + ④ 校验 issue
+    sh2, w2 = S.pack_shots([{"arc_id": "A1", "type": "cta", "no_start": 1, "no_end": 1,
+                             "est_s": 0, "world": "", "metaphor": ""}],
+                           [{"no": 1, "text": "字" * 80, "mode": "cta"}])
+    assert any("超 H3" in x for x in w2)
+    iss = D.validate({}, [{"sid": "s1", "arc_id": "A1", "est_s": 17.5}])
+    assert any("15s" in x for x in iss["s1"])

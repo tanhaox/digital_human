@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 
 CHARS_PER_SEC = 4.5
 SHOT_MIN_S, SHOT_MAX_S = 3.0, 7.5     # 正文镜密度带
+SLOT_MAX_S = 15.0                      # 槽位硬上限 (H3 I2VA 生成上限; 1106 用户令:
+                                       # 槽位=K2/TTS/H3 共同轴, 任何镜不得超)
 BATCH = 8                              # LLM 每批镜数
 KF_MIN_CHARS = 80                      # 画面句下限 (产线同尺)
 
@@ -69,14 +71,8 @@ def pack_shots(arcs: list[dict[str, Any]], lines: list[dict[str, Any]]
     shots: list[dict[str, Any]] = []
     warns: list[str] = []
     for a in arcs:
-        if a.get("type") in ("hook", "cta", "brand"):
-            # 非叙事位: 整段一镜 (系列冻结语言, 不切碎)
-            refs = [no for no in range(a["no_start"], a["no_end"] + 1)
-                    if no in line_of and str(line_of[no].get("text") or "").strip()
-                    and line_of[no].get("mode") not in ("section", "card", "img", "note", "unknown")]
-            if refs:
-                shots.append(_mk_shot(a, refs, line_of))
-            continue
+        # 1106 用户令: 全弧型统一按窗切槽 — 非叙事位冻结的是画面语言, 不是槽长
+        # (旧 "整段一镜" 造成 CTA 152字=33.8s 单槽, 超 H3 15s 上限实锤)
         cur: list[int] = []
         for no in range(a["no_start"], a["no_end"] + 1):
             ln = line_of.get(no)
@@ -105,6 +101,8 @@ def pack_shots(arcs: list[dict[str, Any]], lines: list[dict[str, Any]]
                     warns.append(f"弧 {a['arc_id']} 尾镜仅 {dur}s (<1.5s) — 建议合并或补句")
     for i, s in enumerate(shots, 1):
         s["sid"] = f"s{i}"                     # 全局连续镜号 (s1..sN)
+        if float(s.get("est_s") or 0) > SLOT_MAX_S:
+            warns.append(f"{s['sid']} 槽长 {s['est_s']:.1f}s 超 H3 {SLOT_MAX_S:g}s 上限 — 必须拆行/拆镜")
     return shots, warns
 
 
@@ -871,6 +869,14 @@ def run(job: dict[str, Any]) -> None:
     v3["cards"] = cards
     v3["shot_issues"] = issues
     v3["shot_warnings"] = warns
+    # 1106 槽位令: 重跑 ③ = 结构变 → 下游全部作废清戳 (④参数/英文化/冻结/K2 状态)。
+    # 旧镜的图文件留在盘上 (img/sN.png 会被新槽覆写), 状态归零防脏数据滞留。
+    if v3.get("frozen_at") or v3.get("direct"):
+        v3.pop("frozen_at", None)
+        v3.pop("direct", None)
+        v3.pop("direct_issues", None)
+        v3.setdefault("gates", {})["direct"] = False
+        logger.info("[v3:shots] 重跑 ③ — ④参数/英文化/冻结戳已清 (结构变, 下游作废)")
     v3.setdefault("gates", {})["shots"] = False     # 人闸: 前端放行才开
     shots_mod.save(doc)
 

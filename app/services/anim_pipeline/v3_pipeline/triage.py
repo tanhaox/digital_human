@@ -228,3 +228,75 @@ def run(job: dict[str, Any]) -> None:
     shots_mod.save(doc)
     logger.info("[v3:triage] %s ep%d: %d 行 (block %d, 路由 %d) → shots.json v3 ✓",
                 book_title, job["ep"], len(lines), blocks, len(cards))
+
+# ── 长行拆句 (1106 用户令: K2/TTS/H3 共同槽位, 槽 ≤15s; 行是槽的原料) ──
+import re as _re
+
+_SENT_END = _re.compile(r'[。！？；!?;]+[」』"”]*')
+_CLAUSE = _re.compile(r"[，、——]+")
+SPLIT_ABOVE_CHARS = 40        # ≈8.9s @4.5字/s — 超过即拆 (窗 7.5s 装不下)
+SPLIT_HARD_CHARS = 60         # ≈13.3s — 句拆后仍超, 退到逗号级
+
+
+def split_text(t: str) -> list[str]:
+    """长文本 → 句级子串 (保留句末标点); 仍超长退逗号级。尾碎片并入前段。"""
+    t = str(t or "").strip()
+    if len(t) <= SPLIT_ABOVE_CHARS:
+        return [t]
+    parts, last = [], 0
+    for m in _SENT_END.finditer(t):
+        parts.append(t[last:m.end()]); last = m.end()
+    if last < len(t):
+        if parts and len(t[last:]) < 10:
+            parts[-1] += t[last:]            # 尾碎片 (<10字) 并入前段
+        else:
+            parts.append(t[last:])
+    out: list[str] = []
+    for pce in parts:
+        if len(pce) > SPLIT_ABOVE_CHARS:     # 单句仍超窗 → 逗号级 (保逗号)
+            c_last = 0
+            for cm in _CLAUSE.finditer(pce):
+                if cm.end() - c_last >= 12:
+                    out.append(pce[c_last:cm.end()]); c_last = cm.end()
+            if c_last < len(pce):
+                if out and len(pce[c_last:]) < 10:
+                    out[-1] += pce[c_last:]
+                else:
+                    out.append(pce[c_last:])
+        else:
+            out.append(pce)
+    return [x for x in out if x.strip()] or [t]
+
+
+def split_long_lines(lines: list[dict]) -> tuple[list[dict], dict[int, list[int]]]:
+    """v3.lines 长行拆句并重编号。suggs/adopted/disp 只挂首个子行 (卡锚唯一)。
+
+    返回 (新 lines, 旧行号→新行号映射)。arc/card 的区间 remap 由调用方做。
+    """
+    out: list[dict] = []
+    no_map: dict[int, list[int]] = {}
+    no = 0
+    for ln in lines:
+        text = str(ln.get("text") or "")
+        mode = str(ln.get("mode") or "unknown")
+        if mode in ("section", "card", "img", "note") or len(text.strip()) <= SPLIT_ABOVE_CHARS:
+            no += 1
+            nl = dict(ln); nl["no"] = no
+            out.append(nl)
+            no_map[int(ln["no"])] = [no]
+            continue
+        kids = split_text(text)
+        no_map[int(ln["no"])] = []
+        for i, k in enumerate(kids):
+            no += 1
+            nl = {"no": no, "text": k, "mode": mode}
+            if i == 0:                        # 标注/建议挂首行 (卡锚唯一)
+                for f in ("flag", "suggs", "adopted", "disp"):
+                    if ln.get(f) is not None:
+                        nl[f] = ln[f]
+            else:
+                nl["flag"] = None; nl["suggs"] = []; nl["disp"] = ("split:" + str(ln["no"]))                     if ln.get("disp") else None
+            no_map[int(ln["no"])].append(no)
+            out.append(nl)
+    return out, no_map
+

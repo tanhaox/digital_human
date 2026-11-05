@@ -99,6 +99,8 @@ def validate(direct: dict[str, dict[str, Any]], shots: list[dict[str, Any]]
                 iss.append(f"运镜「{kind}」无方向 (现: {cam.get('dir')})")
             if CAM_DEFS[kind].get("static") and (cam.get("amp") or cam.get("speed")):
                 iss.append("固定镜不带幅速 (官方口径)")
+        if float(s.get("est_s") or 0) > 15.0:      # 槽位硬上限 (1106 用户令: 导演层必须有概念)
+            iss.append(f"槽长 {s.get('est_s')}s 超 H3 15s 上限 — 拆行或拆镜 (K2/TTS/H3 共同槽位轴)")
         if kind not in NO_MOVE and float(s.get("est_s") or 0) < MIN_MOVE_SLOT_S:
             iss.append(f"运镜镜槽长 {s.get('est_s')}s < {MIN_MOVE_SLOT_S:g}s — "
                        "幅度天花板=槽长, 只准固定")
