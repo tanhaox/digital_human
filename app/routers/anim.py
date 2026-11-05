@@ -114,7 +114,16 @@ def ep_plan(book_id: str, ep: int, body: PlanBody | None = None):
 
 @router.post("/ep/{book_id}/{ep}/plan-scenes")
 def ep_plan_scenes(book_id: str, ep: int):
-    """▶️ 分镜续跑 (0917 立意人闸第二段): 从盘上骨架/已完成场续跑至全集."""
+    """▶️ 分镜续跑 (0917 立意人闸第二段): 从盘上骨架/已完成场续跑至全集.
+    1105 批1 (病灶7): 入口同步预检 — 无骨架/无可续跑直接 422, 不再启动
+    doomed job 让用户先看"已启动"再等后台炸。"""
+    from app.services.anim_pipeline import planner as _planner
+    try:
+        rt = _planner.resume_todo(book_id, ep)
+    except AnimNotFound as exc:
+        raise _not_found(exc)
+    if not rt.get("ready"):
+        raise HTTPException(status_code=422, detail=rt.get("reason") or "无可续跑")
     try:
         return anim_service.start_phase(book_id, ep, "plan", continue_scenes=True)
     except AnimBusyError as exc:

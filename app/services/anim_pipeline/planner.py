@@ -9,6 +9,7 @@ Step2 转译步 (translator_prompt.txt): 画面描述 → K2 提示词, 风格�
 """
 from __future__ import annotations
 
+import json
 import logging
 import re
 import sqlite3
@@ -509,6 +510,72 @@ def resume_scenes(book_ref: str, ep: int) -> Path:
     return _scenes_flow(book_id, book_title, ep, manifest, bible, doc)
 
 
+def _todo_set(doc: dict[str, Any],
+              bible: dict | None) -> tuple[list[str], dict[str, list[str]], set[str]]:
+    """续跑待跑集合 (只读): todo = 缺镜场 ∪ 带病场; protected = 有产物场 (永不自动重开).
+
+    1105 批1 (病灶1): 从 _scenes_flow 抽出 — resume_todo (/status 投影 + /plan-scenes
+    入口预检) 与续跑本体共用同一把尺, 单一事实源。bible=None 时跳过带病判定
+    (只读高频路径不 derive, 缺圣经 = 只算缺镜场)。"""
+    arc_order = [str(a["arc_id"]) for a in doc.get("arcs") or []]
+    has_shots = {str(s.get("arc_id") or "") for s in doc.get("shots") or []}
+    # 磨合成果保护 (同 _replan_flow 教义): 有生成产物的场不自动重开 — 病走
+    # 人检 (plan_warnings 可见); 自动重开只针对纯规划态的带病场
+    protected = {str(s.get("arc_id") or "") for s in doc.get("shots") or []
+                 if s.get("status") in _FLOW_PROTECTED}
+    sick: dict[str, list[str]] = {}
+    if bible:
+        # 终产闸全场只算一次, 按场归因切片 (同 _arc_hard_issues 一把尺;
+        # 风格类违规不阻断不触发重开)
+        hard = [i for i in _final_gate_issues(doc, bible) if not str(i).startswith("⚠")]
+        for arc_id in arc_order:
+            if arc_id not in has_shots or arc_id in protected:
+                continue
+            _iss = [p for p in hard if arc_id in _attr_arcs(doc, [p])
+                    and not _is_style_issue(p)]
+            if _iss:
+                sick[arc_id] = _iss
+    todo = [a for a in arc_order if a not in has_shots or a in sick]
+    return todo, sick, protected
+
+
+def resume_todo(book_ref: str, ep: int,
+                doc: dict[str, Any] | None = None) -> dict[str, Any]:
+    """▶️ 可续跑判定 (只读, 零 LLM): /status 投影与 /plan-scenes 入口预检共用.
+
+    1105 批1 (病灶1+7): 旧 scenesReady 只看"缺镜" — 全场有镜但带病时终产闸指路
+    "▶️分镜续跑 会自动重做带病场" 而按钮被隐藏 (闭环断头); 判定后移后端。"""
+    cfg = load()
+    book_id, book_title = resolve_book(cfg.db_path, book_ref)
+    none = {"ready": False, "arcs": 0, "todo": [], "sick": {}, "protected": [],
+            "reason": "盘上无场结构 — 先跑 🧭 规划 (立意闸) 再续跑"}
+    if doc is None:
+        try:
+            doc = shots_mod.load_doc(book_title, ep)
+        except FileNotFoundError:
+            return {**none, "reason": "无规划产物 — 先跑 🧭 规划 (立意闸)"}
+    arcs = doc.get("arcs") or []
+    if not arcs:
+        return none
+    # 圣经只读缓存 (缺失/损坏不 derive — 只读路径禁 LLM)
+    bible = None
+    try:
+        from app.services.anim_pipeline import director2 as _d2
+        _cache = _d2._bible_cache_path(book_title)
+        if _cache.exists():
+            bible = json.loads(_cache.read_text(encoding="utf-8"))
+            if not bible.get("style_prefix"):
+                bible = None
+    except Exception:  # noqa: BLE001
+        bible = None
+    todo, sick, protected = _todo_set(doc, bible)
+    return {"ready": bool(todo), "arcs": len(arcs), "todo": todo,
+            # 投影口径: 每场至多 3 条 × 140 字 (_todo_set 内 fix_hints 全量在)
+            "sick": {a: [str(p)[:140] for p in v[:3]] for a, v in sick.items()},
+            "protected": sorted(protected),
+            "reason": "" if todo else "全部场已有分镜且过闸 — 要重做某场走场头 🔁"}
+
+
 def _scenes_flow(book_id: str, book_title: str, ep: int,
                  manifest: dict, bible: dict, doc: dict[str, Any]) -> Path:
     """两级化第二段: 逐场分镜 (跳过已过闸的场) + 收尾归真/重设计/巡检/核验.
@@ -520,24 +587,11 @@ def _scenes_flow(book_id: str, book_title: str, ep: int,
     - in-loop 闸按场切片: 收口闸的 A6 违规不再标到正在跑的 A7 头上;
       全集级校验收尾一次过, 失败按归因点名带病场 (下轮续跑自动重开)。"""
     from app.services.anim_pipeline import director2
-    arc_order = [str(a["arc_id"]) for a in doc.get("arcs") or []]
-    has_shots = {str(s.get("arc_id") or "") for s in doc.get("shots") or []}
-    # 磨合成果保护 (同 _replan_flow 教义): 有生成产物的场不自动重开 — 病走
-    # 人检 (plan_warnings 可见); 自动重开只针对纯规划态的带病场
-    protected = {str(s.get("arc_id") or "") for s in doc.get("shots") or []
-                 if s.get("status") in _FLOW_PROTECTED}
-    sick: dict[str, list[str]] = {}
-    for arc_id in arc_order:
-        if arc_id not in has_shots or arc_id in protected:
-            continue
-        # 与 in-loop 闸同一把尺: 风格类违规不阻断 (人检修), 不触发重开
-        _iss = [p for p in _arc_hard_issues(doc, bible, arc_id) if not _is_style_issue(p)]
-        if _iss:
-            sick[arc_id] = _iss
+    # 1105 批1: 集合计算抽 _todo_set (与 resume_todo 单一事实源)
+    arc_ids, sick, _protected = _todo_set(doc, bible)
     if sick:
         logger.warning("[scorched] 带病存量场 %d 个重回队列 (存量违规作首轮回喂): %s",
                        len(sick), "; ".join(f"{a}: {v[0][:70]}" for a, v in sick.items()))
-    arc_ids = [a for a in arc_order if a not in has_shots or a in sick]
     if not arc_ids:
         raise SystemExit("全部场已有分镜且过闸 — 无可续跑 (要重做某场走场头 🔁)")
     logger.info("[scorched] 逐场分镜: 待跑 %d 场 (%s) — 每场 1-2 分钟",

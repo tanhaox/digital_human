@@ -61,7 +61,18 @@ test('avg1: 保留 1 位小数', () => {
 test('scenesReady: 立意待续跑态判定', () => {
   assert.equal(scenesReady(null), false);
   assert.equal(scenesReady({ arcs: [], total: 0 }), false);
-  assert.equal(scenesReady({ arcs: [{ arc_id: 'a1' }], total: 5 }), false);
+  // 1105 批1 夹具修: 原对象漏 shots 键 — "a1 已有镜"意图靠 total 暗示, 实现按
+  // shots 判 → 此断言在 HEAD 上已红 (夹具缺陷, 非实现回归); 补 shots 对齐意图
+  assert.equal(scenesReady({ arcs: [{ arc_id: 'a1' }], total: 5, shots: [{ arc_id: 'a1', shot_id: 's1' }] }), false);
   assert.equal(scenesReady({ arcs: [{ arc_id: 'a1' }], total: 0 }), true);
   assert.equal(scenesReady({ arcs: [{ arc_id: 'a1' }] }), true);   // total 缺省按 0
+});
+
+test('scenesReady: 后端 resume_todo 单一事实源 (1105 批1)', () => {
+  // 带病场重开: 全场有镜 (老口径 false) 但后端判定有可跑 → true (闭环修复)
+  assert.equal(scenesReady({ resume_todo: { ready: true, todo: ['a2'] }, arcs: [{ arc_id: 'a1' }], total: 9 }), true);
+  // 全场有镜且过闸 → 后端 ready=false, 不再靠"缺镜"猜测
+  assert.equal(scenesReady({ resume_todo: { ready: false, todo: [] }, arcs: [{ arc_id: 'a1' }], total: 0 }), false);
+  // resume_todo 缺失 (旧后端) → 不吃它, 不炸 (回退老口径)
+  assert.equal(scenesReady({ resume_todo: undefined, arcs: [{ arc_id: 'a1' }], total: 0 }), true);
 });

@@ -1512,6 +1512,9 @@ def status_view(book_ref: str, ep: int) -> dict[str, Any]:
             # 1015 修 (UI 实锤: FB 红标从未显示 — 投影白名单漏字段, 前端
             # s.writer_source==='fallback' 永假): 写侧契约字段必须同步读侧投影
             "writer_source": s.get("writer_source") or "",
+            # 1105 批1 (病灶9, 1015 同族): writer 出口闸警告写侧已落 (scene_writer
+            # _wf_warns) 但白名单漏投影 → card.js 红标永远 undefined, 死徽章
+            "_wf_warns": s.get("_wf_warns") or [],
             "in_image_text": s.get("in_image_text") or [],   # 二段式申报 (页面 QC 可见)
             # 1018 修 (s48 压字"未启动"实锤): 购物篮弹窗前置过滤需要幂等标 —
             # 已压/已修的镜秒完成零反馈, 用户以为没跑; 读侧补投影
@@ -1555,6 +1558,15 @@ def status_view(book_ref: str, ep: int) -> dict[str, Any]:
         "opening_sec": anim_cfg_load().brand_card.opening_sec,
         "ep_dir": str(base),
     })
+    # 1105 批1 (病灶1): 可续跑判定上屏 — 全场有镜但带病时 ▶️ 按钮曾隐藏,
+    # 终产闸"续跑会自动重做带病场"的指路闭环断头; 判定后移后端单一事实源
+    try:
+        from app.services.anim_pipeline import planner as _planner
+        view["resume_todo"] = _planner.resume_todo(book_id, ep, doc=doc)
+    except Exception:  # noqa: BLE001 — 判定失败不挡看板 (缺圣经/旧盘态照常)
+        logger.debug("[status] resume_todo 计算跳过", exc_info=True)
+    # 1105 批1: 软警告上屏 (写侧早已落盘, 读侧从未投影 — 页面零展示)
+    view["plan_warnings"] = doc.get("plan_warnings") or []
     # 1101 U9: 音频指纹比对 — 换轨 (reroll/再生成/钉选丢失) 顶栏可见
     if _audio is not None and doc.get("audio_stamp"):
         try:

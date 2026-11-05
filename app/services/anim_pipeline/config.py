@@ -116,12 +116,28 @@ class AnimConfig:
     translator_prompt_file: str = str(MODULE_DIR / "translator_prompt.txt")
 
 
+_CFG_RAW_CACHE: tuple[float | None, dict] | None = None
+# 1105 批1 (病灶12): config.json mtime 守卫缓存 — 终产闸/校验链一场梯子要调
+# load() 数十次 (validate_doc/zone_quota/fence 各自重读), 60 镜集实测是主要
+# 文件 IO; 只缓存解析后的 raw dict, AnimConfig 实例照旧每次新建 (调用方在
+# 实例上 setattr 的旧习不受影响)。改 config.json 立即生效 (对齐 constitution.py)。
+
+
 def load() -> AnimConfig:
+    global _CFG_RAW_CACHE
     _load_dotenv()
-    cfg = AnimConfig()
     override = MODULE_DIR / "config.json"
+    mt: float | None = None
     if override.exists():
-        raw = json.loads(override.read_text(encoding="utf-8"))
+        mt = override.stat().st_mtime
+    if _CFG_RAW_CACHE is not None and _CFG_RAW_CACHE[0] == mt:
+        raw = _CFG_RAW_CACHE[1]
+    else:
+        raw = (json.loads(override.read_text(encoding="utf-8"))
+               if override.exists() else {})
+        _CFG_RAW_CACHE = (mt, raw)
+    cfg = AnimConfig()
+    if raw:
         for k, v in (raw.get("llm") or {}).items():
             setattr(cfg.llm, k, v)
         for k, v in (raw.get("comfy") or {}).items():

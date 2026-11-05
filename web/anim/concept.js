@@ -29,14 +29,21 @@ export function conceptView(state) {
   if (panel.hidden) { collapsed = false; return; }
   renderCollapse();
   // 状态说明 (0927: 面板为什么还显示 — 立意闸等待确认 / 缺镜场待续跑;
-  // 1005: 手动唤起时给改判路径指路 — 具象化后发现立意不对的完整链)
-  const missing = (st.arcs || []).filter(
-    a => !(st.shots || []).some(s => String(s.arc_id) === String(a.arc_id)));
+  // 1005: 手动唤起时给改判路径指路 — 具象化后发现立意不对的完整链;
+  // 1105 批1: 待跑清单改吃后端 resume_todo (与 scenesReady 单一事实源,
+  // 带病场重开也计入 — 旧自算 missing 看不见带病场)
+  const rt = st.resume_todo;
+  const todoIds = rt ? (rt.todo || [])
+    : (st.arcs || []).filter(
+        a => !(st.shots || []).some(s => String(s.arc_id) === String(a.arc_id)))
+      .map(a => a.arc_id);
   const el = $('#concept-status');
   if ((st.total || 0) === 0) {
     el.textContent = '⏸ 立意闸: 确认立意后点 ▶️分镜续跑';
-  } else if (missing.length) {
-    el.textContent = `⚠ 还有 ${missing.length} 场待分镜: ${missing.map(a => a.arc_id).join('/')} (续跑只补缺场)`;
+  } else if (todoIds.length) {
+    const nSick = rt ? Object.keys(rt.sick || {}).length : 0;
+    el.textContent = `⚠ 还有 ${todoIds.length} 场待分镜: ${todoIds.join('/')}` +
+      (nSick ? ` (含带病重开 ${nSick} 场)` : '') + ' — ▶️续跑只处理这些场';
   } else if (!ready) {
     el.textContent = '✏️ 改判模式: 改立意(或重掷此场) → 💾保存 → 该场 🔁重规划本场 — 新立意下重生镜头';
   } else {

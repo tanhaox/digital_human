@@ -44,8 +44,13 @@ function sublineHtml(st) {
     ? ` · <b style="color:#f87171">⚠ 音频已换轨</b> (reroll/再生成) — <b>🎚对齐落盘</b> 拉齐 或 音频页重新验收采用`
     : (au && au.pinned ? ` · 🎧验收版 (钉选 ${au.packs} 包)` : '');
   const lost = au && au.pinned_lost ? ` · <b style="color:#f87171">验收版已被重建删除 (回退最新)</b>` : '';
+  // 1105 批1: 软警告上屏 (plan_warnings 写侧早已落盘, 读侧从未投影) —
+  // title 列前 3 条, 点悬停即见; 不阻断任何操作 (软项本就走人检)
+  const warns = st.plan_warnings || [];
+  const warnLine = warns.length
+    ? ` · <span title="${esc(warns.slice(0, 3).join('\n'))}">⚠软警告 ${warns.length}</span>` : '';
   if (st.planned) {
-    return `${esc(st.ep_title || '')} · 第${st.ep}集 · ${st.total} 镜${st.aligned ? ' · 已对齐' : ''}${auLine}${lost} · ${back}`;
+    return `${esc(st.ep_title || '')} · 第${st.ep}集 · ${st.total} 镜${st.aligned ? ' · 已对齐' : ''}${auLine}${lost}${warnLine} · ${back}`;
   }
   return st.audio_ready
     ? `音频已就绪 ✓ 可规划${auLine} · ${back}`
@@ -70,7 +75,14 @@ function renderButtons(st, h3Retry, h3Reset) {
   $('#btn-plan').textContent = st.planned ? '🧭 重新规划-全清(立意闸)' : '🧭 规划(立意闸)';
   $('#btn-plan-scenes').hidden = !scenesReady(st);
   $('#btn-plan-scenes').disabled = busy || noAudio;
-  $('#btn-plan-scenes').title = audioGate;
+  // 1105 批1: tooltip 吃 resume_todo 明细 (缺 N 场 / 含带病重开 M) —
+  // 音频闸文案优先 (它才是 disabled 的原因)
+  $('#btn-plan-scenes').title = audioGate || (() => {
+    const rt = st.resume_todo;
+    if (!rt || !rt.ready) return '';
+    const nSick = Object.keys(rt.sick || {}).length;
+    return `续跑 ${rt.todo.length} 场${nSick ? ` (含带病重开 ${nSick})` : ''} — 每场 1-2 分钟, 零 GPU`;
+  })();
   $('#btn-concept-open').hidden = !((st.arcs || []).length);  // 1005 具象化改判: 有骨架即可唤起立意面板
   $('#btn-k2').disabled = busy || !(c.planned > 0) || noAudio;
   $('#btn-k2').title = audioGate;

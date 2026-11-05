@@ -2,6 +2,7 @@
 // 1008 P7: 校验徽章 (ss.validation) + 详情列表 — 分镜/组装完成后自动刷新
 import { $, esc } from './util.js';
 import { fileUrl } from './api.js';
+import { media } from './context.js';
 
 let collapsed = false;
 
@@ -112,8 +113,11 @@ async function renderShooting(st) {
 
 async function fetchShooting(st) {
   // 从 ep 目录读 shooting_script.json
+  // 1105 批1 (病灶10): 带 media.ver 破缓存 — file 端点无 Cache-Control, 续跑/
+  // 重规划重写法层后浏览器走启发式缓存, 面板停留旧脚本 (media.bump 只影响带
+  // ver 的 URL, 对比 qc 链接 topbar.js 一直带 ver)
   try {
-    const r = await fetch(fileUrl('shooting_script.json'));
+    const r = await fetch(fileUrl('shooting_script.json', media.ver));
     if (!r.ok) return null;
     return await r.json();
   } catch { return null; }

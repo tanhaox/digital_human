@@ -59,12 +59,18 @@ export const avg1 = arr => Math.round(arr.reduce((a, b) => a + b, 0) / arr.lengt
 /** 数组去重 (保序) */
 export const uniq = arr => [...new Set(arr)];
 
-/** 立意待续跑态: 有场结构且全场无镜 (0917 两级规划第二段入口)。
- *  放在 util 而非某个视图模块 — topbar 与 concept 都要用, 视图层不互相依赖。 */
-export const scenesReady = st =>
-  !!st && (st.arcs || []).length > 0 &&
-  ((st.total || 0) === 0 ||
-   (st.arcs || []).some(a => !(st.shots || []).some(s => String(s.arc_id) === String(a.arc_id))));
+/** 立意待续跑态: 后端 resume_todo 单一事实源 (1105 批1)。
+ *  旧口径只看"缺镜" — 全场有镜但带病 (终产闸归因) 时 ▶️ 按钮被隐藏, 而终产闸
+ *  失败文案指路"▶️分镜续跑 会自动重做带病场", 闭环断头。后端无该字段 (旧后端)
+ *  退老口径 — 前后端分开部署不炸。放在 util 而非某个视图模块 — topbar 与
+ *  concept 都要用, 视图层不互相依赖。 */
+export const scenesReady = st => {
+  if (!st) return false;
+  if (st.resume_todo) return !!st.resume_todo.ready;
+  return (st.arcs || []).length > 0 &&
+    ((st.total || 0) === 0 ||
+     (st.arcs || []).some(a => !(st.shots || []).some(s => String(s.arc_id) === String(a.arc_id))));
+};
 
 /**
  * @typedef {Object} Shot
