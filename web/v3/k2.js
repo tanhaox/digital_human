@@ -83,7 +83,9 @@ $('grid').addEventListener('click', ev => {
   const gallery = SHOTS.filter(x => x.image_url).map(x => ({
     src: x.image_url, cap: `${x.sid} · ${x.size || ''} ${x.cam || ''} · ~${x.est_s}s`}));
   if (typeof lbOpen === 'function')
-    lbOpen(img.src.split('?')[0],
+    // 用原始属性 (相对路径) 比对画廊 — img.src 是解析后的绝对 URL,
+    // 与画廊相对路径永不相等 → findIndex 落空 → 永远从第一张开 (实锤)
+    lbOpen(img.getAttribute('src').split('?')[0],
            (() => { const s = SHOTS.find(x => x.sid === sid); 
                     return s ? `${s.sid} · ${s.size || ''} ${s.cam || ''} · ~${s.est_s}s` : sid; })(),
            gallery);
