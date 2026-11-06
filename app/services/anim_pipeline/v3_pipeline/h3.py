@@ -46,6 +46,9 @@ def run(job: dict[str, Any], only: set[str] | None = None,
     v3 = doc.get("v3") or {}
     if not v3.get("stamp"):
         raise SystemExit("⑦ 未盖章 — H3 吃实测时长, 先在 ⑦ 页盖章 (时长真相源)")
+    _n_ok = sum(1 for x in (doc.get("shots") or []) if x.get("status") == "approved")
+    if _n_ok == 0:
+        raise SystemExit("无已过审镜 — H3 只吃 approved; 先在 ⑥ K2 页过审 (✅ 或全部过审)")
 
     # v3 运镜 → 镜级 camera (仅当 v2 camera 为空时; 盖章已投影基础词, 这里补
     # 精确方向词) + clause 挂到 shot 供 prompt 注入

@@ -127,6 +127,8 @@ $('btn-draft').onclick = async () => {
 };
 
 $('btn-run').onclick = async () => {
+  const nApp = SHOTS.filter(s => s.status === 'approved').length;
+  if (!nApp) { toast('无已过审镜 — 先去 ⑥ K2 页过审 (✅ / 全部过审), H3 只吃 approved'); return; }
   const r = await fetch(`${BASE}/v3_h3`, { method: 'POST',
     headers: { 'Content-Type': 'application/json' }, body: '{}' });
   if (!r.ok) { toast('启动失败: ' + (await r.json()).detail); return; }
