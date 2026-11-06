@@ -34,7 +34,7 @@ function buildPanel() {
  * @param {{onFinished:(job:object)=>void, onBusy?:(busy:boolean)=>void,
  *          notify?:(msg:string)=>void}} deps
  */
-export function createJobRunner({ onFinished, onBusy, notify = msg => {
+export function createJobRunner({ onFinished, onPoll, onBusy, notify = msg => {
   const t = document.createElement('div');
   t.className = 'toast'; t.textContent = msg;
   document.body.appendChild(t); setTimeout(() => t.remove(), 3500);
@@ -72,6 +72,8 @@ export function createJobRunner({ onFinished, onBusy, notify = msg => {
       let d; try { d = JSON.parse(ev.data); } catch { return; }
       if (d.type === 'anim_progress') {
         setProg({ done: d.done, total: d.total, current: d.shot_id });
+        if (onPoll) onPoll({ status: 'running',
+          progress: { done: d.done, total: d.total, current: d.shot_id } });
       } else if (d.type === 'anim_log' || d.type === 'anim_service') {
         appendLog(d.message);
       } else if (['anim_done', 'anim_error', 'anim_cancelled'].includes(d.type)) {
@@ -97,6 +99,7 @@ export function createJobRunner({ onFinished, onBusy, notify = msg => {
       lastJob = job;
       errStreak = 0;
       setProg(job.progress);
+      if (onPoll) onPoll(job);          // 1106: 逐镜增量刷新钩子 (k2 拉单镜图)
       if (job.error) appendLog('ERROR ' + job.error);
       if (job.status !== 'running') finish();
     } catch (e) {

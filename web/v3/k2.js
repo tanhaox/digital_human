@@ -13,6 +13,28 @@ const ST_ZH = { planned: '待图', img_done: '图出', approved: '✓ 已过审'
 let SHOTS = [], FROZEN = false;
 
 const runner = createJobRunner({
+  /* 1106 用户令: 逐镜增量刷新 — 每生成完一张, 立刻拉那张图替换占位 (不等全批);
+     实现挂在 job.js 的轮询回调上, 面板进度条本身就是逐镜推进的数据源 */
+  onPoll: job => {
+    if (job?.status !== 'running' || !job.progress?.current) return;
+    const m = String(job.progress.current).match(/^(s\d+)/);
+    if (!m) return;
+    const sid = m[1];
+    const card = document.querySelector(`.kcard[data-sid="${sid}"]`);
+    if (!card || card.dataset.loaded === '1') return;
+    fetch(`${BASE}/k2`).then(r => r.json()).then(d => {
+      const s = (d.shots || []).find(x => x.sid === sid);
+      if (s?.image_url) {
+        card.dataset.loaded = '1';
+        const imgBox = card.querySelector('.kimg');
+        if (imgBox) {
+          imgBox.innerHTML = `<img src="${s.image_url}?v=${Date.now()}" loading="lazy" alt="${sid}">`;
+        }
+        const badge = card.querySelector('.kbadge');
+        if (badge) { badge.className = 'kbadge img_done'; badge.textContent = '图出'; }
+      }
+    }).catch(() => {});
+  },
   onFinished: job => {
     if (job.status === 'completed')
       toast(`✓ K2 完成: ${job.result?.ok ?? '?'} 成 / ${job.result?.fail ?? 0} 败` +
@@ -59,7 +81,7 @@ function renderGrid() {
       ? `<img src="${esc(s.image_url)}" loading="lazy"
               alt="${esc(s.sid)}" title="${esc(s.sid)}${s.brand ? ' · 品牌位' : ' · seed ' + (s.seed ?? '?')}">`
       : (s.brand ? '🏔 品牌卡直通 (待生成)' : '— 待生成 —');
-    return `<div class="kcard ${st === 'approved' ? 'approved' : (s.suspect ? 'suspect' : '')}${s.muted ? ' kmut' : ''}">
+    return `<div class="kcard ${st === 'approved' ? 'approved' : (s.suspect ? 'suspect' : '')}${s.muted ? ' kmut' : ''}" data-sid="${esc(s.sid)}">
       <div class="kimg">${img}</div>
       <div class="kmeta">
         ${s.brand ? '' : `<input type="checkbox" class="ksel" data-sid="${esc(s.sid)}" title="加入购物篮 (列队重做)">`}
