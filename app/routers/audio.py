@@ -820,6 +820,31 @@ def reroll_line(file_id: str, payload: dict | None = None, db: Session = Depends
         raise HTTPException(404, detail="AudioFile 不存在或无对应段")
     job = db.query(AudioJob).filter(AudioJob.id == af.audio_job_id).first()
     seg = db.query(Segment).filter(Segment.id == af.segment_id).first()
+    if not seg and job:
+        # 1106 槽位令自愈: 段行被后续按槽重切孤儿化 (多轮重生成实锤 45/56) —
+        # 按 manifest 块首行锚匹配回当前选中槽段, 回修 segment_id。
+        try:
+            _mf = json.loads((Path(job.output_dir) / "manifest.json")
+                             .read_text(encoding="utf-8"))
+            _t = next((e.get("text") or "") for e in _mf.get("segments") or []
+                      if e.get("file") == af.filename)
+            _first = str(_t).splitlines()[0].strip() if str(_t).strip() else ""
+            if _first:
+                import re as _re
+                _pm = _re.compile(r"\s*-\d+(?:\.\d+)?s-")
+                _key = _pm.sub("", _first).strip()[:12]
+                for _c in (db.query(Segment)
+                           .filter(Segment.script_id == job.script_id,
+                                   Segment.selected_for_host == True)  # noqa: E712
+                           .order_by(Segment.host_order).all()):
+                    if _pm.sub("", (_c.text or "").splitlines()[0]).strip()[:12] == _key:
+                        af.segment_id = _c.id
+                        seg = _c
+                        logger.info("[reroll] 孤儿段自愈: %s → 槽段#%d",
+                                    af.filename, _c.host_order)
+                        break
+        except Exception as _exc:  # noqa: BLE001
+            logger.debug("[reroll] 孤儿段自愈失败: %s", _exc)
     if not job or not seg:
         raise HTTPException(404, detail="job/segment 不存在")
     wav = Path(af.file_path)
@@ -835,17 +860,22 @@ def reroll_line(file_id: str, payload: dict | None = None, db: Session = Depends
     # 单锚段 (旧版回退"全部段" — 位置映射同步会把整稿写坏)。
     _chunk_lines: list[Segment] = [seg]
     _mf_chunk_text: str | None = None
+    # 1106 槽位令: v3 槽段一段=一槽 (多行文本), line_indices↔line_index 映射
+    # 对它必错位 (跨代错位实锤: 改字同步把新文写进邻段 = "吃上一条/下一条")。
+    # 槽段直接锚定自身, 不猜。
+    _is_slot_seg = (seg.control_chars or {}).get("v3_slot") is not None
     try:
         _mf = json.loads((Path(job.output_dir) / "manifest.json").read_text(encoding="utf-8"))
         for _e in _mf.get("segments") or []:
             if _e.get("file") == af.filename and _e.get("chunk"):
-                _idxs = _e.get("line_indices") or [_e.get("index")]
-                _hit = [s2 for s2 in (db.query(Segment)
-                                      .filter(Segment.script_id == seg.script_id)
-                                      .order_by(Segment.line_index).all())
-                        if s2.line_index in _idxs]
-                if _hit:
-                    _chunk_lines = _hit
+                if not _is_slot_seg:
+                    _idxs = _e.get("line_indices") or [_e.get("index")]
+                    _hit = [s2 for s2 in (db.query(Segment)
+                                          .filter(Segment.script_id == seg.script_id)
+                                          .order_by(Segment.line_index).all())
+                            if s2.line_index in _idxs]
+                    if _hit:
+                        _chunk_lines = _hit
                 _mf_chunk_text = (_e.get("text") or "").strip() or None
                 break
     except Exception as exc:  # noqa: BLE001
