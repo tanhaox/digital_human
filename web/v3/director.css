@@ -2,8 +2,15 @@
    CSP: 全外置; 动态样式一律 CSSOM, 禁 style= 属性 */
 
 /* ── 景别节奏轴 ─────────────────────────────────────────── */
-.rhy { display:flex; align-items:flex-end; gap:2px; height:78px; padding:6px 8px;
+.rhy { padding:6px 8px; height:128px;
        border:1px solid var(--line); border-radius:10px; background:var(--panel2); }
+.rhybars { position:relative; display:flex; align-items:flex-end; gap:2px; height:100%; }
+.capline { position:absolute; left:0; right:0; bottom:96px;
+           border-top:1.5px dashed var(--bad-t); pointer-events:none; }
+.caplbl { position:absolute; right:0; top:-17px; font-size:11px; color:var(--bad-t);
+          font-family:var(--mono); background:rgba(15,23,42,.85); padding:0 5px;
+          border-radius:4px; }
+.bar.over { box-shadow:0 0 0 2px var(--bad-t); }
 .rhy .bar { flex:1; min-width:3px; border-radius:2px 2px 0 0; position:relative; }
 .rhy .bar.s5 { background:#5fae86; }   /* 大场景 */
 .rhy .bar.s4 { background:#4f8f6f; }   /* 全景 */

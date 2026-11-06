@@ -147,25 +147,41 @@ function renderCounts() {
     `<span class="badge">${Math.round(SHOTS.reduce((a, s) => a + (s.est_s || 0), 0))}s</span>`;
 }
 
-/* ── 景别节奏轴 (每镜一柱, 高度=景别) ─────────────────── */
+/* ── 槽位节奏轴 (1106 用户令: 柱高=预计时长, 15s 红线一眼判超) ── */
+const CAP_S = 15, PX_PER_S = 6.4;    // 15s → 96px 基准
+
 function renderRhythm() {
   const box = $('rhythm');
   box.innerHTML = '';
+  const bars = document.createElement('div');
+  bars.className = 'rhybars';
   SHOTS.forEach(s => {
     const st = STATE[s.sid];
+    const est = Number(s.est_s || 0);
     const b = document.createElement('div');
-    b.className = 'bar s' + SIZE_LV[st.size];
-    b.style.height = (28 + SIZE_LV[st.size] * 12) + 'px';
-    b.title = `${s.sid} · ${st.size}`;
+    b.className = 'bar s' + SIZE_LV[st.size] + (est > CAP_S ? ' over' : '');
+    b.style.height = Math.max(3, Math.round(est * PX_PER_S)) + 'px';
+    b.title = `${s.sid} · ~${est}s · ${st.size}${est > CAP_S ? ' · ⚠ 超槽位上限' : ''}`;
     b.onclick = () => {
       const el = document.querySelector(`[data-sid="${s.sid}"]`);
       if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     };
-    box.appendChild(b);
+    bars.appendChild(b);
   });
+  const line = document.createElement('div');
+  line.className = 'capline';
+  const lbl = document.createElement('span');
+  lbl.className = 'caplbl';
+  lbl.textContent = `${CAP_S}s H3 上限`;
+  line.appendChild(lbl);
+  bars.appendChild(line);
+  box.appendChild(bars);
   const q = quotas();
+  const over = SHOTS.filter(s => Number(s.est_s || 0) > CAP_S);
   $('rhycap').textContent =
-    `一镜一柱 (柱高=景别) · 大场景+全景 ${q.big}/${q.needBig} 需 · 特写 ${q.micro}/${q.maxMicro} 上限 · 相邻同景别 ${q.sameAdj} 处`;
+    `柱高=预计时长 · 柱色=景别${over.length
+      ? ` · ⚠ ${over.length} 槽超限 (${over.map(x => x.sid).join('/')})`
+      : ' · 全部 ≤15s'} · 大场景+全景 ${q.big}/${q.needBig} 需 · 特写 ${q.micro}/${q.maxMicro} 上限 · 相邻同景别 ${q.sameAdj} 处`;
 }
 
 /* ── 主区 ─────────────────────────────────────────────── */
