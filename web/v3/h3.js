@@ -110,6 +110,22 @@ function renderGrid() {
   });
 }
 
+$('btn-draft').onclick = async () => {
+  const nDone = SHOTS.filter(s => s.status === 'anim_done').length;
+  if (SHOTS.some(s => s.status !== 'anim_done')) {
+    if (!confirm(`还有 ${SHOTS.length - nDone} 镜未出视频 — 继续装配? (缺镜段只有口播+字幕)`)) return;
+  }
+  const b = $('btn-draft'); b.disabled = true; b.textContent = '⏳ 装配中…';
+  try {
+    const r = await fetch(`/api/anim/ep/${encodeURIComponent(B)}/${E}/draft`, { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: '{}' });
+    const d = await r.json();
+    if (!r.ok) { toast('装配失败: ' + (d.detail || '')); return; }
+    toast(`✓ 剪映草稿已装配: ${JSON.stringify(d).slice(0, 120)}`);
+  } catch (e) { toast('装配失败: ' + e.message); }
+  b.disabled = false; b.textContent = '🎞 装配剪映草稿';
+};
+
 $('btn-run').onclick = async () => {
   const r = await fetch(`${BASE}/v3_h3`, { method: 'POST',
     headers: { 'Content-Type': 'application/json' }, body: '{}' });

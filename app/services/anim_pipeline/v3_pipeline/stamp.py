@@ -100,6 +100,20 @@ def project_v2(doc: dict[str, Any], blocks: list[dict]) -> dict[str, Any]:
         motion_en = str(d.get("motion_en") or "") or ""
         status = "approved" if k2.get("status") == "approved" else (
             "img_done" if k2.get("status") == "img_done" else "planned")
+        # 字幕源 (⑧ 装配 caption): 槽内各行按时长占比切片, 镜内相对时间
+        # (循环变量命名避开外层累计时间 t — 曾用 t 作循环变量把它覆写成 str 实锤)
+        line_txts = [str(lines.get(no, {}).get("text") or "").strip()
+                     for no in (s.get("line_refs") or [])
+                     if str(lines.get(no, {}).get("text") or "").strip()]
+        _w = [len(x) for x in line_txts] or [1]
+        _tw = sum(_w)
+        text_layer, _acc = [], 0.0
+        for _txt, _wi in zip(line_txts, _w):
+            dur_i = real * _wi / _tw
+            text_layer.append({"kind": "caption", "text": _txt,
+                               "t_start": round(_acc, 2),
+                               "t_end": round(_acc + dur_i, 2)})
+            _acc += dur_i
         v2_shots.append({
             "shot_id": sid, "arc_id": s.get("arc_id"),
             "t_start": s["t_start"], "t_end": s["t_end"],
@@ -108,7 +122,7 @@ def project_v2(doc: dict[str, Any], blocks: list[dict]) -> dict[str, Any]:
                                    if str(lines.get(no, {}).get("text") or "").strip()),
             "keyframe_zh": s.get("keyframe_zh") or "",
             "keyframe_en": s.get("keyframe_en") or "",
-            "in_image_text": [], "text_layer": [],
+            "in_image_text": [], "text_layer": text_layer,
             "seed": s.get("seed") or k2.get("seed"),
             "camera": _cam_of(d.get("cam")),
             "register": s.get("register"),
