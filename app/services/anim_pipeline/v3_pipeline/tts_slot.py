@@ -69,22 +69,60 @@ def _anchor(text: str) -> str:
     return t.strip().replace("　", "")[:12]
 
 
-def sync_muted_slots(doc: dict[str, Any], blocks: list[dict[str, Any]]) -> dict[str, bool]:
-    """锚匹配块↔槽, 缺块的槽标 audio_muted (自愈: 恢复勾选后下次刷新自动清)。
+def sync_muted_slots(doc: dict[str, Any], blocks: list[dict[str, Any]]
+                    ) -> tuple[dict[str, bool], dict[str, bool]]:
+    """锚匹配块↔槽, 区分两种失配 (1106 用户问: 是修改了还是摒弃了?):
 
-    返回 {sid: muted}。匹配键 = 块文本前缀 vs 槽首行前缀 (57/57 实弹验证)。
-    纯索引不可用 — 屏一块后全体错位一格 (1106 实锤)。
+    - muted  = 块真没了 (用户 🔇屏蔽) → 槽标 audio_muted, K2/盖章/H3 跳过
+    - drifted = 块在但首行被 ✎编辑改了 → **第五处同步**: 槽口播行回填音频文本
+      (音频侧微调字是 ⑤ 的正常精修, v3.lines 就是念出来的稿; 回填后锚自然对齐,
+      下次读取不再失配)。返回 ({sid: muted}, {sid: drifted})。
     """
+    import difflib
+    import re as _re2
+    _pm = _re2.compile(r"\s*-\d+(?:\.\d+)?s-")
     v3 = doc.get("v3") or {}
     lines = {ln["no"]: ln for ln in (v3.get("lines") or [])}
-    have = {_anchor(b.get("text")) for b in blocks}
-    out: dict[str, bool] = {}
+    blk_firsts = [(_pm.sub("", str(b.get("text") or "").splitlines()[0]).strip()
+                   if str(b.get("text") or "").strip() else "")
+                  for b in blocks]
+    muted_out: dict[str, bool] = {}
+    drift_out: dict[str, bool] = {}
     for s in (v3.get("shots") or []):
         refs = s.get("line_refs") or []
         first = lines.get(refs[0], {}) if refs else {}
-        muted = _anchor(first.get("text")) not in have
-        if muted != bool(s.get("audio_muted")):
-            s["audio_muted"] = muted
-    return {str(s["sid"]): bool(s.get("audio_muted"))
-            for s in (v3.get("shots") or [])}
+        key = _anchor(first.get("text"))
+        hit = key in {_anchor(t) for t in blk_firsts}
+        sid = str(s["sid"])
+        if hit:
+            muted_out[sid] = False; drift_out[sid] = False
+            s["audio_muted"] = False
+            continue
+        # 失配分型: 模糊近邻 = 改字漂移; 全无 = 真屏弃
+        best = max(blk_firsts, key=lambda t: difflib.SequenceMatcher(
+            None, key, t[:len(key) + 4]).ratio()) if blk_firsts else ""
+        ratio = difflib.SequenceMatcher(None, key, best[:len(key) + 4]).ratio()
+        _pref = next((i for i, (a, b) in enumerate(zip(key, best)) if a != b),
+                     min(len(key), len(best)))
+        # 门槛三件套: 相似度 + 共享前缀≥2 + 槽首行≥6字 — 短句偶然相似
+        # (第二句。vs 第一句。 ratio 0.67) 会把改字判定打穿覆盖正文 (实锤)
+        if ratio >= 0.55 and _pref >= 2 and len(key) >= 6:
+            drift_out[sid] = True; muted_out[sid] = False
+            s["audio_muted"] = False
+            # 第五处同步: 槽内各行 ← 音频块行 (剥气口标记; 行数一致才逐行, 否则只回填首行)
+            blk = next(b for b in blocks
+                       if _pm.sub("", str(b.get("text") or "").splitlines()[0]).strip() == best)
+            blk_lines = [_pm.sub("", x).strip()
+                         for x in str(blk.get("text") or "").splitlines() if x.strip()]
+            refs_eff = [no for no in refs if str(lines.get(no, {}).get("text") or "").strip()]
+            if len(blk_lines) == len(refs_eff):
+                for no, txt in zip(refs_eff, blk_lines):
+                    if lines[no].get("text") != txt:
+                        lines[no]["text"] = txt
+            elif refs_eff:
+                lines[refs_eff[0]]["text"] = blk_lines[0] if blk_lines else first.get("text")
+        else:
+            muted_out[sid] = True; drift_out[sid] = False
+            s["audio_muted"] = True
+    return muted_out, drift_out
 

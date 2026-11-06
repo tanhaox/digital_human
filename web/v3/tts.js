@@ -90,11 +90,15 @@ async function boot() {
     } catch (e) { toast('重拼失败: ' + e.message); rp.disabled = false; rp.textContent = '🔄重拼'; }
   };
   const muted = Object.entries(d.muted_slots || {}).filter(([, v]) => v).map(([k]) => k);
-  if (muted.length) {
+  const drifted = Object.entries(d.drifted_slots || {}).filter(([, v]) => v).map(([k]) => k);
+  if (muted.length || drifted.length) {
+    const parts = [];
+    if (muted.length) parts.push(`🔇 已屏弃 <b>${muted.length}</b> 槽 (${muted.join('/')}) — K2/盖章/H3 跳过; 恢复=音频工坊重新勾选`);
+    if (drifted.length) parts.push(`✎ 已改字 <b>${drifted.length}</b> 槽 (${drifted.join('/')}) — 口播行已随音频回填 (音频在, 不跳过任何工位)`);
     $('body').insertAdjacentHTML('afterbegin',
-      `<div class="blk blk-mutedsum">🔇 已屏弃 ${muted.length} 槽 (${muted.join('/')}) — K2/盖章/H3 自动跳过; 恢复=音频工坊重新勾选该段, 回此页刷新自动解除</div>`);
+      `<div class="blk blk-mutedsum">${parts.join('<br>')}</div>`);
   }
-  $('stat').textContent = `${d.blocks.length} 块 · ~${d.total_s}s — ${d.pinned ? '钉选版' : '最新验收版'}${muted.length ? ` · ⚠ ${muted.length} 槽已屏弃` : ''}`;
+  $('stat').textContent = `${d.blocks.length} 块 · ~${d.total_s}s — ${d.pinned ? '钉选版' : '最新验收版'}${muted.length ? ` · 🔇${muted.length}` : ''}${drifted.length ? ` · ✎${drifted.length}` : ''}`;
 }
 
 function bindOps(blocks) {

@@ -660,8 +660,9 @@ def v3_tts_get(book_id: str, ep: int):
         doc = _load_v3_doc(book_title, ep)
         before = {str(s["sid"]): bool(s.get("audio_muted"))
                   for s in (doc.get("v3") or {}).get("shots") or []}
-        muted = sync_muted_slots(doc, blocks)
-        if muted != before:
+        muted, drifted = sync_muted_slots(doc, blocks)
+        _changed = (muted != before) or any(drifted.values())
+        if _changed:
             from app.services.anim_pipeline import shots as shots_mod
             shots_mod.save(doc)
     # 块→槽锚匹配 (展示层: 每块标所属槽)
@@ -677,7 +678,7 @@ def v3_tts_get(book_id: str, ep: int):
         b["sid"] = slot_anchor.get(_anchor(b.get("text")), "")
     return {"has_audio": True, "job_id": audio.get("job_id"),
             "pinned": bool(audio.get("pinned")), "blocks": blocks,
-            "combined": combined, "muted_slots": muted,
+            "combined": combined, "muted_slots": muted, "drifted_slots": drifted,
             "total_s": round(sum(float(b.get("dur_s") or 0) for b in blocks), 1)}
 
 
