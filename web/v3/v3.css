@@ -95,3 +95,13 @@ a.prow:hover { border-color:var(--line2); }
   max-height:180px; overflow-y:auto; white-space:pre-wrap; word-break:break-all;
   background:#0a0d12; border-radius:8px; padding:6px 8px; }
 .mono { font-family:var(--mono); }
+
+/* 灯箱 (lightbox.js 逻辑复用; 样式前移到表 — CSP 拦内联 <style> 注入) */
+#lb-shared{position:fixed;inset:0;background:rgba(10,8,6,.94);z-index:9999;display:flex;
+  align-items:center;justify-content:center;flex-direction:column;gap:.6rem;cursor:zoom-out}
+#lb-shared[hidden]{display:none!important}
+#lb-shared img{max-width:96vw;max-height:88vh;border:1px solid #4a4234;border-radius:4px;
+  box-shadow:0 12px 80px rgba(0,0,0,.7);cursor:default}
+#lb-shared .lb-cap{color:#a2988a;font-size:.82rem}
+#lb-shared .lb-nav{color:#6f665a;font-size:.72rem}
+#lb-shared .lb-x{position:absolute;top:1rem;right:1.4rem;color:#a2988a;font-size:1.6rem;cursor:pointer}

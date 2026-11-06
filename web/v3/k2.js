@@ -73,6 +73,22 @@ function renderCounts() {
     : '🔒 ④ 未放行 — 先在导演页确认放行 (英文化批) 才能生图';
 }
 
+/* 灯箱预览 (1106 用户令: 看图效果对齐 style_bible + 连续翻页审核)
+   事件委托在 #grid 上 — 增量刷新换 innerHTML 也不用重绑 */
+$('grid').addEventListener('click', ev => {
+  const img = ev.target.closest('.kimg img');
+  if (!img || !img.src) return;
+  const card = img.closest('.kcard');
+  const sid = card?.dataset.sid;
+  const gallery = SHOTS.filter(x => x.image_url).map(x => ({
+    src: x.image_url, cap: `${x.sid} · ${x.size || ''} ${x.cam || ''} · ~${x.est_s}s`}));
+  if (typeof lbOpen === 'function')
+    lbOpen(img.src.split('?')[0],
+           (() => { const s = SHOTS.find(x => x.sid === sid); 
+                    return s ? `${s.sid} · ${s.size || ''} ${s.cam || ''} · ~${s.est_s}s` : sid; })(),
+           gallery);
+});
+
 function renderGrid() {
   if (!SHOTS.length) { $('grid').innerHTML = '<div class="note">未切镜 — 先跑 ③</div>'; return; }
   $('grid').innerHTML = SHOTS.map(s => {
