@@ -82,6 +82,24 @@ def run(job: dict[str, Any], only: set[str] | None = None,
             n_sync += 1
     if n_sync:
         logger.info("[v3:h3] 状态同步 %d 镜 (⑥过审→快照)", n_sync)
+
+    # 点名重掷语义 (1106 用户实锤: 品牌镜 anim_done 后无重置通道): run_batch
+    # 只吃 approved — anim_done/anim_fail 不先失效就是静默空转 (job 秒完 0 镜,
+    # 🎲 点了没效果)。点名镜先失效视频 (keep_image 保图) 换 h3_seed 回 approved
+    # 再进批; 品牌镜同路 → 批内零 GPU 直通重插定稿资产。
+    if only:
+        n_reset = 0
+        for s2 in doc.get("shots") or []:
+            if (str(s2.get("shot_id")) in only
+                    and s2.get("status") in ("anim_done", "anim_fail")):
+                shots_mod.audit_reroll(doc, s2, "v3点名重掷")
+                shots_mod.retry_anim(s2)
+                shots_mod.invalidate_media(s2, keep_image=True, to_status="approved",
+                                           reason="v3点名重掷")
+                n_reset += 1
+        if n_reset:
+            shots_mod.save(doc)
+            logger.info("[v3:h3] 点名重掷: %d 镜失效视频回 approved (换seed)", n_reset)
     _n_ok = sum(1 for x in (doc.get("shots") or []) if x.get("status") == "approved")
     if _n_ok == 0:
         raise SystemExit("无已过审镜 — H3 只吃 approved; 先在 ⑥ K2 页过审 (✅ 或全部过审)")

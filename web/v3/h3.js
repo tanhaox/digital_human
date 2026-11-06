@@ -97,7 +97,9 @@ function renderGrid() {
       </div>
       ${s.error ? `<div class="herr">${esc(s.error)}</div>` : ''}
       <div class="hbtns">
-        ${s.brand ? '<span class="note">品牌资产直插 · 归 🎞 装配</span>' : `<button class="iconbtn" data-act="reroll" data-sid="${esc(s.sid)}"
+        ${s.brand ? `<button class="iconbtn" data-act="reroll" data-sid="${esc(s.sid)}"
+                title="品牌卡重置: 失效后批内零 GPU 直通重插定稿资产 (秒回)">↺ 重置</button>`
+      : `<button class="iconbtn" data-act="reroll" data-sid="${esc(s.sid)}"
                 ${stt !== 'anim_done' && stt !== 'anim_fail' ? ' disabled' : ''}
                 title="换 h3_seed 重生本镜">${stt === 'planned' || stt === 'approved' ? '▶ 生成' : '🎲 重掷'}</button>`}
       </div>

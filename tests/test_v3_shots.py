@@ -962,3 +962,48 @@ def test_h3_cam_permit_speed_amp_parameterized():
                             "pan_right", "快", "大")
     assert "at fast speed" in out and _CAM_BAN not in out
     assert _CAM_LAW_WAIVER.strip() in out
+
+
+def test_v3_h3_only_reset_before_batch(monkeypatch):
+    """⑧ 点名重掷 (1106 品牌镜无重置通道实锤): run_batch 只吃 approved —
+    anim_done/anim_fail 不先失效就是静默空转。契约: only 点名镜失效视频
+    (keep_image 保图) 换 h3_seed 回 approved 再进批。"""
+    import app.services.anim_pipeline.shots as shots_mod
+    import app.services.anim_pipeline.h3 as h3mod
+    import app.services.anim_pipeline.comfy as comfy_mod
+    import app.services.gpu_service_manager as gsm
+    import app.services.job_events as je
+    from app.services.anim_pipeline.v3_pipeline import h3 as VH
+
+    doc = {"book_title": "书", "ep": 5,
+           "v3": {"stamp": {"at": 1}, "shots": [{"sid": "s1"}], "direct": {}},
+           "shots": [{"shot_id": "s1", "status": "anim_done", "h3_seed": 7,
+                      "attempts": {"k2": 1, "h3": 1}, "video_file": "anim/s1.mp4",
+                      "image_file": "img/s1.png"}]}
+    monkeypatch.setattr(shots_mod, "load_doc", lambda *a, **k: doc)
+    monkeypatch.setattr(shots_mod, "save", lambda d: None)
+    monkeypatch.setattr(shots_mod, "audit_reroll", lambda *a, **k: None)  # 不落真台账
+    seen = {}
+
+    def fake_batch(d, only=None, retry_failed=False, on_shot_done=None,
+                   stop_check=None):
+        seen["only"] = only
+        seen["statuses"] = {s["shot_id"]: s["status"] for s in d["shots"]}
+        return {"ok": 1, "fail": 0}
+    monkeypatch.setattr(h3mod, "run_batch", fake_batch)
+
+    class _Sess:
+        def __enter__(self): return self
+        def __exit__(self, *a): return False
+    monkeypatch.setattr(gsm, "get_gpu_service_manager",
+                        lambda: type("M", (), {"session": lambda *a, **k: _Sess()})())
+    monkeypatch.setattr(comfy_mod, "free_memory", lambda: None)
+    monkeypatch.setattr(je, "_publish", lambda *a, **k: None)
+
+    VH.run({"id": "j", "book_title": "书", "ep": 5, "cancel": False}, only={"s1"})
+    s = doc["shots"][0]
+    assert s["status"] == "approved", "点名镜必须失效回 approved 再进批"
+    assert "video_file" not in s, "视频必须清 (旧片作废)"
+    assert s["image_file"] == "img/s1.png", "图保留 (重掷=只重生视频)"
+    assert s["h3_seed"] != 7, "重掷必须换 seed"
+    assert seen["only"] == {"s1"}
