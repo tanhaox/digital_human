@@ -57,3 +57,34 @@ def resegment_by_slots(db, script_id: str, slots: list[dict[str, str]]) -> int:
     logger.info("[v3:tts] 段表按槽重切: %d 旧段退位, %d 槽段就位 (script %s)",
                 len(old), len(slots), str(script_id)[:8])
     return len(slots)
+
+_PAUSE_MARK = __import__("re").compile(r"\s*-\d+(?:\.\d+)?s-")
+
+
+def _anchor(text: str) -> str:
+    """归一化锚: 只取首行 + 剥气口标记 (-0.8s-) — manifest 文本多行且带标记,
+    直接取前 N 字会跨行吃到第二行 (s15/s24/s34/s41 四连误伤实锤)。"""
+    first = str(text or "").splitlines()[0] if str(text or "").strip() else ""
+    t = _PAUSE_MARK.sub("", first)
+    return t.strip().replace("　", "")[:12]
+
+
+def sync_muted_slots(doc: dict[str, Any], blocks: list[dict[str, Any]]) -> dict[str, bool]:
+    """锚匹配块↔槽, 缺块的槽标 audio_muted (自愈: 恢复勾选后下次刷新自动清)。
+
+    返回 {sid: muted}。匹配键 = 块文本前缀 vs 槽首行前缀 (57/57 实弹验证)。
+    纯索引不可用 — 屏一块后全体错位一格 (1106 实锤)。
+    """
+    v3 = doc.get("v3") or {}
+    lines = {ln["no"]: ln for ln in (v3.get("lines") or [])}
+    have = {_anchor(b.get("text")) for b in blocks}
+    out: dict[str, bool] = {}
+    for s in (v3.get("shots") or []):
+        refs = s.get("line_refs") or []
+        first = lines.get(refs[0], {}) if refs else {}
+        muted = _anchor(first.get("text")) not in have
+        if muted != bool(s.get("audio_muted")):
+            s["audio_muted"] = muted
+    return {str(s["sid"]): bool(s.get("audio_muted"))
+            for s in (v3.get("shots") or [])}
+

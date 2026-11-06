@@ -780,3 +780,23 @@ def test_slot_texts_and_resegment_pure():
     out = slot_texts(doc)
     assert out == [{"sid": "s1", "text": "第一句。\n第二句。"},
                    {"sid": "s2", "text": "第三句。"}]
+
+
+def test_muted_slot_selfheal():
+    """1106 用户问: 屏一块音频 → 槽轴断链。自愈: 锚匹配缺块槽标 audio_muted。"""
+    from app.services.anim_pipeline.v3_pipeline.tts_slot import (
+        sync_muted_slots, _anchor)
+    # 锚归一化: 剥气口标记 + 只取首行 (多行文本直接取前缀会跨行误伤)
+    assert _anchor("书里有个更惨的。 -0.8s-\n罗伯特受邀") == "书里有个更惨的。"
+    assert _anchor("先对个号：你上回") == "先对个号：你上回"
+    doc = {"v3": {
+        "lines": [{"no": 1, "text": "第一句。"}, {"no": 2, "text": "第二句。"}],
+        "shots": [{"sid": "s1", "line_refs": [1]}, {"sid": "s2", "line_refs": [2]}]}}
+    # s1 的块在, s2 的块被屏 → 只有 s2 标
+    out = sync_muted_slots(doc, [{"text": "第一句。"}])
+    assert out == {"s1": False, "s2": True}
+    assert doc["v3"]["shots"][1]["audio_muted"] is True
+    # 恢复 (块回来) → 自动清标
+    out2 = sync_muted_slots(doc, [{"text": "第一句。"}, {"text": "第二句。"}])
+    assert out2 == {"s1": False, "s2": False}
+    assert not doc["v3"]["shots"][1].get("audio_muted")

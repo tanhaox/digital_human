@@ -58,7 +58,7 @@ async function boot() {
     </div>` : '';
   $('body').innerHTML = combinedRow + d.blocks.map(b => `
     <div class="blk" data-id="${esc(b.id)}">
-      <span class="bno">b${String(b.i).padStart(2, '0')}</span>
+      <span class="bno">b${String(b.i).padStart(2, '0')}${b.sid ? '·' + b.sid : ''}</span>
       <div class="bmain">
         <div class="btx">${esc(b.text)}</div>
         <div class="bops">
@@ -89,7 +89,12 @@ async function boot() {
       await boot();
     } catch (e) { toast('重拼失败: ' + e.message); rp.disabled = false; rp.textContent = '🔄重拼'; }
   };
-  $('stat').textContent = `${d.blocks.length} 块 · ~${d.total_s}s — ${d.pinned ? '钉选版' : '最新验收版'} · 可进 ⑦ 盖章 (V5)`;
+  const muted = Object.entries(d.muted_slots || {}).filter(([, v]) => v).map(([k]) => k);
+  if (muted.length) {
+    $('body').insertAdjacentHTML('afterbegin',
+      `<div class="blk blk-mutedsum">🔇 已屏弃 ${muted.length} 槽 (${muted.join('/')}) — K2/盖章/H3 自动跳过; 恢复=音频工坊重新勾选该段, 回此页刷新自动解除</div>`);
+  }
+  $('stat').textContent = `${d.blocks.length} 块 · ~${d.total_s}s — ${d.pinned ? '钉选版' : '最新验收版'}${muted.length ? ` · ⚠ ${muted.length} 槽已屏弃` : ''}`;
 }
 
 function bindOps(blocks) {

@@ -30,3 +30,5 @@
 .cartbar[hidden] { display:none; }
 .cart-n { color:var(--gold); font-size:15px; }
 .ksel { accent-color:var(--gold); width:15px; height:15px; cursor:pointer; flex:0 0 auto; }
+
+.kcard.kmut { opacity:.45; }

@@ -59,7 +59,7 @@ function renderGrid() {
       ? `<img src="${esc(s.image_url)}" loading="lazy"
               alt="${esc(s.sid)}" title="${esc(s.sid)}${s.brand ? ' · 品牌位' : ' · seed ' + (s.seed ?? '?')}">`
       : (s.brand ? '🏔 品牌卡直通 (待生成)' : '— 待生成 —');
-    return `<div class="kcard ${st === 'approved' ? 'approved' : (s.suspect ? 'suspect' : '')}">
+    return `<div class="kcard ${st === 'approved' ? 'approved' : (s.suspect ? 'suspect' : '')}${s.muted ? ' kmut' : ''}">
       <div class="kimg">${img}</div>
       <div class="kmeta">
         ${s.brand ? '' : `<input type="checkbox" class="ksel" data-sid="${esc(s.sid)}" title="加入购物篮 (列队重做)">`}
@@ -67,6 +67,7 @@ function renderGrid() {
         <span class="ksize">${esc(s.size || '')}</span>
         <span class="kcam">${esc(s.cam || '')}${s.cam && s.cam !== '固定' ? ' ↦' : ''}</span>
         <span class="flex1"></span>
+        ${s.muted ? '<span class="kbadge planned" title="音频已屏弃 — 盖章/H3 跳过">🔇屏弃</span>' : ''}
         ${s.suspect ? '<span class="kbadge failed" title="OCR 检字命中 — 看图确认是否乱字">⚠文字</span>' : ''}
         <span class="kbadge ${st}">${ST_ZH[st] || st}</span>
       </div>

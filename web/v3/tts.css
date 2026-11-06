@@ -43,3 +43,5 @@ a.ghost { color:var(--cyan); text-decoration:none; }
 
 .empty-audio { margin-top:10px; }
 .empty-audio .note { margin-top:6px; }
+
+.blk-mutedsum { border-color:var(--bad); color:var(--bad-t); font-size:13.5px; flex-wrap:wrap; }

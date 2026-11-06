@@ -545,6 +545,7 @@ def v3_k2_get(book_id: str, ep: int):
         out.append({"sid": s["sid"], "est_s": s.get("est_s"),
                     "size": d.get("size"), "cam": (d.get("cam") or {}).get("kind"),
                     "brand": bool(s.get("brand_card")),
+                    "muted": bool(s.get("audio_muted")),
                     "image": img, "image_url": url,
                     "status": k2s.get("status") or "planned",
                     "seed": k2s.get("seed"), "suspect": bool(k2s.get("text_suspect")),
@@ -641,9 +642,30 @@ def v3_tts_get(book_id: str, ep: int):
         import logging as _lg
         _lg.getLogger(__name__).warning("[v3:tts] combined 元数据失败: %s", _exc)
         combined = None
+    # 槽状态自愈: 缺块的槽标 audio_muted (屏一块 → 该槽 K2/H3/盖章全跳过)
+    from app.services.anim_pipeline.v3_pipeline.tts_slot import sync_muted_slots
+    with anim_service.ep_guard(book_id, ep):
+        doc = _load_v3_doc(book_title, ep)
+        before = {str(s["sid"]): bool(s.get("audio_muted"))
+                  for s in (doc.get("v3") or {}).get("shots") or []}
+        muted = sync_muted_slots(doc, blocks)
+        if muted != before:
+            from app.services.anim_pipeline import shots as shots_mod
+            shots_mod.save(doc)
+    # 块→槽锚匹配 (展示层: 每块标所属槽)
+    from app.services.anim_pipeline.v3_pipeline.tts_slot import _anchor
+    v3 = doc.get("v3") or {}
+    lines = {ln["no"]: ln for ln in (v3.get("lines") or [])}
+    slot_anchor = {}
+    for s in (v3.get("shots") or []):
+        refs = s.get("line_refs") or []
+        first = lines.get(refs[0], {}) if refs else {}
+        slot_anchor[_anchor(first.get("text"))] = str(s["sid"])
+    for b in blocks:
+        b["sid"] = slot_anchor.get(_anchor(b.get("text")), "")
     return {"has_audio": True, "job_id": audio.get("job_id"),
             "pinned": bool(audio.get("pinned")), "blocks": blocks,
-            "combined": combined,
+            "combined": combined, "muted_slots": muted,
             "total_s": round(sum(float(b.get("dur_s") or 0) for b in blocks), 1)}
 
 
