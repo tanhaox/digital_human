@@ -860,3 +860,44 @@ def test_v3_k2_requires_slot_aligned_audio(monkeypatch):
                         lambda *a, **k: {"files": [{} for _ in range(2)]})
     with pytest.raises(SystemExit, match="未定稿"):
         vk2.run(job)
+
+
+def test_stamp_projection_and_gates():
+    """⑦ 盖章 (V5): 查表灌秒 (1:1 零分摊) + v2 回填 (退回通道) + 运镜映射。"""
+    from app.services.anim_pipeline.v3_pipeline import stamp as ST
+    # 运镜映射
+    assert ST._cam_of({"kind": "摇", "dir": "左"}) == "左摇"
+    assert ST._cam_of({"kind": "推"}) == "缓推" and ST._cam_of({}) == "固定"
+    # 投影: 3 槽 (s2 屏弃), 块对齐 s1/s3
+    doc = {"book_title": "书", "v3": {
+        "lines": [{"no": 1, "text": "第一句。" * 8}, {"no": 2, "text": "第二句。" * 8},
+                  {"no": 3, "text": "第三句。" * 8}],
+        "arcs": [{"arc_id": "A1", "type": "narr", "metaphor": "边界=护栏", "world": "悬崖公路"}],
+        "shots": [
+            {"sid": "s1", "arc_id": "A1", "line_refs": [1], "est_s": 5, "keyframe_zh": "画面一",
+             "keyframe_en": "scene one", "k2": {"image": "img/s1.png", "status": "approved", "seed": 7}},
+            {"sid": "s2", "arc_id": "A1", "line_refs": [2], "est_s": 5, "audio_muted": True},
+            {"sid": "s3", "arc_id": "A1", "line_refs": [3], "est_s": 5, "keyframe_zh": "画面三",
+             "keyframe_en": "scene three", "seed": 9}],
+        "direct": {"s1": {"size": "全景", "cam": {"kind": "摇", "dir": "左"}, "motion_en": "hand moves"},
+                   "s3": {"size": "特写", "cam": {"kind": "推"}}},
+        "cards": [{"cid": "c1", "sid": "s1", "kind": "金句", "text": "丑话清单"}]}}
+    L1, L3 = "第一句。" * 8, "第三句。" * 8
+    blocks = [{"text": L1, "dur_s": 6.2}, {"text": L3, "dur_s": 4.1}]
+    out = ST.project_v2(doc, blocks)
+    assert out["slots"] == 2 and out["muted"] == 1
+    assert out["missing_audio"] == [] and out["total_s"] == 10.3
+    # v2 投影: 屏弃槽不在, 时序累计, beats/camera/状态回填
+    assert [x["shot_id"] for x in doc["shots"]] == ["s1", "s3"]
+    v1, v3s = doc["shots"][0], doc["shots"][1]
+    assert v1["t_start"] == 0 and v1["t_end"] == 6.2 and v1["status"] == "approved"
+    assert v1["camera"] == "左摇" and v1["anim"]["duration_s"] == 6.2
+    assert v1["anim"]["beats"][0]["motion"] == "hand moves"
+    assert v3s["t_start"] == 6.2 and v3s["t_end"] == 10.3 and v3s["status"] == "planned"
+    assert doc["arcs"][0]["metaphor_core"] == "边界=护栏"
+    # v3 槽的实测字段
+    sh = {s["sid"]: s for s in doc["v3"]["shots"]}
+    assert sh["s1"]["dur_real"] == 6.2 and sh["s2"]["t_end"] == sh["s2"]["t_start"]
+    # 锚失配: 块文本全不匹配 → missing_audio
+    out2 = ST.project_v2(doc, [{"text": "完全无关", "dur_s": 1}])
+    assert len(out2["missing_audio"]) == 2

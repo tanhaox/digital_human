@@ -56,7 +56,9 @@ def _h_redo(job: dict[str, Any]) -> None:
     from . import redo
     redo.run(job, sids=list(job.get("only") or []),
              to_image=bool(job.get("to_image")), note=str(job.get("note") or ""))
-def _h_stamp(job: dict[str, Any]) -> None: _stub(job, "stamp")
+def _h_stamp(job: dict[str, Any]) -> None:
+    from . import stamp
+    stamp.run(job)
 
 
 _HANDLERS = {

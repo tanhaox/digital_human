@@ -1,0 +1,50 @@
+/* ⑦ 盖章页 — 实测大轴 + 弧分块对账 + 右侧闸 */
+.bar { display:flex; gap:10px; align-items:baseline; margin:0 0 8px; flex-wrap:wrap; }
+.layout { display:grid; grid-template-columns:minmax(0,1fr) 330px; gap:14px; align-items:start; }
+@media (max-width:1180px) { .layout { grid-template-columns:1fr; } .side { position:static; order:-1; } }
+main { min-width:0; }
+.side { position:sticky; top:calc(env(safe-area-inset-top, 0px) + 8px);
+        display:flex; flex-direction:column; gap:10px; }
+.side .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+.ctitle { font-weight:700; font-size:14.5px; margin-bottom:6px; }
+
+/* 轴: 实测时长条 */
+#axis { height:64px; }
+.mut-hatch { position:absolute; inset:0; pointer-events:none;
+  background:repeating-linear-gradient(45deg, transparent 0 3px, rgba(100,116,139,.35) 3px 5px); }
+
+/* 弧分块表 */
+.arc { border:1px solid var(--line); border-radius:11px; margin:0 0 12px; overflow:hidden; background:var(--panel2); }
+.ah { display:flex; gap:10px; align-items:baseline; padding:8px 12px; border-left:4px solid var(--line2);
+      background:#141d31; flex-wrap:wrap; }
+.arc[data-type="narr"] .ah { border-left-color:#2f6b52; }
+.arc[data-type="quote"] .ah .ah, .arc[data-type="quote"] .ah { border-left-color:#3a5f6e; }
+.arc[data-type="persona"] .ah { border-left-color:#6e3a5a; }
+.arc[data-type="hook"] .ah, .arc[data-type="cta"] .ah { border-left-color:#3d4a63; }
+.arc[data-type="brand"] .ah { border-left-color:#4a3a1c; }
+.ah .aid { font-family:var(--mono); font-weight:700; }
+.ah .muted-flag { color:var(--faint); font-size:12.5px; }
+
+.srow { display:grid; grid-template-columns:52px 92px 78px minmax(0,1fr) 84px;
+        gap:8px; padding:6px 12px; border-top:1px solid var(--line); align-items:center; }
+.srow.mut { opacity:.45; }
+.srow .sid { font-family:var(--mono); font-weight:700; font-size:13.5px; }
+.srow .dur { font-family:var(--mono); font-size:12.5px; color:var(--dim); }
+.srow .dur b { color:var(--gold); }
+.srow .sz { font-size:12.5px; color:var(--dim); }
+.srow .cards { font-size:12.5px; color:var(--cyan); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.srow .img { font-size:12px; }
+
+.audit-row { display:flex; justify-content:space-between; font-size:13.5px; padding:4px 0; color:var(--dim); }
+.audit-row b { font-family:var(--mono); color:var(--txt); }
+.audit-row.ok b { color:var(--ok-t); } .audit-row.bad b { color:var(--bad-t); }
+.gatebar { border:1px solid var(--line2); border-radius:10px; padding:10px 12px; }
+.gatebar.on { border-color:var(--gold); background:linear-gradient(90deg, rgba(201,162,94,.10), transparent 70%); }
+.gold-t { color:var(--gold); }
+.wrow { color:var(--bad-t); font-size:13px; padding:6px 12px; border-left:3px solid var(--bad-t);
+        background:rgba(110,32,32,.12); border-radius:0 6px 6px 0; margin:6px 0; }
+.savebar { display:flex; gap:10px; align-items:center; margin-top:12px; position:sticky; bottom:0;
+           padding:10px 0 calc(8px + env(safe-area-inset-bottom, 0px));
+           background:linear-gradient(180deg, transparent, var(--bg) 28%); }
+a.ghost { color:var(--cyan); text-decoration:none; }
+.specs { font-size:13.5px; color:var(--dim); margin:6px 0 0; padding-left:18px; }

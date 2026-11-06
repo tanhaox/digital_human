@@ -784,6 +784,56 @@ def v3_tts_file(book_id: str, ep: int, idx: int):
     return FileResponse(str(p))
 
 
+# ── ⑦ 盖章 (V5: 查表灌秒 + v2 回填) ────────────────────────────────────
+
+@router.get("/ep/{book_id}/{ep}/stamp")
+def v3_stamp_get(book_id: str, ep: int):
+    """⑦ 数据源: 槽实测时长 (对齐音频) + 卡时窗 + 屏弃 + 盖章态。"""
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    try:
+        doc = _load_v3_doc(book_title, ep)
+    except FileNotFoundError:
+        return {"shots": [], "gates": {}, "stamped": False}
+    from app.services.anim_pipeline.v3_pipeline.stamp import align_blocks
+    from app.services.anim_draft import fetch_episode_audio
+    v3 = doc.get("v3") or {}
+    shots = v3.get("shots") or []
+    lines = {ln["no"]: ln for ln in (v3.get("lines") or [])}
+    direct = v3.get("direct") or {}
+    blocks = []
+    try:
+        blocks = fetch_episode_audio(book_id, ep).get("files") or []
+    except Exception:  # noqa: BLE001 — 无音频页照常, 状态栏提示
+        pass
+    aligned = align_blocks(shots, lines, blocks) if blocks else {}
+    n_live = sum(1 for s in shots if not s.get("audio_muted"))
+    out = []
+    for s in shots:
+        sid = str(s["sid"])
+        blk = aligned.get(sid)
+        d = direct.get(sid) or {}
+        cards = [c for c in (v3.get("cards") or []) if c.get("sid") == sid]
+        out.append({"sid": sid, "arc_id": s.get("arc_id"),
+                    "arc_type": next((a.get("type") for a in (v3.get("arcs") or [])
+                                      if a.get("arc_id") == s.get("arc_id")), ""),
+                    "est_s": s.get("est_s"),
+                    "real_s": blk.get("dur_s") if blk else None,
+                    "muted": bool(s.get("audio_muted")),
+                    "size": d.get("size"), "cam": (d.get("cam") or {}).get("kind"),
+                    "cards": [{"cid": c.get("cid"), "kind": c.get("kind"),
+                               "text": str(c.get("text") or "")[:24]} for c in cards],
+                    "image": (s.get("k2") or {}).get("image")})
+    st = v3.get("stamp") or {}
+    return {"shots": out, "gates": v3_pipeline.gates_view(doc),
+            "stamped": bool(st.get("at")), "stamp": st,
+            "audio_aligned": len(aligned) == n_live if blocks else False,
+            "has_audio": bool(blocks)}
+
+
 @router.post("/ep/{book_id}/{ep}/shots/save")
 def v3_shots_save(book_id: str, ep: int, body: ShotSaveBody):
     """分镜文字编辑保存: 画面句/卡 回写 + 质检复跑 + 分镜闸开合。"""

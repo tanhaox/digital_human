@@ -11,7 +11,7 @@ export const STEPS = [
   { n: '⑤', id: 'tts',     gate: 'direct', page: './tts.html',     label: 'TTS' },
   { n: '⑥', id: 'k2',      gate: 'direct', page: './k2.html',      label: 'K2 生图',
     needAudio: true },   // TTS 定稿后才开 (音频没就位 🔒)
-  { n: '⑦', id: 'stamp',   gate: 'stamp',  page: null,             label: '盖章' },
+  { n: '⑦', id: 'stamp',   gate: 'stamp',  page: './stamp.html',   label: '盖章' },
   { n: '⑧', id: 'h3',      gate: null,     page: null,             label: 'H3 视频' },
 ];
 

@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>⑦ 盖章 · v3</title>
+<link rel="stylesheet" href="./v3.css">
+<link rel="stylesheet" href="./stamp.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="h2row pt">
+    <h1 class="h2">⑦ 盖章 · 实测时长定稿</h1>
+    <span class="sub" id="sub">加载中…</span>
+    <span id="counts"></span>
+  </div>
+  <div class="railwrap"><div class="rail" id="rail"></div></div>
+
+  <div class="bar"><b>实测轴</b>
+    <span class="note">柱宽=实测秒数 (音频块 1:1) · 柱色=弧型 · 斜纹=屏弃槽 · 旗标=大字卡落点 · 悬停看详情</span>
+  </div>
+  <div id="axis" class="mini"></div>
+
+  <div id="warns"></div>
+
+  <div class="layout">
+    <main>
+      <div id="blocks"></div>
+    </main>
+    <aside class="side">
+      <div class="card" id="gatecard"></div>
+      <div class="card">
+        <div class="ctitle">对账</div>
+        <div id="audit"></div>
+      </div>
+      <details class="card">
+        <summary>规格 (这一页做什么)</summary>
+        <ol class="specs">
+          <li>查表灌秒: 块[i]↔槽[i] 1:1, 每槽实测时长 = 其音频块时长 (零分摊)。</li>
+          <li>v2 字段回填: doc.shots 投影 (t_start/t_end/duration/beats/camera/status) — v2 工坊可接管 (退回通道)。</li>
+          <li>硬闸: ④ 放行 + 音频块数 == 未屏弃槽; 锚失配即拒。</li>
+          <li>盖章后 ⑧ H3 解锁; 改字/屏弃后重盖章 (幂等)。</li>
+        </ol>
+      </details>
+    </aside>
+  </div>
+
+  <div class="savebar">
+    <span class="note" id="stat">—</span>
+    <span class="flex1"></span>
+    <a class="ghost" id="btn-v2" href="#" target="_blank" title="v2 工坊 (退回通道实证: 盖章后 v2 看板直接接管)">v2 工坊 ↗</a>
+    <button class="go" id="btn-stamp">🔍 盖章 (灌秒 + v2 回填)</button>
+  </div>
+</div>
+<script type="module" src="./stamp.js"></script>
+</body>
+</html>
