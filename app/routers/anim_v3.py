@@ -59,6 +59,17 @@ def v3_state(book_id: str, ep: int):
             doc_line = doc.get("v3") or {}
         except FileNotFoundError:
             gates = v3_pipeline.gates_view({})
+    # 1106 用户令 (⑤TTS→⑥K2): K2 前置 = 按槽音频包就位 (块数==未屏弃槽数)
+    audio_ready = False
+    if line == "v3" and gates.get("direct"):
+        try:
+            from app.services.anim_draft import fetch_episode_audio
+            _aud = fetch_episode_audio(book_id, ep)
+            _n_slots = sum(1 for s in (doc_line.get("shots") or [])
+                           if not s.get("audio_muted"))
+            audio_ready = len(_aud.get("files") or []) == _n_slots
+        except Exception:  # noqa: BLE001 — 无音频=未就位, 不炸
+            audio_ready = False
     running = None
     with anim_service._JOBS_LOCK:
         rj = next((j for j in anim_service._JOBS.values()
@@ -77,6 +88,7 @@ def v3_state(book_id: str, ep: int):
             "line": line, "gates": gates,
             "lines_done": bool(v3d.get("lines")),
             "frozen": bool(v3d.get("frozen_at")),
+            "audioReady": audio_ready,
             "counts": counts,
             "running_job": running}
 

@@ -822,3 +822,24 @@ def test_manifest_line_to_segment_mapping():
     assert seg_of_line(0) == "id0" and seg_of_line(1) == "id0"   # 行1 仍属段0 (旧法会给 id1 ✗)
     assert seg_of_line(2) == "id1"
     assert seg_of_line(5) == "id2" and seg_of_line(99) == "id2"
+
+
+def test_v3_k2_requires_slot_aligned_audio(monkeypatch):
+    """1106 用户令 (⑤TTS→⑥K2): 音频包按槽就位才烧卡 — TTS 改动便宜先定稿。"""
+    from app.services.anim_pipeline.v3_pipeline import k2 as vk2
+    import pytest
+    monkeypatch.setattr("app.services.anim_pipeline.shots.load_doc",
+                        lambda *a, **k: {"v3": {"shots": [{"sid": "s1"}],
+                                                "frozen_at": "x"}})
+    job = {"book_title": "书", "book_id": "bk", "ep": 5}
+    # 无音频包 → 拒
+    def _no_audio(*a, **k):
+        raise RuntimeError("没有产线 script_id")
+    monkeypatch.setattr("app.services.anim_draft.fetch_episode_audio", _no_audio)
+    with pytest.raises(SystemExit, match="TTS"):
+        vk2.run(job)
+    # 块数≠槽数 → 拒
+    monkeypatch.setattr("app.services.anim_draft.fetch_episode_audio",
+                        lambda *a, **k: {"files": [{} for _ in range(2)]})
+    with pytest.raises(SystemExit, match="未定稿"):
+        vk2.run(job)

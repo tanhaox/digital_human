@@ -69,6 +69,18 @@ def run(job: dict[str, Any], only: set[str] | None = None,
         raise SystemExit("未切镜 — 先跑 ③ 分镜文字")
     if not v3.get("frozen_at"):
         raise SystemExit("④ 未放行 — K2 吃 keyframe_en, 先在 ④ 页确认放行 (英文化批)")
+    # 1106 用户令 (⑤TTS→⑥K2): 音频包按槽就位才烧卡 — TTS 改动便宜先定稿,
+    # 屏弃/改字在 GPU 前定型 (块数==未屏弃槽数; 旧段落包/编辑中不就位)
+    if not job.get("_k2_audio_checked"):
+        from app.services.anim_draft import fetch_episode_audio
+        _n_slots = sum(1 for x in shots if not x.get("audio_muted"))
+        try:
+            _blocks = len(fetch_episode_audio(job["book_id"], job["ep"]).get("files") or [])
+        except Exception as _exc:  # noqa: BLE001
+            raise SystemExit(f"⑤ TTS 未就位 (无音频包: {_exc}) — 先按槽重生成")
+        if _blocks != _n_slots:
+            raise SystemExit(f"⑤ TTS 未定稿 (音频块 {_blocks} ≠ 未屏弃槽 {_n_slots}) — "
+                             "屏弃/编辑/按槽重生成完成后再烧 K2")
     if only is not None:
         force_new_seed = True          # 点名 = 重掷语义, 强制换 seed (实锤: 旧 seed 复用 → 同图)
 
