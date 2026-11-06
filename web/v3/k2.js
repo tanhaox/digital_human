@@ -115,23 +115,19 @@ function refreshCart() {
   $('cart').hidden = !n;
   $('cart-count').textContent = n;
 }
-async function startRedo(to_image) {
+async function startRedo() {
   const sids = cartSids();
   if (!sids.length) return;
-  if (!confirm(to_image
-    ? `🎨 重做到生图 ${sids.length} 镜?
-LLM重设计画面句 → 重译英文 → 生图后停在人检`
-    : `♻️ 列队重做 ${sids.length} 镜?
-LLM重设计画面句 → 重译英文 → 生图 → 自动过审`)) return;
+  if (!confirm(`🎨 重做到生图 ${sids.length} 镜?
+LLM重设计画面句 → 重译英文 → 生图后停在人检 (视频归 ⑧ 页)`)) return;
   const note = prompt('重做原因 (可空, 会带进重设计提示; 留空用系统默认)', '') ?? '';
   const r = await fetch(`${BASE}/v3_redo`, { method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ only: sids, to_image, note }) });
+    body: JSON.stringify({ only: sids, note }) });
   if (!r.ok) { toast('启动失败: ' + (await r.json()).detail); return; }
   runner.attach(await r.json());
 }
-$('btn-redo').onclick = () => startRedo(false);
-$('btn-redo-img').onclick = () => startRedo(true);
+$('btn-redo-img').onclick = startRedo;
 $('btn-cart-clear').onclick = () => {
   document.querySelectorAll('.ksel:checked').forEach(c => { c.checked = false; });
   refreshCart();

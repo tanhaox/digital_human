@@ -82,9 +82,9 @@ def retranslate(doc: dict[str, Any], sids: list[str]) -> int:
     return n
 
 
-def run(job: dict[str, Any], sids: list[str], to_image: bool = False,
+def run(job: dict[str, Any], sids: list[str], to_image: bool = True,
         note: str = "") -> None:
-    """v3_redo 相位本体: 重设计 → 重译 → 清K2状态 → k2.run(only, 换seed) → 过审。"""
+    """v3_redo 相位本体: 重设计 → 重译 → 清K2状态 → k2.run(only, 换seed) → 停 img_done。"""
     from app.services.anim_pipeline import shots as shots_mod
     from app.services.anim_pipeline.v3_pipeline import k2 as v3k2
     from app.services.anim_pipeline.v3_pipeline.shots import text_layer_issues
@@ -125,15 +125,7 @@ def run(job: dict[str, Any], sids: list[str], to_image: bool = False,
 
     v3k2.run(job, only=set(new_zh), force_new_seed=True)
 
-    if not to_image and not job.get("cancel"):
-        doc = shots_mod.load_doc(job["book_title"], job["ep"])
-        v3 = doc["v3"]
-        n_ok = 0
-        for s in v3["shots"]:
-            if s["sid"] in new_zh and (s.get("k2") or {}).get("status") == "img_done":
-                s["k2"]["status"] = "approved"
-                n_ok += 1
-        shots_mod.save(doc)
-        logger.info("[v3:redo] 自动过审 %d 镜 (列队重做语义)", n_ok)
+    # 1106 用户令: ⑤ 页只到生图 (视频归 ⑧ 页) — 重做完停 img_done 走人检,
+    # 不自动过审; to_image 参数保留兼容但本页语义恒为真。
     job["result"] = {"redesigned": len(new_zh), "retranslated": n_en,
-                     "to_image": to_image}
+                     "to_image": True}
