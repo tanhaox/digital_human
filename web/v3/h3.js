@@ -75,10 +75,16 @@ function renderGrid() {
   if (!SHOTS.length) { $('grid').innerHTML = '<div class="note">未盖章 — 先跑 ⑦</div>'; return; }
   $('grid').innerHTML = SHOTS.map(s => {
     const stt = s.status || 'planned';
-    const media = s.video
+    // 品牌镜: video 字段是 ep 目录外的品牌资产路径, /file/ 拦穿越播不了
+    // (s12 实锤: 有 video 走 <video> 分支 → 404 无预览) — 品牌卡只显 keyframe 图,
+    // 品牌视频由 🎞 装配步直插剪映, 不在本页播。
+    const media = s.brand
+      ? (s.image_url ? `<img src="${esc(s.image_url)}" loading="lazy" alt="${esc(s.sid)}" title="品牌卡首帧">`
+                 : '— 待生 —')
+      : (s.video
       ? `<video controls preload="metadata" src="/api/anim/ep/${encodeURIComponent(B)}/${E}/file/anim/${s.sid}.mp4"></video>`
       : (s.image_url ? `<img src="${esc(s.image_url)}" loading="lazy" alt="${esc(s.sid)}" title="首帧 (K2 图)">`
-                 : '— 待生 —');
+                 : '— 待生 —'));
     return `<div class="hcard ${stt === 'anim_done' ? 'done' : (stt === 'anim_fail' ? 'fail' : '')}" data-sid="${esc(s.sid)}">
       <div class="hmedia">${media}</div>
       <div class="hmeta">
@@ -91,9 +97,9 @@ function renderGrid() {
       </div>
       ${s.error ? `<div class="herr">${esc(s.error)}</div>` : ''}
       <div class="hbtns">
-        <button class="iconbtn" data-act="reroll" data-sid="${esc(s.sid)}"
+        ${s.brand ? '<span class="note">品牌资产直插 · 归 🎞 装配</span>' : `<button class="iconbtn" data-act="reroll" data-sid="${esc(s.sid)}"
                 ${stt !== 'anim_done' && stt !== 'anim_fail' ? ' disabled' : ''}
-                title="换 h3_seed 重生本镜">${stt === 'planned' || stt === 'approved' ? '▶ 生成' : '🎲 重掷'}</button>
+                title="换 h3_seed 重生本镜">${stt === 'planned' || stt === 'approved' ? '▶ 生成' : '🎲 重掷'}</button>`}
       </div>
     </div>`;
   }).join('');
