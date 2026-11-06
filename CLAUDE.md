@@ -51,7 +51,7 @@
 
 ## 七、关键上下文
 
-- pytest 基线：`pytest tests/ -m "not real_api"` → **6 failed / 578 passed / 6 deselected**（1105 v3 双轨 V0-V3 +74 用例; 失败集不变=历史债）。
+- pytest 基线：`pytest tests/ -m "not real_api"` → **6 failed / 609 passed / 6 deselected**（1106 槽位机制+⑤K2/⑥TTS +31 用例; 失败集不变=历史债）。
   已知失败项（历史债，与本轮重构无关）：
   - test_module_map ×3（AssertionError×2 / IndexError）
   - test_tts_chunk_semantic ×2
@@ -62,7 +62,7 @@
 
 ## 八、进行中的重构（B 系列，详见 docs/REFACTOR_PLAN.md）
 
-**v3 双轨线（1105 起，独立于 B 系列）**: 八页产线 V0-V3 已落地，详见 `docs/improvements/进行中-20261105-分镜续跑升级.md` 的「恢复节点」段。书级选线开关 = `outputs/动画/_资产/产线绑定_书名.json` (`{"line":"v3"}`，缺省 v2)。
+**v3 双轨线（1105 起，独立于 B 系列）**: 八页产线 ①-⑥ 已通（分诊→立意→分镜→导演→K2→TTS），**槽位机制**（槽=K2/TTS/H3 共同轴, ≤15s）已全线贯通；剩 ⑦盖章（查表）/⑧H3薄壳。详见 `docs/improvements/进行中-20261105-分镜续跑升级.md` 的「恢复节点」+「槽位机制」段。书级选线开关 = `outputs/动画/_资产/产线绑定_书名.json` (`{"line":"v3"}`，缺省 v2)。
 
 
 - 已完成：低风险族 + 环解族全部收官（B01-B19 中除下列待办外的全部批次）。
