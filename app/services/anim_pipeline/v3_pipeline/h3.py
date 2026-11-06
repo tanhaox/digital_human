@@ -46,9 +46,7 @@ def run(job: dict[str, Any], only: set[str] | None = None,
     v3 = doc.get("v3") or {}
     if not v3.get("stamp"):
         raise SystemExit("⑦ 未盖章 — H3 吃实测时长, 先在 ⑦ 页盖章 (时长真相源)")
-    _n_ok = sum(1 for x in (doc.get("shots") or []) if x.get("status") == "approved")
-    if _n_ok == 0:
-        raise SystemExit("无已过审镜 — H3 只吃 approved; 先在 ⑥ K2 页过审 (✅ 或全部过审)")
+
 
     # v3 运镜 → 镜级 camera (仅当 v2 camera 为空时; 盖章已投影基础词, 这里补
     # 精确方向词) + clause 挂到 shot 供 prompt 注入
@@ -64,6 +62,28 @@ def run(job: dict[str, Any], only: set[str] | None = None,
         if clause and str(cam.get("kind") or "固定") not in ("", "固定", "待定"):
             s["v3_cam_clause"] = clause       # run_shot prompt 拼接点 (instruction 首行)
             n_clause += 1
+    # 状态现场同步: ⑥ 页过审写在 v3 槽 (k2.status), 盖章快照可能滞后 —
+    # 实锤: 过审后启动批生仍 0 approved (doc.shots.status 停在 img_done)
+    v3_by_sid = {str(x["sid"]): x for x in (v3.get("shots") or [])}
+    n_sync = 0
+    for s2 in doc.get("shots") or []:
+        v3s = v3_by_sid.get(str(s2.get("shot_id")))
+        if not v3s:
+            continue
+        k2st = str((v3s.get("k2") or {}).get("status") or "")
+        want = {"approved": "approved", "img_done": "img_done"}.get(k2st)
+        if want and s2.get("status") != want:
+            s2["status"] = want
+            n_sync += 1
+        if v3s.get("audio_muted") and s2.get("status") in ("approved", "img_done"):
+            s2["status"] = "planned"      # 屏弃槽不烧 H3
+            n_sync += 1
+    if n_sync:
+        logger.info("[v3:h3] 状态同步 %d 镜 (⑥过审→快照)", n_sync)
+    _n_ok = sum(1 for x in (doc.get("shots") or []) if x.get("status") == "approved")
+    if _n_ok == 0:
+        raise SystemExit("无已过审镜 — H3 只吃 approved; 先在 ⑥ K2 页过审 (✅ 或全部过审)")
+
     logger.info("[v3:h3] 运镜注入: %d 镜带官方句", n_clause)
 
     from app.services.gpu_service_manager import get_gpu_service_manager
