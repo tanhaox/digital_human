@@ -56,7 +56,9 @@ def run(job: dict[str, Any], only: set[str] | None = None,
             s["v3_cam_dir"] = str(cam.get("dir") or "")      # 跟镜行进方向词
             n_clause += 1
     # 状态现场同步: ⑥ 页过审写在 v3 槽 (k2.status), 盖章快照可能滞后 —
-    # 实锤: 过审后启动批生仍 0 approved (doc.shots.status 停在 img_done)
+    # 实锤: 过审后启动批生仍 0 approved (doc.shots.status 停在 img_done)。
+    # 1106 四修: 只升不降且不碰视频态 — 旧版按 ⑥ k2 态把 anim_done 打回
+    # approved → 每批重烧已成片镜 (GPU 浪费 + 用户"重掷没效果"困惑同源)。
     v3_by_sid = {str(x["sid"]): x for x in (v3.get("shots") or [])}
     n_sync = 0
     for s2 in doc.get("shots") or []:
@@ -65,7 +67,8 @@ def run(job: dict[str, Any], only: set[str] | None = None,
             continue
         k2st = str((v3s.get("k2") or {}).get("status") or "")
         want = {"approved": "approved", "img_done": "img_done"}.get(k2st)
-        if want and s2.get("status") != want:
+        if (want and s2.get("status") in ("planned", "img_done")
+                and s2.get("status") != want):
             s2["status"] = want
             n_sync += 1
         if v3s.get("audio_muted") and s2.get("status") in ("approved", "img_done"):
