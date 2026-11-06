@@ -47,6 +47,7 @@ class TTSService:
         zone_breath: dict[int, dict] | None = None,
         beat_profile: dict | None = None,
         script_text: str | None = None,
+        slot_walls: set[int] | None = None,
     ) -> dict[str, Any]:
         """Generate per-line WAV files and manifest.
 
@@ -295,6 +296,8 @@ class TTSService:
             synth_unit=("chunk" if backend in ("indextts", "indextts25") else "line"),
             module_walls=(_module_walls or None),
             para_walls=(_para_walls or None),
+            # 1106 槽位令: 槽墙唯一模式 (旧墙与槽界不齐会碎包, 66块实锤)
+            slot_wall_only=(set(slot_walls) if slot_walls else None),
         )
 
         # ── ASR 回听校验 (2026-09-03): 拼接前逐行回听, 错音自动 <字|PINYIN> 重合成 ──

@@ -674,7 +674,8 @@ def v3_tts_generate(book_id: str, ep: int, background_tasks: BackgroundTasks):
     from contextlib import closing as _closing
     from app.database import get_session_maker as _gsm, db_session as _dbs
     from app.models.book import Episode
-    from app.models.content import Script, Voice, Persona, Host, AudioJob
+    from app.models.content import Script, Voice, Host, AudioJob
+    from app.models.roles import Persona
     from app.services.anim_pipeline.v3_pipeline.tts_slot import resegment_by_slots, slot_texts
     from app.routers.audio import _do_tts
     try:
@@ -720,10 +721,12 @@ def v3_tts_generate(book_id: str, ep: int, background_tasks: BackgroundTasks):
         db.add(job)
         db.commit()
         db.refresh(job)
-        episode.audio_job_id = job.id       # 钉选新包 (旧包 fetch 自动退位)
+        job_id = job.id                      # session 内取值 (关外访问=Detached 500 实锤)
+        voice_name = voice.name if voice else None
+        episode.audio_job_id = job_id         # 钉选新包 (旧包 fetch 自动退位)
         db.commit()
-    background_tasks.add_task(_do_tts, job.id)
-    return {"job_id": job.id, "slots": n, "voice": voice.name if voice else None}
+    background_tasks.add_task(_do_tts, job_id)
+    return {"job_id": job_id, "slots": n, "voice": voice_name}
 
 
 @router.get("/ep/{book_id}/{ep}/tts/file/{idx}")

@@ -51,7 +51,8 @@ def resegment_by_slots(db, script_id: str, slots: list[dict[str, str]]) -> int:
                        text=sl["text"],
                        segment_type="body",
                        selected_for_host=True,
-                       host_order=i))
+                       host_order=i,
+                       control_chars={"v3_slot": i}))   # 槽墙标 (tts_service 见标立断包墙)
     db.commit()
     logger.info("[v3:tts] 段表按槽重切: %d 旧段退位, %d 槽段就位 (script %s)",
                 len(old), len(slots), str(script_id)[:8])

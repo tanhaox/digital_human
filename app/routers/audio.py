@@ -173,6 +173,14 @@ def _do_tts(job_id: str):
             # _reparse_segments 删旧建新行, 旧对象 refresh 不到行 → "Segment has been
             # deleted" → job 卡 failed 且 0 段完成 (audio 线实测)。之后全程只用纯数据。
             seg_pairs: list[tuple[str, str]] = [(s.id, s.text) for s in segments]
+            # 1106 槽位令 (D 刀): v3 槽段 (control_chars.v3_slot 有标) 段首立断包墙 —
+            # 块[i]↔槽[i] 1:1; 行号口径与展平序列同 (非空行累计)。v2 段无标 = 空集。
+            _slot_walls: set[int] = set()
+            _li = 0
+            for _s in segments:
+                if _li > 0 and ((_s.control_chars or {}).get("v3_slot") is not None):
+                    _slot_walls.add(_li)
+                _li += sum(1 for _ln in str(_s.text or "").splitlines() if _ln.strip())
 
             # 内容指纹 (2026-09-07): 供完成时"合成期间稿子被改"检测。不能用
             # script.updated_at — 本函数自身的情绪标注写回 (emotion_annotations
@@ -335,6 +343,7 @@ def _do_tts(job_id: str):
                                 for m in _mods if m.get("idx") is not None}
                 result = tts.generate(
                     job, seg_pairs, voice, progress_callback=_progress,
+                    slot_walls=(_slot_walls or None),
                     zone_breath=_zbreath,
                     beat_profile=_beat_profile,
                     emotion_annotations=emotion_segments,  # 现场标注 (同源文本), 不读库

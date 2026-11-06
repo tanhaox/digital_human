@@ -128,6 +128,7 @@ def synthesize_lines(
     module_breath_sec: float = 1.0,
     zone_breath: dict[int, dict] | None = None,
     para_walls: set[int] | list[int] | None = None,
+    slot_wall_only: set[int] | list[int] | None = None,
 ) -> dict[str, Any]:
     """Generate one WAV per non-empty line; writes manifest.json into output_dir.
 
@@ -171,7 +172,17 @@ def synthesize_lines(
     _mod_starts: set[int] = {w + 1 for w in _mod_walls if w + 1 < len(lines)}
     # 1004 段落墙: 稿件段首 (与模块墙/情绪墙同机制, 细粒度) — 未过界校验的脏值剔除
     _para_wall_set: set[int] = {int(w) for w in (para_walls or []) if 0 < int(w) < len(lines)}
-    if synth_unit == "chunk":
+    if synth_unit == "chunk" and slot_wall_only:
+        # 1106 槽位令 (D 刀): 槽墙唯一模式 — 块[i]↔槽[i] 1:1。旧结构墙 (情绪/模块/
+        # 稿件段落) 与槽界不齐, 劈在槽中间会碎包 (66块实锤), 全部让位。
+        # 槽=唯一边界, 按墙直接连续切块 — 不走通用分组器 (实锤两坑: 问句强制收包
+        # 劈开带「？」槽; "墙停"被当溢出回退到句末, 尾行无句号的槽被腰斩)。
+        # 块[i]↔槽[i] 1:1 由构造保证; 设问气口由 breath 引擎在槽 wav 内垫。
+        _starts = sorted({0} | {int(w) for w in slot_wall_only if 0 < int(w) < len(lines)})
+        batch_groups = [list(range(a, b))
+                        for a, b in zip(_starts, _starts[1:] + [len(lines)])]
+        batch_emos = None
+    elif synth_unit == "chunk":
         # 0913 深夜 (用户令"包缝必须语义切"): 贪心装包只在句末收包, 超限回退包内
         # 最后一个句末行 — 旧行为边界=字数满即切, 包缝落行边界, 而行≠句 (033 行
         # 以逗号开头实锤), 半句包缝=下包语气重置。情绪墙 (P5 段变化) + 模块墙
