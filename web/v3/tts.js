@@ -177,8 +177,10 @@ function openEditor(id, b) {
         ta.focus(); ta.setSelectionRange(pos + mk.length, pos + mk.length);
       };
     });
-    $('se-go').onclick = () => submitEditor(id);
   }
+  // 每次 open 重绑 (实锤 bug: 旧版只在首次创建时绑定, 捕获第一个块的 id —
+  // 第二次打开别的块, 重合成仍提交第一个块 → 编辑 b13 顶掉 b12)
+  $('se-go').onclick = () => submitEditor(id);
   const ta = $('se-text');
   ta.value = String(b.text || '').replace(/-\d+(?:\.\d+)?s-\s*$/gm, '').trimEnd();
   $('se-py').value = '';
