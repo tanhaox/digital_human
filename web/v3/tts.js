@@ -201,23 +201,25 @@ async function submitEditor(id) {
   if (pyRaw && !Object.keys(annotate).length) {
     if (!confirm('注音没认出来。格式: 字=拼音 空格分隔 (如 恰=QIA4)\n\n确定 = 忽略注音, 只按改字重合成')) return;
   }
-  const go = $('se-go'); go.disabled = true; go.textContent = '⏳';
+  // 1106 用户令: 提交即关窗, 重合成后台跑, 完成后 toast 回报 — 不锁页面
+  $('seg-editor').classList.remove('on');
+  toast('⏳ 重合成已提交 (后台 ~10s), 完成后提示');
   releasePlayers();
-  try {
-    const payload = { text };
-    if (Object.keys(annotate).length) payload.annotate = annotate;
-    const r = await api('POST', `/api/audio/files/${id}/reroll`, payload);
-    ver[id] = Date.now();
-    const notes = [];
-    if (r.duration) notes.push(`${r.duration}s`);
-    if ((r.verdict?.diff || []).length) notes.push(`疑点:${r.verdict.diff.join('/')}`);
-    const pauses = (text.match(/-(\d+(?:\.\d+)?)s-/g) || []).length;
-    if (pauses) notes.push(`气口×${pauses}`);
-    toast(`✓ 编辑重合成 ${notes.join(' | ') || '完成'}`);
-    $('seg-editor').classList.remove('on');
-    await boot();
-  } catch (e) { toast('编辑重合成失败: ' + e.message); }
-  go.disabled = false; go.textContent = '重合成';
+  const payload = { text };
+  if (Object.keys(annotate).length) payload.annotate = annotate;
+  (async () => {
+    try {
+      const r = await api('POST', `/api/audio/files/${id}/reroll`, payload);
+      ver[id] = Date.now();
+      const notes = [];
+      if (r.duration) notes.push(`${r.duration}s`);
+      if ((r.verdict?.diff || []).length) notes.push(`疑点:${r.verdict.diff.join('/')}`);
+      const pauses = (text.match(/-(\d+(?:\.\d+)?)s-/g) || []).length;
+      if (pauses) notes.push(`气口×${pauses}`);
+      toast(`✓ 编辑重合成 ${notes.join(' | ') || '完成'}`);
+      await boot();
+    } catch (e) { toast('编辑重合成失败: ' + e.message); }
+  })();
 }
 
 $('btn-refresh').onclick = boot;
