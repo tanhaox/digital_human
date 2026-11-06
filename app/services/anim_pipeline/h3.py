@@ -512,28 +512,30 @@ def cam_move_kind(camera: str) -> str:
 
 
 def _cam_patch_prompt(prompt: str, kind: str, speed: str = "",
-                      amp: str = "", v3_kind: str = "", v3_dir: str = "") -> str:
+                      amp: str = "", v3_family: str = "",
+                      v3_dir: str = "") -> str:
     """运镜镜 prompt 三补丁: 军规句→运镜令 + era 禁新内容→画外延续 + I2VA 首行.
-    1106 v3 增补 (v3_kind 在场才动, v2 零扰动):
-    ① 幅/速按导演四元组参数化; ② 跟/弧对症句 (摇族句钉死主体/no orbit 禁弧);
-    ③ 书律豁免句 + law wins 尾句改写; ④ 跟镜 AMBIENT in place 松绑。"""
+    1106 v3 增补 (v3_family 在场才动, v2 零扰动):
+    ① 幅/速按导演四元组参数化; ② track/arc 族对症句 (摇族句钉死主体/no orbit
+    禁弧); ③ 书律豁免句 + law wins 尾句改写; ④ track 族 AMBIENT in place 松绑。
+    v3_family 来自 direct.CAM_EXEC 单源表 (字符串判型已收口)。"""
     if _CAM_BAN not in prompt:
         raise ValueError("cam_move: 军规句未命中 (h3.py 文案漂移, 现场复核)")
-    if v3_kind == "跟":
+    if v3_family == "track":
         prompt = prompt.replace(_CAM_BAN, _cam_track_sentence(v3_dir, speed, amp))
-    elif v3_kind == "弧":
+    elif v3_family == "arc":
         prompt = prompt.replace(_CAM_BAN, _cam_arc_sentence(speed, amp))
     else:
         prompt = prompt.replace(_CAM_BAN, _cam_permit_sentence(kind, speed, amp))
     if _CAM_ERA_OLD in prompt:
         prompt = prompt.replace(_CAM_ERA_OLD, _CAM_ERA_NEW)
-    if v3_kind:
+    if v3_family:
         # v3 镜: 书律相机豁免 + law wins 改写 (二次实锤: 豁免句与 law wins 并存
-        # 模型选保守侧) + 跟镜 AMBIENT 钉子松绑
+        # 模型选保守侧) + track 族 AMBIENT 钉子松绑
         prompt = _CAM_LAW_WAIVER + prompt
         if _CAM_LAW_WINS_OLD in prompt:
             prompt = prompt.replace(_CAM_LAW_WINS_OLD, _CAM_LAW_WINS_NEW)
-        if v3_kind == "跟" and _AMBIENT_IN_PLACE_OLD in prompt:
+        if v3_family == "track" and _AMBIENT_IN_PLACE_OLD in prompt:
             prompt = prompt.replace(_AMBIENT_IN_PLACE_OLD, _AMBIENT_IN_PLACE_NEW)
     return _CAM_I2VA + prompt
 
@@ -566,7 +568,7 @@ def build_workflow(image_name: str, anim: dict[str, Any], seed: int, prefix: str
                    text_event: dict | None = None, in_image_text: list | None = None,
                    thesis: str = "", cam_move: str = "",
                    cam_clause: str = "", cam_speed: str = "",
-                   cam_amp: str = "", cam_v3_kind: str = "",
+                   cam_amp: str = "", cam_v3_family: str = "",
                    cam_v3_dir: str = "") -> dict[str, Any]:
     """H3 I2V 工作流 (API 格式), 节点 ID 对齐最爱视频真相图 (102.4s/10s).
 
@@ -602,7 +604,7 @@ def build_workflow(image_name: str, anim: dict[str, Any], seed: int, prefix: str
                 "Picture 1 for every frame; no recoloring, no hue shift, no redesign.")
     if cam_move:  # B-CAM1: 运镜镜 prompt 三补丁 (军规/era/I2VA)
         _prompt = _cam_patch_prompt(_prompt, cam_move, cam_speed, cam_amp,
-                                    cam_v3_kind, cam_v3_dir)
+                                    cam_v3_family, cam_v3_dir)
     if cam_clause:  # 1106 v3: ④导演官方句 (带幅/速) 前置 — 与三补丁正交
         _prompt = cam_clause.strip() + "\n" + _prompt
     return {
@@ -713,7 +715,7 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
                              cam_clause=str(shot.get("v3_cam_clause") or ""),
                              cam_speed=str(shot.get("v3_cam_speed") or ""),
                              cam_amp=str(shot.get("v3_cam_amp") or ""),
-                             cam_v3_kind=str(shot.get("v3_cam_kind") or ""),
+                             cam_v3_family=str(shot.get("v3_cam_family") or ""),
                              cam_v3_dir=str(shot.get("v3_cam_dir") or ""),
                             book_title=doc["book_title"],
                             qc_history=(shot.get("qc_rejects") or None),
@@ -732,7 +734,7 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
                              cam_clause=str(shot.get("v3_cam_clause") or ""),
                              cam_speed=str(shot.get("v3_cam_speed") or ""),
                              cam_amp=str(shot.get("v3_cam_amp") or ""),
-                             cam_v3_kind=str(shot.get("v3_cam_kind") or ""),
+                             cam_v3_family=str(shot.get("v3_cam_family") or ""),
                              cam_v3_dir=str(shot.get("v3_cam_dir") or ""),
                             book_title=doc["book_title"],
                             qc_history=(shot.get("qc_rejects") or None),

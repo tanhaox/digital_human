@@ -863,11 +863,15 @@ def test_v3_k2_requires_slot_aligned_audio(monkeypatch):
 
 
 def test_stamp_projection_and_gates():
-    """⑦ 盖章 (V5): 查表灌秒 (1:1 零分摊) + v2 回填 (退回通道) + 运镜映射。"""
+    """⑦ 盖章 (V5): 查表灌秒 (1:1 零分摊) + v2 回填 (退回通道) + 运镜映射。
+    1106 治根: 映射单源 direct.v2_camera_word (旧 stamp 本地表 推→缓推 不在
+    v2 运镜词表, 补丁链不触发 — 与 v3h3 拷贝漂移实锤后收口)。"""
     from app.services.anim_pipeline.v3_pipeline import stamp as ST
-    # 运镜映射
-    assert ST._cam_of({"kind": "摇", "dir": "左"}) == "左摇"
-    assert ST._cam_of({"kind": "推"}) == "缓推" and ST._cam_of({}) == "固定"
+    from app.services.anim_pipeline.v3_pipeline.direct import v2_camera_word
+    # 运镜映射 (单源): 词必须全部命中 v2 运镜词表 (补丁链入口)
+    assert v2_camera_word({"kind": "摇", "dir": "左"}) == "左摇"
+    assert v2_camera_word({"kind": "推"}) == "拉近"    # 治根前 stamp 投 缓推 (漂移)
+    assert v2_camera_word({}) == ""                    # 固定/未配 → 空, 投影兜 固定
     # 投影: 3 槽 (s2 屏弃), 块对齐 s1/s3
     doc = {"book_title": "书", "v3": {
         "lines": [{"no": 1, "text": "第一句。" * 8}, {"no": 2, "text": "第二句。" * 8},
@@ -904,11 +908,13 @@ def test_stamp_projection_and_gates():
 
 
 def test_v3_h3_cam_word_and_gate(monkeypatch):
-    """⑧ H3 (V6b): 运镜型→v2 词映射 + 未盖章拒跑。"""
+    """⑧ H3 (V6b): 运镜型→v2 词映射 (单源 direct) + 未盖章拒跑。"""
     from app.services.anim_pipeline.v3_pipeline import h3 as VH
+    from app.services.anim_pipeline.v3_pipeline.direct import v2_camera_word
     import pytest
-    assert VH._cam_word({"kind": "摇", "dir": "左"}) == "左摇"
-    assert VH._cam_word({"kind": "推"}) == "拉近" and VH._cam_word({}) == ""
+    assert v2_camera_word({"kind": "摇", "dir": "左"}) == "左摇"
+    assert v2_camera_word({"kind": "推"}) == "拉近" and v2_camera_word({}) == ""
+    assert VH.cam_family({"kind": "跟", "dir": "右"}) == "track"
     monkeypatch.setattr("app.services.anim_pipeline.shots.load_doc",
                         lambda *a, **k: {"v3": {"shots": [{"sid": "s1"}]}})
     with pytest.raises(SystemExit, match="未盖章"):
@@ -1032,14 +1038,53 @@ def test_h3_cam_v3_kind_sentences_and_law_wins():
     prompt = ("Physical lock: " + _CAM_BAN + " — tail.\n"
               "Motion style law: 相机固定 — " + _CAM_LAW_WINS_OLD + "\n"
               + _AMBIENT_IN_PLACE_OLD + "with what they are.")
-    out = _cam_patch_prompt(prompt, "pan_right", "快", "大", v3_kind="跟", v3_dir="右")
+    out = _cam_patch_prompt(prompt, "pan_right", "快", "大", v3_family="track", v3_dir="右")
     assert _CAM_LAW_WAIVER in out
     assert _CAM_LAW_WINS_OLD not in out and _CAM_LAW_WINS_NEW in out
     assert _AMBIENT_IN_PLACE_OLD not in out and _AMBIENT_IN_PLACE_NEW in out
     assert "travel together" in out
     # v3 摇镜: 对症句族 + law wins 改写照挂, AMBIENT 不动
-    out2 = _cam_patch_prompt(prompt, "pan_right", "快", "大", v3_kind="摇", v3_dir="右")
+    out2 = _cam_patch_prompt(prompt, "pan_right", "快", "大", v3_family="pan", v3_dir="右")
     assert _CAM_LAW_WINS_NEW in out2 and _AMBIENT_IN_PLACE_OLD in out2
     # v2 镜: law wins 原文保留 (零扰动)
     out3 = _cam_patch_prompt(prompt, "pan_right")
     assert _CAM_LAW_WINS_OLD in out3 and _CAM_LAW_WAIVER not in out3
+
+
+def test_cam_exec_single_source_exhaustive():
+    """1106 治根契约: 运镜执行知识单源 direct.CAM_EXEC, import 期穷尽执法 —
+    CAM_DEFS 新增运镜型漏配执行映射当场炸 (漂移不可能静默, 1101 U1 同则);
+    每个 v2 词必须命中 v2 运镜词表 (补丁链入口, 缓推漂移实锤后收口);
+    track/arc 族句子不得含定义性禁令 (主体钉死/禁环绕)。"""
+    from app.services.anim_pipeline.h3 import (_cam_track_sentence, _cam_arc_sentence,
+                                               _cam_permit_sentence, _LAW_MOVE_WORDS,
+                                               _CAM_MOVE_KINDS)
+    from app.services.anim_pipeline.law_blocks import MOVE_WORDS
+    from app.services.anim_pipeline.v3_pipeline.direct import (CAM_DEFS, CAM_EXEC,
+                                                               cam_family,
+                                                               v2_camera_word)
+    # ① 穷尽: 非固定型全配, 方向逐向有词, 词全在 v2 运镜词表
+    for kind, d in CAM_DEFS.items():
+        if d.get("static"):
+            continue
+        assert kind in CAM_EXEC, f"{kind} 缺执行映射"
+        for dr in (d.get("dirs") or [""]):
+            cam = {"kind": kind, "dir": dr} if dr else {"kind": kind}
+            w = v2_camera_word(cam)
+            assert w and w in MOVE_WORDS, \
+                f"{kind}/{dr} → [{w}] 不在 v2 运镜词表 (补丁链不触发)"
+            assert w in dict(_CAM_MOVE_KINDS), \
+                f"{kind}/{dr} → [{w}] 无补丁族映射"
+            assert cam_family(cam)
+    # ② 单源一致: stamp 投影词 == ⑧ 注入词 (同一函数, 防再分叉)
+    assert cam_family({"kind": "跟"}) == "track"
+    assert cam_family({"kind": "弧"}) == "arc"
+    assert cam_family({}) == "" and v2_camera_word({"kind": "固定"}) == ""
+    # ③ 族句子无定义性禁令
+    t = _cam_track_sentence("右", "快", "大")
+    assert "stay where they are" not in t and "travel together" in t
+    a = _cam_arc_sentence("慢", "中")
+    assert "no orbit" not in a and "arcs around" in a
+    for k in ("pan_left", "pan_right", "tilt_up", "tilt_down", "push_in", "pull_back"):
+        s = _cam_permit_sentence(k)
+        assert "at slow speed" in s  # 空参 v2 原文 (零扰动)

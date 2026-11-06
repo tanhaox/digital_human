@@ -19,27 +19,11 @@ import re
 import time
 from typing import Any
 
+from .direct import v2_camera_word  # 1106 治根: 运镜执行映射单源 (旧本地表已漂)
+
 logger = logging.getLogger(__name__)
 
 _PAUSE = re.compile(r"\s*-\d+(?:\.\d+)?s-")
-
-# v3 运镜型 → v2 camera 枚举 (CAMERA_ENUM: 空拍|平视|低角度|俯瞰|特写|缓推|
-# 固定|左摇|右摇|上摇|下摇|拉近|拉远 — v2 H3 壳的词表)
-_CAM_MAP = {
-    "固定": "固定", "推": "缓推", "变焦推": "缓推", "拉": "拉远", "变焦拉": "拉远",
-    "弧": "缓推",
-}
-_CAM_DIR = {("摇", "左"): "左摇", ("摇", "右"): "右摇", ("摇", "上"): "上摇",
-            ("摇", "下"): "下摇", ("移", "左"): "左摇", ("移", "右"): "右摇",
-            ("跟", "左"): "左摇", ("跟", "右"): "右摇",
-            ("升降", "上"): "上摇", ("升降", "下"): "下摇"}
-
-
-def _cam_of(cam: dict[str, Any]) -> str:
-    kind = str((cam or {}).get("kind") or "固定")
-    if kind in _CAM_MAP:
-        return _CAM_MAP[kind]
-    return _CAM_DIR.get((kind, str((cam or {}).get("dir") or "")), "固定")
 
 
 def _first_line(text: str) -> str:
@@ -126,7 +110,7 @@ def project_v2(doc: dict[str, Any], blocks: list[dict]) -> dict[str, Any]:
             "seed": s.get("seed") or k2.get("seed"),
             "h3_seed": s.get("h3_seed") or __import__(
                 "app.services.anim_pipeline.shots", fromlist=["new_seed"]).new_seed(),
-            "camera": _cam_of(d.get("cam")),
+            "camera": v2_camera_word(d.get("cam")) or "固定",
             "register": s.get("register"),
             "brand_card": bool(s.get("brand_card")),
             "political_flag": None, "gate_rejects": [], "gate_exempt": False,

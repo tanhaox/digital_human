@@ -19,20 +19,9 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# v3 运镜型 → v2 camera 词 (B-CAM1 六词实测通道; 盖章投影同表)
-_CAM = {"固定": "", "推": "拉近", "变焦推": "拉近", "拉": "拉远", "变焦拉": "拉远",
-        "弧": "拉近"}
-_CAM_DIR = {("摇", "左"): "左摇", ("摇", "右"): "右摇", ("摇", "上"): "上摇",
-            ("摇", "下"): "下摇", ("移", "左"): "左摇", ("移", "右"): "右摇",
-            ("跟", "左"): "左摇", ("跟", "右"): "右摇",
-            ("升降", "上"): "上摇", ("升降", "下"): "下摇"}
-
-
-def _cam_word(cam: dict[str, Any]) -> str:
-    kind = str((cam or {}).get("kind") or "固定")
-    if kind in _CAM:
-        return _CAM[kind]
-    return _CAM_DIR.get((kind, str((cam or {}).get("dir") or "")), "")
+# 1106 治根: 运镜执行映射单源 (direct.CAM_EXEC) — 旧 _CAM/_CAM_DIR 本地拷贝
+# 与 stamp 已漂 (推→缓推 vs 拉近), 两处投影谁后跑谁说了算。
+from .direct import cam_family, v2_camera_word
 
 
 def run(job: dict[str, Any], only: set[str] | None = None,
@@ -55,7 +44,7 @@ def run(job: dict[str, Any], only: set[str] | None = None,
     for s in doc.get("shots") or []:
         d = direct.get(str(s.get("shot_id"))) or {}
         cam = d.get("cam") or {}
-        w = _cam_word(cam)
+        w = v2_camera_word(cam)
         if w:
             s["camera"] = w
         clause = str(d.get("clause") or "").strip()
@@ -63,7 +52,7 @@ def run(job: dict[str, Any], only: set[str] | None = None,
             s["v3_cam_clause"] = clause       # run_shot prompt 拼接点 (instruction 首行)
             s["v3_cam_speed"] = str(cam.get("speed") or "")  # 运镜令速度词参数化
             s["v3_cam_amp"] = str(cam.get("amp") or "")      # 运镜令幅度词参数化
-            s["v3_cam_kind"] = str(cam.get("kind") or "")    # 跟/弧对症运镜句选择
+            s["v3_cam_family"] = cam_family(cam)             # 执行族 (track/arc 对症句)
             s["v3_cam_dir"] = str(cam.get("dir") or "")      # 跟镜行进方向词
             n_clause += 1
     # 状态现场同步: ⑥ 页过审写在 v3 槽 (k2.status), 盖章快照可能滞后 —

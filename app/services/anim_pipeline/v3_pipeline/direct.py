@@ -36,6 +36,58 @@ NO_MOVE = ("待定", "固定")
 SIZES = ("大场景", "全景", "中景", "近景", "特写")
 BIG_SIZES = ("大场景", "全景")
 
+# ── 运镜执行映射 (1106 治根): kind → (v2 机位词, 执行族) 单一事实源 ──
+# 旧态实锤: stamp._cam_of 与 v3h3._cam_word 两份拷贝已漂 (推→缓推 vs 拉近,
+# 缓推不在 v2 运镜词表不触发补丁链, 盖章/⑧注入谁后跑谁说了算) + h3.py 靠
+# 字符串判跟/弧 — 新增运镜型全靠人肉同步。收口: 全部执行知识进本表,
+# import 期穷尽执法 (1101 U1 同则: 漂移不可能静默)。
+# v2: 进 h3 cam_move 通道的机位词 (608 预裁 + 三补丁链入口; 必须是
+#     _LAW_MOVE_WORDS 词, 否则补丁链不触发); dict = 方向型逐向给词。
+# family: h3.py 句族 — track/arc 有专属对症句, 其余走 v2 permit 参数化句。
+CAM_EXEC: dict[str, dict[str, Any]] = {
+    "推":     {"v2": "拉近", "family": "push"},
+    "拉":     {"v2": "拉远", "family": "push"},
+    "变焦推": {"v2": "拉近", "family": "push"},
+    "变焦拉": {"v2": "拉远", "family": "push"},
+    "摇":     {"v2": {"左": "左摇", "右": "右摇", "上": "上摇", "下": "下摇"},
+               "family": "pan"},
+    "移":     {"v2": {"左": "左摇", "右": "右摇"}, "family": "pan"},
+    "升降":   {"v2": {"上": "上摇", "下": "下摇"}, "family": "tilt"},
+    "跟":     {"v2": {"左": "左摇", "右": "右摇"}, "family": "track"},
+    "弧":     {"v2": "拉近", "family": "arc"},
+}
+_known_family = {"push", "pan", "tilt", "track", "arc"}
+_missing = [k for k, v in CAM_DEFS.items()
+            if not v.get("static") and k not in CAM_EXEC]
+assert not _missing, f"CAM_DEFS 运镜型缺执行映射 (补 CAM_EXEC): {_missing}"
+for _k, _m in CAM_EXEC.items():
+    assert _k in CAM_DEFS, f"CAM_EXEC 幽灵型 (CAM_DEFS 无此词): {_k}"
+    assert _m["family"] in _known_family, f"{_k} 未知执行族: {_m['family']}"
+    _dirs = CAM_DEFS[_k].get("dirs") or []
+    if isinstance(_m["v2"], dict):
+        assert set(_m["v2"]) == set(_dirs), f"{_k} v2 词表与 CAM_DEFS dirs 不齐"
+    else:
+        assert not _dirs, f"{_k} 方向型必须给 dict 词表"
+
+
+def v2_camera_word(cam: dict[str, Any] | None) -> str:
+    """v3 四元组 → v2 机位词 (⑦ 盖章投影与 ⑧ 运镜注入共用, 单源)。
+    固定/待定/未配 → ""。"""
+    c = cam or {}
+    m = CAM_EXEC.get(str(c.get("kind") or ""))
+    if not m:
+        return ""
+    v2 = m["v2"]
+    if isinstance(v2, dict):
+        return str(v2.get(str(c.get("dir") or ""), ""))
+    return str(v2)
+
+
+def cam_family(cam: dict[str, Any] | None) -> str:
+    """v3 四元组 → 执行族 (h3.py 对症句选择; 固定/未配 → "")。"""
+    m = CAM_EXEC.get(str((cam or {}).get("kind") or ""))
+    return str(m["family"]) if m else ""
+
 MIN_MOVE_SLOT_S = 6.0    # 运镜镜槽长下限 (1024 ep6 s12 三连: 幅度天花板=槽长)
 MAX_MOVE_PER_ARC = 2     # 每弧运镜镜上限 (运镜是叙事工具, 不是默认)
 
