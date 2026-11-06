@@ -6,7 +6,7 @@ job/同集互斥/取消/SSE/台账全复用 anim_service.start_phase (零新机�
 """
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from pathlib import Path
@@ -662,6 +662,68 @@ def v3_tts_combined(book_id: str, ep: int):
     if not p.exists():
         raise HTTPException(status_code=404, detail="full_paragraph.wav 不存在 — 先重拼/重生成")
     return FileResponse(str(p))
+
+
+@router.post("/ep/{book_id}/{ep}/tts/generate")
+def v3_tts_generate(book_id: str, ep: int, background_tasks: BackgroundTasks):
+    """⑥ 按槽重生成 TTS (D 刀): 段表按槽重切 → 复用音频线合成 → 钉选新包。
+
+    块[i] ↔ 槽[i] 1:1; 旧包保留 (音频工坊可回钉回滚)。
+    """
+    from fastapi import BackgroundTasks as _BT  # noqa: F401 — 上面参数已注入
+    from contextlib import closing as _closing
+    from app.database import get_session_maker as _gsm, db_session as _dbs
+    from app.models.book import Episode
+    from app.models.content import Script, Voice, Persona, Host, AudioJob
+    from app.services.anim_pipeline.v3_pipeline.tts_slot import resegment_by_slots, slot_texts
+    from app.routers.audio import _do_tts
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    doc = _load_v3_doc(book_title, ep)
+    slots = slot_texts(doc)
+    if not slots:
+        raise HTTPException(status_code=422, detail="未切镜 — 先跑 ③ 分镜文字")
+    with _dbs() as db:
+        episode = db.query(Episode).filter(
+            Episode.book_id == book_id, Episode.ep_index == ep).first()
+        if not episode or not episode.script_id:
+            raise HTTPException(status_code=422, detail="本集无产线 script_id")
+        script = db.query(Script).filter(Script.id == episode.script_id).first()
+        if not script:
+            raise HTTPException(status_code=404, detail="script 不存在")
+        # 音色解析 (与 audio.generate_audio 同序: persona → host 默认 → host 首条)
+        voice = None
+        persona = db.query(Persona).filter(Persona.host_id == script.host_id).first()
+        if persona and persona.voice_id:
+            voice = db.query(Voice).filter(Voice.id == persona.voice_id).first()
+        if not voice and script.host_id:
+            host = db.query(Host).filter(Host.id == script.host_id).first()
+            if host and host.default_voice_id:
+                voice = db.query(Voice).filter(Voice.id == host.default_voice_id).first()
+        if not voice and script.host_id:
+            voice = db.query(Voice).filter(Voice.host_id == script.host_id).first()
+        n = resegment_by_slots(db, script.id, slots)
+        from pathlib import Path as _P
+        import time as _time
+        output_dir = (_P(script.project_dir) / "audio" if script.project_dir else
+                      _P("E:/数字人计划/outputs/audio") / _time.strftime("%Y-%m-%d")
+                      / (voice.name if voice else "default")
+                      / f"v3slots_{int(_time.time())}")
+        output_dir.mkdir(parents=True, exist_ok=True)
+        job = AudioJob(script_id=script.id,
+                       voice_id=voice.id if voice else None,
+                       output_dir=str(output_dir), status="pending",
+                       total_segments=n, completed_segments=0)
+        db.add(job)
+        db.commit()
+        db.refresh(job)
+        episode.audio_job_id = job.id       # 钉选新包 (旧包 fetch 自动退位)
+        db.commit()
+    background_tasks.add_task(_do_tts, job.id)
+    return {"job_id": job.id, "slots": n, "voice": voice.name if voice else None}
 
 
 @router.get("/ep/{book_id}/{ep}/tts/file/{idx}")

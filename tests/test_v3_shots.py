@@ -767,3 +767,16 @@ def test_v3_redo_registered_and_pipeline():
     finally:
         if real:
             sys.modules["app.services.llm_service"] = real
+
+
+def test_slot_texts_and_resegment_pure():
+    """D 刀 (1106 用户令: TTS 以导演层方案执行): 槽→段文本纯函数。"""
+    from app.services.anim_pipeline.v3_pipeline.tts_slot import slot_texts
+    doc = {"v3": {
+        "lines": [{"no": 1, "text": "第一句。"}, {"no": 2, "text": ""},
+                  {"no": 3, "text": "第二句。"}, {"no": 4, "text": "第三句。"}],
+        "shots": [{"sid": "s1", "line_refs": [1, 2, 3]},
+                  {"sid": "s2", "line_refs": [4]}]}}
+    out = slot_texts(doc)
+    assert out == [{"sid": "s1", "text": "第一句。\n第二句。"},
+                   {"sid": "s2", "text": "第三句。"}]

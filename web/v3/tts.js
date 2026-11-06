@@ -211,6 +211,31 @@ async function submitEditor(id) {
 
 $('btn-refresh').onclick = boot;
 
+/* 按槽重生成 (D 刀): 段表按槽重切 → 音频线合成 → 钉选新包; 块[i]↔槽[i] 1:1 */
+$('btn-gen').onclick = async () => {
+  const n = (await (await fetch(`${BASE}/tts`)).json()).blocks?.length || '?';
+  if (!confirm(`🔁 按槽重生成 TTS?
+
+段表按当前槽位重切 (一槽一块), 同音色重合成新 take;
+现有包退位保留 (音频工坊可回钉回滚)。`)) return;
+  const btn = $('btn-gen'); btn.disabled = true; btn.textContent = '⏳ 启动中…';
+  try {
+    const r = await (await fetch(`${BASE}/tts/generate`, { method: 'POST',
+      headers: { 'Content-Type': 'application/json' }, body: '{}' })).json();
+    if (!r.job_id) throw new Error(r.detail || '启动失败');
+    toast(`合成中: ${r.slots} 槽 · 音色 ${r.voice || '默认'} (约 2-4 分钟)`);
+    for (let i = 0; i < 200; i++) {
+      await new Promise(x => setTimeout(x, 3000));
+      let j; try { j = await (await fetch(`/api/audio/jobs/${r.job_id}`)).json(); } catch { continue; }
+      btn.textContent = `⏳ ${j.completed_segments ?? 0}/${j.total_segments ?? '?'}`;
+      if (j.status === 'completed') { toast(`✓ 按槽合成完成 (${j.total_segments} 块)`); break; }
+      if (j.status === 'failed') { toast('合成失败: ' + (j.error || '')); break; }
+    }
+    await boot();
+  } catch (e) { toast('失败: ' + e.message); }
+  btn.disabled = false; btn.textContent = '🔁 按槽重生成';
+};
+
 function toast(m) {
   const t = document.createElement('div');
   t.className = 'toast'; t.textContent = m;
