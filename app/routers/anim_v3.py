@@ -592,6 +592,23 @@ def v3_k2_brand_image(book_id: str, ep: int):
     return FileResponse(str(p))
 
 
+@router.get("/ep/{book_id}/{ep}/h3/brand-video")
+def v3_h3_brand_video(book_id: str, ep: int):
+    """品牌镜定稿视频 (1106 用户实锤: ⑧ 页品牌卡无播放键) — 资产在 _资产/
+    目录外, /file/ 拦穿越, 仿 brand-image 专用端点取。"""
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    from app.services.anim_pipeline import brand as brand_mod
+    from app.services.anim_pipeline import shots as shots_mod
+    from pathlib import Path as _P
+    p = shots_mod.ep_dir(book_title, ep) / brand_mod.resolve(book_title, ep, "video")
+    if not p.exists():
+        raise HTTPException(status_code=404, detail="品牌定稿视频不存在 — 先跑品牌卡")
+    return FileResponse(str(p))
+
+
 @router.post("/ep/{book_id}/{ep}/k2/approve")
 def v3_k2_approve(book_id: str, ep: int, body: K2ApproveBody):
     """⑤ 人检过审: img_done → approved (v2 语义, v3 命名空间)。"""
@@ -873,7 +890,10 @@ def v3_h3_get(book_id: str, ep: int):
                     "size": d.get("size"), "cam": (d.get("cam") or {}).get("kind"),
                     "dur_s": (s.get("anim") or {}).get("duration_s"),
                     "image": img, "image_url": url,
-                    "video": vf, "error": str(s.get("error") or "")[:200] or None})
+                    "video": vf, "error": str(s.get("error") or "")[:200] or None,
+                    # 品牌视频走专用端点 (资产在 ep 目录外, /file/ 拦穿越)
+                    "video_url": (f"/api/anim/v3/ep/{book_id}/{ep}/h3/brand-video"
+                                  if (s.get("brand_card") and vf) else None)})
     return {"shots": out, "gates": v3_pipeline.gates_view(doc),
             "stamped": bool((v3.get("stamp") or {}).get("at"))}
 

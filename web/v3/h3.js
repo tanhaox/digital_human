@@ -75,12 +75,12 @@ function renderGrid() {
   if (!SHOTS.length) { $('grid').innerHTML = '<div class="note">未盖章 — 先跑 ⑦</div>'; return; }
   $('grid').innerHTML = SHOTS.map(s => {
     const stt = s.status || 'planned';
-    // 品牌镜: video 字段是 ep 目录外的品牌资产路径, /file/ 拦穿越播不了
-    // (s12 实锤: 有 video 走 <video> 分支 → 404 无预览) — 品牌卡只显 keyframe 图,
-    // 品牌视频由 🎞 装配步直插剪映, 不在本页播。
+    // 品牌镜: video 字段是 ep 目录外资产路径, /file/ 拦穿越 → 后端专用端点
+    // (h3/brand-video) 下发 video_url; 未直通 (无 video) 退品牌首帧图。
     const media = s.brand
-      ? (s.image_url ? `<img src="${esc(s.image_url)}" loading="lazy" alt="${esc(s.sid)}" title="品牌卡首帧">`
-                 : '— 待生 —')
+      ? (s.video_url
+          ? `<video controls preload="metadata" src="${esc(s.video_url)}" title="品牌定稿视频"></video>`
+          : (s.image_url ? `<img src="${esc(s.image_url)}" loading="lazy" alt="${esc(s.sid)}" title="品牌卡首帧">` : '— 待生 —'))
       : (s.video
       ? `<video controls preload="metadata" src="/api/anim/ep/${encodeURIComponent(B)}/${E}/file/anim/${s.sid}.mp4"></video>`
       : (s.image_url ? `<img src="${esc(s.image_url)}" loading="lazy" alt="${esc(s.sid)}" title="首帧 (K2 图)">`
