@@ -96,6 +96,7 @@ def v3_state(book_id: str, ep: int):
 class PhaseStartBody(BaseModel):
     only: list[str] = []            # 单镜重掷 (v3_k2/v3_h3) / 列队重做 (v3_redo)
     to_image: bool = False          # v3_redo: 到生图停 (默认自动过审)
+    to_video: bool = False          # v3_redo: ⑧页列队重做 — 重设计→生图→生视频全链
     note: str = ""                  # v3_redo: 重做原因 (带进重设计提示)
     retry_failed: bool = False      # v3_h3: 连败镜重试 (换 h3_seed)
 
@@ -118,6 +119,7 @@ def v3_start(book_id: str, ep: int, phase: str, body: PhaseStartBody | None = No
         kw["retry_failed"] = bool(body and body.retry_failed)
     if phase == "v3_redo":
         kw["to_image"] = bool(body and body.to_image)
+        kw["to_video"] = bool(body and body.to_video)
         if body and body.note:
             kw["note"] = str(body.note)[:200]
     try:
@@ -867,6 +869,7 @@ def v3_h3_get(book_id: str, ep: int):
             url = None
         out.append({"sid": str(s.get("shot_id")),
                     "status": s.get("status"),
+                    "brand": bool(s.get("brand_card")),
                     "size": d.get("size"), "cam": (d.get("cam") or {}).get("kind"),
                     "dur_s": (s.get("anim") or {}).get("duration_s"),
                     "image": img, "image_url": url,

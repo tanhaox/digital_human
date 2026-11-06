@@ -82,6 +82,7 @@ function renderGrid() {
     return `<div class="hcard ${stt === 'anim_done' ? 'done' : (stt === 'anim_fail' ? 'fail' : '')}" data-sid="${esc(s.sid)}">
       <div class="hmedia">${media}</div>
       <div class="hmeta">
+        ${s.brand ? '' : `<input type="checkbox" class="hsel" data-sid="${esc(s.sid)}" title="加入购物篮 (列队重做)">`}
         <span class="hsid">${esc(s.sid)}</span>
         <span class="hsize">${esc(s.size || '')}</span>
         <span class="hcam">${esc(s.cam || '')}</span>
@@ -140,6 +141,37 @@ $('btn-retry').onclick = async () => {
   const r = await fetch(`${BASE}/v3_h3`, { method: 'POST',
     headers: { 'Content-Type': 'application/json' }, body: '{"retry_failed":true}' });
   if (!r.ok) { toast('启动失败: ' + (await r.json()).detail); return; }
+  runner.attach(await r.json());
+};
+
+// ── 购物篮 (1106 用户令: 对齐 v2 — 清空 + ♻️列队重做全链) ──
+function cartSids() {
+  return [...document.querySelectorAll('.hsel:checked')].map(c => c.dataset.sid);
+}
+function refreshCart() {
+  const n = cartSids().length;
+  $('cart').hidden = !n;
+  $('cart-count').textContent = n;
+}
+$('grid').addEventListener('change', e => {
+  if (e.target.classList.contains('hsel')) refreshCart();
+});
+$('btn-cart-clear').onclick = () => {
+  document.querySelectorAll('.hsel:checked').forEach(c => { c.checked = false; });
+  refreshCart();
+};
+$('btn-redo').onclick = async () => {
+  const sids = cartSids();
+  if (!sids.length) return;
+  if (!confirm(`♻️ 列队重做 ${sids.length} 镜 (全链到视频)?
+LLM重设计画面句 → 重译英文 → 重生图(换seed) → 生视频 · ~5min/镜 · 镜间可⛔停止`)) return;
+  const note = prompt('重做原因 (可空, 会带进重设计提示; 留空用系统默认)', '') ?? '';
+  const r = await fetch(`${BASE}/v3_redo`, { method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ only: sids, to_video: true, note }) });
+  if (!r.ok) { toast('启动失败: ' + (await r.json()).detail); return; }
+  document.querySelectorAll('.hsel:checked').forEach(c => { c.checked = false; });
+  refreshCart();
   runner.attach(await r.json());
 };
 

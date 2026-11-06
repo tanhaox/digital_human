@@ -55,7 +55,8 @@ def _h_k2(job: dict[str, Any]) -> None:
 def _h_redo(job: dict[str, Any]) -> None:
     from . import redo
     redo.run(job, sids=list(job.get("only") or []),
-             to_image=bool(job.get("to_image")), note=str(job.get("note") or ""))
+             to_image=bool(job.get("to_image")), note=str(job.get("note") or ""),
+             to_video=bool(job.get("to_video")))
 def _h_h3(job: dict[str, Any]) -> None:
     from . import h3
     h3.run(job, only=set(job.get("only") or []) or None,

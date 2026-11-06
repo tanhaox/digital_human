@@ -22,13 +22,6 @@
 .kerr { padding:0 10px 8px; color:var(--bad-t); font-size:11.5px; line-height:1.45; }
 .bar { display:flex; gap:10px; align-items:baseline; margin:0 0 8px; flex-wrap:wrap; }
 
-/* 购物篮条 (v2 cartRedo 同构) */
-.cartbar { position:sticky; bottom:0; z-index:20; display:flex; gap:10px; align-items:center;
-  flex-wrap:wrap; margin-top:12px; padding:10px 14px;
-  background:linear-gradient(90deg, rgba(201,162,94,.14), rgba(22,33,58,.97) 55%);
-  border:1px solid var(--gold); border-radius:11px; }
-.cartbar[hidden] { display:none; }
-.cart-n { color:var(--gold); font-size:15px; }
-.ksel { accent-color:var(--gold); width:15px; height:15px; cursor:pointer; flex:0 0 auto; }
+/* 购物篮条样式已上移 v3.css (1106 ⑧页复用); .ksel 保留别名 */
 
 .kcard.kmut { opacity:.45; }

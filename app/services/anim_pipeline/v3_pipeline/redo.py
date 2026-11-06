@@ -83,8 +83,9 @@ def retranslate(doc: dict[str, Any], sids: list[str]) -> int:
 
 
 def run(job: dict[str, Any], sids: list[str], to_image: bool = True,
-        note: str = "") -> None:
-    """v3_redo 相位本体: 重设计 → 重译 → 清K2状态 → k2.run(only, 换seed) → 停 img_done。"""
+        note: str = "", to_video: bool = False) -> None:
+    """v3_redo 相位本体: 重设计 → 重译 → 清K2状态 → k2.run(only, 换seed) →
+    默认停 img_done; to_video (⑧页列队重做) = 自动过审 + 重投影 + 转 H3 全链。"""
     from app.services.anim_pipeline import shots as shots_mod
     from app.services.anim_pipeline.v3_pipeline import k2 as v3k2
     from app.services.anim_pipeline.v3_pipeline.shots import text_layer_issues
@@ -125,7 +126,32 @@ def run(job: dict[str, Any], sids: list[str], to_image: bool = True,
 
     v3k2.run(job, only=set(new_zh), force_new_seed=True)
 
-    # 1106 用户令: ⑤ 页只到生图 (视频归 ⑧ 页) — 重做完停 img_done 走人检,
-    # 不自动过审; to_image 参数保留兼容但本页语义恒为真。
+    if not to_video:
+        # 1106 用户令: ⑤ 页只到生图 (视频归 ⑧ 页) — 重做完停 img_done 走人检,
+        # 不自动过审; to_image 参数保留兼容但本页语义恒为真。
+        job["result"] = {"redesigned": len(new_zh), "retranslated": n_en,
+                         "to_image": True}
+        return
+
+    # ── ⑧ 页列队重做全链 (用户令: 对齐 v2 购物篮 cartRedo 语义) ──
+    # 重设计改了画面句/图/seed → v2 投影快照过时 → 必须重盖章投影再转 H3,
+    # 否则 H3 吃旧 image_file/seed。重做镜自动过审 (全链语义, 同 v2 cartRedo)。
+    from app.services.anim_draft import fetch_episode_audio
+    from app.services.anim_pipeline.v3_pipeline import h3 as v3h3
+    from app.services.anim_pipeline.v3_pipeline import stamp as v3stamp
+
+    job["progress"] = {"done": 2, "total": 3, "current": "重盖章投影 → 自动过审"}
+    audio = fetch_episode_audio(job["book_id"], job["ep"])
+    blocks = [b for b in (audio.get("files") or [])]
+    for sid in new_zh:
+        sk = by_sid.get(sid)
+        if sk is not None and (sk.get("k2") or {}).get("image"):
+            sk["k2"]["status"] = "approved"      # 全链: 重生完即过审, 同 v2 cartRedo
+    proj = v3stamp.project_v2(doc, blocks)       # 重投影: 新图/新seed/新画面句灌 v2
+    if proj["missing_audio"]:
+        raise SystemExit(f"锚对齐失配 {len(proj['missing_audio'])} 槽 — ⑤ 页检查后再试")
+    shots_mod.save(doc)
+    logger.info("[v3:redo] 列队重做全链: %d 镜重投影过审 → 转 H3", len(new_zh))
+    v3h3.run(job, only=set(new_zh))
     job["result"] = {"redesigned": len(new_zh), "retranslated": n_en,
-                     "to_image": True}
+                     "to_video": True}

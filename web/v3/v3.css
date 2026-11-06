@@ -105,3 +105,12 @@ a.prow:hover { border-color:var(--line2); }
 #lb-shared .lb-cap{color:#a2988a;font-size:.82rem}
 #lb-shared .lb-nav{color:#6f665a;font-size:.72rem}
 #lb-shared .lb-x{position:absolute;top:1rem;right:1.4rem;color:#a2988a;font-size:1.6rem;cursor:pointer}
+
+/* 购物篮条 (1106 ⑧H3 页复用, 自 k2.css 上移; 勾选框 .ksel(K2)/.hsel(H3) 同式) */
+.cartbar { position:sticky; bottom:0; z-index:20; display:flex; gap:10px; align-items:center;
+  flex-wrap:wrap; margin-top:12px; padding:10px 14px;
+  background:linear-gradient(90deg, rgba(201,162,94,.14), rgba(22,33,58,.97) 55%);
+  border:1px solid var(--gold); border-radius:11px; }
+.cartbar[hidden] { display:none; }
+.cart-n { color:var(--gold); font-size:15px; }
+.ksel, .hsel { accent-color:var(--gold); width:15px; height:15px; cursor:pointer; flex:0 0 auto; }
