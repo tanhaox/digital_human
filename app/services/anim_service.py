@@ -50,13 +50,13 @@ _register_feed("fandeng_full", _load_ff)
 PHASES = ("plan", "replan", "redo", "k2", "h3", "brand", "enhance",
           "facefix", "textpass",
           # 1105 v3 双轨 (V0): 文字阶段五相位 — job/同集闸/台账复用 start_phase 机制
-          "v3_triage", "v3_arcs", "v3_shots", "v3_direct", "v3_k2", "v3_redo", "v3_stamp")
+          "v3_triage", "v3_arcs", "v3_shots", "v3_direct", "v3_k2", "v3_redo", "v3_h3", "v3_stamp")
 # GPU 预取群: start_phase 入口即占 _GPU_JOB_LOCK, 全程持有 (与 comfy 互斥)。
 # 1018 用户令: facefix/textpass (购物篮修脸/压字) 走 ComfyUI — 同入 GPU 互斥群。
 # 1105 批2 (病灶11): redo 移出预取群 — 其 LLM 重设计段 (零 GPU, N×3.5min) 曾
 # 全程占 GPU 锁, 其他书 GPU 批全被挡 (GPU 空转); 现 LLM 段不持锁, 转 GPU
 # 一条龙前现场取锁 (_wait_gpu_lock 带进度日志等待)。
-GPU_PHASES = ("k2", "h3", "brand", "facefix", "textpass", "v3_k2", "v3_redo")
+GPU_PHASES = ("k2", "h3", "brand", "facefix", "textpass", "v3_k2", "v3_redo", "v3_h3")
 _LOG_TAIL = 400
 
 _JOBS: dict[str, dict[str, Any]] = {}

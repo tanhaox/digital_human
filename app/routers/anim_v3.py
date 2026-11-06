@@ -18,7 +18,7 @@ from app.services.anim_pipeline.config import pipeline_line
 
 router = APIRouter(prefix="/api/anim/v3", tags=["anim-v3"])
 
-_V3_PHASES = ("v3_triage", "v3_arcs", "v3_shots", "v3_direct", "v3_k2", "v3_redo", "v3_stamp")
+_V3_PHASES = ("v3_triage", "v3_arcs", "v3_shots", "v3_direct", "v3_k2", "v3_redo", "v3_h3", "v3_stamp")
 
 
 def _line_gate(book_title: str) -> None:
@@ -94,9 +94,10 @@ def v3_state(book_id: str, ep: int):
 
 
 class PhaseStartBody(BaseModel):
-    only: list[str] = []            # 单镜重掷 (v3_k2) / 列队重做 (v3_redo): 点名镜
+    only: list[str] = []            # 单镜重掷 (v3_k2/v3_h3) / 列队重做 (v3_redo)
     to_image: bool = False          # v3_redo: 到生图停 (默认自动过审)
     note: str = ""                  # v3_redo: 重做原因 (带进重设计提示)
+    retry_failed: bool = False      # v3_h3: 连败镜重试 (换 h3_seed)
 
 
 @router.post("/ep/{book_id}/{ep}/{phase}")
@@ -110,9 +111,11 @@ def v3_start(book_id: str, ep: int, phase: str, body: PhaseStartBody | None = No
         raise HTTPException(status_code=404, detail=str(exc))
     _line_gate(book_title)
     only = set(body.only) if (body and body.only) else None
-    if only and phase not in ("v3_k2", "v3_redo"):
+    if only and phase not in ("v3_k2", "v3_redo", "v3_h3"):
         raise HTTPException(status_code=422, detail="only 仅支持 v3_k2/v3_redo")
     kw = {"only": only}
+    if phase == "v3_h3":
+        kw["retry_failed"] = bool(body and body.retry_failed)
     if phase == "v3_redo":
         kw["to_image"] = bool(body and body.to_image)
         if body and body.note:
@@ -832,6 +835,36 @@ def v3_stamp_get(book_id: str, ep: int):
             "stamped": bool(st.get("at")), "stamp": st,
             "audio_aligned": len(aligned) == n_live if blocks else False,
             "has_audio": bool(blocks)}
+
+
+# ── ⑧ H3 (V6b: 盖章后的 doc.shots 即 v2 形状, h3 直接吃) ────────────────
+
+@router.get("/ep/{book_id}/{ep}/h3")
+def v3_h3_get(book_id: str, ep: int):
+    """⑧ 数据源: 盖章后的镜 (status/video/camera/dur) + 闸态。"""
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    try:
+        doc = _load_v3_doc(book_title, ep)
+    except FileNotFoundError:
+        return {"shots": [], "gates": {}, "stamped": False}
+    v3 = doc.get("v3") or {}
+    direct = v3.get("direct") or {}
+    out = []
+    for s in (doc.get("shots") or []):
+        d = direct.get(str(s.get("shot_id"))) or {}
+        vf = s.get("video_file")
+        out.append({"sid": str(s.get("shot_id")),
+                    "status": s.get("status"),
+                    "size": d.get("size"), "cam": (d.get("cam") or {}).get("kind"),
+                    "dur_s": (s.get("anim") or {}).get("duration_s"),
+                    "image": s.get("image_file"),
+                    "video": vf, "error": str(s.get("error") or "")[:200] or None})
+    return {"shots": out, "gates": v3_pipeline.gates_view(doc),
+            "stamped": bool((v3.get("stamp") or {}).get("at"))}
 
 
 @router.post("/ep/{book_id}/{ep}/shots/save")

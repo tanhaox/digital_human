@@ -901,3 +901,15 @@ def test_stamp_projection_and_gates():
     # 锚失配: 块文本全不匹配 → missing_audio
     out2 = ST.project_v2(doc, [{"text": "完全无关", "dur_s": 1}])
     assert len(out2["missing_audio"]) == 2
+
+
+def test_v3_h3_cam_word_and_gate(monkeypatch):
+    """⑧ H3 (V6b): 运镜型→v2 词映射 + 未盖章拒跑。"""
+    from app.services.anim_pipeline.v3_pipeline import h3 as VH
+    import pytest
+    assert VH._cam_word({"kind": "摇", "dir": "左"}) == "左摇"
+    assert VH._cam_word({"kind": "推"}) == "拉近" and VH._cam_word({}) == ""
+    monkeypatch.setattr("app.services.anim_pipeline.shots.load_doc",
+                        lambda *a, **k: {"v3": {"shots": [{"sid": "s1"}]}})
+    with pytest.raises(SystemExit, match="未盖章"):
+        VH.run({"book_title": "书", "ep": 5})

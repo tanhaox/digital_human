@@ -12,7 +12,8 @@ export const STEPS = [
   { n: '⑥', id: 'k2',      gate: 'direct', page: './k2.html',      label: 'K2 生图',
     needAudio: true },   // TTS 定稿后才开 (音频没就位 🔒)
   { n: '⑦', id: 'stamp',   gate: 'stamp',  page: './stamp.html',   label: '盖章' },
-  { n: '⑧', id: 'h3',      gate: null,     page: null,             label: 'H3 视频' },
+  { n: '⑧', id: 'h3',      gate: null,     page: './h3.html',      label: 'H3 视频',
+    needStamp: true },   // ⑧ 等 ⑦ 盖章 (时长真相)
 ];
 
 // 文档闸链 (顺序即定义; 用于推导解锁)
@@ -25,10 +26,14 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g,
 export function stepDone(s, gates) { return !!(s.gate && (gates || {})[s.gate]); }
 
 /** 某步是否可进入 (前置闸全开; 链外/无闸步按四闸全开) */
-export function stepUnlocked(s, gates, line, audioReady) {
+export function stepUnlocked(s, gates, line, audioReady, stamped) {
   if (line !== 'v3') return false;
   const G = gates || {};
-  if (!s.gate) return CHAIN.every(k => G[k]);
+  if (!s.gate) {
+    let ok0 = CHAIN.every(k => G[k]);
+    if (s.needStamp) ok0 = ok0 && !!stamped;   // ⑧ 等 ⑦
+    return ok0;
+  }
   const j = CHAIN.indexOf(s.gate);
   let ok = j < 0 || j === 0 || CHAIN.slice(0, j).every(k => G[k]);
   if (s.needAudio) ok = ok && !!audioReady;   // 1106: ⑥K2 等 ⑤TTS 定稿
@@ -49,7 +54,7 @@ export function rail(el, st) {
   el.innerHTML = STEPS.map(s => {
     const on = s.id === st.active;
     const done = stepDone(s, G);
-    const lock = !done && !stepUnlocked(s, G, st.line, st.audioReady);
+    const lock = !done && !stepUnlocked(s, G, st.line, st.audioReady, st.gates?.stamp);
     const cls = done ? 'done' : (lock ? 'lock' : (on ? 'now' : ''));
     const badge = done ? '<span class="st">✓</span>'
       : (lock ? '<span class="st">🔒</span>'

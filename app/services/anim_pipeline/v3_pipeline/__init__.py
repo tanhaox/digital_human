@@ -56,6 +56,10 @@ def _h_redo(job: dict[str, Any]) -> None:
     from . import redo
     redo.run(job, sids=list(job.get("only") or []),
              to_image=bool(job.get("to_image")), note=str(job.get("note") or ""))
+def _h_h3(job: dict[str, Any]) -> None:
+    from . import h3
+    h3.run(job, only=set(job.get("only") or []) or None,
+           retry_failed=bool(job.get("retry_failed")))
 def _h_stamp(job: dict[str, Any]) -> None:
     from . import stamp
     stamp.run(job)
@@ -63,7 +67,7 @@ def _h_stamp(job: dict[str, Any]) -> None:
 
 _HANDLERS = {
     "triage": _h_triage, "arcs": _h_arcs, "shots": _h_shots, "k2": _h_k2,
-    "direct": _h_direct, "redo": _h_redo, "stamp": _h_stamp,
+    "direct": _h_direct, "redo": _h_redo, "h3": _h_h3, "stamp": _h_stamp,
 }
 
 

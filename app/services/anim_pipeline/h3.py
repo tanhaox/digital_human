@@ -477,7 +477,8 @@ def _cam_pre_crop_608(src: Path, sid: str) -> Path:
 def build_workflow(image_name: str, anim: dict[str, Any], seed: int, prefix: str,
                    book_title: str = "", qc_history: list | None = None,
                    text_event: dict | None = None, in_image_text: list | None = None,
-                   thesis: str = "", cam_move: str = "") -> dict[str, Any]:
+                   thesis: str = "", cam_move: str = "",
+                   cam_clause: str = "") -> dict[str, Any]:
     """H3 I2V 工作流 (API 格式), 节点 ID 对齐最爱视频真相图 (102.4s/10s).
 
     qc_history (1004 修): 该镜既往机检判决 (乱码/崩坏史) → 重 roll 时注入
@@ -512,6 +513,8 @@ def build_workflow(image_name: str, anim: dict[str, Any], seed: int, prefix: str
                 "Picture 1 for every frame; no recoloring, no hue shift, no redesign.")
     if cam_move:  # B-CAM1: 运镜镜 prompt 三补丁 (军规/era/I2VA)
         _prompt = _cam_patch_prompt(_prompt, cam_move)
+    if cam_clause:  # 1106 v3: ④导演官方句 (带幅/速) 前置 — 与三补丁正交
+        _prompt = cam_clause.strip() + "\n" + _prompt
     return {
         "129": {"class_type": "UNETLoader", "inputs": {
             "unet_name": "minimax_it2v\\minimax_h3_fl2va_pruned_int8_convrot.safetensors",
@@ -617,6 +620,7 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
         logger.info("[h3] %s 跳首帧锚定 (中性底图, H3 从 prompt 自生成)", shot["shot_id"])
         _thesis = arc_thesis(doc, str(shot.get("arc_id") or ""))
         wf = build_workflow(image_name, _h3_anim, shot["h3_seed"], prefix,
+                             cam_clause=str(shot.get("v3_cam_clause") or ""),
                             book_title=doc["book_title"],
                             qc_history=(shot.get("qc_rejects") or None),
                             text_event=shot.get("h3_text_event"),
@@ -631,6 +635,7 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
         image_name = comfy.upload_image(src_img)
         _thesis = arc_thesis(doc, str(shot.get("arc_id") or ""))
         wf = build_workflow(image_name, _h3_anim, shot["h3_seed"], prefix,
+                             cam_clause=str(shot.get("v3_cam_clause") or ""),
                             book_title=doc["book_title"],
                             qc_history=(shot.get("qc_rejects") or None),
                             text_event=shot.get("h3_text_event"),

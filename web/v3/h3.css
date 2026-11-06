@@ -1,0 +1,23 @@
+/* ⑧ H3 页 — 视频卡网格 (结构沿用 k2 页) */
+.hgrid { display:grid; grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));
+         gap:12px; margin-top:10px; }
+.hcard { background:var(--panel); border:1px solid var(--line); border-radius:11px;
+         overflow:hidden; display:flex; flex-direction:column; }
+.hcard.done { border-color:var(--ok); }
+.hcard.fail { border-color:var(--bad); }
+.hmedia { aspect-ratio:16/9; background:#0a0d12; display:flex; align-items:center;
+          justify-content:center; color:var(--faint); font-size:13px; cursor:pointer; }
+.hmedia video { width:100%; height:100%; object-fit:contain; display:block; background:#000; }
+.hmeta { display:flex; gap:7px; align-items:center; padding:7px 10px 3px; flex-wrap:wrap; }
+.hsid { font-family:var(--mono); font-weight:700; font-size:13.5px; }
+.hsize { font-size:12px; color:var(--dim); }
+.hcam { font-size:12px; color:var(--cyan); }
+.hbadge { font-size:11.5px; padding:0 7px; border-radius:8px; font-family:var(--mono); }
+.hbadge.approved { background:#2a3442; color:#cfd8e3; }      /* 图过审待生 */
+.hbadge.anim_done { background:var(--ok); color:var(--ok-t); }
+.hbadge.anim_fail { background:var(--bad); color:var(--bad-t); }
+.hbtns { display:flex; gap:6px; padding:6px 10px 10px; }
+.hbtns .flex1 { flex:1; }
+.herr { padding:0 10px 8px; color:var(--bad-t); font-size:11.5px; line-height:1.45; }
+.bar { display:flex; gap:10px; align-items:baseline; margin:0 0 8px; flex-wrap:wrap; }
+a.ghost { color:var(--cyan); text-decoration:none; }
