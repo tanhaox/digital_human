@@ -238,6 +238,14 @@ def synthesize_lines(
     # 气口引擎 (0914 用户令: 气口=给观众留反应时间): 问句 1.2s (系统停顿 0.7
     # + 再加 0.5) / 大段落边界 1s / -Xs- 行尾标记一律叠加 (歧义句上下句手控);
     # 静音垫在响度归一之后 (不碰静音地板), manifest duration 同步供下游对齐
+    if slot_wall_only:
+        # 1106 听感修 (用户实锤: 槽包听感慢一截): 槽包 = 一槽一包, 每包尾都垫
+        # 停顿 — 57 尾 × (地板0.3+问句0.8) ≈ 26s 尾垫 vs 老段落包 19s。
+        # 收紧: 问句 0.6 / 地板 0.2 / 不叠加分区模块档 (槽界自带接缝微停)。
+        _apply_breath_pauses(output_dir, lines, set(), manifest_segments,
+                             0.6, 0.0, module_final=set(), module_sec=0.0,
+                             zone_breath=None, seam_floor=0.2)
+        return _finalize_manifest(output_dir, voice_id, backend, manifest_segments)
     if question_breath_sec > 0 or para_breath_sec > 0:
         # 1004 段落墙接通气口: 合成文本无空行 → 空行检测常年空转 (0930 自证);
         # 有段首墙时段末行 = 墙-1, 段前垫 para_breath_sec (与模块气口同栈)
@@ -421,6 +429,7 @@ def _apply_breath_pauses(
     question_sec: float, para_sec: float,
     module_final: set[int] | None = None, module_sec: float = 1.0,
     zone_breath: dict[int, dict] | None = None,
+    seam_floor: float | None = None,
 ) -> None:
     """气口治理栈 (1010 用户定标, 幂等 — 批合成/reroll/重拼三入口同一份规则):
 
@@ -434,6 +443,7 @@ def _apply_breath_pauses(
     import subprocess
     from .text import _is_question, _pause_after
     module_final = module_final or set()
+    _floor = _BREATH_SEAM_FLOOR if seam_floor is None else float(seam_floor)
     for i, seg in enumerate(manifest_segments):
         wav = output_dir / str(seg.get("file") or "")
         if not wav.exists():
@@ -455,7 +465,7 @@ def _apply_breath_pauses(
             _zb = (zone_breath or {}).get(seg.get("module_id")) or {}
             _q_sec = float(_zb.get("question", question_sec))
             _p_sec = float(_zb.get("para", para_sec))
-            pause = _BREATH_SEAM_FLOOR
+            pause = _floor
             if _q_sec > 0 and _is_question(last):
                 pause = max(pause, _q_sec)
             if _p_sec > 0 and last_idx in para_final:
@@ -465,9 +475,9 @@ def _apply_breath_pauses(
             pause = max(pause, _pause_after(last) or 0.0)  # -Xs-: max 融入 (1010 废止加法)
         else:
             _mark = _pause_after(str(seg.get("text") or "")) or 0.0
-            pause = max(_BREATH_SEAM_FLOOR, float(seg.get("breath_pause") or 0.0), _mark)
+            pause = max(_floor, float(seg.get("breath_pause") or 0.0), _mark)
         if not 0 < pause <= 3:
-            pause = _BREATH_SEAM_FLOOR
+            pause = _floor
         tmp = wav.with_suffix(".pad.wav")
         try:
             r = subprocess.run(

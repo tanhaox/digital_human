@@ -316,6 +316,7 @@ class TTSService:
             para_walls=(_para_walls or None),
             # 1106 槽位令: 槽墙唯一模式 (旧墙与槽界不齐会碎包, 66块实锤)
             slot_wall_only=(set(slot_walls) if slot_walls else None),
+
         )
 
         # ── ASR 回听校验 (2026-09-03): 拼接前逐行回听, 错音自动 <字|PINYIN> 重合成 ──
