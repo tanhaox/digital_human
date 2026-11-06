@@ -916,7 +916,7 @@ def test_v3_h3_cam_word_and_gate(monkeypatch):
 
 
 def test_stamp_projection_field_contract():
-    """⑧ H3 实锤: 投影漏 h3_seed → 每镜 KeyError 降级静态图废片。
+    """⑧ H3 实锤: 投影漏 h3_seed/physical_lock → 每镜 KeyError 降级静态图废片。
     契约: v2 h3/k2 消费的字段, 投影必须全带。"""
     from app.services.anim_pipeline.v3_pipeline import stamp as ST
     doc = {"book_title": "书", "v3": {
@@ -935,3 +935,8 @@ def test_stamp_projection_field_contract():
     missing = [k for k in need if k not in v2s]
     assert not missing, f"投影缺字段: {missing}"
     assert isinstance(v2s["h3_seed"], int) and v2s["h3_seed"] > 0
+    # anim 内键: v2 h3 build_prompt 硬索引 opening_desc + physical_lock
+    for k in ("opening_desc", "physical_lock", "duration_s", "beats"):
+        assert k in v2s["anim"], f"anim 缺键: {k}"
+    assert "physical_lock" in v2s["anim"], "physical_lock 缺 → KeyError 废片族"
+    assert v2s["anim"]["physical_lock"]

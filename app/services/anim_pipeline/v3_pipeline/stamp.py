@@ -134,6 +134,9 @@ def project_v2(doc: dict[str, Any], blocks: list[dict]) -> dict[str, Any]:
             "status": status,
             "attempts": {"k2": 1 if k2.get("image") else 0, "h3": 0},
             "anim": {"opening_desc": s.get("keyframe_en") or "",
+                     # v2 h3.py build_prompt 硬索引此键 (scene_writer.py:668 同值)
+                     "physical_lock": "the camera viewpoint, the main structural "
+                                      "elements and layout",
                      "duration_s": real,
                      "beats": [{"t_start": 0, "t_end": real, "motion": motion_en}]},
         })
