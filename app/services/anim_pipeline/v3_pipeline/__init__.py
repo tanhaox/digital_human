@@ -52,12 +52,16 @@ def _h_direct(job: dict[str, Any]) -> None:
 def _h_k2(job: dict[str, Any]) -> None:
     from . import k2
     k2.run(job, only=set(job.get("only") or []) or None)
+def _h_redo(job: dict[str, Any]) -> None:
+    from . import redo
+    redo.run(job, sids=list(job.get("only") or []),
+             to_image=bool(job.get("to_image")), note=str(job.get("note") or ""))
 def _h_stamp(job: dict[str, Any]) -> None: _stub(job, "stamp")
 
 
 _HANDLERS = {
     "triage": _h_triage, "arcs": _h_arcs, "shots": _h_shots, "k2": _h_k2,
-    "direct": _h_direct, "stamp": _h_stamp,
+    "direct": _h_direct, "redo": _h_redo, "stamp": _h_stamp,
 }
 
 

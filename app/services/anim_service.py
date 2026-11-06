@@ -50,13 +50,13 @@ _register_feed("fandeng_full", _load_ff)
 PHASES = ("plan", "replan", "redo", "k2", "h3", "brand", "enhance",
           "facefix", "textpass",
           # 1105 v3 双轨 (V0): 文字阶段五相位 — job/同集闸/台账复用 start_phase 机制
-          "v3_triage", "v3_arcs", "v3_shots", "v3_direct", "v3_k2", "v3_stamp")
+          "v3_triage", "v3_arcs", "v3_shots", "v3_direct", "v3_k2", "v3_redo", "v3_stamp")
 # GPU 预取群: start_phase 入口即占 _GPU_JOB_LOCK, 全程持有 (与 comfy 互斥)。
 # 1018 用户令: facefix/textpass (购物篮修脸/压字) 走 ComfyUI — 同入 GPU 互斥群。
 # 1105 批2 (病灶11): redo 移出预取群 — 其 LLM 重设计段 (零 GPU, N×3.5min) 曾
 # 全程占 GPU 锁, 其他书 GPU 批全被挡 (GPU 空转); 现 LLM 段不持锁, 转 GPU
 # 一条龙前现场取锁 (_wait_gpu_lock 带进度日志等待)。
-GPU_PHASES = ("k2", "h3", "brand", "facefix", "textpass", "v3_k2")
+GPU_PHASES = ("k2", "h3", "brand", "facefix", "textpass", "v3_k2", "v3_redo")
 _LOG_TAIL = 400
 
 _JOBS: dict[str, dict[str, Any]] = {}
@@ -206,7 +206,7 @@ def start_phase(book_ref: str, ep: int, phase: str, *, only: set[str] | None = N
                 force: bool = False, arc_id: str = "", reset: bool = False,
                 scorched: bool = False, chain_h3: bool = False,
                 concept_only: bool = False, continue_scenes: bool = False,
-                to_image: bool = False) -> dict[str, Any]:
+                to_image: bool = False, note: str = "") -> dict[str, Any]:
     """启动相位 job (plan=规划 / replan=单场 / k2=批生图 / h3=批生视频). 返回 job view.
 
     reset (0915 三级清障): k2=保规划清图+视频历史; h3=保规划+图清视频历史.
@@ -245,6 +245,7 @@ def start_phase(book_ref: str, ep: int, phase: str, *, only: set[str] | None = N
         "force": force, "arc_id": arc_id, "reset": reset, "scorched": scorched,
         "chain_h3": chain_h3, "concept_only": concept_only, "continue_scenes": continue_scenes,
         "to_image": to_image,  # 0927 redo 购物篮: 只到生图 (K2 停 img_done 走人检)
+        "note": note,          # 1106 v3_redo: 重做原因带进重设计提示
         "cancel": False,
         "progress": None, "result": None, "error": None,
         "log": [], "started_at": time.strftime("%Y-%m-%dT%H:%M:%S"), "finished_at": None,

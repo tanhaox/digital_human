@@ -18,7 +18,7 @@ const runner = createJobRunner({
       toast(`✓ K2 完成: ${job.result?.ok ?? '?'} 成 / ${job.result?.fail ?? 0} 败` +
             (job.result?.suspect ? ` · ${job.result.suspect} 镜文字嫌疑` : ''));
     else if (job.status !== 'unknown') toast('K2 结束: ' + (job.status || ''));
-    boot();
+    boot(); refreshCart();
   },
   onBusy: busy => { $('btn-run').disabled = busy; $('btn-all').disabled = busy; },
 });
@@ -62,6 +62,7 @@ function renderGrid() {
     return `<div class="kcard ${st === 'approved' ? 'approved' : (s.suspect ? 'suspect' : '')}">
       <div class="kimg">${img}</div>
       <div class="kmeta">
+        ${s.brand ? '' : `<input type="checkbox" class="ksel" data-sid="${esc(s.sid)}" title="加入购物篮 (列队重做)">`}
         <span class="ksid">${esc(s.sid)}</span>
         <span class="ksize">${esc(s.size || '')}</span>
         <span class="kcam">${esc(s.cam || '')}${s.cam && s.cam !== '固定' ? ' ↦' : ''}</span>
@@ -80,6 +81,9 @@ function renderGrid() {
       </div>
     </div>`;
   }).join('');
+  $('grid').querySelectorAll('.ksel').forEach(cb => {
+    cb.onchange = () => { refreshCart(); };
+  });
   $('grid').querySelectorAll('button[data-act]').forEach(b => {
     b.onclick = async () => {
       const sid = b.dataset.sid;
@@ -102,6 +106,36 @@ function renderGrid() {
     };
   });
 }
+
+function cartSids() {
+  return [...document.querySelectorAll('.ksel:checked')].map(c => c.dataset.sid);
+}
+function refreshCart() {
+  const n = cartSids().length;
+  $('cart').hidden = !n;
+  $('cart-count').textContent = n;
+}
+async function startRedo(to_image) {
+  const sids = cartSids();
+  if (!sids.length) return;
+  if (!confirm(to_image
+    ? `🎨 重做到生图 ${sids.length} 镜?
+LLM重设计画面句 → 重译英文 → 生图后停在人检`
+    : `♻️ 列队重做 ${sids.length} 镜?
+LLM重设计画面句 → 重译英文 → 生图 → 自动过审`)) return;
+  const note = prompt('重做原因 (可空, 会带进重设计提示; 留空用系统默认)', '') ?? '';
+  const r = await fetch(`${BASE}/v3_redo`, { method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ only: sids, to_image, note }) });
+  if (!r.ok) { toast('启动失败: ' + (await r.json()).detail); return; }
+  runner.attach(await r.json());
+}
+$('btn-redo').onclick = () => startRedo(false);
+$('btn-redo-img').onclick = () => startRedo(true);
+$('btn-cart-clear').onclick = () => {
+  document.querySelectorAll('.ksel:checked').forEach(c => { c.checked = false; });
+  refreshCart();
+};
 
 $('btn-run').onclick = async () => {
   const r = await fetch(`${BASE}/v3_k2`, { method: 'POST',

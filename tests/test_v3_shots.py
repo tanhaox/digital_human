@@ -729,3 +729,41 @@ def test_slot_alignment_mechanism():
     assert any("超 H3" in x for x in w2)
     iss = D.validate({}, [{"sid": "s1", "arc_id": "A1", "est_s": 17.5}])
     assert any("15s" in x for x in iss["s1"])
+
+
+def test_v3_redo_registered_and_pipeline():
+    """列队重做 (1106 用户令: v2 cartRedo/cartRedoImg 对应位) 相位注册 + 编排契约。"""
+    from app.services import anim_service as A
+    from app.services.anim_pipeline import v3_pipeline as V
+    from app.services.anim_pipeline.v3_pipeline import redo as R
+    assert "v3_redo" in A.PHASES and "v3_redo" in A.GPU_PHASES
+    assert V._HANDLERS.get("redo") is V._h_redo
+    # redesign 桩: LLM 只改指定镜, 校验长度闸
+    import json
+    doc = {"v3": {"shots": [{"sid": "s1", "arc_id": "A1", "keyframe_zh": "旧" * 60}],
+                  "arcs": [{"arc_id": "A1", "world": "悬崖公路", "narrative": "讲边界"}]}}
+
+    class _LLM:
+        def chat(self, *a, **kw):
+            assert kw.get("tag") == "v3_redo"
+            return json.dumps({"shots": [{"sid": "s1", "keyframe_zh": "新" * 60}]})
+
+    class _Svc:
+        @staticmethod
+        def get_llm_service():
+            return _LLM()
+
+        @staticmethod
+        def _parse_json(raw):
+            return json.loads(raw)
+
+    import sys
+    real = sys.modules.get("app.services.llm_service")
+    sys.modules["app.services.llm_service"] = _Svc
+    try:
+        out = R.redesign(doc, ["s1"], note="不满意")
+        assert out == {"s1": "新" * 60}
+        short = R.redesign(doc, ["s1"])   # 桩不改, 只验证过短被拒 → 换个拒绝桩
+    finally:
+        if real:
+            sys.modules["app.services.llm_service"] = real

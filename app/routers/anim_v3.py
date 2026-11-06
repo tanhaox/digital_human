@@ -18,7 +18,7 @@ from app.services.anim_pipeline.config import pipeline_line
 
 router = APIRouter(prefix="/api/anim/v3", tags=["anim-v3"])
 
-_V3_PHASES = ("v3_triage", "v3_arcs", "v3_shots", "v3_direct", "v3_k2", "v3_stamp")
+_V3_PHASES = ("v3_triage", "v3_arcs", "v3_shots", "v3_direct", "v3_k2", "v3_redo", "v3_stamp")
 
 
 def _line_gate(book_title: str) -> None:
@@ -82,7 +82,9 @@ def v3_state(book_id: str, ep: int):
 
 
 class PhaseStartBody(BaseModel):
-    only: list[str] = []            # 单镜重掷 (v3_k2): 只跑这些镜 + 换 seed
+    only: list[str] = []            # 单镜重掷 (v3_k2) / 列队重做 (v3_redo): 点名镜
+    to_image: bool = False          # v3_redo: 到生图停 (默认自动过审)
+    note: str = ""                  # v3_redo: 重做原因 (带进重设计提示)
 
 
 @router.post("/ep/{book_id}/{ep}/{phase}")
@@ -96,10 +98,15 @@ def v3_start(book_id: str, ep: int, phase: str, body: PhaseStartBody | None = No
         raise HTTPException(status_code=404, detail=str(exc))
     _line_gate(book_title)
     only = set(body.only) if (body and body.only) else None
-    if only and phase != "v3_k2":
-        raise HTTPException(status_code=422, detail="only 仅支持 v3_k2 (单镜重掷)")
+    if only and phase not in ("v3_k2", "v3_redo"):
+        raise HTTPException(status_code=422, detail="only 仅支持 v3_k2/v3_redo")
+    kw = {"only": only}
+    if phase == "v3_redo":
+        kw["to_image"] = bool(body and body.to_image)
+        if body and body.note:
+            kw["note"] = str(body.note)[:200]
     try:
-        return anim_service.start_phase(book_id, ep, phase, only=only)
+        return anim_service.start_phase(book_id, ep, phase, **kw)
     except anim_service.AnimBusyError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
 

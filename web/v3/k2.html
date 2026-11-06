@@ -23,6 +23,14 @@
 
   <div id="grid" class="kgrid"></div>
 
+  <div class="cartbar" id="cart" hidden>
+    <b class="cart-n">🧺 已选 <span id="cart-count">0</span> 镜</b>
+    <button class="go" id="btn-redo" title="LLM重设计画面句 → 重译英文 → 生图 → 自动过审 (v2 列队重做同构)">♻️ 列队重做</button>
+    <button class="ghost" id="btn-redo-img" title="LLM重设计画面句 → 重译英文 → 生图后停在人检 (v2 重做到生图同构)">🎨 重做到生图</button>
+    <button class="ghost" id="btn-cart-clear">清空</button>
+    <span class="note">~3.5min/镜 · 镜间可⛔停止</span>
+  </div>
+
   <div class="savebar">
     <span class="note" id="stat">—</span>
     <span class="flex1"></span>
