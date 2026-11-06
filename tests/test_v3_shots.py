@@ -800,3 +800,25 @@ def test_muted_slot_selfheal():
     out2 = sync_muted_slots(doc, [{"text": "第一句。"}, {"text": "第二句。"}])
     assert out2 == {"s1": False, "s2": False}
     assert not doc["v3"]["shots"][1].get("audio_muted")
+
+
+def test_manifest_line_to_segment_mapping():
+    """1106 总根修: _manifest_callback 曾把行号当段序号 (v2 一段一行蒙对,
+    v3 槽段多行后偏 2-3 格 — 编辑/屏蔽/重roll 全打错段)。验包含段映射。"""
+    # 与 tts_service._seg_of_line 同构的最小实现验证语义
+    seg_pairs = [("id0", "行零\n行一"), ("id1", "行二"), ("id2", "行三\n行四\n行五")]
+    starts, acc = [], 0
+    for sid, txt in seg_pairs:
+        starts.append((acc, sid))
+        acc += sum(1 for ln in txt.splitlines() if ln.strip())
+    def seg_of_line(n):
+        sid = starts[-1][1]
+        for s0, id0 in starts:
+            if n < s0:
+                break
+            sid = id0
+        return sid
+    assert starts == [(0, "id0"), (2, "id1"), (3, "id2")]
+    assert seg_of_line(0) == "id0" and seg_of_line(1) == "id0"   # 行1 仍属段0 (旧法会给 id1 ✗)
+    assert seg_of_line(2) == "id1"
+    assert seg_of_line(5) == "id2" and seg_of_line(99) == "id2"

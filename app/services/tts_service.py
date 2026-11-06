@@ -220,17 +220,35 @@ class TTSService:
         # if the job later fails.
         audio_files: list[AudioFile] = []
 
+        # 1106 根修: 行号→包含段 映射表 (每 job 闭包预计算, 不跨 job 串)
+        _seg_starts: list[tuple[int, str]] = []
+        _acc_lines = 0
+        for _sid_, _txt_ in seg_pairs:
+            _seg_starts.append((_acc_lines, _sid_))
+            _acc_lines += sum(1 for _ln in str(_txt_ or "").splitlines() if _ln.strip())
+
+        def _seg_of_line(line_no: int) -> str:
+            seg_id = _seg_starts[-1][1]
+            for _s0, _id0 in _seg_starts:
+                if line_no < _s0:
+                    break
+                seg_id = _id0
+            return seg_id
+
         def _manifest_callback(completed: int, total: int, text: str, manifest_seg: dict[str, Any] | None) -> None:
             if not progress_callback or not manifest_seg:
                 return
             # 防御 (2026-09-05): TTS 行切分与段数不一致时 (页备注含 \n 等场景)
             # 越界会崩整单 — 钳到最后一段, 行数差异由对齐层吸收
             # 0913 包化: completed 计的是包, manifest 条目带 line_indices —
-            # AudioFile.segment_id 挂包首行 (页/重roll经 manifest 取整包文本)
+            # AudioFile.segment_id 挂包首行所属段 (页/重roll经 manifest 取整包文本)
+            # 1106 根修: _first 是**行号**, 旧代码当**段序号**用 (seg_pairs[_first]) —
+            # v2 一段一行恰好成立; v3 槽段一段多行, 行号跑得比段号快, 映射系统性
+            # 后偏 (块显示 s13 实连段16 实锤: 编辑/屏蔽/重roll 全打到错段)。
+            # 正解: 累计各段非空行数, 找**包含该行的段**。
             _first = (manifest_seg.get("line_indices")
                       or [manifest_seg.get("index", completed - 1)])[0]
-            pair = seg_pairs[min(int(_first), len(seg_pairs) - 1)]
-            seg_id = pair[0]
+            seg_id = _seg_of_line(int(_first))
             file_path = output_dir / manifest_seg["file"]
             audio_file = AudioFile(
                 audio_job_id=job.id,
