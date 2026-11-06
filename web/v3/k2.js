@@ -96,7 +96,8 @@ function renderGrid() {
     const img = s.image_url
       ? `<img src="${esc(s.image_url)}" loading="lazy"
               alt="${esc(s.sid)}" title="${esc(s.sid)}${s.brand ? ' · 品牌位' : ' · seed ' + (s.seed ?? '?')}">`
-      : (s.brand ? '🏔 品牌卡直通 (待生成)' : '— 待生成 —');
+      : (s.muted ? '🔇 已屏蔽 — 音频屏弃, 本槽不生图不生视频'
+                 : (s.brand ? '🏔 品牌卡直通 (待生成)' : '— 待生成 —'));
     return `<div class="kcard ${st === 'approved' ? 'approved' : (s.suspect ? 'suspect' : '')}${s.muted ? ' kmut' : ''}" data-sid="${esc(s.sid)}">
       <div class="kimg">${img}</div>
       <div class="kmeta">
