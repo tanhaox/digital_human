@@ -124,6 +124,8 @@ def project_v2(doc: dict[str, Any], blocks: list[dict]) -> dict[str, Any]:
             "keyframe_en": s.get("keyframe_en") or "",
             "in_image_text": [], "text_layer": text_layer,
             "seed": s.get("seed") or k2.get("seed"),
+            "h3_seed": s.get("h3_seed") or __import__(
+                "app.services.anim_pipeline.shots", fromlist=["new_seed"]).new_seed(),
             "camera": _cam_of(d.get("cam")),
             "register": s.get("register"),
             "brand_card": bool(s.get("brand_card")),

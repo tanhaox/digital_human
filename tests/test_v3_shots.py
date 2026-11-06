@@ -913,3 +913,25 @@ def test_v3_h3_cam_word_and_gate(monkeypatch):
                         lambda *a, **k: {"v3": {"shots": [{"sid": "s1"}]}})
     with pytest.raises(SystemExit, match="未盖章"):
         VH.run({"book_title": "书", "ep": 5})
+
+
+def test_stamp_projection_field_contract():
+    """⑧ H3 实锤: 投影漏 h3_seed → 每镜 KeyError 降级静态图废片。
+    契约: v2 h3/k2 消费的字段, 投影必须全带。"""
+    from app.services.anim_pipeline.v3_pipeline import stamp as ST
+    doc = {"book_title": "书", "v3": {
+        "lines": [{"no": 1, "text": "第一句。" * 8}],
+        "arcs": [], "cards": [],
+        "shots": [{"sid": "s1", "arc_id": "A1", "line_refs": [1], "est_s": 5,
+                   "keyframe_zh": "画面", "keyframe_en": "scene",
+                   "k2": {"image": "img/s1.png", "status": "approved", "seed": 7}}],
+        "direct": {}}}
+    ST.project_v2(doc, [{"text": "第一句。" * 8, "dur_s": 5.0}])
+    v2s = doc["shots"][0]
+    need = ("shot_id", "arc_id", "keyframe_zh", "keyframe_en", "narration",
+            "t_start", "t_end", "seed", "h3_seed", "camera", "status",
+            "image_file", "attempts", "brand_card", "in_image_text", "text_layer",
+            "anim")
+    missing = [k for k in need if k not in v2s]
+    assert not missing, f"投影缺字段: {missing}"
+    assert isinstance(v2s["h3_seed"], int) and v2s["h3_seed"] > 0
