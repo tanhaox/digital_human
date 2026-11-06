@@ -940,3 +940,25 @@ def test_stamp_projection_field_contract():
         assert k in v2s["anim"], f"anim 缺键: {k}"
     assert "physical_lock" in v2s["anim"], "physical_lock 缺 → KeyError 废片族"
     assert v2s["anim"]["physical_lock"]
+
+
+def test_h3_cam_permit_speed_amp_parameterized():
+    """1106 v3 实锤 (ep5 s2/s3 慢镜头): _CAM_PERMIT 硬编码 slow/large, 与 ④导演
+    speed=快 官方句同 prompt 打架 → H3 折中取慢。契约: 空参=v2 原文零扰动,
+    四元组档 (快/中/慢 × 大/中/小) 正确落词, 豁免句随补丁挂载。"""
+    from app.services.anim_pipeline.h3 import (_cam_permit_sentence, _cam_patch_prompt,
+                                               _CAM_BAN, _CAM_LAW_WAIVER)
+    base = _cam_permit_sentence("pan_right")
+    assert base == _cam_permit_sentence("pan_right", "", ""), "空参必须 v2 原文"
+    assert "at slow speed" in base and "with large amplitude" in base
+    fast = _cam_permit_sentence("pan_right", "快", "大")
+    assert "at fast speed" in fast and "slow" not in fast
+    mid = _cam_permit_sentence("push_in", "中", "中")
+    assert "at moderate speed" in mid and "with medium amplitude" in mid
+    slow_small = _cam_permit_sentence("tilt_up", "慢", "小")
+    assert "at slow speed" in slow_small and "with small amplitude" in slow_small
+    # 补丁链: 军规句被替换 + 书律豁免句挂载 (防 motion law "law wins" 压回固定)
+    out = _cam_patch_prompt("Physical lock: " + _CAM_BAN + " — tail.",
+                            "pan_right", "快", "大")
+    assert "at fast speed" in out and _CAM_BAN not in out
+    assert _CAM_LAW_WAIVER.strip() in out

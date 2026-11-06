@@ -433,6 +433,33 @@ _CAM_PERMIT = {
 }
 
 
+_CAM_SPEED_WORD = {"快": "fast", "中": "moderate", "慢": "slow"}
+_CAM_AMP_WORD = {"大": "large", "中": "medium", "小": "small"}
+
+# 1106 v3 实锤 (ep5 s2/s3 慢镜头): 圣经 motion_style 或含"相机固定仅极轻微缓推",
+# 且 prompt 明文 "when a beat's wording conflicts with this law, the law wins" —
+# 运镜镜不豁免则相机令被书律压回固定 → 内容动作拉满全槽长 = 慢镜头观感。
+_CAM_LAW_WAIVER = (
+    "Camera override for this shot: an explicit camera move is intended — "
+    "any fixed-camera / slight-push-only default in the Motion style law below "
+    "is suspended for this shot; the camera instruction in the opening line is "
+    "the single authority.\n")
+
+
+def _cam_permit_sentence(kind: str, speed: str = "", amp: str = "") -> str:
+    """1106 v3: 运镜令幅/速按 ④导演四元组参数化 — 旧文案硬编码 "large amplitude
+    at slow speed" (B-CAM1 防顿跳保守档), v3 speed=快 时与官方句打架, H3 折中
+    取慢 → 慢镜头实锤。v2 镜无四元组 → 空参走原文, 零扰动。"""
+    s = _CAM_PERMIT[kind]
+    _sp = _CAM_SPEED_WORD.get(str(speed or ""))
+    _am = _CAM_AMP_WORD.get(str(amp or ""))
+    if _sp:
+        s = s.replace("at slow speed", f"at {_sp} speed")
+    if _am:
+        s = s.replace("with large amplitude", f"with {_am} amplitude")
+    return s
+
+
 def cam_move_kind(camera: str) -> str:
     """镜级 camera 字段 → 运镜类别 (无运镜词返回 ""); 首词命中优先。"""
     for _w, _k in _CAM_MOVE_KINDS:
@@ -441,14 +468,18 @@ def cam_move_kind(camera: str) -> str:
     return ""
 
 
-def _cam_patch_prompt(prompt: str, kind: str) -> str:
-    """运镜镜 prompt 三补丁: 军规句→运镜令 + era 禁新内容→画外延续 + I2VA 首行。"""
+def _cam_patch_prompt(prompt: str, kind: str, speed: str = "",
+                      amp: str = "") -> str:
+    """运镜镜 prompt 三补丁: 军规句→运镜令 + era 禁新内容→画外延续 + I2VA 首行.
+    1106 v3 增两件: ① 运镜令幅/速按导演四元组参数化 (空参=v2 原文零扰动);
+    ② 书律相机默认豁免句 (_CAM_LAW_WAIVER) — 防 motion law "law wins" 把运镜
+    压回固定 (ep5 s2/s3 慢镜头实锤)。"""
     if _CAM_BAN not in prompt:
         raise ValueError("cam_move: 军规句未命中 (h3.py 文案漂移, 现场复核)")
-    prompt = prompt.replace(_CAM_BAN, _CAM_PERMIT[kind])
+    prompt = prompt.replace(_CAM_BAN, _cam_permit_sentence(kind, speed, amp))
     if _CAM_ERA_OLD in prompt:
         prompt = prompt.replace(_CAM_ERA_OLD, _CAM_ERA_NEW)
-    return _CAM_I2VA + prompt
+    return _CAM_I2VA + _CAM_LAW_WAIVER + prompt
 
 
 def _cam_strip_locked(desc: str) -> str:
@@ -478,7 +509,8 @@ def build_workflow(image_name: str, anim: dict[str, Any], seed: int, prefix: str
                    book_title: str = "", qc_history: list | None = None,
                    text_event: dict | None = None, in_image_text: list | None = None,
                    thesis: str = "", cam_move: str = "",
-                   cam_clause: str = "") -> dict[str, Any]:
+                   cam_clause: str = "", cam_speed: str = "",
+                   cam_amp: str = "") -> dict[str, Any]:
     """H3 I2V 工作流 (API 格式), 节点 ID 对齐最爱视频真相图 (102.4s/10s).
 
     qc_history (1004 修): 该镜既往机检判决 (乱码/崩坏史) → 重 roll 时注入
@@ -512,7 +544,7 @@ def build_workflow(image_name: str, anim: dict[str, Any], seed: int, prefix: str
                 "clothes — hard rule): every character's outfit color stays pixel-faithful to "
                 "Picture 1 for every frame; no recoloring, no hue shift, no redesign.")
     if cam_move:  # B-CAM1: 运镜镜 prompt 三补丁 (军规/era/I2VA)
-        _prompt = _cam_patch_prompt(_prompt, cam_move)
+        _prompt = _cam_patch_prompt(_prompt, cam_move, cam_speed, cam_amp)
     if cam_clause:  # 1106 v3: ④导演官方句 (带幅/速) 前置 — 与三补丁正交
         _prompt = cam_clause.strip() + "\n" + _prompt
     return {
@@ -621,6 +653,8 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
         _thesis = arc_thesis(doc, str(shot.get("arc_id") or ""))
         wf = build_workflow(image_name, _h3_anim, shot["h3_seed"], prefix,
                              cam_clause=str(shot.get("v3_cam_clause") or ""),
+                             cam_speed=str(shot.get("v3_cam_speed") or ""),
+                             cam_amp=str(shot.get("v3_cam_amp") or ""),
                             book_title=doc["book_title"],
                             qc_history=(shot.get("qc_rejects") or None),
                             text_event=shot.get("h3_text_event"),
@@ -636,6 +670,8 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
         _thesis = arc_thesis(doc, str(shot.get("arc_id") or ""))
         wf = build_workflow(image_name, _h3_anim, shot["h3_seed"], prefix,
                              cam_clause=str(shot.get("v3_cam_clause") or ""),
+                             cam_speed=str(shot.get("v3_cam_speed") or ""),
+                             cam_amp=str(shot.get("v3_cam_amp") or ""),
                             book_title=doc["book_title"],
                             qc_history=(shot.get("qc_rejects") or None),
                             text_event=shot.get("h3_text_event"),
