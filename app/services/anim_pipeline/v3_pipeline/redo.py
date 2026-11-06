@@ -134,12 +134,16 @@ def run(job: dict[str, Any], sids: list[str], to_image: bool = True,
         return
 
     # ── ⑧ 页列队重做全链 (用户令: 对齐 v2 购物篮 cartRedo 语义) ──
-    # 重设计改了画面句/图/seed → v2 投影快照过时 → 必须重盖章投影再转 H3,
-    # 否则 H3 吃旧 image_file/seed。重做镜自动过审 (全链语义, 同 v2 cartRedo)。
+    # 1106 六修 (实锤): k2.run 自载 doc 自存盘 — 本函数开工时的对象已陈旧,
+    # 直接续写会把 k2 成果覆掉 (s37: 23:08:58,867 k2 存盘 → ,879 被陈旧覆写
+    # 丢引用)。全链腿必须重载后操作。
     from app.services.anim_draft import fetch_episode_audio
     from app.services.anim_pipeline.v3_pipeline import h3 as v3h3
     from app.services.anim_pipeline.v3_pipeline import stamp as v3stamp
 
+    doc = shots_mod.load_doc(job["book_title"], job["ep"])
+    v3 = doc.setdefault("v3", {})
+    by_sid = {s["sid"]: s for s in (v3.get("shots") or [])}
     job["progress"] = {"done": 2, "total": 3, "current": "重盖章投影 → 自动过审"}
     audio = fetch_episode_audio(job["book_id"], job["ep"])
     blocks = [b for b in (audio.get("files") or [])]

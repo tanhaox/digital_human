@@ -1088,3 +1088,37 @@ def test_cam_exec_single_source_exhaustive():
     for k in ("pan_left", "pan_right", "tilt_up", "tilt_down", "push_in", "pull_back"):
         s = _cam_permit_sentence(k)
         assert "at slow speed" in s  # 空参 v2 原文 (零扰动)
+
+
+def test_stamp_projection_carries_video_lifecycle():
+    """1106 五修 (redo 实锤): 投影重建 doc.shots 丢 video_file → 一次列队重做
+    抹掉整本成片引用。契约: 图未变 → 搬运 video_file/anim 态/attempts.h3;
+    图变 (重做) → 视频作废, 从 k2 态重新投影。"""
+    from app.services.anim_pipeline.v3_pipeline import stamp as ST
+    doc = {"book_title": "书", "v3": {
+        "lines": [{"no": 1, "text": "第一句。" * 8}, {"no": 2, "text": "第二句。" * 8}],
+        "arcs": [], "cards": [],
+        "shots": [
+            {"sid": "s1", "arc_id": "A1", "line_refs": [1], "est_s": 5,
+             "keyframe_zh": "画面一", "keyframe_en": "scene one", "h3_seed": 11,
+             "k2": {"image": "img/s1.png", "status": "approved", "seed": 7}},
+            {"sid": "s2", "arc_id": "A1", "line_refs": [2], "est_s": 5,
+             "keyframe_zh": "画面二", "keyframe_en": "scene two", "h3_seed": 22,
+             "k2": {"image": "img/s2_NEW.png", "status": "img_done", "seed": 8}}],
+        "direct": {}}}
+    # 旧 v2 投影: s1 图未变成片在; s2 图被重做换掉
+    doc["shots"] = [
+        {"shot_id": "s1", "image_file": "img/s1.png", "status": "anim_done",
+         "video_file": "anim/s1.mp4", "video_station": "h3",
+         "attempts": {"k2": 1, "h3": 2}},
+        {"shot_id": "s2", "image_file": "img/s2_OLD.png", "status": "anim_done",
+         "video_file": "anim/s2.mp4", "attempts": {"k2": 1, "h3": 1}}]
+    ST.project_v2(doc, [{"text": "第一句。" * 8, "dur_s": 5.0},
+                        {"text": "第二句。" * 8, "dur_s": 5.0}])
+    by = {x["shot_id"]: x for x in doc["shots"]}
+    assert by["s1"]["video_file"] == "anim/s1.mp4", "图未变必须搬运成片引用"
+    assert by["s1"]["status"] == "anim_done"
+    assert by["s1"]["video_station"] == "h3" and by["s1"]["attempts"]["h3"] == 2
+    assert "video_file" not in by["s2"] or not by["s2"].get("video_file"), \
+        "图变 (重做) 旧视频作废"
+    assert by["s2"]["status"] == "img_done", "图变镜按 k2 态重投影"

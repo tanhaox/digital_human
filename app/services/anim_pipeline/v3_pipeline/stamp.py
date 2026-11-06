@@ -62,6 +62,11 @@ def project_v2(doc: dict[str, Any], blocks: list[dict]) -> dict[str, Any]:
     direct = v3.get("direct") or {}
     lines = {ln["no"]: ln for ln in (v3.get("lines") or [])}
     aligned = align_blocks(shots, lines, blocks)
+    # 1106 五修 (redo 实锤): 投影重建 doc.shots 丢 video_file → 一次列队重做把
+    # 整本成片引用抹光 (54 mp4 成孤儿)。搬运规则: 图未变 (旧 image_file == 新)
+    # 的镜携带 H3 生命周期 (video_file/anim 态/video_station/attempts.h3);
+    # 图变了 (重做换图) = 视频作废, 从 k2 态重新投影。
+    prev = {str(x.get("shot_id")): x for x in (doc.get("shots") or [])}
 
     t = 0.0
     v2_shots: list[dict[str, Any]] = []
@@ -124,6 +129,17 @@ def project_v2(doc: dict[str, Any], blocks: list[dict]) -> dict[str, Any]:
                      "duration_s": real,
                      "beats": [{"t_start": 0, "t_end": real, "motion": motion_en}]},
         })
+        # 视频生命周期搬运 (图未变才搬; 图变=重做, 旧视频作废)
+        old = prev.get(sid)
+        if (old and old.get("video_file") and old.get("image_file")
+                and old["image_file"] == k2.get("image")):
+            v2_shots[-1]["video_file"] = old["video_file"]
+            if old.get("status") in ("anim_done", "anim_fail"):
+                v2_shots[-1]["status"] = old["status"]
+            if old.get("video_station"):
+                v2_shots[-1]["video_station"] = old["video_station"]
+            v2_shots[-1]["attempts"]["h3"] = int(
+                (old.get("attempts") or {}).get("h3") or 0)
     doc["shots"] = v2_shots
     # v2 弧投影 (arc_thesis 吃 metaphor_core)
     doc["arcs"] = [{"arc_id": a.get("arc_id"),
