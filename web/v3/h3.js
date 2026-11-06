@@ -77,8 +77,8 @@ function renderGrid() {
     const stt = s.status || 'planned';
     const media = s.video
       ? `<video controls preload="metadata" src="/api/anim/ep/${encodeURIComponent(B)}/${E}/file/anim/${s.sid}.mp4"></video>`
-      : (s.image ? `<img src="/api/anim/ep/${encodeURIComponent(B)}/${E}/file/${esc(s.image)}" loading="lazy" alt="${esc(s.sid)}" title="首帧 (K2 图)">`
-                 : (s.brand ? '🏔 品牌直通' : '— 待生 —'));
+      : (s.image_url ? `<img src="${esc(s.image_url)}" loading="lazy" alt="${esc(s.sid)}" title="首帧 (K2 图)">`
+                 : '— 待生 —');
     return `<div class="hcard ${stt === 'anim_done' ? 'done' : (stt === 'anim_fail' ? 'fail' : '')}" data-sid="${esc(s.sid)}">
       <div class="hmedia">${media}</div>
       <div class="hmeta">

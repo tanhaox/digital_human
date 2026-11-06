@@ -857,11 +857,19 @@ def v3_h3_get(book_id: str, ep: int):
     for s in (doc.get("shots") or []):
         d = direct.get(str(s.get("shot_id"))) or {}
         vf = s.get("video_file")
+        img = s.get("image_file")
+        # image_url 后端算 (品牌图在 ep 目录外 ../../_资产/, /file/ 拦穿越 → 404 实锤)
+        if img and s.get("brand_card"):
+            url = f"/api/anim/v3/ep/{book_id}/{ep}/k2/brand-image"
+        elif img:
+            url = f"/api/anim/ep/{book_id}/{ep}/file/{img}"
+        else:
+            url = None
         out.append({"sid": str(s.get("shot_id")),
                     "status": s.get("status"),
                     "size": d.get("size"), "cam": (d.get("cam") or {}).get("kind"),
                     "dur_s": (s.get("anim") or {}).get("duration_s"),
-                    "image": s.get("image_file"),
+                    "image": img, "image_url": url,
                     "video": vf, "error": str(s.get("error") or "")[:200] or None})
     return {"shots": out, "gates": v3_pipeline.gates_view(doc),
             "stamped": bool((v3.get("stamp") or {}).get("at"))}
