@@ -52,8 +52,12 @@ export function rail(el, st) {
       : (lock ? '<span class="st">🔒</span>'
               : (on ? '<span class="st">进行中</span>'
                     : (s.page ? '' : '<span class="st">待建</span>')));
+    // 锁要自解释: 点名在等哪一步放行 (1106 用户令: 这么多锁头为什么)
+    const pend = lock ? firstPending(G) : null;
+    const why = pend ? ` — 等 ${pend.n} ${pend.label} 放行` : '';
+    const tip = done ? '已放行' : (lock ? `🔒${why}` : (s.page ? '可进入' : '建设中'));
     const href = s.page ? s.page + location.search : '';
     const attrs = href ? ` href="${esc(href)}"` : ' aria-disabled="true"';
-    return `<a class="step ${cls}"${attrs}><span class="n">${s.n}</span>${esc(s.label)}${badge}</a>`;
+    return `<a class="step ${cls}"${attrs} title="${esc(tip)}"><span class="n">${s.n}</span>${esc(s.label)}${badge}</a>`;
   }).join('<span class="sep">→</span>');
 }
