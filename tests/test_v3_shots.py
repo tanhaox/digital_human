@@ -957,11 +957,11 @@ def test_h3_cam_permit_speed_amp_parameterized():
     assert "at moderate speed" in mid and "with medium amplitude" in mid
     slow_small = _cam_permit_sentence("tilt_up", "慢", "小")
     assert "at slow speed" in slow_small and "with small amplitude" in slow_small
-    # 补丁链: 军规句被替换 + 书律豁免句挂载 (防 motion law "law wins" 压回固定)
+    # v2 路径 (无 v3_kind): 军规句替换照旧, 豁免/书律改写一概不动 (零扰动)
     out = _cam_patch_prompt("Physical lock: " + _CAM_BAN + " — tail.",
                             "pan_right", "快", "大")
     assert "at fast speed" in out and _CAM_BAN not in out
-    assert _CAM_LAW_WAIVER.strip() in out
+    assert _CAM_LAW_WAIVER not in out
 
 
 def test_v3_h3_only_reset_before_batch(monkeypatch):
@@ -1007,3 +1007,39 @@ def test_v3_h3_only_reset_before_batch(monkeypatch):
     assert s["image_file"] == "img/s1.png", "图保留 (重掷=只重生视频)"
     assert s["h3_seed"] != 7, "重掷必须换 seed"
     assert seen["only"] == {"s1"}
+
+
+def test_h3_cam_v3_kind_sentences_and_law_wins():
+    """1106 二次实锤 (重烧后跟镜仍慢, 抽帧 0.5s/6s 画面未动):
+    ① _CAM_PERMIT 摇族句 "subjects stay where they are" 钉死跟镜主体;
+    ② push_in 句 "no orbit" 禁弧镜; ③ 豁免句与书律 "law wins" 并存 = 矛盾
+    meta 指令模型选保守侧; ④ AMBIENT "in place" 第二道钉子。
+    契约: v3_kind 在场时对症句 + law wins 改写 + 跟镜 AMBIENT 松绑。"""
+    from app.services.anim_pipeline.h3 import (_cam_patch_prompt, _cam_track_sentence,
+                                               _cam_arc_sentence, _CAM_BAN,
+                                               _CAM_LAW_WAIVER, _CAM_LAW_WINS_OLD,
+                                               _CAM_LAW_WINS_NEW,
+                                               _AMBIENT_IN_PLACE_OLD,
+                                               _AMBIENT_IN_PLACE_NEW)
+    # 跟镜对症句: 主体随机位走, 无 "stay where they are"
+    t = _cam_track_sentence("右", "快", "大")
+    assert "travel together" in t and "at fast speed" in t and "to the right" in t
+    assert "stay where they are" not in t
+    # 弧镜对症句: 无 "no orbit"
+    a = _cam_arc_sentence("慢", "中")
+    assert "arcs around" in a and "no orbit" not in a
+    # 全链 (带书律+AMBIENT): v3 跟镜 — 豁免挂载/law wins 改写/in place 松绑
+    prompt = ("Physical lock: " + _CAM_BAN + " — tail.\n"
+              "Motion style law: 相机固定 — " + _CAM_LAW_WINS_OLD + "\n"
+              + _AMBIENT_IN_PLACE_OLD + "with what they are.")
+    out = _cam_patch_prompt(prompt, "pan_right", "快", "大", v3_kind="跟", v3_dir="右")
+    assert _CAM_LAW_WAIVER in out
+    assert _CAM_LAW_WINS_OLD not in out and _CAM_LAW_WINS_NEW in out
+    assert _AMBIENT_IN_PLACE_OLD not in out and _AMBIENT_IN_PLACE_NEW in out
+    assert "travel together" in out
+    # v3 摇镜: 对症句族 + law wins 改写照挂, AMBIENT 不动
+    out2 = _cam_patch_prompt(prompt, "pan_right", "快", "大", v3_kind="摇", v3_dir="右")
+    assert _CAM_LAW_WINS_NEW in out2 and _AMBIENT_IN_PLACE_OLD in out2
+    # v2 镜: law wins 原文保留 (零扰动)
+    out3 = _cam_patch_prompt(prompt, "pan_right")
+    assert _CAM_LAW_WINS_OLD in out3 and _CAM_LAW_WAIVER not in out3

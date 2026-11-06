@@ -63,6 +63,8 @@ def run(job: dict[str, Any], only: set[str] | None = None,
             s["v3_cam_clause"] = clause       # run_shot prompt 拼接点 (instruction 首行)
             s["v3_cam_speed"] = str(cam.get("speed") or "")  # 运镜令速度词参数化
             s["v3_cam_amp"] = str(cam.get("amp") or "")      # 运镜令幅度词参数化
+            s["v3_cam_kind"] = str(cam.get("kind") or "")    # 跟/弧对症运镜句选择
+            s["v3_cam_dir"] = str(cam.get("dir") or "")      # 跟镜行进方向词
             n_clause += 1
     # 状态现场同步: ⑥ 页过审写在 v3 槽 (k2.status), 盖章快照可能滞后 —
     # 实锤: 过审后启动批生仍 0 approved (doc.shots.status 停在 img_done)
