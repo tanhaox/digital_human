@@ -1122,3 +1122,13 @@ def test_stamp_projection_carries_video_lifecycle():
     assert "video_file" not in by["s2"] or not by["s2"].get("video_file"), \
         "图变 (重做) 旧视频作废"
     assert by["s2"]["status"] == "img_done", "图变镜按 k2 态重投影"
+
+
+def test_keyframe_camera_word_gate():
+    """1106 s2 大乱套实锤: 画面句混运镜词 (低机位跟拍同速平移) → H3 全按剧本演
+    (飞出悬崖又开进办公室)。契约: 运镜词命中黑名单, 景别词放行。"""
+    from app.services.anim_pipeline.v3_pipeline.shots import keyframe_camera_issues as G
+    assert G("悬崖盘山公路发卡弯外侧低机位侧跟拍，镜头与银色豪车同速平移")
+    assert G("中景推近车身，轮胎冒烟")
+    assert not G("中景: 银色豪车侧倾冲向无护栏弯道缺口，轮胎与地面腾起白烟")
+    assert not G("大场景俯瞰悬崖公路全景，主体占比小")

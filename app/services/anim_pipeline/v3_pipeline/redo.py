@@ -21,6 +21,9 @@ _REDO_SYS = """你是动画分镜画师。给定若干镜 (镜号|当前画面�
 2. 动画起点帧, 禁终态词。
 3. 画面零文字: 载体只写「空白XX」; 禁「大字/字幕」。
 4. 零引号; 继承弧的视觉世界; 与旧句构图不同 (重做=换方案, 不是微调)。
+5. 零运镜词 (1106 s2 大乱套实锤): 禁 镜头/机位/跟拍/平移/推近/拉远/摇镜/摇摄/
+   升降/航拍/俯拍/仰拍/变焦/慢动作 — 运镜归导演层, 画师只画定格; 景别词可用。
+6. 单场景一瞬: 一镜只画一个场所的一个定格瞬间, 禁场景串联。
 严格 JSON: {"shots":[{"sid":"s1","keyframe_zh":"..."}]}"""
 
 
@@ -88,7 +91,8 @@ def run(job: dict[str, Any], sids: list[str], to_image: bool = True,
     默认停 img_done; to_video (⑧页列队重做) = 自动过审 + 重投影 + 转 H3 全链。"""
     from app.services.anim_pipeline import shots as shots_mod
     from app.services.anim_pipeline.v3_pipeline import k2 as v3k2
-    from app.services.anim_pipeline.v3_pipeline.shots import text_layer_issues
+    from app.services.anim_pipeline.v3_pipeline.shots import (keyframe_camera_issues,
+                                                              text_layer_issues)
 
     doc = shots_mod.load_doc(job["book_title"], job["ep"])
     v3 = doc.setdefault("v3", {})
@@ -104,12 +108,21 @@ def run(job: dict[str, Any], sids: list[str], to_image: bool = True,
     for sid, zh in new_zh.items():
         by_sid[sid]["keyframe_zh"] = zh
 
-    # 文字层质检 (改动镜): 不过 → 带反馈补投一次
+    # 文字层质检 + 运镜词闸 (改动镜): 不过 → 带反馈补投一次
     iss = text_layer_issues(shots)
-    bad = [sid for sid in new_zh if iss.get(sid)]
+    cam_hit = {sid: keyframe_camera_issues(by_sid[sid].get("keyframe_zh"))
+               for sid in new_zh}
+    bad = [sid for sid in new_zh if iss.get(sid) or cam_hit[sid]]
     if bad:
         job["progress"] = {"done": 1, "total": 3, "current": f"质检补投 {len(bad)} 镜"}
-        fb = "; ".join(f"{sid}: {iss[sid][0][:40]}" for sid in bad)
+        parts = []
+        for sid in bad:
+            if iss.get(sid):
+                parts.append(f"{sid}: {str(iss[sid][0])[:40]}")
+            if cam_hit[sid]:
+                parts.append(f"{sid}: 画面句混运镜词 {'/'.join(cam_hit[sid])}"
+                             " — 只画定格, 运镜归导演层")
+        fb = "; ".join(parts)
         fix = redesign(doc, bad, note=f"上一版不达标: {fb}")
         for sid, zh in fix.items():
             by_sid[sid]["keyframe_zh"] = zh
