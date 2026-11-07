@@ -83,6 +83,35 @@ def test_writer_prompt_channel_unified():
     assert "@@" not in WRITER_SYS
 
 
+def test_no_in_image_text_channel_anywhere(tmp_path):
+    """1107 用户令 (所有文字进剪映 / 所有视频零汉字): 图内字通道全链下线 —
+    规划层无申报邀请, 执行层恒短路, H3 不再认合成字, 军规改二路由。"""
+    from pathlib import Path
+    # 1. WRITER_SYS 源头: 旧申报邀请族全废
+    assert "零申报不合法" not in WRITER_SYS
+    assert "系统二段合成" not in WRITER_SYS
+    assert "每场 1-2 镜" not in WRITER_SYS
+    # 2. 军规: 二路由 + 零汉字铁律 (in_image_text 只许"已下线"声明性提及,
+    # 不许「申报 in_image_text」邀请措辞)
+    from app.services.anim_pipeline.law_blocks import TEXT_ROUTE_LAW
+    assert "画面与视频禁止一切汉字" in TEXT_ROUTE_LAW
+    assert "申报 in_image_text" not in TEXT_ROUTE_LAW
+    assert "通道已下线" in TEXT_ROUTE_LAW
+    # 3. 执行层: text_pass 恒短路 (残留申报忽略)
+    from app.services.anim_pipeline import text_pass
+    img = tmp_path / "base.png"
+    img.write_bytes(b"x")
+    assert text_pass.run_text_pass(
+        {"shot_id": "s1", "in_image_text": ["信任"]}, {}, img) is None
+    # 4. H3: in_image_text 有值也不再给「合成字冻结」条款 (恒 NO_TEXT_POLICY)
+    p = h3.build_prompt({"opening_desc": "a blank board, wind",
+                         "physical_lock": "the layout",
+                         "beats": [{"t_start": 0, "t_end": 5, "motion": "wind blows"}]},
+                        in_image_text=["信任才是硬通货"])
+    assert "already composed into Picture 1" not in p
+    assert "Hard no-text rule" in p
+
+
 def test_station_stamp_source():
     # 源码级断言: h3 路由点与 r2v 直调都落 video_station 戳 (防回归)
     import inspect

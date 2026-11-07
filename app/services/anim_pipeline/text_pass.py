@@ -1,12 +1,9 @@
 # -*- coding: utf-8 -*-
-"""图内文字入字 pass (1014 验证通过) — K2 干净底图 → Qwen-Edit 2511 入中文字.
+"""图内文字入字 pass — **通道已下线 (1107 用户令: 所有视频零汉字)**。
 
-配方 (comfyuitext/workflows/qwen-zwtest v1.6 验证): 2511 fp8 + EditPlus +
-cfg 2.5 + 20步 + shift 3.1 + 1328×1328. 关键参数是 cfg 2.5 (不是 1.0).
-
-前置: writer 在画面句中把文字面写为"空白" + in_image_text 字段给出文字行。
-本 pass 在 K2 出图后自动运行, 将文字写入对应位置, 产出最终图 (H3 Glyph lock
-会锁字全程稳定)。
+K2 图内合成字 (in_image_text 二段式) 整体停用: 文字全走剪映装配层
+(字幕/金色大字), run_text_pass 恒短路返回 None。配方与工作流代码保留
+(git 历史 + 若未来书级明令重启可整段恢复)。
 """
 from __future__ import annotations
 
@@ -124,10 +121,19 @@ def _make_prompt(lines: list[str], surface_hint: str = "") -> str:
 
 def run_text_pass(shot: dict[str, Any], doc: dict[str, Any],
                   base_image: Path) -> Path | None:
-    """对有 in_image_text 的镜运行 2511 入字 pass.
+    """(1107 用户令: 所有视频零汉字 — 图内字通道下线, 本 pass 恒短路。
 
-    返回: 入字后的图路径 (base_image 被覆盖) 或 None (无文字/失败).
-    前提: ComfyUI 在线; 2511 模型在盘; base_image 存在."""
+    无论 in_image_text 是否有残留值都不入字; 返回 None = 调用方沿用干净底图。
+    旧 2511 入字逻辑见 git 历史。"""
+    if shot.get("in_image_text"):
+        logger.info("[text-pass] %s 图内字通道已下线 (1107), %d 行申报忽略",
+                    shot.get("shot_id"), len(shot.get("in_image_text")))
+    return None
+
+
+def _run_text_pass_legacy(shot: dict[str, Any], doc: dict[str, Any],
+                          base_image: Path) -> Path | None:
+    """旧 2511 入字实现 (1014 验证配方; 1107 停用, 保留备查)."""
     lines = shot.get("in_image_text") or []
     if not lines or not isinstance(lines, list):
         return None
@@ -204,6 +210,8 @@ def batch_text_pass(doc: dict[str, Any], only: set[str] | None = None,
     """对 doc 中有 in_image_text 的 img_done 镜批量运行入字 pass.
 
     1018 用户令: 入字改独立相位 (购物篮触发) — on_shot/stop_check 供 job 进度/⛔.
+    1107 用户令: 图内字通道下线 — run_text_pass 恒短路, 本批恒返 0 (残留申报
+    忽略并留日志; 调用链保持不动, 两步法观察期后整文件清理)。
     """
     from .shots import ep_dir as _ep_dir
     targets = []

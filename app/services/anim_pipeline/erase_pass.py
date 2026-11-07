@@ -4,8 +4,8 @@
 治物件先验涂写 (ep4 s01-s03 酒桶标签/s36 磨石刻字/s49 实锤: 剔词+空白素面指令都
 压不住「酒桶=标签=手写涂记」的物件身份): 用 2511 编辑能力把标签/牌匾/刻面上的
 涂写抹成空白素面, 保留纸面/木面质感与边缘, 其余画面逐字不动。
-管线位置: K2 → face_fix → **erase (本 pass, 未申报镜)** → text_pass (申报镜入字) —
-erase 与 text_pass 互斥 (erase 会抹掉申报位, 申报镜跳过)。
+管线位置: K2 → face_fix → **erase (本 pass)** — 1107 图内字通道下线后全镜统一抹
+(text_pass 恒短路, 旧"申报镜跳过留位入字"互斥已废)。
 """
 from __future__ import annotations
 
@@ -172,21 +172,24 @@ def run_erase_pass(shot: dict[str, Any], doc: dict[str, Any], base_image: Path) 
 
 
 def batch_erase_pass(doc: dict[str, Any], only: set[str] | None = None) -> int:
-    """对「有文字污染且未申报二段式」的 img_done 镜批量抹除 (幂等: text_erased 跳过).
+    """对有文字污染的 img_done 镜批量抹除 (幂等: text_erased 跳过).
 
     1021 用户令: 触发 = 图上实抓 ∪ 提示词嫌疑 — ①实抓 (text_suspect/文字类
     gate_rejects, 出口闸 VLM 伪字+OCR 真字每镜必扫) ②提示词嫌疑 (画面句含文字
-    载体名词/涂写动词且未申报 — 生图前空白素面指令压不住 ep4 实锤, 实抓有
-    假阴性, 嫌疑镜主动抹; ep7 s05/s07 漏网模式根治)。"""
+    载体名词/涂写动词 — 生图前空白素面指令压不住 ep4 实锤, 实抓有假阴性,
+    嫌疑镜主动抹; ep7 s05/s07 漏网模式根治)。
+    1107 用户令 (视频零汉字): 图内字通道下线 — 不再"申报镜跳过" (旧互斥是
+    留位给 text_pass 入字, 入字已停), 全镜统一抹; 残留 in_image_text 字段
+    视为脏数据一并覆盖抹除。"""
     from .scene_writer import TEXT_CARRIER_NOUN_RE, TEXT_CARRIER_VERB_RE
     from .shots import ep_dir as _ep_dir
     n = 0
     for shot in doc.get("shots") or []:
-        if shot.get("text_erased") or shot.get("in_image_text") or not shot.get("image_file"):
+        if shot.get("text_erased") or not shot.get("image_file"):
             continue
         if only is not None and str(shot.get("shot_id")) not in only:
             continue
-        # 文字污染信号: ①实抓 ②提示词嫌疑 (未申报镜)
+        # 文字污染信号: ①实抓 ②提示词嫌疑 (全镜统一, 申报位已不存在)
         _txt = sum(1 for r in (shot.get("gate_rejects") or [])
                    if not r.get("hard") and "文字" in str(r.get("reason") or ""))
         _kf = str(shot.get("keyframe_zh") or "")

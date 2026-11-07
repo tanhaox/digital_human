@@ -47,34 +47,9 @@ AMBIENT_LIFE = (
     "kind appears at any moment — only what is already visible in the first frame "
     "may move."
 )
-# 文字层承接 (0915 定稿: 中文优先 + 字体纪律): 首帧全灭字不变; 动画中文字出场 —
-# 关键词用中文短词(2-4字), 数字/年份/标志保持数字与拉丁字母; 每镜一种艺术字体风格
-# (书法/手写/复古装饰/描边立体), 禁平淡黑体; 落点避让主体不压字。
-# 0915 s02 招牌幻觉首例已记录观察 (复发率采样中, 用户令暂不修 — docs 观察 ledger);
-# 若复发率坐实再上反幻觉条款。
-TEXT_POLICY = (
-    "The first frame contains no text. AT MOST ONE text element may appear in the whole "
-    "video, only as specified in the beats: render exactly the specified words, large and "
-    "bold. Chinese text is limited to very short words (up to 4 characters); longer Chinese "
-    "phrases are NEVER rendered in-video (they are added in post-production). Digits, "
-    "years and brand logos stay as digits/Latin. Two text elements NEVER coexist or "
-    "overlap in the same shot. "
-    "Picture-1 text freeze (1015, s07 实锤: 合成文字在动画中劣化): any text or characters "
-    "already visible in Picture 1 stay pixel-frozen and completely unchanged for the whole "
-    "video — never redraw, morph, wobble or degrade them; they are locked artwork, not "
-    "animation targets. "
-    "Use ONE consistent artistic typography style (calligraphy, brush, retro decorative, "
-    "or outlined dimensional lettering) — never plain sans-serif/heiti. "
-    "Position the text event inside the blank zone reserved for it in Picture 1 "
-    "(e.g. the clean space above the character's head), never covering faces or key objects. "
-    "All in-video Chinese characters MUST be Simplified Chinese (简体字) exactly as "
-    "specified in the beats; Traditional Chinese glyphs (繁體) are FORBIDDEN — they "
-    "deform and break during animation. "
-    "Anti-hallucination: surfaces that would normally carry text — signboards, door "
-    "plates, billboards, screens, cards, newspapers — must remain exactly as blank as in "
-    "Picture 1; never invent, add, or fill in any text, characters, numbers, or glyphs "
-    "anywhere. No captions, watermarks, or UI."
-)
+# (TEXT_POLICY 常量已删 1107 — 0915 起"动画中文字出场"的政策线全终: 1021 事件字
+# 停渲 → 1107 图内字通道下线 (用户令: 所有视频零汉字), 渲字政策无任何消费者,
+# 全镜恒走 NO_TEXT_POLICY。历史文本见 git。)
 def _de_traditional(s: str) -> str:
     """traditional → hand-drawn (0919 隐形bug: 风格词被视频模型读成繁体中文)。
 
@@ -291,44 +266,14 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
             "with this law, the law wins.")
         lines.append("")
     lines += [AMBIENT_LIFE, ""]
-    # 1016 修 (ep4 全镜大量乱码中文实锤): 文字政策三分支, 白名单只收真正上屏的字。
-    # 旧版无分支扫 beats 动作散文, 每镜枚举 20+ 汉字当 "permitted glyphs, copied
-    # stroke-for-stroke" — 对模型是画字邀请函 → 每条视频长满乱码中文。
-    # ①h3_text_event 有字 → ~~TEXT_POLICY 渲字~~ 1021 停渲 (见上注), 同③硬禁字
-    # ②in_image_text 有字 → 只许首帧合成字全程冻结, 不邀请新文字
-    # ③两者皆无 (ep4 62/62 镜如此) → 整段硬禁字 NO_TEXT_POLICY
-    _ev = text_event if isinstance(text_event, dict) else {}
-    _ev_text = str(_ev.get("text") or "").strip()
-    _iit = [str(x).strip() for x in (in_image_text or []) if str(x).strip()]
-    # 1021 用户令 (ep7 s19 实锤: 图干净视频出字): 事件字停渲 — 视频模型渲中文
-    # = 高乱码率, 镜内字通道整体下线; h3_text_event 字段保留在 doc (后期叠字
-    # 的数据源), 但不再进视频 prompt。有事件字的镜与无字镜同走硬禁字。
-    if _iit:
-        lines.append(
-            "The ONLY text in this video is the text already composed into Picture 1 ("
-            + "".join(f"「{x}」" for x in _iit)
-            + ") — it stays pixel-frozen and completely unchanged for the whole video: "
-            "never redrawn, morphed, wobbled or degraded; locked artwork, not an "
-            "animation target. No other text or writing-like mark appears anywhere.")
-        lines.append("")
-    else:
-        lines.append(NO_TEXT_POLICY)
-        lines.append("")
-    # 0919 字级钉死 (s66 实锤: 简体令后仍漂「誰」): 真正上屏的字逐个圈出点名照抄 —
-    # 1016: 来源 = 合成字 (镜级直传); 1021 事件字停渲后不再入白名单 (permitted
-    # glyphs = 画字邀请函); beats 动作散文汉字一律不进白名单
-    _cjk: list[str] = []
-    for _src in _iit:
-        for _ch in _src:
-            if "一" <= _ch <= "鿿" and _ch not in _cjk:
-                _cjk.append(_ch)
-    if _cjk:
-        lines.append(
-            "Glyph lock: the ONLY Chinese glyphs permitted in this video are these exact "
-            f"simplified characters, copied stroke-for-stroke: {'、'.join(_cjk[:64])}. "
-            "Write 谁 with the simplified speech radical 讠 (never 誰), 买 not 買, "
-            "钱 not 錢, 书 not 書, 门 not 門. A single traditional glyph ruins the frame.")
-        lines.append("")
+    # 1107 用户令 (所有视频零汉字): 文字政策终态 — 全镜恒走整段硬禁字
+    # NO_TEXT_POLICY。旧三分支 (事件字 TEXT_POLICY 渲字 1021 停渲 / in_image_text
+    # 合成字冻结 1107 图内字通道下线 / glyph lock 白名单 = 画字邀请函) 全部废除;
+    # in_image_text 参数保留纯为调用方签名兼容, 逻辑恒忽略。存量 doc 若 K2 老图
+    # 已合成字 (text_passed 史), NO_TEXT_POLICY 的 "text-like mark ... stays
+    # pixel-frozen" 兜底冻结, 根治=重做图。
+    lines.append(NO_TEXT_POLICY)
+    lines.append("")
     # 1017 W2 S1 (K2/H3 视觉统一加强): 冻结瞬间军规 — 全镜通用锚, 不依赖
     # beats_enrich 覆盖。治 beats 与图冻结瞬间错位 (s09 实锤: 图里卡已举在
     # 手上, beats 写"伸手捏起" → 模型重排画面换构图)。

@@ -87,14 +87,14 @@ WRITER_SYS = """你是顶级动画短片的导演兼电影摄影师 (Writer-Dire
    (A1/A3/A4 整弧避脸实锤), 且系统落盘闸会强制注入; 背影/剪影仅当本书圣经
    character_policy 明示允许, 且每弧 ≤1/3 镜。画面句总长 ≤320 字 (ruleset.KEYFRAME_MAX,
    超长被句界截断)。
-3. **文字三路由** (每个文字元素必须三选一, 绝不混用; motion_zh/en 散文里**永不描述文字**):
-   - **H3 事件字** (动画中浮现, 如头顶浮出「太棒了」): 申报字段 `h3_text_event`
+3. **文字二路由** (每个文字元素必须二选一, 绝不混用; motion_zh/en 散文里**永不描述文字**):
+   - **事件字** (后期金字, 如头顶浮出「太棒了」): 申报字段 `h3_text_event`
      {"text": "≤4字", "at_s": 秒, "zone": "落点(如 头顶上方)"}; 画面句必须在对应落点**留白预留**
      (写「头顶上方留出干净空背景」类描述); @@TEXT_ROUTE_CHANNEL@@。
-   - **K2 图内字** (t=0 就在画面上, 标签/匾额/牌面): 画面句写**空白载体** + 申报 `in_image_text`
-     (≤4行) — 系统二段合成, 禁止画面句直接写「写着XX/黑字/手写体」。
-   - **花字** (后期叠字): 只进 `text_layer`。
-   动画事件字与图内字可同镜共存, 但落区不同且互不遮挡。
+   - **花字/长句** (后期叠字): 只进 `text_layer`。
+   画面与视频禁止一切汉字 (1107 用户令: 所有视频零汉字): 载体物件 (标签/便签/白板/
+   牌匾/招牌/屏幕等) 一律写**空白载体**（"空白白板"）或干脆不画该物件 — 系统
+   **不再往图里入字** (in_image_text 通道已下线, 恒 [])。
 你不是配插图的人，是拿镜头讲故事的人。
 
 ## 北极星（最高优先级, 1013 用户令 — 与本节冲突时北极星赢）
@@ -144,23 +144,12 @@ WRITER_SYS = """你是顶级动画短片的导演兼电影摄影师 (Writer-Dire
 9. Krea2 渲染容量红线 (管主体不管场景 — 场景满与主体聚焦不矛盾: 满的是纵深, 聚焦的是主角):
    人物=一镜唯一视觉焦点；一主一辅光源；人物≥1/8画面高；
    禁"无数"、禁大场面塞满；可画实体 8-15 个。
-10. 禁直接渲字 (1022 修: 旧口径"文字只活在 text_layer"与 10b-10d 通道自相矛盾 —
-    模型按旧律得"零申报+不画载体"反当合规, 长场全灭实锤): 画面禁止直接画出任何
-    文字/数字/字迹/招牌内容 (K2 渲汉字必错字) — 文字进画面的**唯一通道** = 「空白
-    载体」+ in_image_text 申报 (见 10b-10d); 不上画的信息走 text_layer。
+10. 画面零汉字 (1107 用户令: 所有视频零汉字, K2 图内字通道整体下线): 画面禁止
+    直接画出任何文字/数字/字迹/招牌内容 — 载体物件 (白板/便签/标签/匾额/招牌/
+    屏幕/横幅/铭牌/海报) 一律写**空白载体**（"空白白板"/"空白便签"）或干脆不画
+    该物件; **禁止「写着XX/字样/黑字/手写体/模糊字迹」措辞** (K2 渲汉字必错字,
+    且系统已不再入字)。要上画的信息文字走 h3_text_event/text_layer (剪映渲染)。
     建筑服饰为日常民用样式。禁英文混入中文画面句；keyframe_en 为纯英文无文字。
-    10b. 图内文字载体一律二段式 (1014 ep3 实锤: 「写满术语的白板/写着'专业技能'的
-    便签」全被 K2 渲成错字): 白板/便签/标签/匾额/卡片上有字 = 图内文字 — 画面句必须
-    写**空白载体**（"空白白板"/"空白便签"）+ 申报 in_image_text（≤4行）, 由系统出图后
-    入字；**禁止「写着XX/字样/模糊字迹」措辞** — K2 渲汉字必错字。文案信息进 text_layer。
-    10c. in_image_text 为**每镜必填字段**: 画面句出现 标签/便签/白板/牌匾/匾额/招牌/
-    标语/横幅/铭牌/海报/屏幕 等文字载体物件时, 必须申报其文字内容 (≤4行) 并把载体写成
-    「空白XX」; 载体无需文字时输出 `"in_image_text": []`, 或干脆不画该物件 — 只画
-    「空白标签」而不申报 = 白标签孤儿 (出图后永远无人写字, 实锤废镜)。
-    10d. 图内字密度 (1021 用户令, 同日二令升格): 每场 **1-2 镜**主动安排 K2 图内字 —
-    **零申报不合法** (出口闸执法); 本场核心概念/标题/金句值得上画, 安排空白载体+申报
-    (如「空白白板」+in_image_text ≤4行); 口径是每场各 1-2, 不是全集 1-2 (ep1-7 实况
-    全集 0-2 镜 = 口径跑偏实锤); 「干脆不画载体」只适用于本场其余镜, 不得全场逃逸。
 11. 运镜白名单 (军规 @@CAMERA_LAW@@ 槽时长见槽位表括号)
 
 ## 写法（HBO 级散文范型）
@@ -176,9 +165,9 @@ WRITER_SYS = """你是顶级动画短片的导演兼电影摄影师 (Writer-Dire
 ## 任一条不过 = 整场重掷, 你已写的全部作废重烧)
 1. **引号词零容忍**: 全部 keyframe/motion 输出里没有任何 「」『』" " 包裹的词。
    口播里的引用词 (「感觉不对」「方案被毙」类) 禁止原样进画面句 — 要上字走
-   h3_text_event (≤4字) 或空白载体+in_image_text; 描述话语用动作/表情替代引文。
+   h3_text_event (≤4字, 剪映金字); 描述话语用动作/表情替代引文。
    ❌ 客户皱眉说「感觉不对」把方案推回 → ✓ 客户皱眉摇头把方案推回, 头顶浮出「感觉不对」(h3_text_event)
-2. **in_image_text**: 本场恰 1-2 镜申报 (零申报不合法), 载体一律写「空白XX」; 其余镜 []。
+2. **in_image_text**: 恒 [] (1107 图内字通道下线, 画面零汉字); 载体一律写「空白XX」或删除。
 3. **大场景配额**: 每 4 镜至少 1 镜大场景 (大全景/俯瞰/辽阔环境+主体占比小+参照物显纵深);
    特写/桌面级镜不过半 — 连排特写必被闸毙。
 4. **人物在场**: 达到分区配额数字 (宪法块给定, 钩子区最高 — 8 镜场通常需 ≥5 镜有人物);
@@ -224,26 +213,25 @@ def writer_blocks(arc: dict[str, Any], zones: list[str],
         "参照物显纵深), 且特写/桌面级镜不得超过半数 — 连排特写必拆 (1026 补齐闸的微观"
         "上限条款), 违规整场重掷。\n")
     blocks.append(
-        "\n【输出契约 (单写者制, 优先于一切旧格式)】每镜动笔先定 in_image_text: 本场挑 1-2 镜"
-        "用空白载体上画 (标题/概念/金句), 其余镜给 [] 或不画载体。groups[].shots[] 每镜必须含: "
+        "\n【输出契约 (单写者制, 优先于一切旧格式)】画面零汉字 (1107 用户令): 载体一律空白"
+        "或删除, 文字信息全走 text_layer/h3_text_event (剪映渲染)。groups[].shots[] 每镜必须含: "
         "\"keyframe_zh\" (200-250字中文散文画面句), \"keyframe_en\" (同构图英文, no text), "
         "\"motion_zh\" (动态设计定稿: 主体动作过程+环境动态+秒级事件, 只动画面句已有实体, 禁添画面外动物/器物), \"motion_en\" (English ambient "
         "+ no text events ever), \"text_layer\" (无字镜给 []), "
-        "\"in_image_text\" (必填: K2图内字, ≤4行字符串数组, 无字镜给 []; 画面句含"
-        "标签/便签/白板/牌匾/招牌/标语/横幅/铭牌/海报/屏幕等载体时必须申报文字内容"
-        "并把载体写\"空白\" — 系统二段合成, 漏申报=白标签孤儿废镜); "
+        "\"in_image_text\" (恒 [] — 图内字通道已下线, 兼容保留字段; 画面句含载体物件时"
+        "必须写\"空白XX\", 系统不再入字); "
         "可选 \"h3_text_event\" (H3事件字: {\"text\":\"≤4字\",\"at_s\":秒,\"zone\":\"落点\"}, 画面句须在落点写留白预留); "
         + CAMERA_LAW_CONTRACT + "; "
         "scene_tag 照旧。"
         "系统将 opening_desc 逐字取 keyframe_en — 中英两句必须同构。\n"
-        "【示例镜 (格式精确模仿; 1022 修: 此前全契约零申报正例, 模型学不会申报的根因之一)】\n"
+        "【示例镜 (格式精确模仿)】\n"
         "载体镜: {\"keyframe_zh\": \"平视中景, 讲台右侧立一面完全空白的白板 (无任何字迹), 讲师"
         "侧身指向白板, 台下人物抬眼…\", \"keyframe_en\": \"eye-level medium shot, a completely "
         "blank whiteboard (no text) stands right of the podium, the speaker gestures toward "
         "it…\", \"motion_zh\": \"讲师手臂抬起指向白板 (第1.0秒), 台下两人同时转头 (第2.0秒), "
         "环境光渐暖…\", \"motion_en\": \"ambient life only, no text\", \"text_layer\": [], "
-        "\"in_image_text\": [\"信任才是硬通货\"], \"camera\": \"固定\"}\n"
-        "无字镜: {同上结构, \"in_image_text\": [], 画面句不出现任何载体物件}\n")
+        "\"in_image_text\": [], \"camera\": \"固定\"}\n"
+        "无字镜: {同上结构, 画面句不出现任何载体物件}\n")
     return "\n".join(blocks)
 
 
@@ -331,20 +319,23 @@ def writer_failures(doc: dict[str, Any], arc_id: str) -> list[str]:
                          "英文动效永不描述文字 (1021 镜内字通道下线), 事件字只进 h3_text_event 字段")
         if zh and len(zh) < 80:
             fails.append(f"{sid} 画面句过短 ({len(zh)}字 <80, 参数表不是画面)")
-        # 1014 P1: 图内文字载体必须走二段式 (空白载体+in_image_text), 禁 K2 直渲汉字
-        # 1015 H 修复①: 动词措辞之外补载体名词盲区 — 「空白标签」类名词措辞同样必须
-        # 申报; 缺字段与空列表在 not s.get(...) 上同罪同拦 (缺字段视为 fail)
-        if zh and not s.get("in_image_text") and (
-                _TEXT_CARRIER_RE.search(zh) or TEXT_CARRIER_NOUN_RE.search(zh)):
+        # 1107 用户令 (所有视频零汉字): 图内字通道下线 — 残留申报确定性置空
+        # (纯数据可修复, 不驱动重写 — 同 motion 泄字先剥后拦哲学); 载体措辞
+        # 闸保留在下方, 画面句归 LLM 重写管。
+        if s.get("in_image_text"):
+            logger.info("[writer-gate] %s 残留 in_image_text 申报确定性置空 (通道下线)", sid)
+            s["in_image_text"] = []
+        # 1014 P1 载体措辞闸 (保留): 载体物件必须写空白 — 动词 (写着/字样) 与
+        # 名词 (标签/白板) 双正则; 非空白措辞 = K2 直渲汉字邀请
+        if zh and re.search(r"黑字|金字|手写体|印刷体|刻着|写着|字样", zh):
+            fails.append(f"{sid} 画面句载体非空白措辞 (写着/黑字/字样等) — "
+                         "改写「空白标签/空白牌面」或删除该物件 (K2 渲汉字必错字, 系统不再入字)")
+        if zh and (_TEXT_CARRIER_RE.search(zh) or TEXT_CARRIER_NOUN_RE.search(zh)):
             _hit = (TEXT_CARRIER_NOUN_RE.search(zh) or _TEXT_CARRIER_RE.search(zh)).group(0)
-            fails.append(f"{sid} 画面句含文字载体「{_hit}」但未申报 in_image_text — 二选一: "
-                         "(a)载体需要文字 → 申报 in_image_text (≤4行) 并把载体写成「空白XX」(系统二段合成); "
-                         "(b)载体无需文字 → 删除该文字载体物件 (文案信息进 text_layer)")
-        # 1015 首验补口 (ep4 A1 实锤): 已申报镜的载体必须写**空白** — 「标签黑字手写体」
-        # 类措辞会让一段画字+二段合成双重文字
-        if zh and s.get("in_image_text") and re.search(r"黑字|金字|手写体|印刷体|刻着|写着", zh):
-            fails.append(f"{sid} 已申报 in_image_text 但画面句载体非空白 (黑字/手写体等) — "
-                         "载体改写「空白标签/空白牌面」, 文字由系统二段合成")
+            _blanked = "空白" in zh[max(0, zh.find(_hit) - 6): zh.find(_hit) + len(_hit) + 2]
+            if not _blanked:
+                fails.append(f"{sid} 画面句含文字载体「{_hit}」但未写空白 — "
+                             "载体改写「空白{_hit}」或删除该物件 (文案信息进 text_layer)")
         # 1015 H3 战役: motion 散文禁文字 (花字/事件字规格只准走三路由字段)
         # 1021 修: 先剥后拦 (只拦不剥 = 0920 军规同坑, ep7 两连败主因之一) —
         # 命中子句确定性删除, 剥净即过; 剥不净才 fail 驱动重写
@@ -352,7 +343,7 @@ def writer_failures(doc: dict[str, Any], arc_id: str) -> list[str]:
             mz2, _dropped = _strip_motion_text_clauses(mz)
             if _MOTION_TEXT_RE.search(mz2):
                 fails.append(f"{sid} motion_zh 泄漏文字描述 ({_MOTION_TEXT_RE.search(mz2).group(0)}) — "
-                             "H3事件字走 h3_text_event 字段, K2图内字走 in_image_text, 花字走 text_layer; "
+                             "事件字走 h3_text_event 字段, 花字走 text_layer (视频零汉字, 无图内字通道); "
                              "动作句删掉全部文字/字体/发光/淡出描述")
             elif _dropped:
                 s["motion_zh"] = mz2
@@ -431,31 +422,9 @@ def writer_failures(doc: dict[str, Any], arc_id: str) -> list[str]:
                 s.setdefault("_clone_warns", []).append(
                     f"与相邻镜 {prev[0]} 构图同源 (剥look后相似{j:.0%}, 只换景别词=换皮克隆)")
         prev = (str(s.get("shot_id")), zh)
-    # 1021 用户令 (二令升格): 每场 1-2 镜图内字, 零申报不合法 — 宪法10d 执法
-    _decl = sum(1 for s in shots if not s.get("brand_card") and s.get("in_image_text"))
-    if _decl < 1:
-        fails.append(f"{arc_id.upper()} 整场零申报 in_image_text — 宪法10d: 每场 1-2 镜"
-                     "空白载体+申报 (标题/概念/金句上画), 重写补申报")
-    # 1022 批7: 申报内容闸 — LLM 把载体名当申报文字 (s108 '空白门牌'/s132 '空白
-    # 灯塔' 实锤): 申报的是要上画的金句文字, 载体本身应写「空白XX」在画面句里
-    for s in shots:
-        for x in (s.get("in_image_text") or []):
-            _x = str(x).strip()
-            if _x.startswith("空白") and any(
-                    w in _x for w in ("牌", "板", "签", "匾", "幕", "布", "塔", "门", "栏")):
-                fails.append(f"{s.get('shot_id')} 申报内容「{_x}」是载体名不是金句 — "
-                             "申报要上画的文字 (标题/概念/金句 ≤4行), 载体写成「空白XX」放画面句")
-    # 1022 修 (A8 实锤 4/4 镜申报+3 镜重复同两行字): 密度上限 + 相邻重复
-    if _decl > 3:
-        fails.append(f"{arc_id.upper()} 图内字密度超标 ({_decl}镜申报, 宪法10d 每场1-2镜) — "
-                     "只保留最贴核心概念的镜, 其余 in_image_text 改 []")
-    _prev_decl = None
-    for s in shots:
-        _cur = tuple(sorted(str(x).strip() for x in (s.get("in_image_text") or [])
-                            if str(x).strip()))
-        if _cur and _cur == _prev_decl:
-            fails.append(f"{s.get('shot_id')} 与相邻镜申报文字完全重复 — 换文案或改 []")
-        _prev_decl = _cur or None
+    # 1107 用户令 (所有视频零汉字): 图内字通道整体下线 — 旧执法族 (零申报拦/
+    # 申报内容闸/密度上限/相邻重复) 全部废除; 残留申报的确定性置空已在上方
+    # 镜级闸处理 (修因不修果, 不驱动重写)。
     # 1022 批5a: 景深配额前移 writer 闸 (一把尺 final_gate.depth_quota_issues 单场
     # 口径) — 旧版 writer 过闸后被 planner 景深 force_fallback 整场丢弃 (ep1 A5
     # 实锤: 16镜3大场景差1镜全灭); 现在景深失败进闸, 手术修复带景深指令重掷微镜
@@ -469,14 +438,15 @@ def writer_failures(doc: dict[str, Any], arc_id: str) -> list[str]:
     try:
         _qre = re.compile(r"[「『\"“']([^」』\"”']{1,10})[」』\"”']")
         for s in shots:
-            if s.get("brand_card") or s.get("in_image_text"):
+            if s.get("brand_card"):
                 continue
             zh = str(s.get("keyframe_zh") or "")
             if _qre.search(zh):
-                fails.append(f"{s.get('shot_id')} 画面句含引号文本未申报 in_image_text "
-                             "(二段化只认显式申报, 见 10b/10c)")
+                fails.append(f"{s.get('shot_id')} 画面句含引号文本 (画面零汉字) — "
+                             "上字走 h3_text_event/text_layer, 描述用动作/表情替代引文")
             if "大字" in zh:
-                fails.append(f"{s.get('shot_id')} 画面句含'大字'字面未申报 in_image_text")
+                fails.append(f"{s.get('shot_id')} 画面句含'大字'字面 (画面零汉字) — "
+                             "大字走剪映卡/h3_text_event, 不入画")
     except Exception as exc:  # noqa: BLE001
         logger.debug("[writer] 引号/大字闸跳过: %s", exc)
     try:
@@ -582,34 +552,9 @@ def dispatch_scene(book_id: str, book_title: str, ep: int, arc_id: str,
 
 
 def _ensure_scene_declaration(doc: dict[str, Any], arc_id: str) -> bool:
-    """确定性补申报 (1022 批3/批4 共用): 零申报场选 narration 最长非品牌镜,
-    系统自动挂空白载体指令 + 金句申报 (a8da929 确定性修复优先哲学 — 零申报是
-    全链唯一剥不掉补不了的 fail, 由系统补掉)。K2/text_pass/H3 零改动自动接。"""
-    shots = [s for s in (doc.get("shots") or [])
-             if str(s.get("arc_id") or "").lower() == str(arc_id).lower()]
-    if any(s.get("in_image_text") for s in shots if not s.get("brand_card")):
-        return False
-    cand = [s for s in shots if not s.get("brand_card") and str(s.get("narration") or "").strip()]
-    if not cand:
-        return False
-    tgt = max(cand, key=lambda s: len(str(s.get("narration") or "")))
-    narr = str(tgt.get("narration") or "")
-    lines: list[str] = []
-    for seg in re.split(r"[。！？，,.!?]", narr):
-        seg = seg.strip()
-        if 4 <= len(seg) <= 12:
-            lines.append(seg)
-            break
-    if not lines:
-        lines = [str(doc.get("book_title") or "信任")[:12]]
-    tgt["in_image_text"] = lines[:2]
-    zh = str(tgt.get("keyframe_zh") or "")
-    carrier = "，画面一角立一面完全空白的木牌（无任何字迹）"
-    if zh and "空白" not in zh and len(zh) + len(carrier) <= 320:
-        i = zh.rfind("。")
-        tgt["keyframe_zh"] = (zh[:i] + carrier + zh[i:]) if i > 0 else (zh + carrier)
-        tgt["image_prompt_zh"] = tgt["keyframe_zh"]
-    return True
+    """(已下线 1107 用户令: 所有视频零汉字 — 图内字通道整体停用, 不再自动补申报。
+    no-op 兼容既有调用点; 返回 False = 无修复发生。旧补申报体见 git 历史。)"""
+    return False
 
 
 def _reroll_shot_writer(doc: dict[str, Any], s: dict[str, Any], bible: dict,
@@ -635,12 +580,12 @@ def _reroll_shot_writer(doc: dict[str, Any], s: dict[str, Any], bible: dict,
             "【本镜时长】" + f"{float(s['t_end']) - float(s['t_start']):.1f}s\n"
             + (("[邻镜画面 (构图衔接但显著错开)] 前: " + prev_kf + " / 后: " + nxt_kf + "\n") if (prev_kf or nxt_kf) else "")
             + "【违规原因 (必须全部根除, 换载体名词规避=同错再犯)】\n- " + "\n- ".join(fail_lines[:3]) + "\n"
-            "【图内字口径】本场须有 1-2 镜空白载体+in_image_text 申报; 载体写「空白XX」;\n"
-            "相邻镜申报文字不得重复; 无字镜 in_image_text=[]。\n"
+            "【文字口径】画面零汉字 (1107 用户令): 载体一律写「空白XX」或删除; 上字走 "
+            "h3_text_event/text_layer (剪映渲染); in_image_text 恒 []。\n"
             "【圣经】" + bible_block + "\n"
             "【输出】严格 JSON 单对象: {\"keyframe_zh\"(200-250字), \"keyframe_en\"(同构英文 no text), "
             "\"motion_zh\", \"motion_en\"(no text events), \"camera\", \"text_layer\"(无字镜[]), "
-            "\"in_image_text\"(载体镜≤4行/无字镜[])}")
+            "\"in_image_text\": []}")
     raw = _llm().chat(WRITER_SYS, user, model="pro", temperature=0.5,
                       max_tokens=2000, tag="plan_shot_w")
     d = _parse_json(raw) or {}
@@ -660,8 +605,8 @@ def _reroll_shot_writer(doc: dict[str, Any], s: dict[str, Any], bible: dict,
         "text_layer": [{"text": str(x)} if isinstance(x, str) else x
                        for x in (d.get("text_layer") or [])
                        if isinstance(x, (str, dict))],
-        # 1022 批7: 类型防御 (裸字符串申报拆字, s132 实锤) — 复用 director2._norm_iit
-        "in_image_text": director2._norm_iit(d.get("in_image_text")),
+        # 1107 用户令: 图内字通道下线 — 重掷镜恒零申报 (LLM 输出即使带申报也丢弃)
+        "in_image_text": [],
         "anim": {
             "duration_s": gen,
             "opening_desc": str(d.get("keyframe_en") or kf_zh),
@@ -695,23 +640,9 @@ def _surgical_repair(doc: dict[str, Any], arc_id: str, fails: list[str],
     _n_prev = len(fails)
     _spent = 0  # 1022 批9: 手术预算帽 ≤6 镜/场 (跨轮共享) — 防长场多 fail 叠罗汉
     for _round in range(2):
-        # ① 确定性修复 (零 LLM)
-        if any("零申报" in f for f in fails):
-            _fixed_any |= _ensure_scene_declaration(doc, arc_id)
-        if any("密度超标" in f for f in fails):
-            _decl = [s for s in arc_shots if s.get("in_image_text") and not s.get("brand_card")]
-            for s in _decl[3:]:
-                s["in_image_text"] = []
-            _fixed_any = True
-        if any("申报文字完全重复" in f for f in fails):
-            _prev_decl = None
-            for s in sorted(arc_shots, key=lambda x: float(x["t_start"])):
-                _cur = tuple(sorted(str(x).strip() for x in (s.get("in_image_text") or [])
-                                    if str(x).strip()))
-                if _cur and _cur == _prev_decl:
-                    s["in_image_text"] = []
-                    _fixed_any = True
-                _prev_decl = _cur or None
+        # ① 确定性修复 (零 LLM) — 1107 图内字通道下线: 零申报/密度/重复三修复
+        # 分支随旧执法族废除 (残留申报在 writer_failures 镜级闸已确定性置空)
+        pass
         # ①后重诊断: 已被确定性修复消掉的 fail 不再触发 LLM 重掷 (冒烟实锤)
         if _fixed_any:
             fails = writer_failures(doc, arc_id)
@@ -776,10 +707,9 @@ def _fallback_scene(book_id: str, book_title: str, ep: int, arc_id: str,
     for s in doc.get("shots") or []:
         if str(s.get("arc_id") or "").lower() == str(arc_id).lower():
             s["writer_source"] = "fallback"
-    # 1022 批4: fallback 断供修复 — ① keyframe_en 回填 (assembler:683 写死空串,
+    # 1022 批4: fallback 断供修复 — keyframe_en 回填 (assembler:683 写死空串,
     # 而 writer 镜语义 = opening_desc 逐字取 keyframe_en; anim.opening_desc 本就
-    # 有英文骨架 → 回填后数据自洽, 灭 ~90% 红标) ② 确定性补申报 (宪法10d 全链
-    # 零生成点 → 70% 镜零申报断供; _ensure_scene_declaration 批3 已定义)
+    # 有英文骨架 → 回填后数据自洽, 灭 ~90% 红标)。补申报已随图内字通道下线 (1107)。
     for s in doc.get("shots") or []:
         if str(s.get("arc_id") or "").lower() != str(arc_id).lower():
             continue
@@ -787,7 +717,6 @@ def _fallback_scene(book_id: str, book_title: str, ep: int, arc_id: str,
             _en = str((s.get("anim") or {}).get("opening_desc") or "").strip()
             if _en:
                 s["keyframe_en"] = _en
-    _ensure_scene_declaration(doc, arc_id)
     # 1021 fallback 同闸 (s21 幻影马/文字泄散文实锤: 降级产物此前零闸裸奔) —
     # 过 writer_failures: 确定性修复 (泄字剥/留白补) 照做; 剩余 fails 标红挂镜
     # 交人检, 不阻断 (fallback 无重试网, 硬拒=死路)
