@@ -972,7 +972,13 @@ def test_stamp_projection_and_gates():
     v1, v3s = doc["shots"][0], doc["shots"][1]
     assert v1["t_start"] == 0 and v1["t_end"] == 6.2 and v1["status"] == "approved"
     assert v1["camera"] == "左摇" and v1["anim"]["duration_s"] == 6.2
-    assert v1["anim"]["beats"][0]["motion"] == "hand moves"
+    # 1107 批2 ⑥ 拼合: beats = 事件×镜头融合行 (官方嵌动作流) + 工位执法
+    assert v1["anim"]["beats"][0]["motion"].startswith(
+        "as hand moves, the camera pans left with large amplitude at slow speed")
+    assert v1["station"] == "h3" and v1["v3_cam_family"] == "pan"
+    assert v3s["station"] == "h3"                      # 推镜同锁 h3
+    assert v3s["anim"]["beats"][0]["motion"].startswith(
+        "the camera pushes in as the scene's own action continues")  # 无 motion_en 镜
     assert v3s["t_start"] == 6.2 and v3s["t_end"] == 10.3 and v3s["status"] == "planned"
     assert doc["arcs"][0]["metaphor_core"] == "边界=护栏"
     # v3 槽的实测字段
@@ -983,6 +989,69 @@ def test_stamp_projection_and_gates():
     assert len(out2["missing_audio"]) == 2
 
 
+def test_stamp_render_fields_fusion():
+    """⑥ 唯一拼合点 (1107 批2): 事件×镜头融合行 + 工位执法 + 注入参数固化。"""
+    from app.services.anim_pipeline.v3_pipeline.stamp import render_fields
+    d = {"cam": {"kind": "推", "dir": "", "amp": "小", "speed": "慢"},
+         "motion_en": "the man lifts his trekking pole"}
+    rf = render_fields(d, 8.2)
+    assert rf["camera"] == "拉近" and rf["station"] == "h3"
+    assert rf["beats"][0]["motion"].startswith(
+        "as the man lifts his trekking pole, the camera pushes in with small "
+        "amplitude at slow speed")
+    assert rf["beats"][0]["motion"].endswith("no roll")     # 句号已剥 (进 beats 行)
+    assert rf["v3_cam_family"] == "push" and rf["v3_cam_clause"].startswith("As ")
+    # 摇: 工位锁 h3 + 配方律档执法 (小/快 入 → 大/慢 出)
+    rf2 = render_fields({"cam": {"kind": "摇", "dir": "左", "amp": "小", "speed": "快"},
+                         "motion_en": "she turns the card"}, 7.0)
+    assert rf2["station"] == "h3" and rf2["camera"] == "左摇"
+    assert "with large amplitude at slow speed" in rf2["beats"][0]["motion"]
+    # 固定镜: 零融合零镜头句, 工位 auto
+    rf3 = render_fields({"cam": {"kind": "固定", "dir": "", "amp": "", "speed": ""},
+                         "motion_en": "clouds drift"}, 5.0)
+    assert rf3["beats"][0]["motion"] == "clouds drift"
+    assert rf3["v3_cam_clause"] == "" and rf3["station"] == "auto"
+    # ⑧ 幂等重拼 = 同函数 (手改 ④ 后快照不过期): 改 cam 再拼, 字段全量覆盖
+    d["cam"] = {"kind": "固定", "dir": "", "amp": "", "speed": ""}
+    rf4 = render_fields(d, 8.2)
+    assert rf4["station"] == "auto" and rf4["beats"][0]["motion"] == \
+        "the man lifts his trekking pole"
+
+
+def test_pick_video_station_reads_stamp_field():
+    """⑧ 工位执法 (1107 批2): _pick_video_station 读 ⑥ station 字段 —
+    运镜镜锁 h3 兑现 (旧态: 按画面内容路由, 运镜镜含角色名落 r2v → 全链失效);
+    auto/无字段 → 启发式原路 (v2 镜零扰动)。"""
+    from app.services.anim_pipeline import h3 as H
+    # ⑥ 定稿 h3: 即便 asset_ref/角色名命中也锁 h3 (④ 已声明运镜)
+    assert H._pick_video_station({"station": "h3",
+        "keyframe_zh": "阿特金森站在山脊",
+        "asset_ref": {"image": "a.png"}}) == "h3"
+    # ⑥ auto (固定镜) → 启发式 (asset_ref → r2v)
+    assert H._pick_video_station({"station": "auto",
+        "keyframe_zh": "x", "asset_ref": {"image": "a.png"},
+        "_book_title": ""}) == "r2v"
+    # v2 镜无字段 → 原启发式
+    assert H._pick_video_station({"keyframe_zh": "一座雕像"}) == "h3"
+
+
+def test_r2v_parity_writing_and_face_bans():
+    """r2v 平权 (1107 批2, s4 药下错工位实锤): 书写反律 beats 命中即注 +
+    面部新生物禁令按 qc 史注入 — 与 h3 同源常量。"""
+    from app.services.anim_pipeline import r2v as R
+    base_shot = {"anim": {"opening_desc": "A ridge at dawn.", "beats": [
+        {"t_start": 0, "t_end": 6, "motion": "the man gazes along the ridge"}]}}
+    p_clean = R._build_prompt(dict(base_shot), [], book_title="书", thesis="")
+    assert "Writing counter-rule" not in p_clean and "Face identity ban" not in p_clean
+    write_shot = {"anim": {"opening_desc": "A board room.", "beats": [
+        {"t_start": 0, "t_end": 6, "motion": "he picks up the marker pen"}]}}
+    p_write = R._build_prompt(dict(write_shot), [], book_title="书", thesis="")
+    assert "Writing counter-rule" in p_write
+    face_shot = dict(base_shot, qc_rejects=[{"kind": "胡须", "what": "x"}])
+    p_face = R._build_prompt(face_shot, [], book_title="书", thesis="")
+    assert "Face identity ban" in p_face
+
+
 def test_v3_h3_cam_word_and_gate(monkeypatch):
     """⑧ H3 (V6b): 运镜型→v2 词映射 (单源 direct) + 未盖章拒跑。"""
     from app.services.anim_pipeline.v3_pipeline import h3 as VH
@@ -990,7 +1059,8 @@ def test_v3_h3_cam_word_and_gate(monkeypatch):
     import pytest
     assert v2_camera_word({"kind": "摇", "dir": "左"}) == "左摇"
     assert v2_camera_word({"kind": "推"}) == "拉近" and v2_camera_word({}) == ""
-    assert VH.cam_family({"kind": "摇", "dir": "左"}) == "pan"    # 1107 裁表后仅四族
+    from app.services.anim_pipeline.v3_pipeline.direct import cam_family
+    assert cam_family({"kind": "摇", "dir": "左"}) == "pan"    # 1107 裁表后仅四族
     monkeypatch.setattr("app.services.anim_pipeline.shots.load_doc",
                         lambda *a, **k: {"v3": {"shots": [{"sid": "s1"}]}})
     with pytest.raises(SystemExit, match="未盖章"):

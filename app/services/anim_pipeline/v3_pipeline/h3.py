@@ -1,16 +1,13 @@
 # -*- coding: utf-8 -*-
-"""v3 ⑧ H3 批生视频 (V6b) — v2 h3.run_batch 全量复用 + v3 运镜句注入.
+"""v3 ⑧ H3 批生视频 (V6b) — v2 h3.run_batch 全量复用 + ⑥ 拼合收口.
 
 盖章后 doc.shots 已是 v2 形状 (h3 直接吃), 本层只做三件事:
-1. v3 运镜三元组 → 镜级 camera 词 (v2 枚举) + 运镜英文句 (官方措辞) 注入:
-   direct.clause 是官方句 ("The camera pans left with large amplitude at slow
-   speed.") — 原样拼进 I2VA instruction, 与 B-CAM1 三补丁同路但带幅/速。
+1. **渲染前幂等重拼** (1107 批2): ⑥ 后 ④ 手改 → 盖章快照过期 — 用 ⑥ 同一拼合
+   函数 stamp.render_fields 重算渲染字段 (camera/station/beats 事件×镜头融合行/
+   v3_cam_* 注入参数)。旧私有注入循环 (五字段 attach + camera 词) 退役 —
+   拼合点唯一在 ⑥, 镜头句嵌事件行 (官方形态), instruction 顶孤立句废除。
 2. 硬闸: ⑦ 已盖章 (gates.stamp) — 时长真相在, 不烧估时视频。
 3. GPU 纪律: v3_h3 入 GPU_PHASES, comfy session + 前后 free_memory + 镜间取消。
-
-运镜实现选择 (1106 拍板): 摇/移/跟/升降/弧 等新类型 → camera 词映射到最近的
-v2 运镜词 (B-CAM1 通道, 已实测); 幅/速差异靠 direct.clause 官方句进 prompt
-(instruction 首行), 与 v2 三补丁机制正交 — v2 镜 (无 clause) 零变化。
 """
 from __future__ import annotations
 
@@ -19,9 +16,25 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# 1106 治根: 运镜执行映射单源 (direct.CAM_EXEC) — 旧 _CAM/_CAM_DIR 本地拷贝
-# 与 stamp 已漂 (推→缓推 vs 拉近), 两处投影谁后跑谁说了算。
-from .direct import cam_family, v2_camera_word
+
+def _reproject(doc: dict[str, Any]) -> int:
+    """⑧ 渲染前幂等重拼 (1107 批2): 与 ⑥ 盖章共用 stamp.render_fields —
+    拼合点唯一且 ④ 手改后快照不过期 (时效性补遗 2)。品牌镜直通短路不重拼。"""
+    from .stamp import render_fields
+    direct = (doc.get("v3") or {}).get("direct") or {}
+    n = 0
+    for s2 in doc.get("shots") or []:
+        d = direct.get(str(s2.get("shot_id")))
+        if not d or s2.get("brand_card"):
+            continue
+        anim = s2.setdefault("anim", {})
+        for k, v in render_fields(d, float(anim.get("duration_s") or 0)).items():
+            if k == "beats":
+                anim["beats"] = v
+            else:
+                s2[k] = v
+        n += 1
+    return n
 
 
 def run(job: dict[str, Any], only: set[str] | None = None,
@@ -37,24 +50,11 @@ def run(job: dict[str, Any], only: set[str] | None = None,
         raise SystemExit("⑦ 未盖章 — H3 吃实测时长, 先在 ⑦ 页盖章 (时长真相源)")
 
 
-    # v3 运镜 → 镜级 camera (仅当 v2 camera 为空时; 盖章已投影基础词, 这里补
-    # 精确方向词) + clause 挂到 shot 供 prompt 注入
-    direct = v3.get("direct") or {}
-    n_clause = 0
-    for s in doc.get("shots") or []:
-        d = direct.get(str(s.get("shot_id"))) or {}
-        cam = d.get("cam") or {}
-        w = v2_camera_word(cam)
-        if w:
-            s["camera"] = w
-        clause = str(d.get("clause") or "").strip()
-        if clause and str(cam.get("kind") or "固定") not in ("", "固定", "待定"):
-            s["v3_cam_clause"] = clause       # run_shot prompt 拼接点 (instruction 首行)
-            s["v3_cam_speed"] = str(cam.get("speed") or "")  # 运镜令速度词参数化
-            s["v3_cam_amp"] = str(cam.get("amp") or "")      # 运镜令幅度词参数化
-            s["v3_cam_family"] = cam_family(cam)             # 执行族 (track/arc 对症句)
-            s["v3_cam_dir"] = str(cam.get("dir") or "")      # 跟镜行进方向词
-            n_clause += 1
+    # ⑥ 拼合收口 (1107 批2): 旧注入循环退役 — 渲染字段由 stamp.render_fields
+    # 单源拼合 (⑥ 盖章写入 + ⑧ 渲染前幂等重拼, ④ 手改后快照不再过期)
+    n_rp = _reproject(doc)
+    if n_rp:
+        logger.info("[v3:h3] 渲染前重拼 %d 镜 (⑥ 拼合函数同源, 镜头句已嵌事件行)", n_rp)
     # 状态现场同步: ⑥ 页过审写在 v3 槽 (k2.status), 盖章快照可能滞后 —
     # 实锤: 过审后启动批生仍 0 approved (doc.shots.status 停在 img_done)。
     # 1106 四修: 只升不降且不碰视频态 — 旧版按 ⑥ k2 态把 anim_done 打回
@@ -98,7 +98,7 @@ def run(job: dict[str, Any], only: set[str] | None = None,
     if _n_ok == 0:
         raise SystemExit("无已过审镜 — H3 只吃 approved; 先在 ⑥ K2 页过审 (✅ 或全部过审)")
 
-    logger.info("[v3:h3] 运镜注入: %d 镜带官方句", n_clause)
+    logger.info("[v3:h3] ⑥ 拼合字段就绪: %d 镜 (station/beats 融合行/v3_cam_*)", n_rp)
 
     from app.services.gpu_service_manager import get_gpu_service_manager
     from app.services.anim_pipeline import comfy as comfy_mod

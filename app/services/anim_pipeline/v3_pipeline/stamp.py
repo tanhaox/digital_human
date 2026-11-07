@@ -19,7 +19,8 @@ import re
 import time
 from typing import Any
 
-from .direct import v2_camera_word  # 1106 治根: 运镜执行映射单源 (旧本地表已漂)
+from .direct import (cam_clause, cam_family, station_for,  # 1106 治根+1107 批2 拼合单源
+                     v2_camera_word)
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,34 @@ def align_blocks(shots: list[dict], lines: dict[int, dict],
         if blk is not None:
             out[str(s["sid"])] = blk
     return out
+
+
+def render_fields(d: dict[str, Any], real: float) -> dict[str, Any]:
+    """镜渲染段拼合 — **⑥ 唯一拼合点** (1107 批2): ⑥ 盖章写入与 ⑧ 渲染前幂等
+    重拼 (v3_pipeline/h3._reproject) 共用此函数, 拼合点唯一且快照不过期。
+    吃 ④ 四元组 (+motion_en), 吐 v2 镜渲染字段:
+    - camera: v2 机位词 (608 预裁+三补丁链入口)
+    - station: 工位执法 (运镜镜锁 h3 — ⑧ _pick_video_station 读此字段)
+    - beats: 事件×镜头**融合行** (官方嵌动作流形态, 孤立镜头句=官方证伪形态退役):
+      "as {motion_en}, the camera {四要素句}" — 固定镜零融合 (纯 motion_en)
+    - v3_cam_*: ⑧ 注入参数 (幅速参数化/族选择, LAW 单源派生)
+    """
+    cam = d.get("cam") or {}
+    motion_en = str(d.get("motion_en") or "")
+    clause = cam_clause(cam, motion_en)
+    fused = motion_en
+    if clause and str(cam.get("kind") or "固定") not in ("", "固定", "待定"):
+        fused = clause[:1].lower() + clause[1:].rstrip(".")   # As→as, 去句号进 beats 行
+    return {
+        "camera": v2_camera_word(cam) or "固定",
+        "station": station_for(cam),
+        "v3_cam_clause": clause,
+        "v3_cam_speed": str(cam.get("speed") or ""),
+        "v3_cam_amp": str(cam.get("amp") or ""),
+        "v3_cam_family": cam_family(cam),
+        "v3_cam_dir": str(cam.get("dir") or ""),
+        "beats": [{"t_start": 0, "t_end": real, "motion": fused}],
+    }
 
 
 def project_v2(doc: dict[str, Any], blocks: list[dict]) -> dict[str, Any]:
@@ -86,7 +115,7 @@ def project_v2(doc: dict[str, Any], blocks: list[dict]) -> dict[str, Any]:
         stamped += 1
         d = direct.get(sid) or {}
         k2 = s.get("k2") or {}
-        motion_en = str(d.get("motion_en") or "") or ""
+        rf = render_fields(d, real)      # ⑥ 拼合: camera/station/beats 融合行/注入参数
         status = "approved" if k2.get("status") == "approved" else (
             "img_done" if k2.get("status") == "img_done" else "planned")
         # 字幕源 (⑧ 装配 caption): 槽内各行按时长占比切片, 镜内相对时间
@@ -115,7 +144,14 @@ def project_v2(doc: dict[str, Any], blocks: list[dict]) -> dict[str, Any]:
             "seed": s.get("seed") or k2.get("seed"),
             "h3_seed": s.get("h3_seed") or __import__(
                 "app.services.anim_pipeline.shots", fromlist=["new_seed"]).new_seed(),
-            "camera": v2_camera_word(d.get("cam")) or "固定",
+            "camera": rf["camera"],
+            # ⑥ 拼合收口 (1107 批2): 工位执法 + ⑧ 注入参数随镜固化 (渲染器无关契约)
+            "station": rf["station"],
+            "v3_cam_clause": rf["v3_cam_clause"],
+            "v3_cam_speed": rf["v3_cam_speed"],
+            "v3_cam_amp": rf["v3_cam_amp"],
+            "v3_cam_family": rf["v3_cam_family"],
+            "v3_cam_dir": rf["v3_cam_dir"],
             "register": s.get("register"),
             "brand_card": bool(s.get("brand_card")),
             "political_flag": None, "gate_rejects": [], "gate_exempt": False,
@@ -127,7 +163,9 @@ def project_v2(doc: dict[str, Any], blocks: list[dict]) -> dict[str, Any]:
                      "physical_lock": "the camera viewpoint, the main structural "
                                       "elements and layout",
                      "duration_s": real,
-                     "beats": [{"t_start": 0, "t_end": real, "motion": motion_en}]},
+                     # 事件×镜头融合行 (⑥ 拼合): "as {motion_en}, the camera …" —
+                     # 官方嵌动作流形态, ⑧ build_prompt 的 From…to 行原样投影
+                     "beats": rf["beats"]},
         })
         # 视频生命周期搬运 (图未变才搬; 图变=重做, 旧视频作废)
         old = prev.get(sid)

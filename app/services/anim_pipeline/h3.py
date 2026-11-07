@@ -203,6 +203,28 @@ def character_policy(book_title: str = "") -> str:
         return ""
 
 
+# 1107 批2 平权: 书写反律/面部新生物禁令 升单源常量 — h3 与 r2v 双工位一口径
+# (s4 书写镜战役实锤: 药下错工位, s4 在 r2v 而 h3 侧三轮修改无效)。
+WRITE_HIT_RE = re.compile(
+    r"(?i)\b(pen|pens|pencil|nib|brush(es)?|chalk|marker|writes?|writing|"
+    r"inscri\w+|signature|handwriting)\b")
+WRITING_COUNTER_RULE = (
+    "Writing counter-rule: THE WRITING NEVER HAPPENS. The pen, pencil, "
+    "brush or chalk stays raised or hovering for the whole video — the "
+    "hand never completes any stroke and never touches the writing "
+    "surface; the gesture remains frozen at the moment just before "
+    "writing. No letters, numbers, words or writing-like marks ever "
+    "appear, accumulate or grow on any surface; every surface "
+    "(whiteboard, paper, board, screen) stays exactly as blank as in "
+    "Picture 1 for the whole video.")
+FACE_IDENTITY_BAN = (
+    "Face identity ban (this video previously grew new facial hair on a "
+    "character — hard rule): every character's face stays pixel-identical to "
+    "Picture 1 for the whole video — no beard, moustache, stubble or any new "
+    "facial hair ever appears or grows; the jawline, skin, eyebrows and all "
+    "facial features never morph, age or change in any frame.")
+
+
 def arc_thesis(doc: dict[str, Any], arc_id: str = "") -> str:
     """弧主旨单读口 (1017 W3, 立意单一源): doc.arcs 的 metaphor_core 优先,
     visual_metaphor 降级 — K2/H3/r2v 各拼一行主旨锚, 组装器不推导。"""
@@ -239,9 +261,7 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
     # 桌才是根治 (与 1016 中文场景标签剥除同构)。非书写镜保留主旨锚+免责
     # (任何载体面都可能画主旨词, 不只笔类镜)。
     _beat_blob = " ".join(str(b.get("motion") or "") for b in anim.get("beats") or [])
-    _write_hit = re.search(
-        r"(?i)\b(pen|pens|pencil|nib|brush(es)?|chalk|marker|writes?|writing|"
-        r"inscri\w+|signature|handwriting)\b", _beat_blob)
+    _write_hit = WRITE_HIT_RE.search(_beat_blob)
     if thesis and not _write_hit:
         lines.append(
             f"Narrative anchor: {thesis} — the scene, props and motion all serve "
@@ -301,15 +321,7 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
     # 手势冻结在书写前一刻 (首帧动势律同口径 — 起点帧即终点帧)。
     # (_beat_blob/_write_hit 已前移至主旨锚处 — 书写镜不注主旨锚)
     if _write_hit:
-        lines.append(
-            "Writing counter-rule: THE WRITING NEVER HAPPENS. The pen, pencil, "
-            "brush or chalk stays raised or hovering for the whole video — the "
-            "hand never completes any stroke and never touches the writing "
-            "surface; the gesture remains frozen at the moment just before "
-            "writing. No letters, numbers, words or writing-like marks ever "
-            "appear, accumulate or grow on any surface; every surface "
-            "(whiteboard, paper, board, screen) stays exactly as blank as in "
-            "Picture 1 for the whole video.")
+        lines.append(WRITING_COUNTER_RULE)
         lines.append("")
     for i, b in enumerate(beats):
         motion = _de_traditional(b["motion"].strip())
@@ -530,7 +542,7 @@ def build_workflow(image_name: str, anim: dict[str, Any], seed: int, prefix: str
                    book_title: str = "", qc_history: list | None = None,
                    text_event: dict | None = None, in_image_text: list | None = None,
                    thesis: str = "", cam_move: str = "",
-                   cam_clause: str = "", cam_speed: str = "",
+                   cam_speed: str = "",
                    cam_amp: str = "", cam_v3_family: str = "",
                    cam_v3_dir: str = "") -> dict[str, Any]:
     """H3 I2V 工作流 (API 格式), 节点 ID 对齐最爱视频真相图 (102.4s/10s).
@@ -557,12 +569,7 @@ def build_workflow(image_name: str, anim: dict[str, Any], seed: int, prefix: str
         if any("胡须" in k or "面部" in k for k in _kinds):
             # 1107 s4 实锤 (第5秒人物脸突然长胡须): 面部新生物专项 — AMBIENT_LIFE
             # 的 "adds NOTHING" 压不住面部级 morph, 需点名五官零变化。
-            _prompt += (
-                "\n\nFace identity ban (this video previously grew new facial hair on a "
-                "character — hard rule): every character's face stays pixel-identical to "
-                "Picture 1 for the whole video — no beard, moustache, stubble or any new "
-                "facial hair ever appears or grows; the jawline, skin, eyebrows and all "
-                "facial features never morph, age or change in any frame.")
+            _prompt += "\n\n" + FACE_IDENTITY_BAN
         if any("红旗" in k for k in _kinds):
             _prompt += (
                 "\n\nObject ban (this video previously added objects that do not exist in the first frame — hard rule): "
@@ -577,8 +584,8 @@ def build_workflow(image_name: str, anim: dict[str, Any], seed: int, prefix: str
     if cam_move:  # B-CAM1: 运镜镜 prompt 三补丁 (军规/era/I2VA)
         _prompt = _cam_patch_prompt(_prompt, cam_move, cam_speed, cam_amp,
                                     cam_v3_family, cam_v3_dir)
-    if cam_clause:  # 1106 v3: ④导演官方句 (带幅/速) 前置 — 与三补丁正交
-        _prompt = cam_clause.strip() + "\n" + _prompt
+    # 1107 批2: v3 运镜句已由 ⑥ 拼合嵌进 beats 事件行 (stamp.render_fields 融合行,
+    # 官方嵌动作流形态) — 旧 instruction 顶孤立前置句 (官方证伪形态) 退役。
     return {
         "129": {"class_type": "UNETLoader", "inputs": {
             "unet_name": "minimax_it2v\\minimax_h3_fl2va_pruned_int8_convrot.safetensors",
@@ -684,7 +691,6 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
         logger.info("[h3] %s 跳首帧锚定 (中性底图, H3 从 prompt 自生成)", shot["shot_id"])
         _thesis = arc_thesis(doc, str(shot.get("arc_id") or ""))
         wf = build_workflow(image_name, _h3_anim, shot["h3_seed"], prefix,
-                             cam_clause=str(shot.get("v3_cam_clause") or ""),
                              cam_speed=str(shot.get("v3_cam_speed") or ""),
                              cam_amp=str(shot.get("v3_cam_amp") or ""),
                              cam_v3_family=str(shot.get("v3_cam_family") or ""),
@@ -703,7 +709,6 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
         image_name = comfy.upload_image(src_img)
         _thesis = arc_thesis(doc, str(shot.get("arc_id") or ""))
         wf = build_workflow(image_name, _h3_anim, shot["h3_seed"], prefix,
-                             cam_clause=str(shot.get("v3_cam_clause") or ""),
                              cam_speed=str(shot.get("v3_cam_speed") or ""),
                              cam_amp=str(shot.get("v3_cam_amp") or ""),
                              cam_v3_family=str(shot.get("v3_cam_family") or ""),
@@ -775,11 +780,18 @@ def qc_video(shot: dict[str, Any], doc: dict[str, Any], dest: Path) -> None:
 def _pick_video_station(shot: dict[str, Any]) -> str:
     """路由: 按镜选 r2v 或 h3 (1009 工位矩阵路由表).
 
+    1107 批2 (⑥ 拼合收口): **⑥ 定稿工位执法优先** — v3 镜带 station 字段
+    (⑥ 盖章写入 ④ 声明: 运镜镜锁 h3 / 固定镜 auto)。旧态实锤: 运镜镜按画面
+    内容路由 (keyframe 含角色名 → 落 r2v) → clause/608 预裁/三补丁全失效,
+    ④ station 声明只写不读。v2 镜无此字段 → 启发式原路 (零扰动):
     人物镜 (keyframe 含圣经角色名) → r2v (身份零漂+成片率高+中文稳)
     人形道具镜 (keyframe 含雕塑/人偶/画像) → h3 (r2v会赋活)
     空镜 → h3 (身份无关, h3快)
     """
     from . import r2v
+    _st = str(shot.get("station") or "")
+    if _st in ("h3", "r2v"):
+        return _st          # ⑥ 定稿工位 (auto → 启发式)
     kf = str(shot.get("keyframe_zh") or "")
 
     # 1024 B-ASSET1: 素材参考镜 → r2v (Object reference 通道; h3 i2v 节点无

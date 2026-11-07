@@ -100,6 +100,16 @@ def _build_prompt(shot: dict[str, Any], char_names: list[str],
     from .h3 import _strip_scene_label  # 惰性: h3 顶部引 brand, 避免环
     prompt = f"{_strip_scene_label(opening)} {beats} "
 
+    # 1107 批2 平权 (s4 书写镜战役实锤: 药下错工位 — s4 在 r2v, h3 侧三轮修改
+    # 无效): 书写反律 + 面部新生物禁令 从 h3 单源常量取, 双工位一口径。
+    from .h3 import WRITE_HIT_RE, WRITING_COUNTER_RULE  # 惰性避环 (同上)
+    if WRITE_HIT_RE.search(beats):
+        prompt += WRITING_COUNTER_RULE + " "
+    _qk = {str(r.get("kind") or "") for r in (shot.get("qc_rejects") or [])}
+    if any("胡须" in k or "面部" in k for k in _qk):
+        from .h3 import FACE_IDENTITY_BAN
+        prompt += FACE_IDENTITY_BAN + " "
+
     if char_names:
         prompt += (
             "Each person keeps his own face, hair, glasses and outfit exactly "
