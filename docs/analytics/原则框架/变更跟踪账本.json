@@ -1,138 +1,147 @@
 {
- "_readme": "变更跟踪账本 (1103 立, 元令执行件): 每次系统结构变更必须登记一行并挂判读窗口; 判读日出结论改 status。改完只为爽 = 违规。机读供爬虫/周检自动化消费。",
- "schema": {
-  "id": "唯一号",
-  "date": "变更日",
-  "change": "改了什么",
-  "commit": "批次",
-  "verify": "怎么算验证通过",
-  "readout_date": "判读日",
-  "metrics": "读哪些数",
-  "status": "pending|pass|fail|rolled_back"
- },
- "entries": [
-  {
-   "id": "TR-001",
-   "date": "2026-11-03",
-   "change": "时长带精简 270-420→180-330 (3-5min档), 字数包络956-1590, 新集默认240s",
-   "commit": "05762d6",
-   "verify": "高效能ep1-3: 完播率≥卓档基线×1.2 且 5s率≥21%",
-   "readout_date": "2026-11-23",
-   "metrics": [
-    "completion_rate",
-    "sec5_rate",
-    "avg_watch_sec",
-    "views"
-   ],
-   "status": "pending"
+  "_readme": "变更跟踪账本 (1103 立, 元令执行件): 每次系统结构变更必须登记一行并挂判读窗口; 判读日出结论改 status。改完只为爽 = 违规。机读供爬虫/周检自动化消费。",
+  "schema": {
+    "id": "唯一号",
+    "date": "变更日",
+    "change": "改了什么",
+    "commit": "批次",
+    "verify": "怎么算验证通过",
+    "readout_date": "判读日",
+    "metrics": "读哪些数",
+    "status": "pending|pass|fail|rolled_back"
   },
-  {
-   "id": "TR-002",
-   "date": "2026-11-03",
-   "change": "白领人群锁+四闸选书SOP (豆包书单坡度判死)",
-   "commit": "e502eac+e994a42",
-   "verify": "高效能均播≥4k(白领档) 且 掉粉率无异常抬升",
-   "readout_date": "高效能Te+7",
-   "metrics": [
-    "views",
-    "fan_lost率",
-    "interest聚集(职场类)"
-   ],
-   "status": "pending"
-  },
-  {
-   "id": "TR-003",
-   "date": "2026-11-03",
-   "change": "框架修正案四条 (播放=池宽信号/ETA产出函数定标/P1判据+职场类聚集/刺激点60-90s)",
-   "commit": "docs批",
-   "verify": "随 TR-001/002 判读自动覆盖",
-   "readout_date": "2026-11-23",
-   "metrics": [],
-   "status": "pending"
-  },
-  {
-   "id": "TR-004",
-   "date": "2026-11-03",
-   "change": "判定卡A 两秒vs三秒卡 — 1103修正落位: ep2-4系成品待传(用户口述)不能承载实验; 改骑顾问ep5=3s卡+瘦身稿 / ep6=2s卡+瘦身稿 (卡型正交于字数, 同书同时段带冻结); ep7用胜者卡",
-   "commit": "-",
-   "verify": "播放差>30%或吸粉率<0.4%→回3s; 播放持平且5s率降幅≤5pp→2s定型",
-   "readout_date": "2026-11-17 (ep6+48h)",
-   "metrics": [
-    "views",
-    "sec5_rate",
-    "fan_growth率",
-    "collects率"
-   ],
-   "status": "pending"
-  },
-  {
-   "id": "TR-005",
-   "date": "2026-11-03",
-   "change": "判定卡B 六拍瘦身版 (新带1350-1590字) — 落位: 顾问ep5-7(未定稿=增量,1103窗口生成); **ep5=3s卡**(主读: 5s率≥21%基线可比) / ep6=2s卡(稳健复验)",
-   "commit": "-",
-   "verify": "ep5 均看≥9.5s 且 5s率≥21% → 定型; 主判读仍高效能ep1-3",
-   "readout_date": "2026-11-15 (ep5+48h 早读) / 2026-11-23 (主)",
-   "metrics": [
-    "avg_watch_sec",
-    "sec5_rate"
-   ],
-   "status": "pending"
-  },
-  {
-   "id": "TR-006",
-   "date": "2026-11-03",
-   "change": "判定卡C 挂车A/B (前置=有效粉真值确认)",
-   "commit": "-",
-   "verify": "掉粉无异常+播放不降→常开",
-   "readout_date": "真值确认后7天",
-   "metrics": [
-    "fan_lost",
-    "views",
-    "fan_growth"
-   ],
-   "status": "blocked_pending_有效粉真值"
-  },
-  {
-   "id": "TR-007",
-   "date": "2026-11-03",
-   "change": "粉丝侧改道: 作品吸粉求和+锚点 (抖音撤粉丝导出); douyin_unified沉淀总表+派生列",
-   "commit": "b60f651..0d44ae9",
-   "verify": "下两次锚点间 派生cum与真锚偏差≤10%",
-   "readout_date": "下一锚点日",
-   "metrics": [
-    "fan_growth_cum vs total_fans锚点"
-   ],
-   "status": "pending"
-  },
-  {
-   "id": "TR-008",
-   "date": "2026-11-03",
-   "change": "顾问ep1已传(1103口述), **ep2-4成品待传、ep5-7待产=争取窗口**: ep2-4存量照发(卡型以发布后5s率自证: ~21%=3s卡/~13%=2s卡, 账本typing待核); ep5=3s卡+瘦身稿/ep6=2s卡+瘦身稿/ep7=胜者卡; 其余升级(高效能建书链/挂车/爬虫)排队至顾问上线后",
-   "commit": "seed 1103+a04c086修",
-   "verify": "判读线封卷(第6样本)+卡A/B按期读数",
-   "readout_date": "2026-11-05 (ep1数据导入+判读线封卷)",
-   "metrics": [
-    "views",
-    "fan_growth",
-    "sec5_rate"
-   ],
-   "status": "pending"
-  },
-  {
-   "id": "TR-009",
-   "date": "2026-11-03",
-   "change": "稿件结构两观察项挂卡 (23集真值回溯画像驱动, 非令=观察): ①你密度 你/百字 — 历史赢家带0.7-1.4, >1.5从未赢过, 新顾问稿ep2-4达2.2-2.5 (自查表对号框架推高); ②钩子段字数 — 赢家17-30, >35三样本全非赢家, 新稿ep2=43/ep6=39",
-   "commit": "1103 S/T/U系批后分析 (数据只读零改动)",
-   "verify": "同书同时段带内比较 (顾问ep2-7, 均20:02档): ①高你密度集(≥2.0)吸粉率与播放 vs 低集(≤1.5) — 显著低→你密度入提示级闸候选; ②钩字>35集5s率 vs ≤30集 — 低≥5pp→钩字上限入闸候选; 不显著→保留框架, 观察项转睡眠",
-   "readout_date": "各集发布+7d 滚动 (ep2-7)",
-   "metrics": [
-    "你/百字",
-    "钩子段字数",
-    "views",
-    "fan_growth",
-    "sec5_rate"
-   ],
-   "status": "pending"
-  }
- ]
+  "entries": [
+    {
+      "id": "TR-001",
+      "date": "2026-11-03",
+      "change": "时长带精简 270-420→180-330 (3-5min档), 字数包络956-1590, 新集默认240s",
+      "commit": "05762d6",
+      "verify": "高效能ep1-3: 完播率≥卓档基线×1.2 且 5s率≥21%",
+      "readout_date": "2026-11-23",
+      "metrics": [
+        "completion_rate",
+        "sec5_rate",
+        "avg_watch_sec",
+        "views"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-002",
+      "date": "2026-11-03",
+      "change": "白领人群锁+四闸选书SOP (豆包书单坡度判死)",
+      "commit": "e502eac+e994a42",
+      "verify": "高效能均播≥4k(白领档) 且 掉粉率无异常抬升",
+      "readout_date": "高效能Te+7",
+      "metrics": [
+        "views",
+        "fan_lost率",
+        "interest聚集(职场类)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-003",
+      "date": "2026-11-03",
+      "change": "框架修正案四条 (播放=池宽信号/ETA产出函数定标/P1判据+职场类聚集/刺激点60-90s)",
+      "commit": "docs批",
+      "verify": "随 TR-001/002 判读自动覆盖",
+      "readout_date": "2026-11-23",
+      "metrics": [],
+      "status": "pending"
+    },
+    {
+      "id": "TR-004",
+      "date": "2026-11-03",
+      "change": "判定卡A 两秒vs三秒卡 — 1103修正落位: ep2-4系成品待传(用户口述)不能承载实验; 改骑顾问ep5=3s卡+瘦身稿 / ep6=2s卡+瘦身稿 (卡型正交于字数, 同书同时段带冻结); ep7用胜者卡",
+      "commit": "-",
+      "verify": "播放差>30%或吸粉率<0.4%→回3s; 播放持平且5s率降幅≤5pp→2s定型",
+      "readout_date": "2026-11-17 (ep6+48h)",
+      "metrics": [
+        "views",
+        "sec5_rate",
+        "fan_growth率",
+        "collects率"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-005",
+      "date": "2026-11-03",
+      "change": "判定卡B 六拍瘦身版 (新带1350-1590字) — 落位: 顾问ep5-7(未定稿=增量,1103窗口生成); **ep5=3s卡**(主读: 5s率≥21%基线可比) / ep6=2s卡(稳健复验)",
+      "commit": "-",
+      "verify": "ep5 均看≥9.5s 且 5s率≥21% → 定型; 主判读仍高效能ep1-3",
+      "readout_date": "2026-11-15 (ep5+48h 早读) / 2026-11-23 (主)",
+      "metrics": [
+        "avg_watch_sec",
+        "sec5_rate"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-006",
+      "date": "2026-11-03",
+      "change": "判定卡C 挂车A/B (前置=有效粉真值确认)",
+      "commit": "-",
+      "verify": "掉粉无异常+播放不降→常开",
+      "readout_date": "真值确认后7天",
+      "metrics": [
+        "fan_lost",
+        "views",
+        "fan_growth"
+      ],
+      "status": "blocked_pending_有效粉真值"
+    },
+    {
+      "id": "TR-007",
+      "date": "2026-11-03",
+      "change": "粉丝侧改道: 作品吸粉求和+锚点 (抖音撤粉丝导出); douyin_unified沉淀总表+派生列",
+      "commit": "b60f651..0d44ae9",
+      "verify": "下两次锚点间 派生cum与真锚偏差≤10%",
+      "readout_date": "下一锚点日",
+      "metrics": [
+        "fan_growth_cum vs total_fans锚点"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-008",
+      "date": "2026-11-03",
+      "change": "顾问ep1已传(1103口述), **ep2-4成品待传、ep5-7待产=争取窗口**: ep2-4存量照发(卡型以发布后5s率自证: ~21%=3s卡/~13%=2s卡, 账本typing待核); ep5=3s卡+瘦身稿/ep6=2s卡+瘦身稿/ep7=胜者卡; 其余升级(高效能建书链/挂车/爬虫)排队至顾问上线后",
+      "commit": "seed 1103+a04c086修",
+      "verify": "判读线封卷(第6样本)+卡A/B按期读数",
+      "readout_date": "2026-11-05 (ep1数据导入+判读线封卷)",
+      "metrics": [
+        "views",
+        "fan_growth",
+        "sec5_rate"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-009",
+      "date": "2026-11-03",
+      "change": "稿件结构两观察项挂卡 (23集真值回溯画像驱动, 非令=观察): ①你密度 你/百字 — 历史赢家带0.7-1.4, >1.5从未赢过, 新顾问稿ep2-4达2.2-2.5 (自查表对号框架推高); ②钩子段字数 — 赢家17-30, >35三样本全非赢家, 新稿ep2=43/ep6=39",
+      "commit": "1103 S/T/U系批后分析 (数据只读零改动)",
+      "verify": "同书同时段带内比较 (顾问ep2-7, 均20:02档): ①高你密度集(≥2.0)吸粉率与播放 vs 低集(≤1.5) — 显著低→你密度入提示级闸候选; ②钩字>35集5s率 vs ≤30集 — 低≥5pp→钩字上限入闸候选; 不显著→保留框架, 观察项转睡眠",
+      "readout_date": "各集发布+7d 滚动 (ep2-7)",
+      "metrics": [
+        "你/百字",
+        "钩子段字数",
+        "views",
+        "fan_growth",
+        "sec5_rate"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-010",
+      "date": "2026-11-08",
+      "change": "产线新二令: 令38 运镜判定人检为准/GLM帧判降级辅助 (1107 s22判平移实为推, s6判推实为摇 双误读); 令39 运镜镜槽域[6,10] 上限入闸 (502dc06, h3工位10s硬上限截尾陪葬)",
+      "commit": "502dc06 + 8b449fc (缓存no-cache) + f6cda83 (批5收官)",
+      "verify": "全量56镜重掷(job a489e895, 1108 00:12)人检: ①运镜镜执行率人检统计 (帧判只做初筛对照, 摇域s6型 vs s22型分桶) ②>10s固定镜(r2v)零截尾抽听尾部事件; 15运镜镜全在[6,10]域内=闸零误伤",
+      "readout_date": "2026-11-10",
+      "status": "pending"
+    }
+  ]
 }
