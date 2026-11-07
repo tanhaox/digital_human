@@ -229,6 +229,12 @@ def validate(direct: dict[str, dict[str, Any]], shots: list[dict[str, Any]]
         if kind not in NO_MOVE and float(s.get("est_s") or 0) < MIN_MOVE_SLOT_S:
             iss.append(f"运镜镜槽长 {s.get('est_s')}s < {MIN_MOVE_SLOT_S:g}s — "
                        "幅度天花板=槽长, 只准固定")
+        if kind not in NO_MOVE and float(s.get("est_s") or 0) > 10.0:
+            # 1107 批量审计实锤: 运镜镜锁 h3 工位=模型 10s 硬上限, 槽>10s 装配
+            # 只能截前段 → 尾部事件陪葬 (0916 生成时长=语音长度铁律被物理违背)。
+            # 固定镜不受限 (auto 启发式可落 r2v, 时长>10 可)。
+            iss.append(f"运镜镜槽长 {s.get('est_s')}s 超 h3 工位 10s 硬上限 — "
+                       "拆行/拆镜/改固定 (固定镜走 r2v 可超 10s)")
         if size not in SIZES:
             iss.append(f"景别「{size}」不在枚举内")
         if size == prev_size:
@@ -295,7 +301,7 @@ _SYS = f"""你是短视频的动画导演。输入镜清单 (镜号|槽长秒|�
 
 创作铁律 (违反即打回):
 1. **固定是默认** — 运镜是叙事工具: 场景揭示/规模呈现/跟随主体才用。
-2. 槽长 <{MIN_MOVE_SLOT_S:g}s 的镜只准 固定 (短槽物理上折成小幅, 写了也白写)。
+2. 槽长 <{MIN_MOVE_SLOT_S:g}s 的镜只准 固定 (短槽物理上折成小幅, 写了也白写); 运镜镜槽长 >10s 改固定 (h3 工位 10s 硬上限, 槽长超了必截尾)。
 3. 摇/升降 幅速只准律档 (大+慢 — 模型稳定档); 推幅速自由; **每弧运镜镜至多 2 个**。
 4. 景别**封闭枚举, 只准从中选**: {SIZES_STR} — 不准自创词 (大全景/中近景/远景 都非法)。
 5. 景别节奏: 大场景+全景 约每 4 镜 1 镜; 特写不过半; **相邻镜景别必须换一档**。

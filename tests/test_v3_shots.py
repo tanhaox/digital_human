@@ -601,6 +601,18 @@ def test_direct_validate_rules():
     static_amp = {"s1": ok["s1"], "s2": {"size": "特写",
                    "cam": {"kind": "固定", "dir": "", "amp": "大", "speed": ""}}}
     assert any("固定镜不带幅速" in x for x in D.validate(static_amp, shots)["s2"])
+    # 1107 批量审计: 运镜镜槽 >10s 拦 (h3 工位 10s 硬上限, 截尾陪葬); 固定镜不受限
+    over = [{"sid": "s1", "arc_id": "A1", "est_s": 8.0},
+            {"sid": "s2", "arc_id": "A1", "est_s": 10.5},
+            {"sid": "s3", "arc_id": "A1", "est_s": 11.2}]
+    iss3 = D.validate({"s1": ok["s1"],
+                       "s2": {"size": "近景",
+                              "cam": {"kind": "摇", "dir": "左", "amp": "大", "speed": "慢"}},
+                       "s3": {"size": "特写",
+                              "cam": {"kind": "固定", "dir": "", "amp": "", "speed": ""}}},
+                      over)
+    assert any("10s 硬上限" in x for x in iss3["s2"])   # 运镜镜 10.5s → 拦
+    assert not any("10s" in x for x in iss3.get("s3", []))  # 固定镜 11.2s → 放行 (r2v 可超)
 
 
 def test_direct_prompt_carries_the_rules():
