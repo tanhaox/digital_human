@@ -1664,9 +1664,13 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
         rev_start = 2.0 + scroll_s if scroll else 3.0
         drop_half = _sfx_dur(_INTRO_SFX_DROP) / 2
         t_shift = 0.0
+        # 1107 v3 轴兼容: 基准=首镜实际起点。v2 对齐轴首镜=tc0 (恒等旧式);
+        # v3 盖章轴 0 起 (无 tc 预留) — 旧式按 tc0 算平移与 reveal 窗, 开场
+        # 套件与 s1 撞车 (SegmentOverlap 两连实锤)。
+        _first_t0 = min((float(s.get("t_start") or 0) for s in shots), default=tc0)
         if intro:
             new_tc = rev_start + drop_half + intro["d2"] + 0.5
-            t_shift = round(new_tc - tc0, 2)
+            t_shift = round(new_tc - _first_t0, 2)
         if t_shift:
             shots = [{**s, "t_start": round(float(s["t_start"]) + t_shift, 2),
                       "t_end": round(float(s["t_end"]) + t_shift, 2)} for s in shots]
@@ -1677,7 +1681,7 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
         except (AnimNotFound, RuntimeError):
             audio = {"files": []}
         _sent_segs = _sentence_segs(audio["files"]) if audio["files"] else []
-        tc_us = int((float(cfg.brand_card.opening_sec) + t_shift) * _US)
+        tc_us = int((_first_t0 + t_shift) * _US)     # 1107: v2 恒等 (first=tc0); v3=新 tc
 
         # ── 1023 截屏卡 (用户令): 句级 segs → 确定性检测清单/断言金句,
         #    quote_card 轨纯文字直加 (规划层不动); 轴 = tc_us + seg 时刻
