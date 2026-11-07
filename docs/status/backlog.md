@@ -2218,3 +2218,20 @@ laotan-tech 加【科技版专属约束】（高于通用规则）：
 - **提出时间**: 2026-11-03
 - **描述**: 后端重启后 gpu_svc 登记册清空, 独立存活的 ComfyUI (E盘 portable) 被卡卫兵报"外来进程 未杀" (ep2 K2 批实锤 pid=2976 虚惊). 修法: 启动/预检时探活已知服务端口 (8188) 认领存活实例入册, 或路径白名单
 - **涉及模块**: gpu_service_manager/_card_guard.py
+
+### ID-135：【动画·v3】v3 线禁跑 v2 align — 归真器清空投影层 (1107 实锤)
+
+- **状态**: pending (执法已入 CLAUDE.md 红线意识, 代码闸未装)
+- **优先级**: P0
+- **提出时间**: 2026-11-07
+- **描述**: ep5 实锤: v2 align_episode 的 `_realign_narrations` 认不出 v3 盖章投影的 doc.shots (arc_id 曾空/形状异) → 全 drop → save 写空盘 (IndexError 前), 56 镜视频引用尽失。恢复=⑦ project_v2 重建 + anim/ 盘上文件回填 (1107 已做)。v3 的轴归真由 ⑥槽位+⑦盖章自洽, 根本不需要 v2 align。
+- **修法**: align_episode 入口加防御 — `doc.v3.stamp` 存在即 AnimNotFound("v3 线禁跑 v2 align (轴由 ⑥⑦ 自洽)")。另: 装配前判据 `planner_flow.startswith("director2")` 会把 v3 误判已对齐 (1107 已修 t_shift/tc_us 基准=首镜实际起点, anim_draft.py:1666-1678,1680)。
+- **涉及模块**: anim_draft.align_episode / v3_pipeline/stamp.project_v2
+
+### ID-136：【动画·v3】video_station 丢失 (1107 恢复重建未考古) + 服务端跑旧装配码
+
+- **状态**: pending
+- **优先级**: P2
+- **提出时间**: 2026-11-07
+- **描述**: ① 1107 doc.shots 恢复重建时 video_station 字段未从 build_ledger 考古回填 (缺省空=后续重渲按 h3 默认路由, r2v 镜若重做走错工位); ② anim_draft.py 的 v3 轴修复 (t_shift/tc_us) 只在本地进程生效, 后端 54321 未重启仍跑旧码 — 页面装配按钮重启前会复踩撞车。
+- **涉及模块**: anim_draft.build_draft / v3_pipeline/h3.py
