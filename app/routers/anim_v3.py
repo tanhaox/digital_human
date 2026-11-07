@@ -276,7 +276,7 @@ def v3_card_image(book_id: str, ep: int, name: str):
     p = cards_dir(book_title) / f"{safe}.png"
     if not p.exists():
         raise HTTPException(status_code=404, detail=f"图不存在: {safe}")
-    return FileResponse(str(p))
+    return FileResponse(str(p), headers={"Cache-Control": "no-cache"})
 
 
 class CardDiagramBody(BaseModel):
@@ -622,7 +622,7 @@ def v3_k2_brand_image(book_id: str, ep: int):
     p = shots_mod.ep_dir(book_title, ep) / brand_mod.resolve(book_title, ep, "keyframe")
     if not p.exists():
         raise HTTPException(status_code=404, detail="品牌 keyframe 不存在 — 先跑品牌卡")
-    return FileResponse(str(p))
+    return FileResponse(str(p), headers={"Cache-Control": "no-cache"})
 
 
 @router.get("/ep/{book_id}/{ep}/h3/brand-video")
@@ -639,7 +639,7 @@ def v3_h3_brand_video(book_id: str, ep: int):
     p = shots_mod.ep_dir(book_title, ep) / brand_mod.resolve(book_title, ep, "video")
     if not p.exists():
         raise HTTPException(status_code=404, detail="品牌定稿视频不存在 — 先跑品牌卡")
-    return FileResponse(str(p))
+    return FileResponse(str(p), headers={"Cache-Control": "no-cache"})
 
 
 @router.post("/ep/{book_id}/{ep}/k2/approve")
@@ -751,7 +751,7 @@ def v3_tts_combined(book_id: str, ep: int):
     p = _P(str(audio.get("output_dir") or "")) / "full_paragraph.wav"
     if not p.exists():
         raise HTTPException(status_code=404, detail="full_paragraph.wav 不存在 — 先重拼/重生成")
-    return FileResponse(str(p))
+    return FileResponse(str(p), headers={"Cache-Control": "no-cache"})
 
 
 @router.post("/ep/{book_id}/{ep}/tts/generate")
@@ -836,7 +836,7 @@ def v3_tts_file(book_id: str, ep: int, idx: int):
     p = _P(str(files[idx].get("file") or ""))
     if not p.exists():
         raise HTTPException(status_code=404, detail="音频文件缺失")
-    return FileResponse(str(p))
+    return FileResponse(str(p), headers={"Cache-Control": "no-cache"})
 
 
 # ── ⑦ 盖章 (V5: 查表灌秒 + v2 回填) ────────────────────────────────────

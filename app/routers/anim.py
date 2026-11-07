@@ -473,7 +473,10 @@ def ep_file(book_id: str, ep: int, file_path: str = "", path: str | None = None)
         raise _not_found(exc)
     if not p.exists() or not p.is_file():
         raise HTTPException(status_code=404, detail=f"文件不存在: {rel}")
-    return FileResponse(str(p))
+    # 1107 缓存定谳: 产物同名覆盖 + 无 Cache-Control → 浏览器启发式强缓存,
+    # 人检看到旧视频实锤 (s6 摇版被缓存回退误判"变回去")。no-cache=每次
+    # ETag 再验证, 同文件 304, 换版立即 200。
+    return FileResponse(str(p), headers={"Cache-Control": "no-cache"})
 
 
 @router.get("/jobs/running")
