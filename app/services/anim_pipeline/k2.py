@@ -587,7 +587,20 @@ def _scene_eff(shot: dict[str, Any], book_title: str) -> str:
             _parts = []
             for nm, lk in _hit[:3]:
                 _ne, _le = _kl0.char_look_en(nm, lk)
-                _parts.append(f"{_ne} ({_le})")
+                # 1108 批A-2 面部锚串首前置: 胡茬四镜残留实锤 (首掷红衣/眼镜
+                # 全修=前置生效, 但面部锚埋在 look 长串尾部权重不足 + "middle-
+                # aged man" 开头自带胡须先验) — 面部律从 zh look 确定性派生
+                # (与 _cast_negative 同判据, 零 LLM), 排进括号内第一位。
+                _face = []
+                if "无胡须" in lk:
+                    _face.append("clean-shaven face, no beard, "
+                                 "no mustache, no stubble")
+                if "眼镜" in lk:
+                    _face.append("wearing glasses")
+                else:
+                    _face.append("no glasses")
+                _le2 = f"{'; '.join(_face)}; {_le}" if _face else _le
+                _parts.append(f"{_ne} ({_le2})")
             en = f"{'; '.join(_parts)}. " + en
         # 1026 兜底: fallback 模板 EN 零身份 (随机人群实锤) — zh 侧判零身份
         # (无卡名+无皮肤/发型词) → 替身 look 英译前置

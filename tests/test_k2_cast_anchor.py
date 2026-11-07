@@ -75,9 +75,21 @@ def test_scene_eff_en_look_prefix(monkeypatch):
     }
     out = k2._scene_eff(shot, _BOOK)
     assert out.startswith("Lao Tan (")           # look 前置
+    # 1108 批A-2: 面部锚必须领括号内第一位 (胡茬残留实锤: 埋尾部权重不足)
+    assert out.startswith("Lao Tan (clean-shaven face, no beard, "
+                          "no mustache, no stubble; no glasses;")
     assert "clean-shaven" in out                 # 无胡须锚进 EN
     assert "no glasses" in out                   # 无眼镜锚进 EN
     assert "wide shot: a rocky ridge" in out     # 原句不丢
+    # 戴镜角色: 面部锚=clean-shaven + wearing glasses (不含 no glasses 误伤)
+    shot2 = {
+        "keyframe_zh": "大卫·梅斯特递过文件夹",
+        "keyframe_en": "a man hands over a folder",
+    }
+    out2 = k2._scene_eff(shot2, _BOOK)
+    assert out2.startswith("David Meister (clean-shaven face, no beard, "
+                           "no mustache, no stubble; wearing glasses;") \
+        or out2.startswith("大卫·梅斯特 (")  # fail-open 退中文时 name 保留
     # 无卡名镜: 不前置 (字节不扰动)
     out2 = k2._scene_eff({"keyframe_zh": "纯山路空镜", "keyframe_en": "an empty trail"},
                          _BOOK)
