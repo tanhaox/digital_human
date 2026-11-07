@@ -2293,3 +2293,12 @@ laotan-tech 加【科技版专属约束】（高于通用规则）：
 - **描述**: 1107 晚 6 镜重掷批 video_qc 全部 `ZHIPU API 429 1113 余额不足` 检查异常放行 (fail-open)。产线内置 QC 静默失效; GLM 帧判走的是另一 key (GLM Coding Plan) 不受影响。
 - **修法**: ZHIPU_API_KEY 充值 (产线 QC + 搜索/flash 池共用); 或 video_qc 切 GLM 看图 key (glm_vision 通道, 记忆库有先例)。
 - **涉及模块**: video_qc / .env ZHIPU_API_KEY
+
+### ID-141：【动画·r2v】7 镜人检三病同源 — 提示词层四修 (1108 第十七轮定谳+落地)
+
+- **状态**: done (修复落地; 六镜重掷人检判读挂 TR-011, 1110 出)
+- **优先级**: P0 (3 废片级现象: 固定镜推进/场景漂办公室/180°扭头)
+- **提出时间**: 2026-11-08
+- **定谳**: 页面显示与 JSON 一致 7/7, 原图无罪, 全部根因在提示词层 — ①r2v 持镜句自带推许可 (非官方 Static Shot) ②圣经 era_anchor/motion_style 环境句逐字渗漏 (十三/十四轮"尾段办公室 6/6 机理 UNKNOWN"破案) ③character_policy 禁背影令 vs s9 背影构图冲突。
+- **四修**: r2v.py:145 官方 Static Shot 句式; 圣经三字段拆环境/背影条款 (生成规格 director2.py 三处同步防复发); s13 捏笔存量重写+K2 重生图 PASS。pytest 6f/639p 不变。
+- **遗留**: v2 线 K2/H3 闸撞 108 处镜界违例 (v3 投影层与 ⑤ 句边 5.5s 片头偏移 — v3 相位 v3_k2/v3_h3 不在闸列表属设计现状, v2 闸只管 v2 线; 若未来 v2 线复用 v3 doc 需先对齐, 本轮未动)。

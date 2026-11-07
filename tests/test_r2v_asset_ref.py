@@ -67,7 +67,10 @@ def test_event_text_never_renders_in_video():
 
 def test_no_asset_untouched():
     p = _prompt(dict(_BASE))
-    assert "Camera stays stable, only a very slight push-in. " in p
+    # 1108 四修①: 官方 Static Shot 句式 (s1/s5/s7/s9 固定镜推进四连实锤根治)
+    assert "The camera holds a static shot" in p
+    assert "remain still" in p
+    assert "Camera stays stable, only a very slight push-in" not in p  # 旧推许可句锁死
     assert "No text, no human voice." not in p  # 1107: 裸禁字已废
     assert "reference image (Object reference" not in p
 

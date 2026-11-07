@@ -142,7 +142,14 @@ def _build_prompt(shot: dict[str, Any], char_names: list[str],
                        "new scene. ")
         prompt += _hold
     else:
-        prompt += "Camera stays stable, only a very slight push-in. "
+        # 1108 四修①: 旧句 "Camera stays stable, only a very slight push-in."
+        # 自带推许可 — s1/s5/s7/s9 人检"固定实则推进"四连实锤 (与圣经
+        # motion_style 缓推句双推许可叠加)。换官方 Static Shot 句式
+        # (base-en 官方词表), position+lens remain still 同时封死横移
+        # (s5 机位偏移), 无素材固定镜零推许可。
+        prompt += ("The camera holds a static shot: the camera position "
+                   "and lens remain still for the whole video — no push, "
+                   "no pull, no lateral move. ")
     # 1017 W2 文字总路由 → 1107 ID-138 拍板收口: 事件字视频内渲染分支整体下线
     # (对齐 1021 停渲令 — 视频模型渲中文=高乱码率; 字全挪剪映侧, 装配层金字
     # 无条件覆盖双工位 anim_draft._collect_text_events)。分支只剩两路:
