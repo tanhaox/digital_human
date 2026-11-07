@@ -627,13 +627,21 @@ _QUOTE_IN_TEXT = re.compile(r"[「『\"“][^」』\"”]{1,20}[」』\"”]")
 
 # ── 误报豁免 (v2 writer_failures 的已知局限, v3 层过滤保 v2 零扰动) ──
 _CARRIER_HIT = re.compile(r"含文字载体「(.+?)」")
-_BLANK_LIMIT = re.compile(r"空白|留白|无字|无文字|未写|空无一字|没有字|不写字|净面|光面")
+# 1107 补: 熄灭/漆黑/黑屏 = 屏幕类载体的「无内容」形态 (ep5 s20 大屏幕漆黑/
+# s55 屏幕熄灭 误报实锤) — 与「空白/留白」同权豁免
+_BLANK_LIMIT = re.compile(r"空白|留白|无字|无文字|未写|空无一字|没有字|不写字|净面|光面"
+                          r"|熄灭|漆黑|黑屏|全黑")
 # 载体旁出现「写着/显示/字样」等内容动词 → 即便别处写了空白, 也不算同一无字物件
 _TEXT_CONTENT = re.compile(r"写着|写了|字样|字迹|写满|刻着|刻字|显示(?!器|屏)|印着|标着")
 _NEG_PREFIX = re.compile(r"[无没不][^，。；,;]{0,6}$")   # 紧贴载体词前的否定: 「无反光字迹」
 # 引号镜位标注豁免 (实锤: LLM 用「图纸台前」: 标镜位, 不是要渲进画面的文字)
 _QUOTED = re.compile(r"[「『\"]([^」』\"]{1,12})[」』\"](\s*[：:])?")
 _QUOTE_HIT = re.compile(r"含引号文本")
+
+# ── 终态词形态豁免 (1107 实弹): v2 尺 (_ENDSTATE_RE) 抓字面「定格|停在」,
+# 分不清「定格在动作前一刻」(合规起点帧) 与「已完成定格」(真终态)。
+# ep5 ③ 新码 9 连报实锤全是前者 — 补形态判定, v2 尺零扰动。 ──
+_PREBEAT_RE = re.compile(r"(定格|停在)[^。]{0,20}(一瞬|一刻|一秒|即将|将发未发)")
 
 
 def _quotes_are_position_labels(text: str) -> bool:
@@ -728,6 +736,8 @@ def text_layer_issues(shots: list[dict[str, Any]]) -> dict[str, list[str]]:
             _txt = text_of.get(mm.group(1), "") if mm else ""
             if mm and _carrier_already_blanked(str(f), _txt):
                 continue
+            if "含终态词" in str(f) and _PREBEAT_RE.search(_txt):
+                continue          # 定格在…前一刻/一瞬 = 合法起点帧表述
             if _QUOTE_HIT.search(str(f)) and _quotes_are_position_labels(_txt):
                 continue          # 引号全是镜位标注 → 非画内文字
             # 只有「以镜号开头」才算镜级 (实锤: 场级「…需≥1 — 补 s1」正文带 s1 被误归)
@@ -791,7 +801,8 @@ def suggest_size(text: str) -> str:
 # ── 一键空白化 (1105 用户令: v3 停用图内字通道) ────────────────────────
 
 _CARRIER_WORD = re.compile(r"含文字载体「(.+?)」")
-_BLANK_PRE = re.compile(r"[张块面些的页幅副]$")   # 载体词前是量词/结构助词才敢插「空白」
+_BLANK_PRE = re.compile(r"[张块面些的页幅副边]$")   # 载体词前是量词/结构助词才敢插「空白」
+                                                 # (1107 补「边」: 旁边便签 → 旁边空白便签)
 
 
 def blankify_carriers(shots: list[dict[str, Any]],

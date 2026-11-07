@@ -2228,10 +2228,20 @@ laotan-tech 加【科技版专属约束】（高于通用规则）：
 - **修法**: align_episode 入口加防御 — `doc.v3.stamp` 存在即 AnimNotFound("v3 线禁跑 v2 align (轴由 ⑥⑦ 自洽)")。另: 装配前判据 `planner_flow.startswith("director2")` 会把 v3 误判已对齐 (1107 已修 t_shift/tc_us 基准=首镜实际起点, anim_draft.py:1666-1678,1680)。
 - **涉及模块**: anim_draft.align_episode / v3_pipeline/stamp.project_v2
 
+### ID-137：【动画·v3】⑦ 盖章视频搬运规则失效 — 全量重烧图变不判 (1107 实锤)
+
+- **状态**: pending
+- **优先级**: P1
+- **提出时间**: 2026-11-07
+- **描述**: project_v2 搬运条件 `old["image_file"] == k2.get("image")` 是**路径字符串对比**。⑤ 全量重烧 = img/sN.png 同路径覆写新图 → 字符串恒等 → 56 镜旧视频 (旧图动作) 全被搬运保留 + status 沿用 anim_done → ⑧ 全跳过 = 新图配旧视频错配。列队重做场景 (个别镜) 侥幸正确是因为重做镜 k2.image 路径变。
+- **修法**: 搬运判据升级为内容级 — ⑤ 落盘时 v3.shots[sid].k2 记 img_mtime/img_sha, 投影搬运对比 mtime (路径同+mtime 同才搬); 或 ⑤ 相位尾检测"图重烧但 doc.shots 有 anim_done"→ 自动清该镜视频状态。
+- **应急已做** (1107 ep5): 清搬运产物 (56 镜 status→img_done) 后 ⑧ 全量重渲。
+- **涉及模块**: v3_pipeline/stamp.project_v2 / k2.py
+
 ### ID-136：【动画·v3】video_station 丢失 (1107 恢复重建未考古) + 服务端跑旧装配码
 
 - **状态**: pending
 - **优先级**: P2
 - **提出时间**: 2026-11-07
-- **描述**: ① 1107 doc.shots 恢复重建时 video_station 字段未从 build_ledger 考古回填 (缺省空=后续重渲按 h3 默认路由, r2v 镜若重做走错工位); ② anim_draft.py 的 v3 轴修复 (t_shift/tc_us) 只在本地进程生效, 后端 54321 未重启仍跑旧码 — 页面装配按钮重启前会复踩撞车。
+- **描述**: ① 1107 doc.shots 恢复重建时 video_station 字段未从 build_ledger 考古回填 (缺省空=后续重渲按 h3 默认路由, r2v 镜若重做走错工位); ② ~~服务端旧装配码~~ 已消除 (1107 13:11 后端重启加载新码, 装配实弹通过)。
 - **涉及模块**: anim_draft.build_draft / v3_pipeline/h3.py
