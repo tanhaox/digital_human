@@ -29,8 +29,8 @@ def _reproject(doc: dict[str, Any]) -> int:
             continue
         anim = s2.setdefault("anim", {})
         for k, v in render_fields(d, float(anim.get("duration_s") or 0)).items():
-            if k == "beats":
-                anim["beats"] = v
+            if k in ("beats", "light_en"):   # anim 域字段 (消费者 build_prompt)
+                anim[k] = v
             else:
                 s2[k] = v
         n += 1

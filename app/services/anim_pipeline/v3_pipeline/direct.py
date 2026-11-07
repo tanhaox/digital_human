@@ -299,7 +299,9 @@ _SYS = f"""你是短视频的动画导演。输入镜清单 (镜号|槽长秒|�
 3. 摇/升降 幅速只准律档 (大+慢 — 模型稳定档); 推幅速自由; **每弧运镜镜至多 2 个**。
 4. 景别**封闭枚举, 只准从中选**: {SIZES_STR} — 不准自创词 (大全景/中近景/远景 都非法)。
 5. 景别节奏: 大场景+全景 约每 4 镜 1 镜; 特写不过半; **相邻镜景别必须换一档**。
-6. 主体运动只动画面句里已有的实体, 禁添画面外动物/器物。
+6. 主体运动 = 事件槽唯一源, 一句结构化: **主体+动作+起承节奏** (动作怎么起、
+   怎么收, 如: 技术员俯身检查主机指示灯, 随后直起身合上检修盖); 槽 ≥9s 可两短句。
+   只动画面句里已有的实体, 禁添画面外动物/器物。
 7. 光影与相邻镜连续 (同一场光源方向/色温不变), 写一句 (如 窗光侧逆)。
 每镜一条 JSON: {{"shots":[{{"sid":"s1","size":"中景",
   "cam":{{"kind":"固定","dir":"","amp":"","speed":""}},
@@ -432,11 +434,14 @@ def reroll_one(shots: list[dict[str, Any]], arcs: list[dict[str, Any]],
 # ── 放行钩子 = 英文化批 (ID-131; 窗口唯一: ⑤要吃/放行前翻=改稿作废) ────
 
 _EN_SYS = """You translate animation shot descriptions to English. Input lines:
-sid|中文画面句|中文主体运动|弧实体词表(zh=en对, 可空). Output strict JSON:
-{"shots":[{"sid":"s1","keyframe_en":"...","motion_en":"..."}]}
+sid|中文画面句|中文主体运动|中文光影|弧实体词表(zh=en对, 可空). Output strict JSON:
+{"shots":[{"sid":"s1","keyframe_en":"...","motion_en":"...","light_en":"..."}]}
 Rules: keyframe_en is the SAME composition in English (no text/words may appear
 in the described image); motion_en describes the same subject motion in English,
-never mentioning any on-screen words. Plain faithful prose, no camera moves.
+never mentioning any on-screen words — one structured sentence (subject + action
++ how it begins and settles); light_en is the same lighting sentence in English,
+kept short (lighting stays continuous across neighboring shots). Plain faithful
+prose, no camera moves.
 When a vocabulary list is given, translate those zh words to EXACTLY those en
 words — never synonyms, never rewording; the same entity keeps one identical
 English wording across all shots of the arc."""
@@ -459,7 +464,12 @@ def finalize(doc: dict[str, Any]) -> dict[str, Any]:
     issues = v3.get("direct_issues") or {}
     if any(k != "弧级" for k in issues) or len(direct) < len(shots):
         raise SystemExit("导演未达标 — 先清镜级问题并填满 34 镜再放行")
-    todo = [s for s in shots if not s.get("keyframe_en")]
+    # 批4 事件槽强闸: keyframe_en 缺 **或 motion_en 缺** (非品牌) → 入补译批,
+    # 不再静默漏译 (motion_en = 事件槽唯一源, 空 = 渲染 JSON 残废)
+    todo = [s for s in shots
+            if not s.get("keyframe_en")
+            or (not s.get("brand_card")
+                and not str((direct.get(s["sid"]) or {}).get("motion_en") or "").strip())]
     # 批3 vocab: 弧词表 zh→en 映射随行注入 — 同实体跨镜同词 (漂移上游因收口)
     arc_vocab = {str(a.get("arc_id")): (a.get("vocab") or [])
                  for a in (v3.get("arcs") or [])}
@@ -470,6 +480,7 @@ def finalize(doc: dict[str, Any]) -> dict[str, Any]:
 
     rows = [f'{s["sid"]}|{str(s.get("keyframe_zh") or "")[:400]}'
             f'|{str((direct.get(s["sid"]) or {}).get("motion") or "")[:100]}'
+            f'|{str((direct.get(s["sid"]) or {}).get("light") or "")[:60]}'
             f'|{_vocab_txt(s)}'
             for s in todo]
     done = 0
@@ -486,9 +497,20 @@ def finalize(doc: dict[str, Any]) -> dict[str, Any]:
                 s["keyframe_en"] = str(r.get("keyframe_en") or "")[:800]
                 s["opening_desc"] = s["keyframe_en"]     # v2 锚定链: 逐字同构
                 d = direct.get(s["sid"])
-                if d is not None and r.get("motion_en"):
-                    d["motion_en"] = str(r.get("motion_en"))[:400]
+                if d is not None:
+                    if r.get("motion_en"):
+                        d["motion_en"] = str(r.get("motion_en"))[:400]
+                    # 批4 光影槽: ④ light 从死档变消费 (h3 opening 行尾软接线)
+                    if r.get("light_en"):
+                        d["light_en"] = str(r.get("light_en"))[:200]
                 done += 1
+    # 批4 存在性强闸: 补译后仍缺 motion_en → 拒放行 (缺批重跑 finalize 自动再投;
+    # 品牌镜豁免 — ⑧ 直通零渲染消费)
+    miss = [str(s["sid"]) for s in shots if not s.get("brand_card")
+            and not str((direct.get(s["sid"]) or {}).get("motion_en") or "").strip()]
+    if miss:
+        raise SystemExit(f"motion_en 缺失 {len(miss)} 镜 ({','.join(miss[:5])}) — "
+                         "事件槽空槽拒放行; 重跑放行补译")
     v3["frozen_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
     v3.setdefault("gates", {})["direct"] = True     # 放行=开闸 (轨/⑤ 的 direct 闸点亮)
     logger.info("[v3:direct] 放行英文化 %d/%d 镜, frozen_at=%s", done, len(todo), v3["frozen_at"])

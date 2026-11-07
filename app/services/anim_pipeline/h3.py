@@ -242,12 +242,15 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
     # 1016 修2: text_event/in_image_text 从镜级直传 — 旧版读 anim.get(...) 永远为空
     # (两字段在镜级, 调用方却只传 shot["anim"]), 事件字/合成字从未真正进过提示词.
     beats = anim["beats"]
+    # 批4 光影槽: ④ light_en 软接线 (空则跳过 — 存量镜/未补译镜零扰动)
+    _light = str(anim.get("light_en") or "").strip()
     lines = [
         "integrated_multimodal_description:",
         f"[Shot 1] {style_h3(book_title, page=page)}. At 0.00 seconds the frame fully matches Picture 1: "
         f"{_strip_scene_label(_de_traditional(anim['opening_desc'].strip()))}. Identity lock: keep all characters' faces, hairstyles and "
         "outfits consistent with Picture 1 — outfit COLORS stay pixel-faithful to Picture 1 for "
-        "every frame: no recoloring, no hue shift, no costume redesign.",
+        "every frame: no recoloring, no hue shift, no costume redesign."
+        + (f" Lighting continuity: {_light}" if _light else ""),
         "",
         f"Physical lock for the whole video: {_de_traditional(anim['physical_lock'].strip())} — "
         "the camera viewpoint stays locked to Picture 1; only a very slight push-in or "
@@ -689,7 +692,10 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
             _PILImage.new("RGB", (1280, 720), (64, 64, 72)).save(_placeholder)
         image_name = comfy.upload_image(_placeholder)
         logger.info("[h3] %s 跳首帧锚定 (中性底图, H3 从 prompt 自生成)", shot["shot_id"])
-        _thesis = arc_thesis(doc, str(shot.get("arc_id") or ""))
+        # 批4 立意摘除 (v3-scoped): v3 镜 (⑥ 投影带 v3_cam_clause 键) 不注
+        # Narrative anchor — 立意是设计层资产不进渲染层; v2 镜维持 (补遗 1)
+        _thesis = "" if "v3_cam_clause" in shot else arc_thesis(
+            doc, str(shot.get("arc_id") or ""))
         wf = build_workflow(image_name, _h3_anim, shot["h3_seed"], prefix,
                              cam_speed=str(shot.get("v3_cam_speed") or ""),
                              cam_amp=str(shot.get("v3_cam_amp") or ""),
@@ -707,7 +713,10 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
         if _cmove:  # B-CAM1: 运镜镜预裁 1024:608 (防 24 帧抖)
             src_img = _cam_pre_crop_608(src_img, shot["shot_id"])
         image_name = comfy.upload_image(src_img)
-        _thesis = arc_thesis(doc, str(shot.get("arc_id") or ""))
+        # 批4 立意摘除 (v3-scoped): v3 镜 (⑥ 投影带 v3_cam_clause 键) 不注
+        # Narrative anchor — 立意是设计层资产不进渲染层; v2 镜维持 (补遗 1)
+        _thesis = "" if "v3_cam_clause" in shot else arc_thesis(
+            doc, str(shot.get("arc_id") or ""))
         wf = build_workflow(image_name, _h3_anim, shot["h3_seed"], prefix,
                              cam_speed=str(shot.get("v3_cam_speed") or ""),
                              cam_amp=str(shot.get("v3_cam_amp") or ""),

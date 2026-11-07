@@ -77,6 +77,8 @@ def render_fields(d: dict[str, Any], real: float) -> dict[str, Any]:
         "v3_cam_amp": str(cam.get("amp") or ""),
         "v3_cam_family": cam_family(cam),
         "v3_cam_dir": str(cam.get("dir") or ""),
+        # 批4 光影槽: ④ light_en 投影 (消费者 = h3 opening 行尾软接线, 空则跳过)
+        "light_en": str(d.get("light_en") or ""),
         "beats": [{"t_start": 0, "t_end": real, "motion": fused}],
     }
 
@@ -94,6 +96,7 @@ def project_v2(doc: dict[str, Any], blocks: list[dict]) -> dict[str, Any]:
     arc_vocab = {str(a.get("arc_id")): (a.get("vocab") or [])
                  for a in (v3.get("arcs") or [])}
     vocab_bad: dict[str, list[str]] = {}
+    empty_motion: list[str] = []      # 批4 事件槽闸: 空 motion_en 拒拼合
     aligned = align_blocks(shots, lines, blocks)
     # 1106 五修 (redo 实锤): 投影重建 doc.shots 丢 video_file → 一次列队重做把
     # 整本成片引用抹光 (54 mp4 成孤儿)。搬运规则: 图未变 (旧 image_file == 新)
@@ -120,6 +123,10 @@ def project_v2(doc: dict[str, Any], blocks: list[dict]) -> dict[str, Any]:
         d = direct.get(sid) or {}
         k2 = s.get("k2") or {}
         rf = render_fields(d, real)      # ⑥ 拼合: camera/station/beats 融合行/注入参数
+        # 批4 事件槽闸: 空 motion_en = 事件槽无主, 拒拼合 (品牌镜豁免, 屏弃/
+        # 失配槽在上面 continue 已跳过)
+        if not s.get("brand_card") and not str(d.get("motion_en") or "").strip():
+            empty_motion.append(sid)
         # ⑥ 契约闸 (批3): zh 词 ∈ keyframe_zh ⇒ en 词 ∈ keyframe_en (弧词表
         # 非空才执法; 品牌镜豁免 — 冻结骨架不经 LLM)
         if not s.get("brand_card"):
@@ -174,6 +181,8 @@ def project_v2(doc: dict[str, Any], blocks: list[dict]) -> dict[str, Any]:
                      "physical_lock": "the camera viewpoint, the main structural "
                                       "elements and layout",
                      "duration_s": real,
+                     # 批4 光影槽: ④ light_en 投影 (软接线, 空则渲染跳过)
+                     "light_en": rf["light_en"],
                      # 事件×镜头融合行 (⑥ 拼合): "as {motion_en}, the camera …" —
                      # 官方嵌动作流形态, ⑧ build_prompt 的 From…to 行原样投影
                      "beats": rf["beats"]},
@@ -199,6 +208,7 @@ def project_v2(doc: dict[str, Any], blocks: list[dict]) -> dict[str, Any]:
             "muted": sum(1 for s in shots if s.get("audio_muted")),
             "total_s": round(t, 1),
             "vocab_mismatch": vocab_bad,
+            "empty_motion": empty_motion,
             "missing_audio": [str(s["sid"]) for s in shots
                               if not s.get("audio_muted")
                               and str(s["sid"]) not in aligned]}
@@ -231,6 +241,13 @@ def run(job: dict[str, Any]) -> None:
     if out["missing_audio"]:
         raise SystemExit(f"锚对齐失配 {len(out['missing_audio'])} 槽 "
                          f"({','.join(out['missing_audio'][:5])}) — ⑤ 页检查改字漂移")
+    # 批4 事件槽闸: 空 motion_en 拒拼合 (⑥ 是完全版 JSON 唯一拼合点 — 事件槽
+    # 无主的镜混进投影 = 渲染层静默残废; 打回 ④ 放行补译)
+    if out["empty_motion"]:
+        logger.error("[v3:stamp] 事件槽空 %d 镜拒拼合: %s", len(out["empty_motion"]),
+                     ",".join(out["empty_motion"][:8]))
+        raise SystemExit(f"⑥ 事件槽闸: {len(out['empty_motion'])} 镜 motion_en 为空 "
+                         f"({','.join(out['empty_motion'][:5])}) — ④ 页重跑放行补译")
     # 批3 vocab 契约闸: 实体 zh 上桌而 en 没上桌 = 同实体跨镜漂词 → 打回补译
     # (空词表零执法 — 存量集不受扰; 品牌镜在 project_v2 内已豁免)
     if out["vocab_mismatch"]:

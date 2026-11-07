@@ -1339,3 +1339,130 @@ def test_vocab_pipeline_contract():
     d_brand = _doc("登山客拄登山杖踩雪上行", "a man with a staff", v)
     d_brand["v3"]["shots"][0]["brand_card"] = True
     assert ST.project_v2(d_brand, blocks)["vocab_mismatch"] == {}
+
+
+def test_finalize_motion_gate_and_light_en():
+    """批4 事件槽+光影: motion_en 存在性强闸 — 缺 (非品牌) → 入补译批, 补后仍缺
+    → 拒放行不落冻结戳 (旧态静默漏译收口); light_en 同批产出落 direct。"""
+    import sys, json
+    import pytest
+    from app.services.anim_pipeline.v3_pipeline import direct as D
+    # s1: keyframe_en 缺; s2: en 在但 motion_en 缺 (旧态静默漏译); s3: 品牌豁免
+    shots = [{"sid": "s1", "keyframe_zh": "悬崖全景", "keyframe_en": ""},
+             {"sid": "s2", "keyframe_zh": "握盘近景", "keyframe_en": "grip scene",
+              "opening_desc": "grip scene"},
+             {"sid": "s3", "brand_card": True, "keyframe_zh": "品牌镜",
+              "keyframe_en": "brand"}]
+    direct = {"s1": {"motion": "手握紧", "light": "窗光侧逆"},
+              "s2": {"motion": "手上抬", "light": "同窗光"},
+              "s3": {"motion": "", "light": ""}}
+    doc = {"v3": {"shots": shots, "direct": direct, "direct_issues": {}}}
+    seen = {}
+
+    class _LLM:
+        def chat(self, *a, **kw):
+            seen["rows"] = [ln.split("|")[0] for ln in a[1].splitlines()
+                            if ln[:1] == "s"]
+            return json.dumps({"shots": [
+                {"sid": "s1", "keyframe_en": "cliff EN", "motion_en": "hand grips",
+                 "light_en": "window side light"},
+                {"sid": "s2", "keyframe_en": "grip scene", "motion_en": "hand rises"}]})
+
+    class _SvcMod:
+        @staticmethod
+        def get_llm_service():
+            return _LLM()
+
+        @staticmethod
+        def _parse_json(raw):
+            return json.loads(raw)
+
+    real = sys.modules.get("app.services.llm_service")
+    sys.modules["app.services.llm_service"] = _SvcMod
+    try:
+        D.finalize(doc)
+        assert seen["rows"] == ["s1", "s2"], "motion_en 缺的非品牌镜必须入补译批"
+        assert direct["s1"]["light_en"] == "window side light"
+        assert doc["v3"]["frozen_at"]
+        # 补译仍缺 motion_en → 拒放行 (不再静默) 且不落冻结戳
+        doc2 = {"v3": {"shots": [{"sid": "s1", "keyframe_zh": "x", "keyframe_en": ""}],
+                       "direct": {"s1": {"motion": "动", "light": "光"}},
+                       "direct_issues": {}}}
+
+        class _BadLLM:
+            def chat(self, *a, **kw):
+                return json.dumps({"shots": [
+                    {"sid": "s1", "keyframe_en": "EN ONLY"}]})   # 无 motion_en
+
+        class _Svc2:
+            @staticmethod
+            def get_llm_service():
+                return _BadLLM()
+
+            @staticmethod
+            def _parse_json(raw):
+                return json.loads(raw)
+        sys.modules["app.services.llm_service"] = _Svc2
+        with pytest.raises(SystemExit, match="motion_en"):
+            D.finalize(doc2)
+        assert not doc2["v3"].get("frozen_at"), "拒放行不落冻结戳"
+    finally:
+        if real:
+            sys.modules["app.services.llm_service"] = real
+
+
+def test_stamp_motion_gate_and_light_projection():
+    """批4 ⑥ 闸: 空 motion_en 拒拼合 (empty_motion 收集, run 层 SystemExit 拦);
+    light_en 投影进 anim (h3 opening 行尾消费); 品牌镜豁免; 批3 闸不受扰。"""
+    from app.services.anim_pipeline.v3_pipeline import stamp as ST
+
+    def _doc(direct, **shot_extra):
+        s = {"sid": "s1", "arc_id": "A1", "line_refs": [1], "est_s": 5,
+             "keyframe_zh": "画面", "keyframe_en": "scene"}
+        s.update(shot_extra)
+        return {"book_title": "书", "v3": {
+            "lines": [{"no": 1, "text": "第一句。" * 8}],
+            "arcs": [], "shots": [s], "direct": direct}}
+    blocks = [{"text": "第一句。" * 8, "dur_s": 5.0}]
+    # 空 motion_en 非品牌 → 拦 (事件槽无主)
+    out = ST.project_v2(_doc({"s1": {"motion_en": "", "light_en": ""}}), blocks)
+    assert out["empty_motion"] == ["s1"] and out["vocab_mismatch"] == {}
+    # 品牌镜豁免 (⑧ 直通零渲染消费)
+    out_b = ST.project_v2(_doc({"s1": {"motion_en": ""}}, brand_card=True), blocks)
+    assert out_b["empty_motion"] == []
+    # motion_en 在 + light_en 在 → 零拦 + 投影进 anim
+    doc = _doc({"s1": {"motion_en": "hand rises",
+                       "light_en": "window side light",
+                       "cam": {"kind": "固定", "dir": "", "amp": "", "speed": ""}}})
+    out2 = ST.project_v2(doc, blocks)
+    assert out2["empty_motion"] == []
+    assert doc["shots"][0]["anim"]["light_en"] == "window side light"
+    # 光影软接线: 空投影零扰动 (存量镜)
+    doc3 = _doc({"s1": {"motion_en": "hand rises"}})
+    ST.project_v2(doc3, blocks)
+    assert doc3["shots"][0]["anim"]["light_en"] == ""
+
+
+def test_h3_light_wire_and_thesis_scoping():
+    """批4 渲染层: ④ light_en 软接线 opening 行尾 (空则跳过); Narrative anchor
+    v3-scoped 摘除 — run_shot 层对 v3 镜 (⑥ 投影带 v3_cam_clause 键) 传 thesis="",
+    v2 镜维持; metaphor_core 盖章投影保留 (设计层消费者)。"""
+    from app.services.anim_pipeline import h3 as H
+    from app.services.anim_pipeline import r2v as R
+    anim = {"opening_desc": "a man at a desk", "physical_lock": "the layout",
+            "duration_s": 5.0, "light_en": "soft window light from the left",
+            "beats": [{"t_start": 0, "t_end": 5, "motion": "he lifts a folder"}]}
+    p = H.build_prompt(anim)
+    assert "Lighting continuity: soft window light from the left" in p
+    anim2 = dict(anim, light_en="")
+    assert "Lighting continuity" not in H.build_prompt(anim2)   # 空则跳过
+    # thesis 注入通道: 空 = 零 Narrative anchor (v3 镜); 有 = v2 镜维持
+    assert "Narrative anchor" not in H.build_prompt(anim, thesis="")
+    assert "Narrative anchor" in H.build_prompt(anim, thesis="边界=护栏")
+    assert "Narrative anchor" in R._build_prompt({}, [], thesis="边界=护栏")
+    # v3-scoped 摘除钉在 run_shot 层 (源码级断言, test_station_stamp_source 同则)
+    import inspect
+    h3_src = inspect.getsource(H.run_shot)
+    assert "v3_cam_clause" in h3_src and "arc_thesis" in h3_src, \
+        "v3 镜必须摘除 Narrative anchor (v3_cam_clause 键 = ⑥ 投影标记)"
+    assert "v3_cam_clause" in inspect.getsource(R.run_shot)

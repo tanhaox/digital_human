@@ -291,8 +291,12 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
     # prompt + 配方
     char_names = [Path(cp).stem for cp in char_paths]
     from .h3 import arc_thesis  # 惰性避环 (同 motion_style)
+    # 批4 立意摘除 (v3-scoped): v3 镜不注 Narrative anchor (s4 药下错工位根治
+    # 的一半 — r2v 旧态裸注主旨无免责); v2 镜维持
+    _thesis = "" if "v3_cam_clause" in shot else arc_thesis(
+        doc, str(shot.get("arc_id") or ""))
     prompt = _build_prompt(shot, char_names, book_title=doc["book_title"],
-                           thesis=arc_thesis(doc, str(shot.get("arc_id") or "")))
+                           thesis=_thesis)
     prof = PROFILE[_profile_for(shot)]
 
     # 帧数 (同 h3 公式)
