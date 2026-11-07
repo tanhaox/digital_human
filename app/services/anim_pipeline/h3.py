@@ -873,8 +873,8 @@ def run_batch(doc: dict[str, Any], only: set[str] | None = None, retry_failed: b
                 for s in doc["shots"]:
                     s["_book_title"] = doc["book_title"]
                 station = _pick_video_station(shot)
-                # 1101 U6 事件字出口戳: 装配层据此判 h3_text_event 渲不渲金字
-                # (r2v 视频内渲艺术字, h3 工位由装配层渲 — 不双渲不丢失)
+                # 1101 U6 事件字出口戳 (1107 ID-138 后仅作工位审计留痕):
+                # 金字已无条件覆盖双工位 (r2v 停渲), 此戳不再参与装配判渲
                 shot["video_station"] = station
                 if station == "r2v":
                     _dest = _r2v_mod.run_shot(shot, doc)

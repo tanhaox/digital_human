@@ -31,11 +31,13 @@ def test_collect_h3_event_for_h3_station():
     assert ev[0]["a1"] <= 15.0                      # 不越镜尾
 
 
-def test_no_double_render_for_r2v_station():
+def test_r2v_station_now_renders_gold_text():
+    # 1107 ID-138 拍板: r2v 停止视频内渲字, 金字无条件覆盖双工位
+    # (r2v 删渲 + 装配条件放开两处同改 — 单改任一侧 = 丢字)
     s = _shot("s1", video_station="r2v",
               h3_text_event={"text": "太棒了", "at_s": 1.0})
     caps, heroes = anim_draft._collect_text_events([s])
-    assert not [e for e in heroes if e["kind"] == "h3_event"]
+    assert [e for e in heroes if e["kind"] == "h3_event"]
 
 
 def test_legacy_shot_defaults_to_h3_station():

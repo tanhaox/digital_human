@@ -57,6 +57,14 @@ def test_asset_text_policy_and_event_suppression():
     assert "Hard no-text rule" in p2  # 1107: 无字素材同走整段硬禁字
 
 
+def test_event_text_never_renders_in_video():
+    """1107 ID-138 拍板: r2v 事件字停渲 (对齐 1021 停渲令) — 有事件字的镜
+    同走 NO_TEXT_POLICY, 金字由装配层接管, 视频本体零字。"""
+    p = _prompt({**_BASE, "h3_text_event": {"text": "花字", "at_s": 1}})
+    assert "Text event:" not in p and "appear large and bold" not in p
+    assert "Hard no-text rule" in p
+
+
 def test_no_asset_untouched():
     p = _prompt(dict(_BASE))
     assert "Camera stays stable, only a very slight push-in. " in p

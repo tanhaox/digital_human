@@ -271,13 +271,13 @@ def _collect_text_events(shots: list[dict[str, Any]]) -> tuple[list[dict[str, An
                 heroes.append(ev)
             else:
                 caps.append(ev)
-        # 1101 U6 事件字统一出口 (AUDIT B1 根治): h3 工位镜的 h3_text_event 由装配层
-        # 渲金色大字 — 1021 镜内渲字下线后该字段在 h3 镜零出口; r2v 人物镜视频内渲
-        # 艺术字 (1024 R2/R3 实证) 不双渲; 品牌镜定卡时已确定性剥除 (双保险再挡)。
+        # 1101 U6 事件字统一出口 (AUDIT B1 根治): h3_text_event 由装配层渲金色大字
+        # — 1021 镜内渲字下线后该字段唯一出口在此; 1107 ID-138 拍板: r2v 工位同步
+        # 停渲 (视频本体零字, 字全挪剪映侧), 金字无条件覆盖双工位, 不双渲不丢失;
+        # 品牌镜定卡时已确定性剥除 (双保险再挡)。
         _evd = s.get("h3_text_event") or {}
         _ev_txt = str(_evd.get("text") or "").strip()
-        if (_ev_txt and not s.get("brand_card")
-                and str(s.get("video_station") or "h3") != "r2v"):
+        if (_ev_txt and not s.get("brand_card")):
             _s0 = float(s.get("t_start") or 0)
             _s1 = float(s.get("t_end") or 0) or _s0 + 2.5
             _at = _evd.get("at_s")

@@ -133,9 +133,10 @@ def _build_prompt(shot: dict[str, Any], char_names: list[str],
         prompt += _hold
     else:
         prompt += "Camera stays stable, only a very slight push-in. "
-    # 1017 W2 文字总路由: r2v 消费 h3_text_event — 旧版静默丢弃, 人物镜路由
-    # r2v 时花字消失 (s01 家族实锤)。有事件字 → 拼文字规格行 (逐字取表);
-    # 无 → NO_TEXT_POLICY 整段硬禁字 (逐镜分支, 防无字镜幻字)。
+    # 1017 W2 文字总路由 → 1107 ID-138 拍板收口: 事件字视频内渲染分支整体下线
+    # (对齐 1021 停渲令 — 视频模型渲中文=高乱码率; 字全挪剪映侧, 装配层金字
+    # 无条件覆盖双工位 anim_draft._collect_text_events)。分支只剩两路:
+    # 含字素材镜 (资产本体文字) / 其余全部 NO_TEXT_POLICY 整段硬禁字。
     ev = shot.get("h3_text_event") or {}
     ev_text = str(ev.get("text") or "").strip()
     if _has_asset and _asset.get("has_text"):
@@ -147,22 +148,14 @@ def _build_prompt(shot: dict[str, Any], char_names: list[str],
             + str(_asset["anchor_en"]) + "; no other text anywhere. "
             "No human voice."
         )
-    elif ev_text:
-        _at = ev.get("at_s")
-        at_txt = f"at {float(_at):.1f}s" if isinstance(_at, (int, float)) else "mid-video"
-        _zone = str(ev.get("zone") or "").strip() or "above the character"
-        prompt += (
-            f"Text event: {at_txt}, in the {_zone} zone, the exact Chinese words "
-            f"「{ev_text}」 appear large and bold in ONE consistent artistic "
-            "typography (calligraphy or brush style, never plain sans-serif), "
-            "then hold steady — this is the only text element of the video. "
-            "No other text, no human voice."
-        )
     else:
         # 1107 加强: 旧版裸 "No text" 无表面枚举/无冻结条款/无中文免责 —
         # 1016 ep4 全镜乱码实锤的教训 (h3 侧已修 NO_TEXT_POLICY) 在 r2v 原样
         # 存在。单一事实源从 h3 惰性取, 两工位一口径。
         from .h3 import NO_TEXT_POLICY  # 惰性避环 (同 _strip_scene_label 口径)
+        if ev_text:
+            logger.warning("[r2v] %s 事件字停渲 (ID-138: 装配层金字接管): %s",
+                           shot.get("shot_id"), ev_text[:30])
         prompt += NO_TEXT_POLICY + " No human voice."
     # 1017 W3: 弧主旨锚 (同 h3 口径, 一行不推导)
     if thesis:
