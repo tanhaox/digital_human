@@ -530,15 +530,35 @@ def test_person_words_match_prompt_wording():
 
 
 def test_direct_cam_table_and_clause():
-    """④ 单一事实源: LLM 吐四元组, 程序渲染官方句 (UI/H3/校验同表)。"""
+    """④ 运镜律单一事实源: 四型词表 + 四要素装配 (十二~十四轮实测法典化)。"""
     from app.services.anim_pipeline.v3_pipeline import direct as D
-    assert D.cam_clause({"kind": "摇", "dir": "左", "amp": "大", "speed": "慢"}) \
-        == "The camera pans left with large amplitude at slow speed."
-    assert D.cam_clause({"kind": "推", "dir": "", "amp": "中", "speed": "中"}) \
-        == "The camera pushes in."
-    assert D.cam_clause({"kind": "固定", "dir": "", "amp": "大", "speed": "快"}) \
-        == "The camera holds a static shot."       # 固定镜无幅速
-    assert D.cam_clause({"kind": "环绕"}) == ""      # 未注册型 → 空
+    # 词表裁到四型 (拉/变焦推/变焦拉/移/跟/弧 出局 — 零验证胜绩)
+    assert set(D.CAMERA_LAW) == {"固定", "推", "摇", "升降"}
+    # 四要素句: ①verb+幅+速 ②嵌动作流 as-从句 ③视点消歧 ④构图收口
+    assert D.cam_clause({"kind": "摇", "dir": "左", "amp": "大", "speed": "慢"},
+                        motion_en="the man raises his trekking pole") == (
+        "As the man raises his trekking pole, the camera pans left with large "
+        "amplitude at slow speed — one continuous viewpoint move, not subject "
+        "motion: the framing travels past the original left edge of Picture 1 "
+        "while the subjects stay where they are in the world; the horizon stays "
+        "level and straight lines stay straight.")
+    # 无事件句 → 1024 w1 实测通用形态
+    assert D.cam_clause({"kind": "推", "dir": "", "amp": "小", "speed": "慢"}).startswith(
+        "The camera pushes in with small amplitude at slow speed as the scene's "
+        "own action continues")
+    # 幅速配方律: 摇 dict 配方 → 装配即执法 (小/快 强制 大/慢)
+    assert D.cam_clause({"kind": "摇", "dir": "右", "amp": "小", "speed": "快"}) == (
+        "The camera pans right with large amplitude at slow speed as the scene's "
+        "own action continues — one continuous viewpoint move, not subject motion: "
+        "the framing travels past the original right edge of Picture 1 while the "
+        "subjects stay where they are in the world; the horizon stays level and "
+        "straight lines stay straight.")
+    # free 型 (推) 幅速自由 + 中=省略 (官方无词)
+    assert "medium" not in D.cam_clause({"kind": "推", "amp": "中", "speed": "中"})
+    # 固定/律外旧型/未注册 → 不产 clause
+    assert D.cam_clause({"kind": "固定"}) == ""
+    assert D.cam_clause({"kind": "拉"}) == ""          # 1107 出局型
+    assert D.cam_clause({"kind": "环绕"}) == ""
 
 
 def test_direct_execution_policy():
@@ -551,32 +571,49 @@ def test_direct_execution_policy():
 
 
 def test_direct_validate_rules():
-    """枚举/方向/固定纪律/槽长闸/相邻景别 — 生成时执法 (1105 用户令)。"""
+    """枚举/方向/固定纪律/槽长闸/相邻景别/幅速配方/适用域 — 生成时执法 (1105/1107)。"""
     from app.services.anim_pipeline.v3_pipeline import direct as D
     shots = [{"sid": "s1", "arc_id": "A1", "est_s": 8.0},
-             {"sid": "s2", "arc_id": "A1", "est_s": 4.5}]
-    ok = {"s1": {"size": "全景", "cam": {"kind": "摇", "dir": "左", "amp": "大", "speed": "慢"}},
-          "s2": {"size": "特写", "cam": {"kind": "固定", "dir": "", "amp": "", "speed": ""}}}
+             {"sid": "s2", "arc_id": "A1", "est_s": 4.5},
+             {"sid": "s3", "arc_id": "A1", "est_s": 9.0}]
+    ok = {"s1": {"size": "全景", "cam": {"kind": "推", "dir": "", "amp": "小", "speed": "慢"}},
+          "s2": {"size": "特写", "cam": {"kind": "固定", "dir": "", "amp": "", "speed": ""}},
+          "s3": {"size": "中景", "cam": {"kind": "固定", "dir": "", "amp": "", "speed": ""}}}
     assert D.validate(ok, shots) == {}
     bad = {"s1": {"size": "全景", "cam": {"kind": "环绕", "dir": "", "amp": "", "speed": ""}},
            "s2": {"size": "全景", "cam": {"kind": "推", "dir": "上", "amp": "大", "speed": "慢"}}}
     iss = D.validate(bad, shots)
     assert any("不在枚举内" in x for x in iss["s1"])
-    assert any("方向只准" in x or "无方向" in x for x in iss["s2"])
+    assert any("无方向" in x for x in iss["s2"])
     assert any("槽长" in x for x in iss["s2"])          # 4.5s 短槽运镜 → 拦
     assert any("相邻镜景别相同" in x for x in iss["s2"])  # s1 全景 s2 全景
+    # 1107 律: 摇 幅速只准 大+慢; 摇 只准特写/近景 (大场景 0/2 实测)
+    law = {"s1": ok["s1"],
+           "s2": {"size": "大场景",
+                  "cam": {"kind": "摇", "dir": "左", "amp": "小", "speed": "快"}}}
+    iss2 = D.validate(law, shots)["s2"]
+    assert any("幅速只准" in x for x in iss2)
+    assert any("只准 特写/近景" in x for x in iss2)
+    # 域内 + 配方档 → 干净 (升降@近景 大+慢)
+    fine = dict(ok, s3={"size": "近景",
+                        "cam": {"kind": "升降", "dir": "上", "amp": "大", "speed": "慢"}})
+    assert D.validate(fine, shots) == {}
     static_amp = {"s1": ok["s1"], "s2": {"size": "特写",
                    "cam": {"kind": "固定", "dir": "", "amp": "大", "speed": ""}}}
     assert any("固定镜不带幅速" in x for x in D.validate(static_amp, shots)["s2"])
 
 
 def test_direct_prompt_carries_the_rules():
-    """规则前移契约: 枚举/槽长/固定默认 必须在生成提示里 (否则写手不知道)。"""
+    """规则前移契约: 枚举/槽长/固定默认/律档/适用域 必须在生成提示里 (否则写手不知道)。"""
     from app.services.anim_pipeline.v3_pipeline import direct as D
     for k in D.CAM_DEFS:
         assert k in D._SYS
     assert "6" in D._SYS and "固定是默认" in D._SYS
     assert "相邻镜景别" in D._SYS
+    # 1107 律条注入: 配方档 + 适用域 派生自 CAMERA_LAW
+    assert "幅速固定" in D._SYS and "只准 特写/近景" in D._SYS
+    for gone in ("拉", "跟", "弧", "移", "变焦推", "变焦拉"):
+        assert gone not in D.CAM_DEFS          # 出局型不再进提示词表
 
 
 def test_narrative_feeds_both_prompts():
@@ -689,8 +726,8 @@ def test_direct_enum_forward_and_repairs():
     shots = [{"sid": f"s{i}", "arc_id": "A1", "est_s": 8.0} for i in range(1, 5)]
     direct = {
         "s1": {"size": "大场景", "cam": {"kind": "推", "dir": "", "amp": "大", "speed": "慢"}},
-        "s2": {"size": "大场景", "cam": {"kind": "拉", "dir": "", "amp": "大", "speed": "慢"}},
-        "s3": {"size": "大场景", "cam": {"kind": "摇", "dir": "左", "amp": "大", "speed": "慢"}},
+        "s2": {"size": "大场景", "cam": {"kind": "推", "dir": "", "amp": "大", "speed": "慢"}},
+        "s3": {"size": "大场景", "cam": {"kind": "推", "dir": "", "amp": "大", "speed": "慢"}},
         "s4": {"size": "大场景", "cam": {"kind": "固定", "dir": "", "amp": "", "speed": ""}},
     }
     n = D._fix_adjacency(direct, shots)
@@ -953,7 +990,7 @@ def test_v3_h3_cam_word_and_gate(monkeypatch):
     import pytest
     assert v2_camera_word({"kind": "摇", "dir": "左"}) == "左摇"
     assert v2_camera_word({"kind": "推"}) == "拉近" and v2_camera_word({}) == ""
-    assert VH.cam_family({"kind": "跟", "dir": "右"}) == "track"
+    assert VH.cam_family({"kind": "摇", "dir": "左"}) == "pan"    # 1107 裁表后仅四族
     monkeypatch.setattr("app.services.anim_pipeline.shots.load_doc",
                         lambda *a, **k: {"v3": {"shots": [{"sid": "s1"}]}})
     with pytest.raises(SystemExit, match="未盖章"):
@@ -1091,23 +1128,20 @@ def test_h3_cam_v3_kind_sentences_and_law_wins():
 
 
 def test_cam_exec_single_source_exhaustive():
-    """1106 治根契约: 运镜执行知识单源 direct.CAM_EXEC, import 期穷尽执法 —
-    CAM_DEFS 新增运镜型漏配执行映射当场炸 (漂移不可能静默, 1101 U1 同则);
-    每个 v2 词必须命中 v2 运镜词表 (补丁链入口, 缓推漂移实锤后收口);
-    track/arc 族句子不得含定义性禁令 (主体钉死/禁环绕)。"""
-    from app.services.anim_pipeline.h3 import (_cam_track_sentence, _cam_arc_sentence,
-                                               _cam_permit_sentence, _LAW_MOVE_WORDS,
+    """1106/1107 治根契约: 运镜执行知识单源 direct.CAMERA_LAW, import 期穷尽执法 —
+    词表增删漏配当场炸 (漂移不可能静默, 1101 U1 同则); 每个 v2 词必须命中 v2
+    运镜词表 (补丁链入口, 缓推漂移实锤后收口); 四型外旧型 (拉/跟/弧…) 无执行位。"""
+    from app.services.anim_pipeline.h3 import (_cam_permit_sentence, _LAW_MOVE_WORDS,
                                                _CAM_MOVE_KINDS)
     from app.services.anim_pipeline.law_blocks import MOVE_WORDS
-    from app.services.anim_pipeline.v3_pipeline.direct import (CAM_DEFS, CAM_EXEC,
-                                                               cam_family,
+    from app.services.anim_pipeline.v3_pipeline.direct import (CAMERA_LAW, cam_family,
                                                                v2_camera_word)
-    # ① 穷尽: 非固定型全配, 方向逐向有词, 词全在 v2 运镜词表
-    for kind, d in CAM_DEFS.items():
-        if d.get("static"):
+    # ① 穷尽: 非固定型全配 v2/family, 方向逐向有词, 词全在 v2 运镜词表
+    for kind, m in CAMERA_LAW.items():
+        if m.get("static"):
             continue
-        assert kind in CAM_EXEC, f"{kind} 缺执行映射"
-        for dr in (d.get("dirs") or [""]):
+        assert m["v2"] and m["family"], f"{kind} 缺执行位"
+        for dr in (m.get("dirs") or [""]):
             cam = {"kind": kind, "dir": dr} if dr else {"kind": kind}
             w = v2_camera_word(cam)
             assert w and w in MOVE_WORDS, \
@@ -1115,15 +1149,19 @@ def test_cam_exec_single_source_exhaustive():
             assert w in dict(_CAM_MOVE_KINDS), \
                 f"{kind}/{dr} → [{w}] 无补丁族映射"
             assert cam_family(cam)
-    # ② 单源一致: stamp 投影词 == ⑧ 注入词 (同一函数, 防再分叉)
-    assert cam_family({"kind": "跟"}) == "track"
-    assert cam_family({"kind": "弧"}) == "arc"
+        # 律字段齐备 (import assert 已拦, 此处钉字段面)
+        assert m["amp_speed"] is not None and m["close"]
+        assert all(x in ("大场景", "全景", "中景", "近景", "特写")
+                   for x in (m.get("domain") or ["中景"]))
+    # ② 单源一致: stamp 投影词 == ⑧ 注入词 (同一函数); 律外旧型无执行位
+    assert cam_family({"kind": "摇", "dir": "左"}) == "pan"
+    assert cam_family({"kind": "升降", "dir": "上"}) == "tilt"
+    assert cam_family({"kind": "推"}) == "push"
+    for gone in ("拉", "跟", "弧", "移", "变焦推", "变焦拉"):
+        assert cam_family({"kind": gone}) == "" and v2_camera_word({"kind": gone}) == ""
     assert cam_family({}) == "" and v2_camera_word({"kind": "固定"}) == ""
-    # ③ 族句子无定义性禁令
-    t = _cam_track_sentence("右", "快", "大")
-    assert "stay where they are" not in t and "travel together" in t
-    a = _cam_arc_sentence("慢", "中")
-    assert "no orbit" not in a and "arcs around" in a
+    # ③ permit 句参数化通道仍在 (v2 六词通道, 与律投影词对齐)
+    assert "large amplitude" in _cam_permit_sentence("pan_left", "", "")
     for k in ("pan_left", "pan_right", "tilt_up", "tilt_down", "push_in", "pull_back"):
         s = _cam_permit_sentence(k)
         assert "at slow speed" in s  # 空参 v2 原文 (零扰动)

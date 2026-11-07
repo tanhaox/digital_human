@@ -82,12 +82,14 @@ async function boot() {
              amp: (saved.cam && saved.cam.amp) || '大',
              speed: (saved.cam && saved.cam.speed) || '慢' },
       motion: saved.motion || '', light: saved.light || '',
+      motion_en: saved.motion_en || '',
       filled: !!s.direct,
     };
   }
   rail($('rail'), { line: st.line, gates: GATES, active: 'direct' });
   if (st.running_job) runner.attach(st.running_job);   // 刷新重挂 (v2 同模式)
   renderBlocks(); renderRhythm(); renderCounts(); renderSide();
+  paintAllClauses();                                   // 运镜句预览 (服务端单源)
   const run = $('btn-run'), save = $('btn-save');
   run.disabled = false; run.title = 'LLM 按官方词表填四元组 (程序管步数/工位)';
   save.disabled = false; save.title = '保存导演参数 + 复检放行';
@@ -220,21 +222,35 @@ function opts(list, cur, labels) {
   return list.map(x => `<option value="${esc(x)}"${x === cur ? ' selected' : ''}>${esc((labels && labels[x]) || x)}</option>`).join('');
 }
 
-/** 生成 H3 原文 (官方句式; 中幅/常速省略) — en 兼容 函数/对象/字符串 (后端 JSON 下发) */
-function camClause(st) {
-  const def = CAM_DEFS[st.cam.kind];
-  if (!def) return '';
-  if (def.static) return 'The camera holds a static shot.';
-  let head;
-  if (typeof def.en === 'function') head = def.en(st.cam.dir);
-  else if (def.en && typeof def.en === 'object')
-    head = def.en[st.cam.dir] || Object.values(def.en)[0];
-  else head = def.en;
-  const amp = st.cam.amp === '小' ? 'with small amplitude'
-            : st.cam.amp === '大' ? 'with large amplitude' : '';
-  const spd = st.cam.speed === '慢' ? 'at slow speed'
-            : st.cam.speed === '快' ? 'at fast speed' : '';
-  return `The camera ${[head, amp, spd].filter(Boolean).join(' ')}.`;
+/* 运镜句预览 (1107 批1 收单源): 四要素装配只在服务端 direct.cam_clause
+   (与 ⑥ 拼合/⑧ 注入同句), 前端旧平行实现已退役 — 每次改动调 API 拿真句。 */
+async function fetchClauses(sids) {
+  const items = sids.map(sid => ({
+    sid, cam: STATE[sid].cam, motion_en: STATE[sid].motion_en || '' }));
+  try {
+    const r = await (await fetch('/api/anim/v3/cam_clause', { method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items }) })).json();
+    return r.clauses || {};
+  } catch { return {}; }
+}
+function clauseText(sid, clause) {
+  if (clause) return clause;
+  return STATE[sid].cam.kind === '固定'
+    ? '固定镜 — 无运镜句 (固定镜无镜头槽)' : '— 未选运镜 —';
+}
+function paintClauseInto(sid, clause) {
+  const el = document.querySelector(`.row[data-sid="${CSS.escape(sid)}"] .cam-en`);
+  if (el) el.textContent = clauseText(sid, clause);
+}
+async function paintClause(sid) {
+  const c = await fetchClauses([sid]);
+  paintClauseInto(sid, c[sid]);
+}
+async function paintAllClauses() {
+  const sids = Object.keys(STATE);
+  const c = await fetchClauses(sids);
+  sids.forEach(sid => paintClauseInto(sid, c[sid]));
 }
 
 function rowHTML(s) {
@@ -260,7 +276,7 @@ function rowHTML(s) {
       <label>主体运动</label><input type="text" data-k="motion" value="${esc(st.motion)}" placeholder="只动画面句已有的实体">
       <label>光影</label><input type="text" data-k="light" value="${esc(st.light)}" placeholder="光源方向/色温, 与相邻镜连续">
     </div>
-    <div class="cam-en" title="实际发给 H3 的运镜句">${esc(camClause(st) || '— 未选运镜 —')}</div>
+    <div class="cam-en" title="实际发给 H3 的运镜句 (服务端单源装配)">…</div>
     <div class="kf">${esc(s.keyframe_zh || '')}</div>
   </div>`;
 }
@@ -278,7 +294,7 @@ function bindRows() {
         DIRTY.add(sid);
         if (k === 'cam.kind') refreshRow(row, sid);
         else if (k.startsWith('cam.')) {
-          row.querySelector('.cam-en').textContent = camClause(STATE[sid]) || '— 未选运镜 —';
+          paintClause(sid);
         }
         renderRhythm(); renderCounts(); renderSide(); refreshDirty();
       });
@@ -314,15 +330,18 @@ function bindRows() {
 function refreshRow(row, sid) {
   const kind = STATE[sid].cam.kind;
   const fixed = NO_MOVE.includes(kind);
+  const as = (CAM_DEFS[kind] || {}).amp_speed;   // 律档: 摇/升降 幅速锁 大+慢
+  const locked = !!as && typeof as === 'object';
+  if (locked) { STATE[sid].cam.amp = as.amp; STATE[sid].cam.speed = as.speed; }
   const dirs = (CAM_DEFS[kind] || { dirs: [] }).dirs;
-  row.querySelector('.sel-amp').disabled = fixed;
-  row.querySelector('.sel-speed').disabled = fixed;
+  row.querySelector('.sel-amp').disabled = fixed || locked;
+  row.querySelector('.sel-speed').disabled = fixed || locked;
   const dirSel = row.querySelector('.sel-dir');
   dirSel.disabled = dirs.length === 0;
   if (dirs.length && !dirs.includes(STATE[sid].cam.dir)) STATE[sid].cam.dir = dirs[0];
   dirSel.innerHTML = opts(dirs.length ? dirs : ['无'], dirs.length ? STATE[sid].cam.dir : '无');
   dirSel.value = dirs.length ? STATE[sid].cam.dir : '无';
-  row.querySelector('.cam-en').textContent = camClause(STATE[sid]) || '— 未选运镜 —';
+  paintClause(sid);
 }
 
 /* ── 配额 ─────────────────────────────────────────────── */

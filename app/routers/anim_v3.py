@@ -451,20 +451,26 @@ def v3_direct_save(book_id: str, ep: int, body: DirectSaveBody):
         merged = dict(v3.get("direct") or {})
         for sid, d in body.direct.items():
             if sid in shots and d:
+                old_en = str((merged.get(sid) or {}).get("motion_en") or "")
+                c = d.get("cam") or {}
                 merged[sid] = {"size": str(d.get("size") or "中景"),
-                               "cam": {"kind": str((d.get("cam") or {}).get("kind") or "固定"),
-                                       "dir": str((d.get("cam") or {}).get("dir") or ""),
-                                       "amp": str((d.get("cam") or {}).get("amp") or ""),
-                                       "speed": str((d.get("cam") or {}).get("speed") or "")},
+                               "cam": v3_direct.law_cam({
+                                   "kind": str(c.get("kind") or "固定"),
+                                   "dir": str(c.get("dir") or ""),
+                                   "amp": str(c.get("amp") or ""),
+                                   "speed": str(c.get("speed") or "")}),
                                "motion": str(d.get("motion") or "")[:120],
                                "light": str(d.get("light") or "")[:80]}
+                if old_en:      # 已英文化的镜: 手改只动 cam/中文域, 英译不丢
+                    merged[sid]["motion_en"] = old_en
         # 执行参数随镜固化 (步数/工位/英文句 — 程序独占, LLM 无感)
         for sid, d in merged.items():
             sh = shots.get(sid)
             if sh and d:
                 d["steps"] = v3_direct.steps_for(sh)
                 d["station"] = v3_direct.station_for(d.get("cam"))
-                d["clause"] = v3_direct.cam_clause(d.get("cam"))
+                d["clause"] = v3_direct.cam_clause(d.get("cam"),
+                                                   str(d.get("motion_en") or ""))
         issues = v3_direct.validate(merged, list(shots.values()))
         v3["direct"] = merged
         v3["direct_issues"] = issues
@@ -500,7 +506,8 @@ def v3_direct_reroll(book_id: str, ep: int, body: DirectRerollBody):
             d.pop(k, None)
         d["steps"] = v3_direct.steps_for(next(s for s in shots if s["sid"] == body.sid))
         d["station"] = v3_direct.station_for(d.get("cam"))
-        d["clause"] = v3_direct.cam_clause(d.get("cam"))
+        d["clause"] = v3_direct.cam_clause(d.get("cam"),
+                                           str(d.get("motion_en") or ""))
         merged = dict(v3.get("direct") or {})
         merged[body.sid] = d
         v3["direct"] = merged
@@ -508,6 +515,25 @@ def v3_direct_reroll(book_id: str, ep: int, body: DirectRerollBody):
         from app.services.anim_pipeline import shots as shots_mod
         shots_mod.save(doc)
     return {"sid": body.sid, "direct": d, "issues": v3["direct_issues"]}
+
+
+class CamClauseItem(BaseModel):
+    sid: str = ""
+    cam: dict[str, Any] = {}
+    motion_en: str = ""
+
+
+class CamClauseBody(BaseModel):
+    items: list[CamClauseItem]
+
+
+@router.post("/cam_clause")
+def v3_cam_clause(body: CamClauseBody):
+    """④ 页运镜句预览单源 (1107 批1): 四要素装配只在 direct.cam_clause 一家,
+    前端平行实现退役 — 与 ⑥ 拼合/⑧ 注入同句同源。"""
+    from app.services.anim_pipeline.v3_pipeline import direct as v3_direct
+    return {"clauses": {it.sid or str(i): v3_direct.cam_clause(it.cam, it.motion_en)
+                        for i, it in enumerate(body.items)}}
 
 
 @router.post("/ep/{book_id}/{ep}/direct/finalize")

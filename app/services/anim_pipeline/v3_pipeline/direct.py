@@ -16,65 +16,99 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-# ── 官方运镜词表 (1105 网络核对: MiniMax H3 h3-prompt-writing; 指南附录) ──
-# dirs 空 = 无方向型; static = 固定镜 (官方无幅速)。
+# ── CAMERA_LAW 运镜律 (1107 立律 — 十二~十四轮全族实测法典化, 单一事实源) ──
+# 证据 (docs/guides/h3_camera_language_guide.md 第十二~十四轮):
+#   推 8/8 唯一 100% 可控 (幅速面宽); 摇 = 特写/近景域 2/2 + 方向控制 9/9 (1024
+#   w1 句); 升降 0/3 / 弧 0/3 / 拉 0/2 / 摇@大场景 0/2 / 移 0/1 / 跟 0/2 → 出局。
+#   附验: s8/s38 图级渗漏与运镜族无关 — 律管不了图, 图的病走 K2 重生图。
+# 新证据 → 改律一处, 四消费端 (④SYS/④校验/clause 装配/⑧注入) 自动跟随。
+# 字段: dirs 方向枚举 / static 固定镜 / en 官方动词 / v2 机位词投影 (608 预裁 +
+#   三补丁链入口) / family 执行族 / amp_speed 幅速配方 ("free"=LLM 自由,
+#   dict=强制稳定档) / domain 适用景别域 (空=全域) / close 构图收口 (四要素之四,
+#   1024 w1 实测句尾; 方向型逐向给)。
+CAMERA_LAW: dict[str, dict[str, Any]] = {
+    "固定": {"dirs": [], "static": True, "en": "holds a static shot",
+             "v2": "", "family": "", "amp_speed": None, "domain": [], "close": ""},
+    "推":   {"dirs": [], "en": "pushes in", "v2": "拉近", "family": "push",
+             "amp_speed": "free", "domain": [],
+             "close": ("toward the center of the action; the whole scene keeps its "
+                       "exact shape; no lateral panning, no orbit, no roll")},
+    "摇":   {"dirs": ["左", "右", "上", "下"],
+             "en": {"左": "pans left", "右": "pans right",
+                    "上": "tilts up", "下": "tilts down"},
+             "v2": {"左": "左摇", "右": "右摇", "上": "上摇", "下": "下摇"},
+             "family": "pan",
+             "amp_speed": {"amp": "大", "speed": "慢"}, "domain": ["特写", "近景"],
+             "close": {
+                 "左": ("the framing travels past the original left edge of "
+                        "Picture 1 while the subjects stay where they are in the "
+                        "world; the horizon stays level and straight lines stay "
+                        "straight"),
+                 "右": ("the framing travels past the original right edge of "
+                        "Picture 1 while the subjects stay where they are in the "
+                        "world; the horizon stays level and straight lines stay "
+                        "straight"),
+                 "上": ("the view lifts past the original top edge of Picture 1 "
+                        "while the subjects stay where they are in the world; "
+                        "vertical lines stay straight"),
+                 "下": ("the view drops past the original bottom edge of Picture 1 "
+                        "while the subjects stay where they are in the world; "
+                        "vertical lines stay straight")}},
+    # 升降: 官方词 pedestal 0/3 从未执行 → 律按实测投影 tilt (v2 同词); 模型
+    # 升级有新证据改回 pedestal = 改一行。
+    "升降": {"dirs": ["上", "下"],
+             "en": {"上": "tilts up", "下": "tilts down"},
+             "v2": {"上": "上摇", "下": "下摇"}, "family": "tilt",
+             "amp_speed": {"amp": "大", "speed": "慢"}, "domain": ["特写", "近景"],
+             "close": {
+                 "上": ("the view lifts past the original top edge of Picture 1 "
+                        "while the subjects stay where they are in the world; "
+                        "vertical lines stay straight"),
+                 "下": ("the view drops past the original bottom edge of Picture 1 "
+                        "while the subjects stay where they are in the world; "
+                        "vertical lines stay straight")}},
+}
+# 消费端只读视图 (词面 + 律档): ④ 页 API 下发 / 枚举注入 / 校验同表
 CAM_DEFS: dict[str, dict[str, Any]] = {
-    "固定":   {"dirs": [], "static": True, "en": "holds a static shot"},
-    "推":     {"dirs": [], "en": "pushes in"},
-    "拉":     {"dirs": [], "en": "pulls out"},
-    "变焦推": {"dirs": [], "en": "zooms in"},
-    "变焦拉": {"dirs": [], "en": "zooms out"},
-    "摇":     {"dirs": ["左", "右", "上", "下"],
-               "en": {"左": "pans left", "右": "pans right",
-                      "上": "tilts up", "下": "tilts down"}},
-    "移":     {"dirs": ["左", "右"], "en": {"左": "trucks left", "右": "trucks right"}},
-    "升降":   {"dirs": ["上", "下"], "en": {"上": "pedestals up", "下": "pedestals down"}},
-    "跟":     {"dirs": ["左", "右"], "en": {"左": "tracks left", "右": "tracks right"}},
-    "弧":     {"dirs": [], "en": "arcs around the subject"},
+    k: {"dirs": list(m.get("dirs") or []), "static": bool(m.get("static")),
+        "en": m["en"], "amp_speed": m["amp_speed"], "domain": list(m["domain"] or [])}
+    for k, m in CAMERA_LAW.items()
 }
 NO_MOVE = ("待定", "固定")
 SIZES = ("大场景", "全景", "中景", "近景", "特写")
 BIG_SIZES = ("大场景", "全景")
 
-# ── 运镜执行映射 (1106 治根): kind → (v2 机位词, 执行族) 单一事实源 ──
-# 旧态实锤: stamp._cam_of 与 v3h3._cam_word 两份拷贝已漂 (推→缓推 vs 拉近,
-# 缓推不在 v2 运镜词表不触发补丁链, 盖章/⑧注入谁后跑谁说了算) + h3.py 靠
-# 字符串判跟/弧 — 新增运镜型全靠人肉同步。收口: 全部执行知识进本表,
-# import 期穷尽执法 (1101 U1 同则: 漂移不可能静默)。
-# v2: 进 h3 cam_move 通道的机位词 (608 预裁 + 三补丁链入口; 必须是
-#     _LAW_MOVE_WORDS 词, 否则补丁链不触发); dict = 方向型逐向给词。
-# family: h3.py 句族 — track/arc 有专属对症句, 其余走 v2 permit 参数化句。
-CAM_EXEC: dict[str, dict[str, Any]] = {
-    "推":     {"v2": "拉近", "family": "push"},
-    "拉":     {"v2": "拉远", "family": "push"},
-    "变焦推": {"v2": "拉近", "family": "push"},
-    "变焦拉": {"v2": "拉远", "family": "push"},
-    "摇":     {"v2": {"左": "左摇", "右": "右摇", "上": "上摇", "下": "下摇"},
-               "family": "pan"},
-    "移":     {"v2": {"左": "左摇", "右": "右摇"}, "family": "pan"},
-    "升降":   {"v2": {"上": "上摇", "下": "下摇"}, "family": "tilt"},
-    "跟":     {"v2": {"左": "左摇", "右": "右摇"}, "family": "track"},
-    "弧":     {"v2": "拉近", "family": "arc"},
-}
 _known_family = {"push", "pan", "tilt", "track", "arc"}
-_missing = [k for k, v in CAM_DEFS.items()
-            if not v.get("static") and k not in CAM_EXEC]
-assert not _missing, f"CAM_DEFS 运镜型缺执行映射 (补 CAM_EXEC): {_missing}"
-for _k, _m in CAM_EXEC.items():
-    assert _k in CAM_DEFS, f"CAM_EXEC 幽灵型 (CAM_DEFS 无此词): {_k}"
+# import 期穷尽执法 (1106 同则, 1107 扩律字段): 漂移当场崩, 不可能静默
+for _k, _m in CAMERA_LAW.items():
+    if _m.get("static"):
+        assert not _m["v2"] and not isinstance(_m["en"], dict), f"{_k} 固定镜无执行位"
+        continue
     assert _m["family"] in _known_family, f"{_k} 未知执行族: {_m['family']}"
-    _dirs = CAM_DEFS[_k].get("dirs") or []
+    _dirs = _m.get("dirs") or []
     if isinstance(_m["v2"], dict):
-        assert set(_m["v2"]) == set(_dirs), f"{_k} v2 词表与 CAM_DEFS dirs 不齐"
+        assert set(_m["v2"]) == set(_dirs), f"{_k} v2 词表与 dirs 不齐"
     else:
+        assert _m["v2"], f"{_k} 缺 v2 机位词"
         assert not _dirs, f"{_k} 方向型必须给 dict 词表"
+    assert _m["amp_speed"] in (None, "free") or (
+        isinstance(_m["amp_speed"], dict)
+        and _m["amp_speed"].get("amp") in ("小", "中", "大")
+        and _m["amp_speed"].get("speed") in ("慢", "中", "快")), \
+        f"{_k} 幅速配方非法"
+    for _d in (_m.get("domain") or []):
+        assert _d in SIZES, f"{_k} 适用域「{_d}」不在景别枚举"
+    if isinstance(_m["close"], dict):
+        assert set(_m["close"]) == set(_dirs), f"{_k} 构图收口与 dirs 不齐"
+    else:
+        assert _m["close"], f"{_k} 缺构图收口 (四要素之四)"
 
 
 def v2_camera_word(cam: dict[str, Any] | None) -> str:
-    """v3 四元组 → v2 机位词 (⑦ 盖章投影与 ⑧ 运镜注入共用, 单源)。
-    固定/待定/未配 → ""。"""
+    """v3 四元组 → v2 机位词 (⑥ 盖章投影与 ⑧ 运镜注入共用, 单源)。
+    固定/待定/未配/律外旧型 (拉/跟/弧… 存量迁移走批 5) → ""。"""
     c = cam or {}
-    m = CAM_EXEC.get(str(c.get("kind") or ""))
+    m = CAMERA_LAW.get(str(c.get("kind") or ""))
     if not m:
         return ""
     v2 = m["v2"]
@@ -84,30 +118,60 @@ def v2_camera_word(cam: dict[str, Any] | None) -> str:
 
 
 def cam_family(cam: dict[str, Any] | None) -> str:
-    """v3 四元组 → 执行族 (h3.py 对症句选择; 固定/未配 → "")。"""
-    m = CAM_EXEC.get(str((cam or {}).get("kind") or ""))
+    """v3 四元组 → 执行族 (h3.py 对症句选择; 固定/律外 → "")。"""
+    m = CAMERA_LAW.get(str((cam or {}).get("kind") or ""))
     return str(m["family"]) if m else ""
+
+
+def law_cam(cam: dict[str, Any] | None) -> dict[str, Any]:
+    """四元组归一 (律执法): 固定型幅速清空; dict 配方型幅速强制档; free 型原样。
+    律外旧型原样透传 (存量数据不在此处擅改, 迁移走批 5)。"""
+    c = dict(cam or {})
+    m = CAMERA_LAW.get(str(c.get("kind") or ""))
+    if not m:
+        return c
+    if m.get("static"):
+        c["amp"] = c["speed"] = ""
+    elif isinstance(m["amp_speed"], dict):
+        c["amp"] = m["amp_speed"]["amp"]
+        c["speed"] = m["amp_speed"]["speed"]
+    return c
 
 MIN_MOVE_SLOT_S = 6.0    # 运镜镜槽长下限 (1024 ep6 s12 三连: 幅度天花板=槽长)
 MAX_MOVE_PER_ARC = 2     # 每弧运镜镜上限 (运镜是叙事工具, 不是默认)
 
+_AMP_EN = {"小": "small", "大": "large"}
+_SPD_EN = {"慢": "slow", "快": "fast"}
 
-def cam_clause(cam: dict[str, Any] | None) -> str:
-    """四元组 → H3 官方句 (幅/速 中=省略不写; 固定镜无幅速)。与 ④ 页预览同表。"""
-    c = cam or {}
+
+def cam_clause(cam: dict[str, Any] | None, motion_en: str = "") -> str:
+    """四元组 (+事件句) → 官方四要素运镜句 (④ 预览/⑥ 拼合/⑧ 注入三端单源):
+    ① 三维句法 verb+幅+速 ② 嵌动作流 as-从句 ③ 视点消歧 ④ 构图收口。
+    motion_en 在场 → "As {motion_en}, the camera …" (官方嵌动作流形态, ⑥ 拼
+    beats 行用); 缺 → "as the scene's own action continues" (1024 w1 实测形态)。
+    幅速: dict 配方型装配即执法 (一律渲染律档); free 型 中=省略 (官方无词)。
+    固定/律外旧型 → "" (固定镜无镜头句)。"""
+    c = law_cam(cam)
     kind = str(c.get("kind") or "待定")
-    d = CAM_DEFS.get(kind)
-    if not d:
+    m = CAMERA_LAW.get(kind)
+    if not m or m.get("static"):
         return ""
-    if d.get("static"):
-        return "The camera holds a static shot."
-    en = d["en"]
+    en = m["en"]
     head = en[str(c.get("dir"))] if isinstance(en, dict) else en
-    amp = {"小": "with small amplitude",
-           "大": "with large amplitude"}.get(str(c.get("amp") or ""), "")
-    spd = {"慢": "at slow speed",
-           "快": "at fast speed"}.get(str(c.get("speed") or ""), "")
-    return f"The camera {' '.join(x for x in (head, amp, spd) if x)}."
+    verb = head
+    if str(c.get("amp") or "") in _AMP_EN:
+        verb += f" with {_AMP_EN[str(c['amp'])]} amplitude"
+    if str(c.get("speed") or "") in _SPD_EN:
+        verb += f" at {_SPD_EN[str(c['speed'])]} speed"
+    close = m["close"]
+    if isinstance(close, dict):
+        close = str(close.get(str(c.get("dir") or ""), ""))
+    mv = str(motion_en or "").strip().rstrip(".")
+    if mv:
+        return (f"As {mv}, the camera {verb} — one continuous viewpoint move, "
+                f"not subject motion: {close}.")
+    return (f"The camera {verb} as the scene's own action continues — one "
+            f"continuous viewpoint move, not subject motion: {close}.")
 
 
 # ── 执行参数 (程序独占, LLM 无感) ──────────────────────────────────────
@@ -141,16 +205,25 @@ def validate(direct: dict[str, dict[str, Any]], shots: list[dict[str, Any]]
         kind = str(cam.get("kind") or "待定")
         size = str(d.get("size") or "中景")
         iss: list[str] = []
-        if kind not in CAM_DEFS and kind != "待定":
-            iss.append(f"运镜型「{kind}」不在枚举内 — 只准 {'/'.join(CAM_DEFS)}")
-        if kind in CAM_DEFS:
-            dirs = CAM_DEFS[kind]["dirs"]
+        if kind not in CAMERA_LAW and kind != "待定":
+            iss.append(f"运镜型「{kind}」不在枚举内 — 只准 {'/'.join(CAMERA_LAW)}")
+        if kind in CAMERA_LAW:
+            m = CAMERA_LAW[kind]
+            dirs = m["dirs"]
             if dirs and cam.get("dir") not in dirs:
                 iss.append(f"运镜「{kind}」方向只准 {'/'.join(dirs)} (现: {cam.get('dir')})")
             if not dirs and str(cam.get("dir") or "") not in ("", "无"):
                 iss.append(f"运镜「{kind}」无方向 (现: {cam.get('dir')})")
-            if CAM_DEFS[kind].get("static") and (cam.get("amp") or cam.get("speed")):
+            if m.get("static") and (cam.get("amp") or cam.get("speed")):
                 iss.append("固定镜不带幅速 (官方口径)")
+            if isinstance(m["amp_speed"], dict):
+                w = m["amp_speed"]
+                if (cam.get("amp"), cam.get("speed")) != (w["amp"], w["speed"]):
+                    iss.append(f"运镜「{kind}」幅速只准 {w['amp']}+{w['speed']} "
+                               f"(模型稳定档; 现 {cam.get('amp') or '空'}+{cam.get('speed') or '空'})")
+            if m["domain"] and size not in m["domain"]:
+                iss.append(f"运镜「{kind}」只准 {'/'.join(m['domain'])} — 大场景复杂图"
+                           f"实测零命中 (现 {size}); 换景别或改固定")
         if float(s.get("est_s") or 0) > 15.0:      # 槽位硬上限 (1106 用户令: 导演层必须有概念)
             iss.append(f"槽长 {s.get('est_s')}s 超 H3 15s 上限 — 拆行或拆镜 (K2/TTS/H3 共同槽位轴)")
         if kind not in NO_MOVE and float(s.get("est_s") or 0) < MIN_MOVE_SLOT_S:
@@ -186,21 +259,44 @@ def validate(direct: dict[str, dict[str, Any]], shots: list[dict[str, Any]]
     return out
 
 
-# ── LLM: 四元组 + 运动光影 (规范用语前移; 枚举由 CAM_DEFS 注入) ────────
+# ── LLM: 四元组 + 运动光影 (规范用语前移; 枚举/档位/域由 CAMERA_LAW 派生) ─
 
 SIZES_STR = "/".join(SIZES)
+
+
+def _law_lines() -> list[str]:
+    """律条提示行 (派生自 CAMERA_LAW — 改律一处, ④ 提示自动跟随)。"""
+    out = []
+    for k, m in CAMERA_LAW.items():
+        if m.get("static"):
+            continue
+        bits = []
+        if m.get("dirs"):
+            bits.append("方向 " + "/".join(m["dirs"]))
+        if isinstance(m["amp_speed"], dict):
+            bits.append(f"幅速固定 {m['amp_speed']['amp']}+{m['amp_speed']['speed']}"
+                        " (模型稳定档, 不准选其他)")
+        elif m["amp_speed"] == "free":
+            bits.append("幅速自由")
+        if m.get("domain"):
+            bits.append("只准 " + "/".join(m["domain"]) + " (大场景复杂图实测零命中)")
+        out.append(f"- {k}: {'; '.join(bits)}")
+    return out
+
+
+_LAW_BLOCK = "\n".join(_law_lines())
 
 _SYS = f"""你是短视频的动画导演。输入镜清单 (镜号|槽长秒|景别预填|视觉世界|画面句摘要),
 为每镜定: 景别 / 运镜 / 主体运动 / 光影。
 
-运镜词表 (封闭枚举, 只准从中选): {'/'.join(CAM_DEFS)}
-方向: 摇(左/右/上/下), 移·跟(左/右), 升降(上/下); 其余型无方向 (给空)。
+运镜律 (封闭枚举 + 实测档位, 只准从中选): {'/'.join(CAMERA_LAW)}
+{_LAW_BLOCK}
 幅度: 小|中|大; 速度: 慢|中|快 (中=官方无词, 程序自动省略; 固定镜幅速给空)。
 
 创作铁律 (违反即打回):
 1. **固定是默认** — 运镜是叙事工具: 场景揭示/规模呈现/跟随主体才用。
 2. 槽长 <{MIN_MOVE_SLOT_S:g}s 的镜只准 固定 (短槽物理上折成小幅, 写了也白写)。
-3. 大幅配慢速是稳定组合; 快速是激进档, 少用; **每弧运镜镜至多 2 个**。
+3. 摇/升降 幅速只准律档 (大+慢 — 模型稳定档); 推幅速自由; **每弧运镜镜至多 2 个**。
 4. 景别**封闭枚举, 只准从中选**: {SIZES_STR} — 不准自创词 (大全景/中近景/远景 都非法)。
 5. 景别节奏: 大场景+全景 约每 4 镜 1 镜; 特写不过半; **相邻镜景别必须换一档**。
 6. 主体运动只动画面句里已有的实体, 禁添画面外动物/器物。
@@ -262,7 +358,7 @@ def _llm_fill(shots: list[dict[str, Any]], arcs: list[dict[str, Any]],
             r = got.get(s["sid"])
             if not r:
                 continue
-            cam = r.get("cam") or {}
+            cam = law_cam(r.get("cam") or {})     # 律归一: 固定清幅速/配方型锁档
             kind = str(cam.get("kind") or "固定")
             direct[s["sid"]] = {
                 "size": _SIZE_FIX.get(str(r.get("size")), str(r.get("size") or "中景")),
@@ -407,7 +503,7 @@ def run(job: dict[str, Any]) -> None:
         if d:
             d["steps"] = steps_for(s)
             d["station"] = station_for(d.get("cam"))
-            d["clause"] = cam_clause(d.get("cam"))
+            d["clause"] = cam_clause(d.get("cam"), str(d.get("motion_en") or ""))
     v3["direct"] = direct
     v3["direct_issues"] = issues
     v3.setdefault("gates", {})["direct"] = False      # 人闸: 前端确认放行
