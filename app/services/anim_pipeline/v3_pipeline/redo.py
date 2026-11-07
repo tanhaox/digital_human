@@ -13,26 +13,32 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-_REDO_SYS = """你是动画分镜画师。给定若干镜 (镜号|当前画面句|视觉世界|本弧讲什么|重做原因),
-重写每镜的画面句 keyframe_zh。
+_REDO_SYS = """你是动画分镜导演。给定若干镜 (镜号|当前画面句|当前主体运动|视觉世界|本弧讲什么|重做原因),
+重写每镜的画面句 keyframe_zh 与主体运动 motion — 两者必须同源 (画面句画什么, motion 只动什么)。
 
 铁律 (与 ③ 生成时同尺, 违反即打回):
-1. 80-200 字, 主体 + 动作前一刻静态构图 + 环境/光源/景深。
+1. 画面句 80-200 字: 主体 + 动作前一刻静态构图 + 环境/光源/景深。
 2. 动画起点帧, 禁终态词。
 3. 画面零文字: 载体只写「空白XX」; 禁「大字/字幕」。
 4. 零引号; 继承弧的视觉世界; 与旧句构图不同 (重做=换方案, 不是微调)。
 5. 零运镜词 (1106 s2 大乱套实锤): 禁 镜头/机位/跟拍/平移/推近/拉远/摇镜/摇摄/
    升降/航拍/俯拍/仰拍/变焦/慢动作 — 运镜归导演层, 画师只画定格; 景别词可用。
 6. 单场景一瞬: 一镜只画一个场所的一个定格瞬间, 禁场景串联。
-严格 JSON: {"shots":[{"sid":"s1","keyframe_zh":"..."}]}"""
+7. 高续写引力姿势不进画面句 (③ 规则12 同尺): 禁捏笔欲写/持械欲击 — 选中性稳定态,
+   动作交给 motion 正向描述。
+8. motion = 主体+动作+起承节奏 一句 (只动画面句里已有的实体, 禁添画面外动物/器物)。
+严格 JSON: {"shots":[{"sid":"s1","keyframe_zh":"...","motion":"..."}]}"""
 
 
-def redesign(doc: dict[str, Any], sids: list[str], note: str = "") -> dict[str, str]:
-    """LLM 重设计选中镜的画面句。返回 {sid: 新画面句} (只含成功镜)。"""
+def redesign(doc: dict[str, Any], sids: list[str], note: str = "") -> dict[str, dict]:
+    """LLM 重设计选中镜的画面句+事件层 (1107 批5: 两者同源 — 只换画面句不换
+    motion = 图与事件脱节, s4 新图无笔而事件层仍抬笔实锤)。
+    返回 {sid: {"zh": 新画面句, "motion": 新主体运动}} (只含成功镜)。"""
     from app.services.llm_service import get_llm_service, _parse_json
     v3 = doc.get("v3") or {}
     shots = {s["sid"]: s for s in (v3.get("shots") or [])}
     arcs = {a["arc_id"]: a for a in (v3.get("arcs") or [])}
+    direct = v3.get("direct") or {}
     rows = []
     for sid in sids:
         s = shots.get(sid)
@@ -41,6 +47,7 @@ def redesign(doc: dict[str, Any], sids: list[str], note: str = "") -> dict[str, 
         a = arcs.get(str(s.get("arc_id") or "")) or {}
         why = note or str((s.get("k2") or {}).get("error") or "")[:80] or "画面不满意, 换构图方案"
         rows.append(f'{sid}|{str(s.get("keyframe_zh") or "")[:160]}'
+                    f'|{str((direct.get(sid) or {}).get("motion") or "")[:80]}'
                     f'|{str(a.get("world") or "")[:24]}'
                     f'|{str(a.get("narrative") or "")[:30]}|{why}')
     if not rows:
@@ -48,16 +55,18 @@ def redesign(doc: dict[str, Any], sids: list[str], note: str = "") -> dict[str, 
     raw = get_llm_service().chat(
         _REDO_SYS, "\n".join(rows), model="pro", temperature=0.7,
         response_format={"type": "json_object"}, tag="v3_redo")
-    out: dict[str, str] = {}
+    out: dict[str, dict] = {}
     for r in (_parse_json(raw).get("shots") or []):
-        sid, zh = str(r.get("sid") or ""), str(r.get("keyframe_zh") or "").strip()
-        if sid in shots and len(zh) >= 60:
-            out[sid] = zh[:600]
+        sid = str(r.get("sid") or "")
+        zh = str(r.get("keyframe_zh") or "").strip()
+        mv = str(r.get("motion") or "").strip()
+        if sid in shots and len(zh) >= 60 and mv:
+            out[sid] = {"zh": zh[:600], "motion": mv[:120]}
     return out
 
 
 def retranslate(doc: dict[str, Any], sids: list[str]) -> int:
-    """单镜批重译英文 (冻结数据按镜保鲜): keyframe_en/opening_desc/motion_en。"""
+    """单镜批重译英文 (冻结数据按镜保鲜): keyframe_en/opening_desc/motion_en/light_en。"""
     from app.services.anim_pipeline.v3_pipeline.direct import _EN_SYS
     from app.services.llm_service import get_llm_service, _parse_json
     v3 = doc.get("v3") or {}
@@ -71,6 +80,7 @@ def retranslate(doc: dict[str, Any], sids: list[str]) -> int:
                  for a in (v3.get("arcs") or [])}
     rows = [f'{s["sid"]}|{str(s.get("keyframe_zh") or "")[:400]}'
             f'|{str((direct.get(s["sid"]) or {}).get("motion") or "")[:100]}'
+            f'|{str((direct.get(s["sid"]) or {}).get("light") or "")[:60]}'
             f'|{"、".join(v["zh"] + "=" + v["en"] for v in arc_vocab.get(str(s.get("arc_id") or "")) or [])}'
             for s in todo]
     raw = get_llm_service().chat(_EN_SYS, "\n".join(rows), model="pro", temperature=0.2,
@@ -83,8 +93,12 @@ def retranslate(doc: dict[str, Any], sids: list[str]) -> int:
             s["keyframe_en"] = str(r["keyframe_en"])[:800]
             s["opening_desc"] = s["keyframe_en"]
             d = direct.get(s["sid"])
-            if d is not None and r.get("motion_en"):
-                d["motion_en"] = str(r["motion_en"])[:400]
+            if d is not None:
+                if r.get("motion_en"):
+                    d["motion_en"] = str(r["motion_en"])[:400]
+                # 批4 光影槽: 与 finalize 同口径 (h3 opening 行尾软接线)
+                if r.get("light_en"):
+                    d["light_en"] = str(r["light_en"])[:200]
             n += 1
     return n
 
@@ -109,8 +123,17 @@ def run(job: dict[str, Any], sids: list[str], to_image: bool = True,
     if not new_zh:
         raise SystemExit("重设计未产出 (LLM 全拒) — 检查镜号")
     by_sid = {s["sid"]: s for s in shots}
-    for sid, zh in new_zh.items():
-        by_sid[sid]["keyframe_zh"] = zh
+    direct = v3.get("direct") or {}
+
+    def _apply(got: dict[str, dict]) -> None:
+        """画面句+事件层同源落库 (批5: motion 随画面句走)。"""
+        for sid, g in got.items():
+            by_sid[sid]["keyframe_zh"] = g["zh"]
+            d = direct.get(sid)
+            if d is not None:
+                d["motion"] = g["motion"]
+
+    _apply(new_zh)
 
     # 文字层质检 + 运镜词闸 (改动镜): 不过 → 带反馈补投一次
     iss = text_layer_issues(shots)
@@ -128,8 +151,7 @@ def run(job: dict[str, Any], sids: list[str], to_image: bool = True,
                              " — 只画定格, 运镜归导演层")
         fb = "; ".join(parts)
         fix = redesign(doc, bad, note=f"上一版不达标: {fb}")
-        for sid, zh in fix.items():
-            by_sid[sid]["keyframe_zh"] = zh
+        _apply(fix)
 
     job["progress"] = {"done": 1, "total": 3, "current": f"重译英文 {len(new_zh)} 镜"}
     n_en = retranslate(doc, list(new_zh))

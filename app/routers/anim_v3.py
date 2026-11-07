@@ -452,6 +452,7 @@ def v3_direct_save(book_id: str, ep: int, body: DirectSaveBody):
         for sid, d in body.direct.items():
             if sid in shots and d:
                 old_en = str((merged.get(sid) or {}).get("motion_en") or "")
+                old_light = str((merged.get(sid) or {}).get("light_en") or "")
                 c = d.get("cam") or {}
                 merged[sid] = {"size": str(d.get("size") or "中景"),
                                "cam": v3_direct.law_cam({
@@ -463,6 +464,8 @@ def v3_direct_save(book_id: str, ep: int, body: DirectSaveBody):
                                "light": str(d.get("light") or "")[:80]}
                 if old_en:      # 已英文化的镜: 手改只动 cam/中文域, 英译不丢
                     merged[sid]["motion_en"] = old_en
+                if old_light:   # 批4 光影槽同款保真 (手改不清 light_en)
+                    merged[sid]["light_en"] = old_light
         # 执行参数随镜固化 (步数/工位/英文句 — 程序独占, LLM 无感)
         for sid, d in merged.items():
             sh = shots.get(sid)
@@ -504,13 +507,17 @@ def v3_direct_reroll(book_id: str, ep: int, body: DirectRerollBody):
             raise HTTPException(status_code=422, detail=f"镜不存在或未产出: {body.sid}")
         for k in ("steps", "station", "clause"):
             d.pop(k, None)
+        merged = dict(v3.get("direct") or {})
+        merged[body.sid] = d
+        v3["direct"] = merged
+        # 批5: 重掷后单镜重译 — 新四元组的 motion/light 需要新 motion_en/light_en
+        # (旧态覆盖 entry 丢 motion_en 且无恢复通道, 批4 empty_motion 闸拦死)
+        from app.services.anim_pipeline.v3_pipeline.redo import retranslate
+        retranslate(doc, [body.sid])
         d["steps"] = v3_direct.steps_for(next(s for s in shots if s["sid"] == body.sid))
         d["station"] = v3_direct.station_for(d.get("cam"))
         d["clause"] = v3_direct.cam_clause(d.get("cam"),
                                            str(d.get("motion_en") or ""))
-        merged = dict(v3.get("direct") or {})
-        merged[body.sid] = d
-        v3["direct"] = merged
         v3["direct_issues"] = v3_direct.validate(merged, shots)
         from app.services.anim_pipeline import shots as shots_mod
         shots_mod.save(doc)

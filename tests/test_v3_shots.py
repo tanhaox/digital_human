@@ -814,15 +814,17 @@ def test_v3_redo_registered_and_pipeline():
     from app.services.anim_pipeline.v3_pipeline import redo as R
     assert "v3_redo" in A.PHASES and "v3_redo" in A.GPU_PHASES
     assert V._HANDLERS.get("redo") is V._h_redo
-    # redesign 桩: LLM 只改指定镜, 校验长度闸
+    # redesign 桩: LLM 只改指定镜, 校验长度闸 (批5: 画面句+事件层同源)
     import json
     doc = {"v3": {"shots": [{"sid": "s1", "arc_id": "A1", "keyframe_zh": "旧" * 60}],
+                  "direct": {"s1": {"motion": "旧动作"}},
                   "arcs": [{"arc_id": "A1", "world": "悬崖公路", "narrative": "讲边界"}]}}
 
     class _LLM:
         def chat(self, *a, **kw):
             assert kw.get("tag") == "v3_redo"
-            return json.dumps({"shots": [{"sid": "s1", "keyframe_zh": "新" * 60}]})
+            return json.dumps({"shots": [{"sid": "s1", "keyframe_zh": "新" * 60,
+                                          "motion": "新动作"}]})
 
     class _Svc:
         @staticmethod
@@ -838,7 +840,7 @@ def test_v3_redo_registered_and_pipeline():
     sys.modules["app.services.llm_service"] = _Svc
     try:
         out = R.redesign(doc, ["s1"], note="不满意")
-        assert out == {"s1": "新" * 60}
+        assert out == {"s1": {"zh": "新" * 60, "motion": "新动作"}}
         short = R.redesign(doc, ["s1"])   # 桩不改, 只验证过短被拒 → 换个拒绝桩
     finally:
         if real:
