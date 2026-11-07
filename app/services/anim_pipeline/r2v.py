@@ -135,7 +135,7 @@ def _build_prompt(shot: dict[str, Any], char_names: list[str],
         prompt += "Camera stays stable, only a very slight push-in. "
     # 1017 W2 文字总路由: r2v 消费 h3_text_event — 旧版静默丢弃, 人物镜路由
     # r2v 时花字消失 (s01 家族实锤)。有事件字 → 拼文字规格行 (逐字取表);
-    # 无 → 维持 No text (逐镜分支, 防无字镜幻字)。
+    # 无 → NO_TEXT_POLICY 整段硬禁字 (逐镜分支, 防无字镜幻字)。
     ev = shot.get("h3_text_event") or {}
     ev_text = str(ev.get("text") or "").strip()
     if _has_asset and _asset.get("has_text"):
@@ -159,7 +159,11 @@ def _build_prompt(shot: dict[str, Any], char_names: list[str],
             "No other text, no human voice."
         )
     else:
-        prompt += "No text, no human voice."
+        # 1107 加强: 旧版裸 "No text" 无表面枚举/无冻结条款/无中文免责 —
+        # 1016 ep4 全镜乱码实锤的教训 (h3 侧已修 NO_TEXT_POLICY) 在 r2v 原样
+        # 存在。单一事实源从 h3 惰性取, 两工位一口径。
+        from .h3 import NO_TEXT_POLICY  # 惰性避环 (同 _strip_scene_label 口径)
+        prompt += NO_TEXT_POLICY + " No human voice."
     # 1017 W3: 弧主旨锚 (同 h3 口径, 一行不推导)
     if thesis:
         prompt += f" Narrative anchor: {thesis} — the scene, props and motion all serve this thesis."

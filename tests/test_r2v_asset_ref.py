@@ -54,14 +54,24 @@ def test_asset_text_policy_and_event_suppression():
     assert "The only text in the video is the content of framed panel" in p
     assert "Text event:" not in p  # 事件字分支被抑制
     p2 = _prompt({**_BASE, "asset_ref": {**_ASSET, "has_text": False}})
-    assert "No text, no human voice." in p2  # 无字素材维持现行为
+    assert "Hard no-text rule" in p2  # 1107: 无字素材同走整段硬禁字
 
 
 def test_no_asset_untouched():
     p = _prompt(dict(_BASE))
     assert "Camera stays stable, only a very slight push-in. " in p
-    assert "No text, no human voice." in p
+    assert "No text, no human voice." not in p  # 1107: 裸禁字已废
     assert "reference image (Object reference" not in p
+
+
+def test_no_text_policy_full_enum():
+    """1107 r2v 禁字加强: 无字镜走 NO_TEXT_POLICY 整段 (表面枚举+冻结+中文免责,
+    与 h3 工位单一事实源) — 1016 ep4 乱码教训的 r2v 侧补课。"""
+    p = _prompt(dict(_BASE))
+    assert "Hard no-text rule" in p
+    assert "signboards, door plates, billboards" in p  # 表面枚举同源
+    assert "scene directions only" in p               # 中文语料免责 (v2 线)
+    assert "No human voice." in p                     # 声音条款保留
 
 
 def test_steps_for():

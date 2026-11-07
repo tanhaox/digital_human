@@ -2245,3 +2245,13 @@ laotan-tech 加【科技版专属约束】（高于通用规则）：
 - **提出时间**: 2026-11-07
 - **描述**: ① 1107 doc.shots 恢复重建时 video_station 字段未从 build_ledger 考古回填 (缺省空=后续重渲按 h3 默认路由, r2v 镜若重做走错工位); ② ~~服务端旧装配码~~ 已消除 (1107 13:11 后端重启加载新码, 装配实弹通过)。
 - **涉及模块**: anim_draft.build_draft / v3_pipeline/h3.py
+
+### ID-138：【动画】r2v 事件字仍视频内渲染 — 与 1021 停渲令矛盾 (1107 审计发现)
+
+- **状态**: pending (待拍板)
+- **优先级**: P2
+- **提出时间**: 2026-11-07
+- **描述**: 1021 用户令"镜内字通道整体下线"(视频模型渲中文=高乱码率) 只落在 h3 工位 (h3.py:297-305 事件字停渲); r2v 工位 `_build_prompt` 的事件字分支 (r2v.py:150-160 "appear large and bold") 仍在视频内渲字 — 两工位口径分裂。v3 线恒不触发 (stamp 不投影 h3_text_event), v2 线是活的乱码源。
+- **修法**: ① r2v 事件字分支删掉, 同走 NO_TEXT_POLICY; ② 须同步放开 anim_draft.py:280 装配层金字条件 (`video_station != "r2v"` 改为无条件渲), 否则 r2v 镜事件字全灭 (h3.py:876 出口戳注释同步更新)。两处同改, 单改任一处=丢字。
+- **附带已修** (1107, commit 见当日): r2v 裸禁字 "No text, no human voice." 已升级 NO_TEXT_POLICY 整段 (单一事实源惰性取)。
+- **涉及模块**: r2v._build_prompt / anim_draft._collect_text_events
