@@ -165,7 +165,9 @@ def _card_catalog(book_title: str) -> dict[str, str]:
     for c in bible.get("characters") or []:
         name = str(c.get("name") or "").strip()
         if name:
-            out[name] = str(c.get("look") or "").strip()[:40]
+            # 1108 批B: [:40]→[:120] 同 shots.card_catalog — 面部锚 (无胡须/眼镜)
+            # 在 look 尾部, 截断=writer 看不到 (眼镜/胡子漂移上游因)
+            out[name] = str(c.get("look") or "").strip()[:120]
     return out
 
 

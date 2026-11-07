@@ -30,6 +30,7 @@ _BOOK_TAIL: dict[str, tuple[str, str]] = {}   # book → (style_tail_sha, en)
 _ARC_THESIS: dict[tuple[str, str], str] = {}  # (book, thesis_sha) → en
 _BOOK_POLICY: dict[str, tuple[float, str]] = {}  # book → (bible_mtime, policy_en)
 _STANDIN_EN: dict[str, str] = {}  # zh_look sha → en (替身 look 英译, 零身份镜 EN 路兜底)
+_LOOK_EN: dict[tuple[str, str], tuple[str, str]] = {}  # (name_sha, look_sha) → (name_en, look_en)
 
 
 def standin_look_en(zh_look: str) -> str:
@@ -53,6 +54,37 @@ def standin_look_en(zh_look: str) -> str:
 
 def _sha(s: str) -> str:
     return hashlib.md5(str(s).encode("utf-8")).hexdigest()[:10]
+
+
+def char_look_en(name: str, zh_look: str) -> tuple[str, str]:
+    """圣经角色 look 英译 (1108 批A: K2 EN 路 look 前置用 — v3 writer keyframe_en
+    实测零外观词, EN 路"look 已内联"假设断裂 = K2 图层面部漂移根因 s6 胡茬实锤)。
+
+    返回 (name_en, look_en); sha 缓存 per 角色 (改一卡只重翻一卡);
+    fail-open 退 (中文名, 中文 look) — 混排仍比零注入强。"""
+    if not name or not zh_look:
+        return (name, zh_look)
+    key = (_sha(name), _sha(zh_look))
+    hit = _LOOK_EN.get(key)
+    if hit:
+        return hit
+    try:
+        from .llm import chat_json
+        from .config import load as _anim_load
+        out = chat_json(
+            _anim_load().llm, _SYS,
+            "Translate for an image-generation prompt. Output JSON "
+            '{"name_en": "<pinyin or standard English name>", '
+            '"look_en": "<the look description in English, keep ALL visual '
+            'details including hair, glasses presence, clean-shaven face, '
+            'outfit colors>"}. Input:\n'
+            f"Name: {name}\nLook: {zh_look}")
+        ne = str(out.get("name_en") or "").strip() or name
+        le = str(out.get("look_en") or "").strip() or zh_look
+    except Exception:  # noqa: BLE001 — 翻译失败退中文 (名词串混排仍有效)
+        return (name, zh_look)
+    _LOOK_EN[key] = (ne, le)
+    return (ne, le)
 
 
 def _chat(user: str) -> str:

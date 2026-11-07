@@ -323,7 +323,31 @@ def bible_negative(book_title: str) -> str:
         return ""
 
 
-def _negative_prompt(book_title: str = "", page: str = "", scene: str = "") -> str:
+def _cast_negative(zh_scene: str, book_title: str) -> str:
+    """出场角色外观负词 — 确定性派生自圣经 look (1108 批A, 零 LLM).
+
+    用户令 (眼镜/胡子随机漂移, 弧内不连续): 角色反外观项按镜级出场名单派生,
+    同弧同 cast → 同负词 (弧内一致性自动成立)。规则:
+    - look 含 "无胡须" → beard, mustache, stubble, facial hair
+    - look 不含 "眼镜" → glasses (戴镜角色如大卫·梅斯特不触发, 不会误伤)
+    匹配源=中文画面句 (角色名中文); EN 串匹配不上中文名, 调用方必须传 zh 源。"""
+    if not zh_scene or not book_title:
+        return ""
+    words: list[str] = []
+    try:
+        for nm, look, _kw in _char_looks(book_title):
+            if nm and nm in zh_scene:
+                if "无胡须" in look:
+                    words += ["beard", "mustache", "stubble", "facial hair"]
+                if "眼镜" not in look:
+                    words.append("glasses")
+    except Exception:  # noqa: BLE001 — 角色表坏不炸渲染
+        return ""
+    return ", ".join(dict.fromkeys(words))
+
+
+def _negative_prompt(book_title: str = "", page: str = "", scene: str = "",
+                     zh_scene: str = "") -> str:
     """负面提示词 = 基础配方 + 平台违禁 + 圣经负面词 (1010 书级美学).
 
     圣经负面词按书注入 (cfg=2.0 负通道确定性归宿, 零 LLM); 无圣经/空字段 =
@@ -331,7 +355,9 @@ def _negative_prompt(book_title: str = "", page: str = "", scene: str = "") -> s
     page (1013 双人根治): "character" = 定妆照页追加 _SHEET_NEG 压角色设定表先验;
     其余页不追加, 字节与旧版一致。
     scene (1015 多人治理条件化): k2 产线页传入画面句 — 检出多人物镜豁免多人禁令
-    (无脸战役定罪), 单人镜(默认)挂 _CROWD_NEG 防 1006 多人漂移。"""
+    (无脸战役定罪), 单人镜(默认)挂 _CROWD_NEG 防 1006 多人漂移。
+    zh_scene (1108 批A): 中文画面句 — 出场角色反外观负词派生 (眼镜/胡须漂移
+    根治); 空串=不派生, 字节与旧版一致。"""
     extra = _platform_negative()
     neg = bible_negative(book_title)
     out = _BASE_NEGATIVE + (", " + extra if extra else "")
@@ -342,13 +368,17 @@ def _negative_prompt(book_title: str = "", page: str = "", scene: str = "") -> s
         out += ", " + _FACE_NEG
         if not (scene and _MULTI_PERSON_RE.search(scene)):
             out += ", " + _CROWD_NEG
+        cast_neg = _cast_negative(zh_scene, book_title)
+        if cast_neg:
+            out += ", " + cast_neg
     return out
 
 
 def build_workflow(scene_zh: str, seed: int, prefix: str, extra_loras: list[dict[str, Any]] | None = None,
                    book_title: str = "", style: dict | None = None,
                    portrait: bool = False, page: str = "",
-                   thesis: str = "", lang: str = "zh") -> dict[str, Any]:
+                   thesis: str = "", lang: str = "zh",
+                   zh_scene: str = "") -> dict[str, Any]:
     """2ST 工作流 (API 格式), 节点 ID 对齐 history 真相图. 默认链 = 书级风格配方的 LoRA.
 
     style (0922): 显式配方覆写 (风格选择板试镜 — 库成员/Kimi 提案逐个出样张).
@@ -389,8 +419,10 @@ def build_workflow(scene_zh: str, seed: int, prefix: str, extra_loras: list[dict
         # 零 LLM 成本 — cfg=2.0 负面通道直接吃)
         # 1010 书级美学: 圣经 negative_keywords 按书追加 (手填即生效, mtime 守卫)
         # 1013 双人根治: character 页追加 _SHEET_NEG (角色设定表先验压制)
+        # 1108 批A: zh_scene 出场角色反外观负词 (眼镜/胡须漂移根治, 确定性派生)
         "259": {"class_type": "CLIPTextEncode", "inputs": {
-            "text": _negative_prompt(book_title, page, scene_zh), "clip": ["258", 0]}},
+            "text": _negative_prompt(book_title, page, scene_zh, zh_scene=zh_scene),
+            "clip": ["258", 0]}},
         # 段1: 7 步停在带残留噪声的中间态
         "202": {"class_type": "KSamplerAdvanced", "inputs": {
             "add_noise": "enable", "noise_seed": seed, "steps": 7, "cfg": 2.0,
@@ -542,13 +574,23 @@ def _scene_eff(shot: dict[str, Any], book_title: str) -> str:
     尾照挂 (锚定不随语言变), fallback 镜无 EN 退中文。"""
     en = str(shot.get("keyframe_en") or "").strip()
     if en:
-        # EN 路不注入 look — writer 的 keyframe_en 是同构图英文版, look 已内联
-        # (林肯 (Caucasian male, ...)); 只挂主色调味尾 (域界随宪法, 英文版)
-        # 1026 兜底: fallback 模板 EN 零身份 (随机人群实锤) — zh 侧判零身份
-        # (无卡名+无皮肤/发型词) → 替身 look 英译前置
-        _zh = str(shot.get("image_prompt_zh") or "")
+        # 1108 批A 根修 (用户令: 眼镜/胡子跨镜随机漂移): 旧注释"look 已内联"假设
+        # 在 v3 线断裂 — ③ writer 画面句实测零外观词 (s1-s14 逐镜 grep), look 摘要
+        # 又被 [:40] 截断丢"无胡须" → K2 文生图随机决定面部 = s6 胡茬实锤。
+        # 出场卡名 (zh 源判定, v2=image_prompt_zh / v3=keyframe_zh) → look_en
+        # 无条件前置 (0923 前置模式=主体权重最高; 重复=身份强化非风格稀释)。
+        _zh = str(shot.get("image_prompt_zh") or shot.get("keyframe_zh") or "")
         from . import k2_lang as _kl0
         _cards = _char_looks(book_title)
+        _hit = [(c[0], c[1]) for c in _cards if c[0] and c[0] in _zh]
+        if _hit:
+            _parts = []
+            for nm, lk in _hit[:3]:
+                _ne, _le = _kl0.char_look_en(nm, lk)
+                _parts.append(f"{_ne} ({_le})")
+            en = f"{'; '.join(_parts)}. " + en
+        # 1026 兜底: fallback 模板 EN 零身份 (随机人群实锤) — zh 侧判零身份
+        # (无卡名+无皮肤/发型词) → 替身 look 英译前置
         _named = any((c[0] or "") in _zh for c in _cards)
         if (not _named and _person_in(_zh or en, book_title)
                 and not any(w in _zh for w in ("皮肤", "发型", "发色", "短发", "长发", "卷发"))):
@@ -679,10 +721,14 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
     # 1017 W7: K2 产线纯英 (用户令) — 组装串过翻译层 (镜级缓存), fail-open 退中文
     from . import k2_lang
     _scene_eff_en = k2_lang.ensure_en_prompt(shot, scene_eff)
+    # 1108 批A: 中文源传负词通道 (v2=image_prompt_zh, v3=keyframe_zh; EN 终串
+    # 匹配不上中文角色名, cast 负词派生必须吃中文源)
+    _zh_src = str(shot.get("image_prompt_zh") or shot.get("keyframe_zh") or "")
     dirty = render_gated(
         lambda sd: build_workflow(_scene_eff_en, sd, prefix,
                                   shot.get("extra_loras"), book_title=doc["book_title"],
-                                  page="k2", thesis=_thesis, lang="en"),
+                                  page="k2", thesis=_thesis, lang="en",
+                                  zh_scene=_zh_src),
         dest, int(shot.get("seed") or 0), f"k2 {shot['shot_id']}", shot=shot,
         face_check=_person_in(scene_eff, doc["book_title"]),
         book_title=str(doc.get("book_title") or ""))

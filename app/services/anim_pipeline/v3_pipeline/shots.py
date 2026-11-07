@@ -435,7 +435,11 @@ _SYS = """你是动画分镜的画师。给定「镜」清单 (镜号|所属弧�
    行内免责压不住): 画面句只选中性稳定态 (桌上放着合上的笔记本), 禁 欲写/欲击/
    欲掷 等「动作前一刻」持械姿势 — 动作本身交给事件层 (导演层 motion) 正向描述
    (1024 铁律: 正向指定 > 负向禁止)。
-13. 每条只输出画面句, 严格 JSON: {"shots":[{"sid":"s1","keyframe_zh":"..."}]}"""
+13. **角色外观与卡 look 一致** (1108 用户令: 眼镜/胡子跨镜随机漂移实锤): 画面句
+   不得给角色新增卡片 look 之外的五官特征 — 卡 look 无眼镜就不画眼镜, 卡 look
+   写「下巴光洁无胡须」就不画胡茬; 发型与服装色以卡 look 为准, 弧内每镜同角色
+   外观连续一致 (面部特征漂移=废片级不一致)。
+14. 每条只输出画面句, 严格 JSON: {"shots":[{"sid":"s1","keyframe_zh":"..."}]}"""
 
 # 运镜词黑名单 (规则 8 的执法词表; 景别词不算)
 KEYFRAME_CAM_WORDS = ("镜头", "机位", "跟拍", "平移", "推近", "拉远", "摇镜",
@@ -930,7 +934,9 @@ def run(job: dict[str, Any]) -> None:
     # 卡目录 (批1 选角): 弧 cast → prompt 列 + 卡名闸
     card_catalog: dict[str, str] = {}
     if bible:
-        card_catalog = {str(c.get("name") or "").strip(): str(c.get("look") or "").strip()[:40]
+        # 1108 批B: [:40]→[:120] — 老谭 look 89 字, "下巴光洁无胡须"在尾部被
+        # 截断丢失 = writer 看不到面部锚 (s6 K2 胡茬上游因之一)
+        card_catalog = {str(c.get("name") or "").strip(): str(c.get("look") or "").strip()[:120]
                         for c in (bible.get("characters") or [])
                         if str(c.get("name") or "").strip()}
     filled = n_brand

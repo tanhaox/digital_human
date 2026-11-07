@@ -184,7 +184,10 @@ def test_card_catalog_reads_bible(monkeypatch, tmp_path):
     monkeypatch.setattr(director2, "_bible_cache_path", lambda bt: bp)
     m = arcs._card_catalog("任意书")
     assert set(m) == {"阿特金森"}
-    assert len(m["阿特金森"]) == 40
+    # 1108 批B 契约变更: look 摘要 40→120 — 面部锚 (无胡须/眼镜) 在 look 尾部,
+    # 40 字截断丢失 = writer 看不到外观锚 (眼镜/胡子漂移上游因);
+    # 本桩 look 50 字 < 120 → 全长直通
+    assert len(m["阿特金森"]) == 50
 
     def _missing(bt):
         raise FileNotFoundError(bt)
