@@ -66,8 +66,12 @@ def retranslate(doc: dict[str, Any], sids: list[str]) -> int:
     todo = [shots[sid] for sid in sids if sid in shots]
     if not todo:
         return 0
+    # 批3 vocab: 弧词表映射同列注入 (与 finalize 同口径, 单镜重译不漂词)
+    arc_vocab = {str(a.get("arc_id")): (a.get("vocab") or [])
+                 for a in (v3.get("arcs") or [])}
     rows = [f'{s["sid"]}|{str(s.get("keyframe_zh") or "")[:400]}'
             f'|{str((direct.get(s["sid"]) or {}).get("motion") or "")[:100]}'
+            f'|{"、".join(v["zh"] + "=" + v["en"] for v in arc_vocab.get(str(s.get("arc_id") or "")) or [])}'
             for s in todo]
     raw = get_llm_service().chat(_EN_SYS, "\n".join(rows), model="pro", temperature=0.2,
                                  response_format={"type": "json_object"}, tag="v3_en")
@@ -167,6 +171,9 @@ def run(job: dict[str, Any], sids: list[str], to_image: bool = True,
     proj = v3stamp.project_v2(doc, blocks)       # 重投影: 新图/新seed/新画面句灌 v2
     if proj["missing_audio"]:
         raise SystemExit(f"锚对齐失配 {len(proj['missing_audio'])} 槽 — ⑤ 页检查后再试")
+    if proj["vocab_mismatch"]:                   # 批3 词表闸同口径 (⑥ 唯一拼合点执法)
+        raise SystemExit(f"⑥ 词表闸: {len(proj['vocab_mismatch'])} 镜实体译名漂移 "
+                         "— ④ 页补译后再列队重做")
     shots_mod.save(doc)
     logger.info("[v3:redo] 列队重做全链: %d 镜重投影过审 → 转 H3", len(new_zh))
     v3h3.run(job, only=set(new_zh))

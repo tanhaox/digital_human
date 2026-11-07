@@ -432,11 +432,14 @@ def reroll_one(shots: list[dict[str, Any]], arcs: list[dict[str, Any]],
 # ── 放行钩子 = 英文化批 (ID-131; 窗口唯一: ⑤要吃/放行前翻=改稿作废) ────
 
 _EN_SYS = """You translate animation shot descriptions to English. Input lines:
-sid|中文画面句|中文主体运动. Output strict JSON:
+sid|中文画面句|中文主体运动|弧实体词表(zh=en对, 可空). Output strict JSON:
 {"shots":[{"sid":"s1","keyframe_en":"...","motion_en":"..."}]}
 Rules: keyframe_en is the SAME composition in English (no text/words may appear
 in the described image); motion_en describes the same subject motion in English,
-never mentioning any on-screen words. Plain faithful prose, no camera moves."""
+never mentioning any on-screen words. Plain faithful prose, no camera moves.
+When a vocabulary list is given, translate those zh words to EXACTLY those en
+words — never synonyms, never rewording; the same entity keeps one identical
+English wording across all shots of the arc."""
 
 
 def finalize(doc: dict[str, Any]) -> dict[str, Any]:
@@ -457,8 +460,17 @@ def finalize(doc: dict[str, Any]) -> dict[str, Any]:
     if any(k != "弧级" for k in issues) or len(direct) < len(shots):
         raise SystemExit("导演未达标 — 先清镜级问题并填满 34 镜再放行")
     todo = [s for s in shots if not s.get("keyframe_en")]
+    # 批3 vocab: 弧词表 zh→en 映射随行注入 — 同实体跨镜同词 (漂移上游因收口)
+    arc_vocab = {str(a.get("arc_id")): (a.get("vocab") or [])
+                 for a in (v3.get("arcs") or [])}
+
+    def _vocab_txt(s: dict[str, Any]) -> str:
+        return "、".join(f'{v["zh"]}={v["en"]}'
+                        for v in arc_vocab.get(str(s.get("arc_id") or "")) or [])
+
     rows = [f'{s["sid"]}|{str(s.get("keyframe_zh") or "")[:400]}'
             f'|{str((direct.get(s["sid"]) or {}).get("motion") or "")[:100]}'
+            f'|{_vocab_txt(s)}'
             for s in todo]
     done = 0
     for i in range(0, len(rows), 12):

@@ -1052,6 +1052,14 @@ def v3_concept_save(book_id: str, ep: int, body: ArcSaveBody):
                 if row.get(k) is not None and str(row[k]).strip() != str(a.get(k) or ""):
                     a[k] = str(row[k]).strip()[:200]
                     n_edit += 1
+            # 批3 vocab 白名单: 实体词表可编辑 (旧态两头都存不进 — 前端不发/
+            # 后端白名单外忽略); 对结构归一与 ② 产出同尺
+            if row.get("vocab") is not None:
+                from app.services.anim_pipeline.v3_pipeline.arcs import _norm_vocab
+                vv = _norm_vocab(row["vocab"])
+                if vv != (a.get("vocab") or []):
+                    a["vocab"] = vv
+                    n_edit += 1
             # 结构编辑 (人闸: 合并/改型) — 只认合法值, 其余保留原值
             if row.get("type") in TYPE_OF_MODE.values() and row["type"] != a.get("type"):
                 a["type"] = row["type"]

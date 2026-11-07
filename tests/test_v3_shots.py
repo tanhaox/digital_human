@@ -1279,3 +1279,63 @@ def test_keyframe_camera_word_gate():
     assert G("中景推近车身，轮胎冒烟")
     assert not G("中景: 银色豪车侧倾冲向无护栏弯道缺口，轮胎与地面腾起白烟")
     assert not G("大场景俯瞰悬崖公路全景，主体占比小")
+
+
+def test_vocab_pipeline_contract():
+    """批3 vocab (小故事包关键词统一): ② 产出契约 → ③ 原词制注入列 → ④ 英译
+    EXACTLY 直译 → ⑥ 跨字段闸执法。同实体跨镜同词 = K2 图跨镜一致的上游因
+    (finalize 逐镜独立翻译漂词实锤); 空表零执法 = 存量集零扰动。"""
+    # ① ② 产出契约: _SYS 带 vocab 规格 + _norm_vocab 归一 (皆非空/去重/上限10)
+    from app.services.anim_pipeline.v3_pipeline import arcs as VA
+    assert "vocab" in VA._SYS and "trekking pole" in VA._SYS
+    got = VA._norm_vocab([
+        {"zh": "登山杖", "en": "trekking pole"}, {"zh": "登山杖", "en": "重复对"},
+        {"zh": "", "en": "x"}, {"zh": "y", "en": ""}, "非dict",
+        {"zh": "冰镐", "en": "ice axe"}])
+    assert got == [{"zh": "登山杖", "en": "trekking pole"},
+                   {"zh": "冰镐", "en": "ice axe"}]
+    assert len(VA._norm_vocab([{"zh": f"物{i}", "en": f"obj{i}"} for i in range(20)])) == 10
+    # ② ③ 注入: 表头「本弧实体」列 + zh=en 对入行 + 规则11 原词制
+    from app.services.anim_pipeline.v3_pipeline import shots as VS
+    assert "实体原词制" in VS._SYS and "本弧实体" in VS._SYS
+    batch = [{"sid": "s1", "arc_id": "A1", "narration": "他举起登山杖", "est_s": 8}]
+    arc_of = {"A1": {"arc_id": "A1", "world": "雪线山脊", "metaphor": "边界=护栏",
+                     "narrative": "讲边界", "cast": ["老登山客"],
+                     "vocab": [{"zh": "登山杖", "en": "trekking pole"}]}}
+    p = VS._batch_prompt(batch, arc_of, {}, {})
+    assert "本弧实体" in p and "登山杖=trekking pole" in p
+    # ③ ④ 英译: _EN_SYS 词表直译规则 (finalize 与 redo 共用同一 SYS)
+    from app.services.anim_pipeline.v3_pipeline import direct as VD
+    assert "EXACTLY those en" in VD._EN_SYS
+    from app.services.anim_pipeline.v3_pipeline import redo as VR
+    assert VR.retranslate.__doc__ and "motion_en" in VR.retranslate.__doc__
+    # ④ ⑥ 契约闸 (⑥ 唯一拼合点执法): zh∈keyframe_zh ∧ en∉keyframe_en → 打回
+    from app.services.anim_pipeline.v3_pipeline import stamp as ST
+
+    def _doc(zh, en, vocab):
+        return {"book_title": "书", "v3": {
+            "lines": [{"no": 1, "text": "第一句。" * 8}],
+            "arcs": [{"arc_id": "A1", "vocab": vocab}],
+            "shots": [{"sid": "s1", "arc_id": "A1", "line_refs": [1], "est_s": 5,
+                       "keyframe_zh": zh, "keyframe_en": en}],
+            "direct": {}}}
+    blocks = [{"text": "第一句。" * 8, "dur_s": 5.0}]
+    v = [{"zh": "登山杖", "en": "trekking pole"}]
+    out_bad = ST.project_v2(_doc("登山客拄登山杖踩雪上行",
+                                 "a man with a walking staff in snow", v), blocks)
+    assert out_bad["vocab_mismatch"] == {"s1": ["登山杖"]}, "zh 上桌 en 没上桌 = 漂词"
+    # 命中执法 = en 在译文中 (子串判定, 不比整词)
+    out_ok = ST.project_v2(_doc("登山客拄登山杖踩雪上行",
+                                "a man with his trekking pole", v), blocks)
+    assert out_ok["vocab_mismatch"] == {}
+    # zh 未上桌 = 不管 (闸只管入画的词)
+    out_absent = ST.project_v2(_doc("雪线山脊上一个人影", "a lone figure", v), blocks)
+    assert out_absent["vocab_mismatch"] == {}
+    # 空表 = 零执法 (存量集零扰动)
+    out_free = ST.project_v2(_doc("登山客拄登山杖踩雪上行",
+                                  "a man with a staff", []), blocks)
+    assert out_free["vocab_mismatch"] == {}
+    # 品牌镜豁免 (冻结骨架不经 LLM, 词表闸不适用)
+    d_brand = _doc("登山客拄登山杖踩雪上行", "a man with a staff", v)
+    d_brand["v3"]["shots"][0]["brand_card"] = True
+    assert ST.project_v2(d_brand, blocks)["vocab_mismatch"] == {}

@@ -71,7 +71,7 @@ def build_skeleton(mods: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "no_end": m["no_end"],
             "line_count": len(m["lines"]),
             "est_s": est_seconds(m["lines"]),
-            "narrative": "", "world": "", "metaphor": "", "cast": [],
+            "narrative": "", "world": "", "metaphor": "", "cast": [], "vocab": [],
         })
     return arcs
 
@@ -135,6 +135,10 @@ _SYS = """你是短视频系列的分镜立意导演。输入是一集的稿件�
 - narrative: 本弧讲什么, 一句 15-30 字
 - cast: 本弧画面出场的角色卡名数组 — 只能从输入的「可用角色卡」名单里选;
   纯空镜/纯物品/非叙事位 (钩子/行动召/品牌) 填 []
+- vocab: 本弧实体统一词表 (道具/场景/视觉锚点, **不含角色** — 角色走 cast),
+  5-10 条, 每条 {"zh":"登山杖","en":"trekking pole"}; zh 取本弧口播/画面必然
+  出现的实体原词, en 给稳定直译 — 同一实体全弧同词 (③画面句/K2 图/英译
+  三层同实体同词, 跨镜视觉一致的锚); 无实体可填 []
 
 铁律:
 1. 相邻弧的视觉世界禁止重复 (轮换宪法)。
@@ -145,7 +149,7 @@ _SYS = """你是短视频系列的分镜立意导演。输入是一集的稿件�
    口播里提到具体人物 (客户/医生/合伙人) 时, 优先从名单选对应的卡。
 
 严格 JSON: {"arcs":[{"arc_id":"A1","narrative":"...","world":"...","metaphor":"...",
-"cast":["卡名"]}],"hints":["..."]}"""
+"cast":["卡名"],"vocab":[{"zh":"登山杖","en":"trekking pole"}]}],"hints":["..."]}"""
 
 
 def _card_catalog(book_title: str) -> dict[str, str]:
@@ -220,8 +224,23 @@ def _llm_fill(arcs: list[dict[str, Any]], lines: list[dict[str, Any]],
         out[aid] = {"narrative": str(row.get("narrative") or "")[:120],
                     "world": str(row.get("world") or "")[:40],
                     "metaphor": str(row.get("metaphor") or "")[:200],
-                    "cast": cast}
+                    "cast": cast,
+                    # 批3 vocab: 实体对结构归一 (zh/en 皆非空, 去重, 上限 10)
+                    "vocab": _norm_vocab(row.get("vocab"))}
     return out, hints
+
+
+def _norm_vocab(raw: Any) -> list[dict[str, str]]:
+    """词表归一 (② 产出 / ② 页保存 共用): 只要 {zh,en} 皆非空的对, 去重, ≤10。"""
+    out: list[dict[str, str]] = []
+    for pair in (raw or [])[:10]:
+        if not isinstance(pair, dict):
+            continue
+        zh = str(pair.get("zh") or "").strip()[:20]
+        en = str(pair.get("en") or "").strip()[:60]
+        if zh and en and not any(v["zh"] == zh for v in out):
+            out.append({"zh": zh, "en": en})
+    return out
 
 
 # ── 视觉世界补全 (1105 用户令: 缺字段是系统的事, 不该甩给人) ────────────
@@ -309,6 +328,8 @@ def run(job: dict[str, Any]) -> None:
                 a["metaphor"] = f["metaphor"]
                 if f.get("cast"):
                     a["cast"] = f["cast"]
+                if f.get("vocab"):
+                    a["vocab"] = f["vocab"]
         logger.info("[v3:arcs] LLM 立意 %d/%d 弧 ✓", sum(1 for a in arcs if a["metaphor"]), len(arcs))
     except Exception as exc:  # noqa: BLE001 — LLM 失败退骨架, 人闸手填
         logger.warning("[v3:arcs] LLM 创作失败 (退骨架, 立意待手填): %s", exc)

@@ -90,6 +90,10 @@ def project_v2(doc: dict[str, Any], blocks: list[dict]) -> dict[str, Any]:
     shots = v3.get("shots") or []
     direct = v3.get("direct") or {}
     lines = {ln["no"]: ln for ln in (v3.get("lines") or [])}
+    # 批3 vocab: 弧词表 (空表 = 零执法, 存量集零扰动)
+    arc_vocab = {str(a.get("arc_id")): (a.get("vocab") or [])
+                 for a in (v3.get("arcs") or [])}
+    vocab_bad: dict[str, list[str]] = {}
     aligned = align_blocks(shots, lines, blocks)
     # 1106 五修 (redo 实锤): 投影重建 doc.shots 丢 video_file → 一次列队重做把
     # 整本成片引用抹光 (54 mp4 成孤儿)。搬运规则: 图未变 (旧 image_file == 新)
@@ -116,6 +120,13 @@ def project_v2(doc: dict[str, Any], blocks: list[dict]) -> dict[str, Any]:
         d = direct.get(sid) or {}
         k2 = s.get("k2") or {}
         rf = render_fields(d, real)      # ⑥ 拼合: camera/station/beats 融合行/注入参数
+        # ⑥ 契约闸 (批3): zh 词 ∈ keyframe_zh ⇒ en 词 ∈ keyframe_en (弧词表
+        # 非空才执法; 品牌镜豁免 — 冻结骨架不经 LLM)
+        if not s.get("brand_card"):
+            for v in arc_vocab.get(str(s.get("arc_id") or "")) or []:
+                if (v["zh"] in str(s.get("keyframe_zh") or "")
+                        and v["en"] not in str(s.get("keyframe_en") or "")):
+                    vocab_bad.setdefault(sid, []).append(v["zh"])
         status = "approved" if k2.get("status") == "approved" else (
             "img_done" if k2.get("status") == "img_done" else "planned")
         # 字幕源 (⑧ 装配 caption): 槽内各行按时长占比切片, 镜内相对时间
@@ -187,6 +198,7 @@ def project_v2(doc: dict[str, Any], blocks: list[dict]) -> dict[str, Any]:
     return {"slots": stamped,
             "muted": sum(1 for s in shots if s.get("audio_muted")),
             "total_s": round(t, 1),
+            "vocab_mismatch": vocab_bad,
             "missing_audio": [str(s["sid"]) for s in shots
                               if not s.get("audio_muted")
                               and str(s["sid"]) not in aligned]}
@@ -219,6 +231,13 @@ def run(job: dict[str, Any]) -> None:
     if out["missing_audio"]:
         raise SystemExit(f"锚对齐失配 {len(out['missing_audio'])} 槽 "
                          f"({','.join(out['missing_audio'][:5])}) — ⑤ 页检查改字漂移")
+    # 批3 vocab 契约闸: 实体 zh 上桌而 en 没上桌 = 同实体跨镜漂词 → 打回补译
+    # (空词表零执法 — 存量集不受扰; 品牌镜在 project_v2 内已豁免)
+    if out["vocab_mismatch"]:
+        bad = "; ".join(f"{sid}:{','.join(zs[:2])}" for sid, zs
+                        in list(out["vocab_mismatch"].items())[:4])
+        raise SystemExit(f"⑥ 词表闸: {len(out['vocab_mismatch'])} 镜实体译名漂移 "
+                         f"({bad}) — ④ 页补译 (词表 zh 已入画, en 未入译) 后再盖章")
     try:
         from app.services.anim_draft import audio_stamp
         doc["audio_stamp"] = audio_stamp(doc, audio)

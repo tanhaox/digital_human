@@ -104,9 +104,17 @@ function renderAxis() {
   });
 }
 
+/** 批3 vocab: 词表单元格式 "zh=en、zh=en" ↔ [{zh,en}] (与 ② 产出同尺) */
+const vocabTxt = vs => (vs || []).map(v => `${v.zh}=${v.en}`).join('、');
+const parseVocab = txt => String(txt || '').split(/[、;；\n]/)
+  .map(p => p.trim()).filter(Boolean).map(p => {
+    const i = p.indexOf('=');
+    return i > 0 ? { zh: p.slice(0, i).trim(), en: p.slice(i + 1).trim() } : null;
+  }).filter(v => v && v.zh && v.en);
+
 function renderTable() {
   if (!ARCS.length) {
-    $('tbody').innerHTML = '<tr><td colspan="8" class="muted">尚无弧 — 点下方「🎲 重跑立意」由语态切弧</td></tr>';
+    $('tbody').innerHTML = '<tr><td colspan="9" class="muted">尚无弧 — 点下方「🎲 重跑立意」由语态切弧</td></tr>';
     return;
   }
   $('tbody').innerHTML = ARCS.map(a => {
@@ -117,6 +125,11 @@ function renderTable() {
     const meta = isNarr
       ? `<span class="editable" contenteditable="true" data-aid="${a.arc_id}" data-k="metaphor">${esc(a.metaphor || '')}</span>`
       : '<span class="muted">— 不分配立意</span>';
+    // 批3: 实体词表列 (非叙事位不可编, 空表=零执法)
+    const vocab = isNarr
+      ? `<span class="editable" contenteditable="true" data-aid="${a.arc_id}" data-k="vocab"
+            title="本弧实体统一词 (zh=en 对, 顿号分隔, ≤10 条): ③画面句/④英译用原词, ⑥ 跨字段闸执法">${esc(vocabTxt(a.vocab))}</span>`
+      : '<span class="muted">—</span>';
     const i = ARCS.indexOf(a);
     return `<tr>
       <td class="mono">${esc(a.arc_id)}</td>
@@ -126,7 +139,7 @@ function renderTable() {
       <td class="mono">L${a.no_start}–L${a.no_end}
         ${i > 0 ? `<button class="iconbtn" data-act="merge" data-aid="${a.arc_id}"
           title="并入上一弧 (两弧行区间合并成一弧)">⬆合并</button>` : ''}</td>
-      <td>${world}</td><td>${meta}</td>
+      <td>${world}</td><td>${meta}</td><td>${vocab}</td>
       <td class="mono">${a.line_count}</td><td class="mono">~${a.est_s}s</td></tr>`;
   }).join('');
 }
@@ -186,10 +199,14 @@ $('tbody').addEventListener('input', ev => {
 });
 
 async function saveConcept() {
+  const isNarrRow = a => a.type !== 'hook' && a.type !== 'cta' && a.type !== 'brand';
   const arcs = ARCS.map(a => ({
     arc_id: a.arc_id, type: a.type, no_start: a.no_start, no_end: a.no_end,
     world: document.querySelector(`[data-aid="${a.arc_id}"][data-k="world"]`)?.textContent ?? a.world,
     metaphor: document.querySelector(`[data-aid="${a.arc_id}"][data-k="metaphor"]`)?.textContent ?? a.metaphor,
+    // 批3: 叙事位词表可编 (非叙事位不发 → 后端原值保留)
+    ...(isNarrRow(a) ? { vocab: parseVocab(
+      document.querySelector(`[data-aid="${a.arc_id}"][data-k="vocab"]`)?.textContent ?? '') } : {}),
   }));
   const r = await (await fetch(`${BASE}/concept/save`, { method: 'POST',
     headers: { 'Content-Type': 'application/json' },

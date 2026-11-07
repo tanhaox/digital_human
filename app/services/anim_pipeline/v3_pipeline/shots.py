@@ -428,7 +428,10 @@ _SYS = """你是动画分镜的画师。给定「镜」清单 (镜号|所属弧�
 10. **角色卡名制 (选角)**: 行内有「本弧角色」列且非空时, 画面句中的该角色必须直接
    用卡名指代 (如: 阿特金森的银色轿车), 禁用泛称 (中年男士/西装男人/客户/顾问)
    顶替 — 卡名是跨镜身份锚; 该列为空的镜不写具体人名, 群演用身份词 (路人/店员)。
-11. 每条只输出画面句, 严格 JSON: {"shots":[{"sid":"s1","keyframe_zh":"..."}]}"""
+11. **实体原词制 (词汇表)**: 行内有「本弧实体」列且非空时, 弧内实体一律用表内
+   zh 原词指代 (如: 登山杖), 禁同义改写 (手杖/雪杖/登山棍) — 实体词是跨镜视觉
+   一致锚 (K2 同实体同画, 英译同实体同词); 表外新实体用自然词即可。
+12. 每条只输出画面句, 严格 JSON: {"shots":[{"sid":"s1","keyframe_zh":"..."}]}"""
 
 # 运镜词黑名单 (规则 8 的执法词表; 景别词不算)
 KEYFRAME_CAM_WORDS = ("镜头", "机位", "跟拍", "平移", "推近", "拉远", "摇镜",
@@ -531,13 +534,16 @@ def _batch_prompt(batch: list[dict[str, Any]], arc_of: dict[str, dict],
         if _cast:
             cast_txt = "、".join(
                 f"{n}({cards[n]})" if cards and n in cards else n for n in _cast)
+        # 本弧实体词表 (批3 vocab): zh=en 对 — ③画面句用原词, 英译同实体同词
+        vocab_txt = "、".join(f'{v["zh"]}={v["en"]}' for v in (a.get("vocab") or []))
         rows.append(f'{s["sid"]}{tag}|{a.get("world", "")}|{a.get("metaphor", "")[:60]}|'
-                    f'{str(a.get("narrative") or "")[:40]}|{cast_txt}|{text}|{s["est_s"]}s')
+                    f'{str(a.get("narrative") or "")[:40]}|{cast_txt}|{vocab_txt}|{text}|{s["est_s"]}s')
     quota = batch_quota(batch, zone_of)
     # narrative (本弧讲什么) 必须进提示 — 实锤 s2: 只给世界+隐喻, 写手不知道
     # 弧的叙事任务, 画面接不住口播爆点 (客户拍桌画成了一个人发呆)
     return (quota + "\n" if quota else "") \
-        + "镜号|视觉世界|立意|本弧讲什么|本弧角色|口播原文|目标时长\n" + "\n".join(rows)
+        + "镜号|视觉世界|立意|本弧讲什么|本弧角色|本弧实体|口播原文|目标时长\n" \
+        + "\n".join(rows)
 
 
 def _llm_fill(shots: list[dict[str, Any]], arcs: list[dict[str, Any]],
