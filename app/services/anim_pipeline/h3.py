@@ -234,10 +234,15 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
         "",
     ]
     # 1017 W3: 弧主旨锚 (立意=圣经+弧主旨 单一源, 组装器只拼不推导)
-    # 1107 s4 二轮实锤 (白板写出「丑话清单」): 中文主旨词在书写场景被当
-    # **要写的板书内容** — 与 1016 中文场景标签坑同构。行内免责根治 (所有
-    # 镜受益: 任何载体面都可能把主旨词画上去, 不只笔类镜)。
-    if thesis:
+    # 1107 s4 二/三轮实锤 (白板+笔+中文主旨「丑话清单」=最强写字邀请,
+    # 0.5s 起笔, 行内免责压不住): 书写语义镜直接**不注主旨锚** — 词不上
+    # 桌才是根治 (与 1016 中文场景标签剥除同构)。非书写镜保留主旨锚+免责
+    # (任何载体面都可能画主旨词, 不只笔类镜)。
+    _beat_blob = " ".join(str(b.get("motion") or "") for b in anim.get("beats") or [])
+    _write_hit = re.search(
+        r"(?i)\b(pen|pens|pencil|nib|brush(es)?|chalk|marker|writes?|writing|"
+        r"inscri\w+|signature|handwriting)\b", _beat_blob)
+    if thesis and not _write_hit:
         lines.append(
             f"Narrative anchor: {thesis} — the scene, props and motion all serve "
             "this thesis. The anchor words are story direction ONLY, never content "
@@ -292,12 +297,9 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
     # 1021 (ep7 s14 实锤: NO_TEXT_POLICY 压不住"笔+纸"书写先验 — 红笔划记录单
     # → 模型自动画字/笔画): 书写语义确定性对冲 — beats 含笔/写类词即追加
     # 1107 s4 实锤升级: 旧版只禁"结果" (leaves NO marks) 压不住书写**动作**先验 —
-    # "about to write" 8s 长镜模型照样把字写出来。禁令升到动作层: 笔永不落下,
+    # "about to write" 8s 镜模型照样把字写出来。禁令升到动作层: 笔永不落下,
     # 手势冻结在书写前一刻 (首帧动势律同口径 — 起点帧即终点帧)。
-    _beat_blob = " ".join(str(b.get("motion") or "") for b in beats)
-    _write_hit = re.search(
-        r"(?i)\b(pen|pens|pencil|nib|brush(es)?|chalk|marker|writes?|writing|"
-        r"inscri\w+|signature|handwriting)\b", _beat_blob)
+    # (_beat_blob/_write_hit 已前移至主旨锚处 — 书写镜不注主旨锚)
     if _write_hit:
         lines.append(
             "Writing counter-rule: THE WRITING NEVER HAPPENS. The pen, pencil, "
