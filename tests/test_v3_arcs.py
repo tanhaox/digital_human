@@ -133,3 +133,76 @@ def test_fill_missing_worlds_applies_llm_result(monkeypatch):
     assert arcs.missing_worlds(sk) == []
     assert all(a["world"] == "无护栏的悬崖盘山公路"
                for a in sk if a["arc_id"] in missing)
+
+
+# ── 批1 选角 (1107): cast pass 枚举执法 + 人设弧保险 ──────────────────
+
+
+def test_llm_fill_cast_enum_and_dedup(monkeypatch):
+    """cast 只收名单内卡名: 越界剔除+记 hint, 重复去重 (批1 选角执法)。"""
+    monkeypatch.setattr(arcs, "_card_catalog",
+                        lambda bt: {"老谭": "深红冲锋衣", "阿特金森": "深炭西装"})
+    sk = arcs.build_skeleton(arcs.modules_of(_lines()))
+
+    class _LLM:
+        def chat(self, *a, **kw):
+            assert kw.get("tag") == "v3_arcs"
+            assert "可用角色卡" in a[1]           # 卡名单必须进 prompt
+            return ('{"arcs":['
+                    '{"arc_id":"A3","narrative":"n","world":"w","metaphor":"m",'
+                    '"cast":["阿特金森","阿特金森","比尔盖茨"]},'
+                    '{"arc_id":"A4","narrative":"n2","world":"","metaphor":"m2",'
+                    '"cast":["老谭"]}]}')
+
+    class _Svc:
+        @staticmethod
+        def get_llm_service():
+            return _LLM()
+
+        @staticmethod
+        def _parse_json(raw):
+            import json
+            return json.loads(raw)
+
+    monkeypatch.setitem(sys.modules, "app.services.llm_service", _Svc)
+    out, hints = arcs._llm_fill(sk, _lines(), "测试书", 1)
+    assert out["A3"]["cast"] == ["阿特金森"]
+    assert out["A4"]["cast"] == ["老谭"]
+    assert any("越界" in h and "比尔盖茨" in h for h in hints), hints
+
+
+def test_card_catalog_reads_bible(monkeypatch, tmp_path):
+    """圣经 characters[].name+look → 卡目录 (look 截 40); 无圣经静默空。"""
+    import json as _json
+
+    from app.services.anim_pipeline import director2
+    bp = tmp_path / "bible.json"
+    bp.write_text(_json.dumps(
+        {"characters": [{"name": "阿特金森", "look": "深炭色正装配暗红领带" * 5},
+                         {"name": "", "look": "无名卡不进目录"}]}, ensure_ascii=False),
+        encoding="utf-8")
+    monkeypatch.setattr(director2, "_bible_cache_path", lambda bt: bp)
+    m = arcs._card_catalog("任意书")
+    assert set(m) == {"阿特金森"}
+    assert len(m["阿特金森"]) == 40
+
+    def _missing(bt):
+        raise FileNotFoundError(bt)
+
+    monkeypatch.setattr(director2, "_bible_cache_path", _missing)
+    assert arcs._card_catalog("无圣经书") == {}
+
+
+def test_ensure_persona_host():
+    """人设弧缺老谭 → 补; 卡目录无老谭 → 零操作 (不造卡名)。"""
+    cards = {"老谭": "深红冲锋衣"}
+    arcs_ = [{"arc_id": "A1", "type": "hook", "cast": []},
+             {"arc_id": "A2", "type": "persona", "cast": []},
+             {"arc_id": "A3", "type": "persona", "cast": ["老谭"]},
+             {"arc_id": "A4", "type": "narr", "cast": []}]
+    n = arcs.ensure_persona_host(arcs_, cards)
+    assert n == 1
+    assert arcs_[1]["cast"] == ["老谭"]
+    assert arcs_[2]["cast"] == ["老谭"]        # 已有不动
+    assert arcs_[0]["cast"] == [] and arcs_[3]["cast"] == []
+    assert arcs.ensure_persona_host(arcs_, {"别人": "x"}) == 0   # 无老谭卡目录不造名

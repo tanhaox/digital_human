@@ -107,6 +107,45 @@ def test_wiring_v3():
         assert Path(f).exists(), f
 
 
+# ── 批1 选角 (1107): 卡名闸 + prompt cast 列 ──────────────────────────
+
+
+def test_cast_gate_issues_four_paths():
+    """卡名闸四路: 泛称拦 / 卡名过 / 空镜弧豁免 / 品牌镜豁免。"""
+    arcs = [{"arc_id": "A1", "cast": ["阿特金森"]}, {"arc_id": "A2", "cast": []}]
+    shots = [
+        {"sid": "s1", "arc_id": "A1",
+         "keyframe_zh": "阿特金森的银色轿车停在悬崖弯道", "brand_card": False},
+        {"sid": "s2", "arc_id": "A1",
+         "keyframe_zh": "一个西装男士坐在车里翻文件夹", "brand_card": False},
+        {"sid": "s3", "arc_id": "A2", "keyframe_zh": "纯空镜山路全景", "brand_card": False},
+        {"sid": "s4", "arc_id": "A1", "keyframe_zh": "", "brand_card": True},
+    ]
+    out = v3shots.cast_gate_issues(shots, arcs)
+    assert set(out) == {"s2"}
+    assert "阿特金森" in out["s2"][0] and "卡名" in out["s2"][0]
+
+
+def test_cast_gate_blocks_release():
+    """cast 闸按镜归因 → 进 has_blocking_issues 拦闸 (泛称不放行)。"""
+    issues = {"s2": ["s2 弧绑定角色 阿特金森 未以卡名入画面句 — 用卡名指代"]}
+    assert v3shots.has_blocking_issues(issues) is True
+    assert v3shots.has_blocking_issues({"弧级": ["景深配额: 全集 …"]}) is False
+
+
+def test_batch_prompt_cast_column():
+    """本弧角色列: 卡名(look) 入 prompt; 无 cast 留空列不炸。"""
+    arcs = [{"arc_id": "A1", "cast": ["阿特金森"], "world": "悬崖公路",
+             "metaphor": "边界含糊=没有护栏", "narrative": "阿特金森驾车临界悬止"}]
+    shots = [{"sid": "s1", "arc_id": "A1", "narration": "你以为的信任", "est_s": 5.2}]
+    p = v3shots._batch_prompt(shots, {a["arc_id"]: a for a in arcs}, {}, {},
+                              {"阿特金森": "深炭色正装+暗红领带"})
+    assert "本弧角色" in p
+    assert "阿特金森(深炭色正装+暗红领带)" in p
+    p2 = v3shots._batch_prompt(shots, {"A1": {**arcs[0], "cast": []}}, {}, {}, None)
+    assert "阿特金森(" not in p2 and "||" in p2
+
+
 def test_brand_arc_gets_frozen_skeleton_not_llm():
     """用户令: 非叙事位不分配立意 ≠ 没有画面 — 品牌位走冻结骨架 (LLM 零参与)."""
     from app.services.anim_pipeline import brand

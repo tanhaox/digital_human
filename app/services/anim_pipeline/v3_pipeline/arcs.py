@@ -71,7 +71,7 @@ def build_skeleton(mods: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "no_end": m["no_end"],
             "line_count": len(m["lines"]),
             "est_s": est_seconds(m["lines"]),
-            "narrative": "", "world": "", "metaphor": "",
+            "narrative": "", "world": "", "metaphor": "", "cast": [],
         })
     return arcs
 
@@ -133,21 +133,58 @@ _SYS = """你是短视频系列的分镜立意导演。输入是一集的稿件�
   人设弧=老谭出镜讲自己的亲身经历, 叙事弧=一个具体的物理装置世界)
 - metaphor: 立意核心, 必须写成 A=B 映射 (信任波动=三阶段路径…), 40-80 字
 - narrative: 本弧讲什么, 一句 15-30 字
+- cast: 本弧画面出场的角色卡名数组 — 只能从输入的「可用角色卡」名单里选;
+  纯空镜/纯物品/非叙事位 (钩子/行动召/品牌) 填 []
 
 铁律:
 1. 相邻弧的视觉世界禁止重复 (轮换宪法)。
 2. 叙事弧的 world 必须是可拍的物理装置/机械/空间, 禁抽象概念。
 3. 非叙事位 (钩子/行动召/品牌) 的 world 填空串 ""。
 4. 若某段超过 15 行, 可在 hints 里建议在语义完整处拆成两弧 (只写建议, 不改骨架)。
+5. cast 只能选名单内卡名 (越界剔除); 人设弧 (老谭亲身经历) 必须绑定 老谭;
+   口播里提到具体人物 (客户/医生/合伙人) 时, 优先从名单选对应的卡。
 
-严格 JSON: {"arcs":[{"arc_id":"A1","narrative":"...","world":"...","metaphor":"..."}],
-"hints":["..."]}"""
+严格 JSON: {"arcs":[{"arc_id":"A1","narrative":"...","world":"...","metaphor":"...",
+"cast":["卡名"]}],"hints":["..."]}"""
+
+
+def _card_catalog(book_title: str) -> dict[str, str]:
+    """圣经角色卡目录 (卡名→look 摘要≤40字); 无圣经=空 dict (cast pass 静默降级)."""
+    try:
+        import json
+
+        from app.services.anim_pipeline.director2 import _bible_cache_path
+        bible = json.loads(_bible_cache_path(book_title).read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001 — 无圣经 = 无卡体系, 不炸
+        return {}
+    out: dict[str, str] = {}
+    for c in bible.get("characters") or []:
+        name = str(c.get("name") or "").strip()
+        if name:
+            out[name] = str(c.get("look") or "").strip()[:40]
+    return out
+
+
+def ensure_persona_host(arcs: list[dict[str, Any]], cards: dict[str, str]) -> int:
+    """人设弧 (老谭亲身经历) cast 缺老谭 → 确定性补。返回补入的弧数。
+
+    卡目录无老谭 (无圣经/无此人) 时零操作 — 不造卡名。
+    """
+    if "老谭" not in cards:
+        return 0
+    n = 0
+    for a in arcs:
+        if a.get("type") == "persona" and "老谭" not in (a.get("cast") or []):
+            a["cast"] = list(dict.fromkeys((a.get("cast") or []) + ["老谭"]))
+            n += 1
+    return n
 
 
 def _llm_fill(arcs: list[dict[str, Any]], lines: list[dict[str, Any]],
-              book_title: str, ep: int) -> tuple[dict[str, dict[str, str]], list[str]]:
-    """LLM 创作层: 只填 world/metaphor/narrative; 失败抛异常由调用方退骨架。"""
+              book_title: str, ep: int) -> tuple[dict[str, dict[str, Any]], list[str]]:
+    """LLM 创作层: 填 world/metaphor/narrative/cast; 失败抛异常由调用方退骨架。"""
     from app.services.llm_service import get_llm_service, _parse_json
+    cards = _card_catalog(book_title)
     text_of = {ln["no"]: str(ln.get("text") or "") for ln in lines}
     body_lines = []
     for a in arcs:
@@ -155,18 +192,36 @@ def _llm_fill(arcs: list[dict[str, Any]], lines: list[dict[str, Any]],
                          range(a["no_start"], min(a["no_end"], a["no_start"] + 6) + 1))
         body_lines.append(f'{a["arc_id"]}|{a["mode"]}|L{a["no_start"]}-L{a["no_end"]}'
                           f'|{a["line_count"]}行|{seg[:140]}')
-    body = f"《{book_title}》第{ep}集\n\n" + "\n".join(body_lines)
+    card_block = ""
+    if cards:
+        card_block = ("\n可用角色卡 (卡名|look):\n"
+                      + "\n".join(f"{n}|{look}" for n, look in cards.items()) + "\n")
+    body = f"《{book_title}》第{ep}集\n{card_block}\n" + "\n".join(body_lines)
     raw = get_llm_service().chat(_SYS, body, model="flash", temperature=0.6,
                                  response_format={"type": "json_object"}, tag="v3_arcs")
     data = _parse_json(raw)
-    out: dict[str, dict[str, str]] = {}
+    out: dict[str, dict[str, Any]] = {}
+    hints: list[str] = [str(h)[:120] for h in (data.get("hints") or [])][:6]
     for row in data.get("arcs") or []:
         aid = str(row.get("arc_id") or "")
-        if aid:
-            out[aid] = {"narrative": str(row.get("narrative") or "")[:120],
-                        "world": str(row.get("world") or "")[:40],
-                        "metaphor": str(row.get("metaphor") or "")[:200]}
-    return out, [str(h)[:120] for h in (data.get("hints") or [])][:6]
+        if not aid:
+            continue
+        cast_raw = row.get("cast") or []
+        if isinstance(cast_raw, str):
+            cast_raw = [cast_raw]
+        cast: list[str] = []
+        for nm in cast_raw:
+            nm = str(nm).strip()
+            if nm in cards and nm not in cast:
+                cast.append(nm)
+            elif nm:
+                hints.append(f"{aid} cast 越界剔除「{nm}」(不在卡名单)")
+                hints = hints[:8]
+        out[aid] = {"narrative": str(row.get("narrative") or "")[:120],
+                    "world": str(row.get("world") or "")[:40],
+                    "metaphor": str(row.get("metaphor") or "")[:200],
+                    "cast": cast}
+    return out, hints
 
 
 # ── 视觉世界补全 (1105 用户令: 缺字段是系统的事, 不该甩给人) ────────────
@@ -252,9 +307,14 @@ def run(job: dict[str, Any]) -> None:
                 a["narrative"] = f["narrative"]
                 a["world"] = f["world"]
                 a["metaphor"] = f["metaphor"]
+                if f.get("cast"):
+                    a["cast"] = f["cast"]
         logger.info("[v3:arcs] LLM 立意 %d/%d 弧 ✓", sum(1 for a in arcs if a["metaphor"]), len(arcs))
     except Exception as exc:  # noqa: BLE001 — LLM 失败退骨架, 人闸手填
         logger.warning("[v3:arcs] LLM 创作失败 (退骨架, 立意待手填): %s", exc)
+
+    # 人设弧=老谭亲身经历: cast 缺老谭则确定性补 (枚举执法的下游保险, 不靠 LLM 自觉)
+    ensure_persona_host(arcs, _card_catalog(doc.get("book_title") or job["book_title"]))
 
     # 漏字段自查+补全 (1105 用户令: 缺 world 是系统的 bug, 系统自己补, 不甩给人)
     world_filled = 0
@@ -280,6 +340,7 @@ def run(job: dict[str, Any]) -> None:
     shots_mod.save(doc)
     job["result"] = {"arcs": len(arcs), "issues": len(issues),
                      "with_metaphor": sum(1 for a in arcs if a["metaphor"]),
+                     "with_cast": sum(1 for a in arcs if a.get("cast")),
                      "world_filled": world_filled,
                      "missing_world": len(missing_worlds(arcs))}
     logger.info("[v3:arcs] %s ep%d: %d 弧 (执法问题 %d) → shots.json v3 ✓",

@@ -425,7 +425,10 @@ _SYS = """你是动画分镜的画师。给定「镜」清单 (镜号|所属弧�
    升降/航拍/俯拍/仰拍/变焦/慢动作 一律不写; 景别词 (特写/中景/全景/大场景) 可用。
 9. **单场景一瞬**: 一镜只画一个场所的一个定格瞬间, 禁场景串联 (飞出/进入/回到/
    开进办公室 这类跨地点动作是视频自己演的, 不是画面句写的)。
-10. 每条只输出画面句, 严格 JSON: {"shots":[{"sid":"s1","keyframe_zh":"..."}]}"""
+10. **角色卡名制 (选角)**: 行内有「本弧角色」列且非空时, 画面句中的该角色必须直接
+   用卡名指代 (如: 阿特金森的银色轿车), 禁用泛称 (中年男士/西装男人/客户/顾问)
+   顶替 — 卡名是跨镜身份锚; 该列为空的镜不写具体人名, 群演用身份词 (路人/店员)。
+11. 每条只输出画面句, 严格 JSON: {"shots":[{"sid":"s1","keyframe_zh":"..."}]}"""
 
 # 运镜词黑名单 (规则 8 的执法词表; 景别词不算)
 KEYFRAME_CAM_WORDS = ("镜头", "机位", "跟拍", "平移", "推近", "拉远", "摇镜",
@@ -437,6 +440,31 @@ def keyframe_camera_issues(text: str) -> list[str]:
     """画面句运镜词检查 (1106 s2 实锤: 画面句混"低机位跟拍同速平移"→H3 全演)。"""
     t = str(text or "")
     return [w for w in KEYFRAME_CAM_WORDS if w in t]
+
+
+def cast_gate_issues(shots: list[dict[str, Any]],
+                     arcs: list[dict[str, Any]]) -> dict[str, list[str]]:
+    """卡名闸 (批1 选角): 弧绑定 cast 而画面句零卡名 → 亮灯拦闸。
+
+    泛称 (西装男士) 是跨镜身份漂移源头; 卡名不入句, ⑧ 的 r2v 定妆照路由
+    永不命中 (h3._pick_video_station: keyframe 含圣经角色名才走 r2v)。
+    """
+    cast_of = {a["arc_id"]: a.get("cast") or [] for a in arcs}
+    out: dict[str, list[str]] = {}
+    for s in shots:
+        if s.get("brand_card"):
+            continue                      # 品牌镜走冻结骨架, 不经 LLM
+        names = cast_of.get(s.get("arc_id") or "") or []
+        if not names:
+            continue                      # 空镜弧/非叙事位: 无卡可拦
+        kf = str(s.get("keyframe_zh") or "")
+        if not kf:
+            continue                      # 空画面句由长度闸管, 不双报
+        if not any(n in kf for n in names):
+            out.setdefault(s["sid"], []).append(
+                f"{s['sid']} 弧绑定角色 {'/'.join(names)} 未以卡名入画面句 — "
+                "用卡名指代该角色 (泛称=身份漂移源头, 且 ⑧ 定妆照路由永不命中)")
+    return out
 
 
 def fill_brand_shots(shots: list[dict[str, Any]], bible: dict | None) -> int:
@@ -490,23 +518,31 @@ def batch_quota(batch: list[dict[str, Any]], zone_of: dict[str, str]) -> str:
 
 
 def _batch_prompt(batch: list[dict[str, Any]], arc_of: dict[str, dict],
-                  line_of: dict[int, dict], zone_of: dict[str, str]) -> str:
+                  line_of: dict[int, dict], zone_of: dict[str, str],
+                  cards: dict[str, str] | None = None) -> str:
     rows = []
     for s in batch:
         a = arc_of.get(s["arc_id"]) or {}
         text = str(s.get("narration") or "")[:100]
         tag = "[hook]" if zone_of.get(s["sid"]) == "hook" else ""
+        # 本弧角色 (批1 选角): 卡名+look 摘要 — 卡名入画面句是身份锚 + ⑧ r2v 路由前提
+        cast_txt = ""
+        _cast = a.get("cast") or []
+        if _cast:
+            cast_txt = "、".join(
+                f"{n}({cards[n]})" if cards and n in cards else n for n in _cast)
         rows.append(f'{s["sid"]}{tag}|{a.get("world", "")}|{a.get("metaphor", "")[:60]}|'
-                    f'{str(a.get("narrative") or "")[:40]}|{text}|{s["est_s"]}s')
+                    f'{str(a.get("narrative") or "")[:40]}|{cast_txt}|{text}|{s["est_s"]}s')
     quota = batch_quota(batch, zone_of)
     # narrative (本弧讲什么) 必须进提示 — 实锤 s2: 只给世界+隐喻, 写手不知道
     # 弧的叙事任务, 画面接不住口播爆点 (客户拍桌画成了一个人发呆)
     return (quota + "\n" if quota else "") \
-        + "镜号|视觉世界|立意|本弧讲什么|口播原文|目标时长\n" + "\n".join(rows)
+        + "镜号|视觉世界|立意|本弧讲什么|本弧角色|口播原文|目标时长\n" + "\n".join(rows)
 
 
 def _llm_fill(shots: list[dict[str, Any]], arcs: list[dict[str, Any]],
-              line_of: dict[int, dict], job: dict[str, Any] | None = None) -> int:
+              line_of: dict[int, dict], job: dict[str, Any] | None = None,
+              cards: dict[str, str] | None = None) -> int:
     from app.services.llm_service import get_llm_service, _parse_json
     arc_of = {a["arc_id"]: a for a in arcs}
     # 时间分区 (前 60s = hook): 用句长估时累加, 与 QC 同一把尺
@@ -535,7 +571,7 @@ def _llm_fill(shots: list[dict[str, Any]], arcs: list[dict[str, Any]],
                 sys_p += "\n\n【特区宪法 — 钩子/行动召镜必须遵守】\n" + str(ZONE_RULES)
             except Exception:  # noqa: BLE001
                 pass
-        prompt = _batch_prompt(batch, arc_of, line_of, zone_of)
+        prompt = _batch_prompt(batch, arc_of, line_of, zone_of, cards)
         raw = get_llm_service().chat(sys_p, prompt,
                                      model="pro", temperature=0.6,
                                      response_format={"type": "json_object"}, tag="v3_shots")
@@ -870,15 +906,23 @@ def run(job: dict[str, Any]) -> None:
     n_brand = fill_brand_shots(shots, bible)
     if n_brand:
         logger.info("[v3:shots] 品牌镜骨架注入 %d 镜 (零 LLM)", n_brand)
+    # 卡目录 (批1 选角): 弧 cast → prompt 列 + 卡名闸
+    card_catalog: dict[str, str] = {}
+    if bible:
+        card_catalog = {str(c.get("name") or "").strip(): str(c.get("look") or "").strip()[:40]
+                        for c in (bible.get("characters") or [])
+                        if str(c.get("name") or "").strip()}
     filled = n_brand
     try:
-        filled += _llm_fill(shots, arcs, line_of, job)
+        filled += _llm_fill(shots, arcs, line_of, job, card_catalog or None)
         logger.info("[v3:shots] 画面句 %d/%d 镜 ✓ (批 %d)", filled, len(shots), BATCH)
     except Exception as exc:  # noqa: BLE001 — LLM 失败留空待人填
         logger.warning("[v3:shots] 画面句 LLM 失败 (留空待手填): %s", exc)
 
     cards = build_cards(v3, shots)
     issues = text_layer_issues(shots)
+    for sid, lst in cast_gate_issues(shots, arcs).items():
+        issues.setdefault(sid, []).extend(lst)
     n_issue = sum(len(v) for v in issues.values())
 
     v3["shots"] = shots

@@ -88,3 +88,11 @@ def test_station_routing():
         {**_BASE, "keyframe_zh": "一座雕像", "asset_ref": dict(_ASSET)}) == "r2v"
     assert h3._pick_video_station({**_BASE, "keyframe_zh": "一座雕像"}) == "h3"
     assert h3._pick_video_station(dict(_BASE)) == "h3"
+
+
+def test_station_routing_character_card(monkeypatch):
+    """批1 选角回归: keyframe 含圣经卡名 → r2v (定妆照路由); 泛称 → h3。"""
+    monkeypatch.setattr(r2v, "_char_sheet_map", lambda bt: {"阿特金森": "x.png"})
+    assert h3._pick_video_station(
+        {**_BASE, "keyframe_zh": "阿特金森的银色轿车探出崖缘"}) == "r2v"
+    assert h3._pick_video_station(dict(_BASE)) == "h3"
