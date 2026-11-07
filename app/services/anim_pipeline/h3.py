@@ -284,14 +284,23 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
     lines.append("")
     # 1021 (ep7 s14 实锤: NO_TEXT_POLICY 压不住"笔+纸"书写先验 — 红笔划记录单
     # → 模型自动画字/笔画): 书写语义确定性对冲 — beats 含笔/写类词即追加
+    # 1107 s4 实锤升级: 旧版只禁"结果" (leaves NO marks) 压不住书写**动作**先验 —
+    # "about to write" 8s 长镜模型照样把字写出来。禁令升到动作层: 笔永不落下,
+    # 手势冻结在书写前一刻 (首帧动势律同口径 — 起点帧即终点帧)。
     _beat_blob = " ".join(str(b.get("motion") or "") for b in beats)
-    if re.search(r"(?i)\b(pen|pens|pencil|nib|brush(es)?|chalk|marker|writes?|writing|"
-                 r"inscri\w+|signature|handwriting)\b", _beat_blob):
+    _write_hit = re.search(
+        r"(?i)\b(pen|pens|pencil|nib|brush(es)?|chalk|marker|writes?|writing|"
+        r"inscri\w+|signature|handwriting)\b", _beat_blob)
+    if _write_hit:
         lines.append(
-            "Writing counter-rule: any pen, pencil, brush or chalk in the scene "
-            "leaves NO visible marks on any surface — no letters, numbers, words "
-            "or writing-like strokes ever appear, accumulate or grow; every "
-            "surface stays exactly as blank as in Picture 1 for the whole video.")
+            "Writing counter-rule: THE WRITING NEVER HAPPENS. The pen, pencil, "
+            "brush or chalk stays raised or hovering for the whole video — the "
+            "hand never completes any stroke and never touches the writing "
+            "surface; the gesture remains frozen at the moment just before "
+            "writing. No letters, numbers, words or writing-like marks ever "
+            "appear, accumulate or grow on any surface; every surface "
+            "(whiteboard, paper, board, screen) stays exactly as blank as in "
+            "Picture 1 for the whole video.")
         lines.append("")
     for i, b in enumerate(beats):
         motion = _de_traditional(b["motion"].strip())
@@ -536,6 +545,15 @@ def build_workflow(image_name: str, anim: dict[str, Any], seed: int, prefix: str
                 "\n\nCorruption ban (this shot previously produced corrupted frames — hard rule): "
                 "keep every frame fully coherent; no black screens, no noise mosaics, no torn or "
                 "smeared regions, no melted limbs; hold the exact art style of Picture 1.")
+        if any("胡须" in k or "面部" in k for k in _kinds):
+            # 1107 s4 实锤 (第5秒人物脸突然长胡须): 面部新生物专项 — AMBIENT_LIFE
+            # 的 "adds NOTHING" 压不住面部级 morph, 需点名五官零变化。
+            _prompt += (
+                "\n\nFace identity ban (this video previously grew new facial hair on a "
+                "character — hard rule): every character's face stays pixel-identical to "
+                "Picture 1 for the whole video — no beard, moustache, stubble or any new "
+                "facial hair ever appears or grows; the jawline, skin, eyebrows and all "
+                "facial features never morph, age or change in any frame.")
         if any("红旗" in k for k in _kinds):
             _prompt += (
                 "\n\nObject ban (this video previously added objects that do not exist in the first frame — hard rule): "
