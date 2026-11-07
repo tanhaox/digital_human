@@ -234,8 +234,15 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
         "",
     ]
     # 1017 W3: 弧主旨锚 (立意=圣经+弧主旨 单一源, 组装器只拼不推导)
+    # 1107 s4 二轮实锤 (白板写出「丑话清单」): 中文主旨词在书写场景被当
+    # **要写的板书内容** — 与 1016 中文场景标签坑同构。行内免责根治 (所有
+    # 镜受益: 任何载体面都可能把主旨词画上去, 不只笔类镜)。
     if thesis:
-        lines.append(f"Narrative anchor: {thesis} — the scene, props and motion all serve this thesis.")
+        lines.append(
+            f"Narrative anchor: {thesis} — the scene, props and motion all serve "
+            "this thesis. The anchor words are story direction ONLY, never content "
+            "to write, say or display: no part of the anchor ever appears as text "
+            "on any surface, board, screen or sign.")
         lines.append("")
     # 1017 无脸根治: 圣经角色纪律进渲染链 (逐字取书, 组装器不推导)
     _cp = character_policy(book_title)
