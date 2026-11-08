@@ -62,6 +62,22 @@ def shots_path(book_title: str, ep: int) -> Path:
     return ep_dir(book_title, ep) / "shots.json"
 
 
+def resolve_video(shot: dict, base: Path) -> str | None:
+    """1108 用户令 (盘上退回): video_file 记录空 ≠ 没视频。
+
+    重掷作废清理 (invalidate) 会 pop video_file, 若随后渲染未完成/被杀,
+    记录悬空而盘上同窗文件 (anim/{sid}.mp4) 仍是最后一版可用成片 —
+    默认退回盘上文件, 预览/装配都不降级为图 (ep5 s1 实锤: 重掷清账后
+    H3 页变图、装配落 still:img 定格)。记录在渲染成功后自然覆盖。"""
+    vf = shot.get("video_file")
+    if vf and (base / str(vf)).exists():
+        return str(vf)
+    _fb = f"anim/{shot.get('shot_id')}.mp4"
+    if (base / _fb).exists():
+        return _fb
+    return None
+
+
 # 品牌卡匹配规范化: 剥标点/空白 (句式微变不影响命中)
 _MATCH_STRIP_RE = re.compile(
     r"[\s，。！？；：、,.!?:;\"'“”‘’（）《》〈〉【】\[\](){}<>—…·]+")

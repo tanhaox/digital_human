@@ -1542,3 +1542,21 @@ def test_build_cards_preserves_rendered_image():
     hit = [c for c in again if str(c.get("text"))[:12] == _t12]
     assert hit and hit[0].get("image") == "v3_c01", \
         f"重跑丢 img: {[(c.get('line_no'), c.get('image')) for c in again]}"
+
+
+def test_resolve_video_disk_fallback(tmp_path):
+    """1108 用户令 (盘上退回): video_file 悬空 → 盘上同窗文件顶上, 不返回 None。"""
+    from app.services.anim_pipeline import shots as shots_mod
+    base = tmp_path / "ep5"
+    (base / "anim").mkdir(parents=True)
+    (base / "anim" / "s9.mp4").write_bytes(b"x")
+    # ① 记录空 + 盘上有 → 退回盘上路径
+    assert shots_mod.resolve_video({"shot_id": "s9"}, base) == "anim/s9.mp4"
+    # ② 记录在 + 文件在 → 原样 (优先记录)
+    assert shots_mod.resolve_video({"shot_id": "s9", "video_file": "anim/s9.mp4"},
+                                   base) == "anim/s9.mp4"
+    # ③ 记录悬空指向不存在的文件 + 盘上同窗在 → 退回
+    assert shots_mod.resolve_video({"shot_id": "s9", "video_file": "anim/old.mp4"},
+                                   base) == "anim/s9.mp4"
+    # ④ 双无 → None (调用方降级 still/gap)
+    assert shots_mod.resolve_video({"shot_id": "s404"}, base) is None

@@ -908,9 +908,14 @@ def v3_h3_get(book_id: str, ep: int):
     v3 = doc.get("v3") or {}
     direct = v3.get("direct") or {}
     out = []
+    _ebase = shots_mod.ep_dir(book_title, ep)
     for s in (doc.get("shots") or []):
         d = direct.get(str(s.get("shot_id"))) or {}
-        vf = s.get("video_file")
+        # 1108 用户令 (盘上退回): 记录悬空退回盘上同窗文件 (预览不降级为图)
+        vf = (s.get("video_file") if (s.get("video_file")
+                                      and (_ebase / str(s["video_file"])).exists())
+              else (None if s.get("brand_card")
+                    else shots_mod.resolve_video(s, _ebase)))
         img = s.get("image_file")
         # image_url 后端算 (品牌图在 ep 目录外 ../../_资产/, /file/ 拦穿越 → 404 实锤)
         if img and s.get("brand_card"):

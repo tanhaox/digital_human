@@ -1257,6 +1257,13 @@ def _shot_material(shot: dict[str, Any], base: Path, cards_dir: Path,
     if shot.get("video_file") and (base / shot["video_file"]).exists():
         kinds[sid] = "real:mp4"
         return [(base / shot["video_file"], True)]
+    # 1108 用户令 (盘上退回): 记录悬空 (重掷清账未完成) 但盘上同窗文件在
+    # → 退回最后一版视频, 不降级为定格图 (ep5 s1 实锤)
+    from app.services.anim_pipeline.shots import resolve_video as _rv
+    if not shot.get("brand_card") and (_fb := _rv(shot, base)):
+        logger.info("[draft] %s video_file 悬空, 退回盘上 %s", sid, _fb)
+        kinds[sid] = "real:mp4:fb"
+        return [(base / _fb, True)]
     if shot.get("image_file") and (base / shot["image_file"]).exists():
         kinds[sid] = "still:img"
         return [(base / shot["image_file"], False)]
