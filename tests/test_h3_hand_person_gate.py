@@ -138,3 +138,22 @@ def test_sys_sleeve_anchor_rule():
     from app.services.anim_pipeline.v3_pipeline import redo as redo_mod
     assert "袖口或前臂" in redo_mod._REDO_SYS
     assert "角色外观继承" in redo_mod._REDO_SYS
+
+
+def test_write_hit_scans_opening_desc(monkeypatch, tmp_path):
+    """批A-5b: 书写反律扫描面含 opening_desc — s52 实锤 (笔在画面句不在 beats,
+    反律没开火, 视频照样在纸上写字)。"""
+    _setup(monkeypatch, tmp_path)
+    anim = {
+        "opening_desc": "a desk at night, a capped pen lying flat beside a blank notebook",
+        "physical_lock": "desk stays fixed",
+        "duration_s": 3.0,
+        "beats": [{"t_start": 0, "t_end": 3.0,
+                   "motion": "the sleeved forearm rests still on the desk edge"}],
+    }
+    out = h3.build_prompt(dict(anim), _BOOK)
+    assert "THE WRITING NEVER HAPPENS" in out   # opening 含 pen → 反律开火
+    # beats 无笔词、opening 也无 → 不开火 (零书写语义镜不注, 字节最小扰动)
+    anim2 = dict(anim, opening_desc="a desk at night, a blank notebook and a cup of tea")
+    out2 = h3.build_prompt(anim2, _BOOK)
+    assert "THE WRITING NEVER HAPPENS" not in out2

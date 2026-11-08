@@ -318,7 +318,11 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
     # 0.5s 起笔, 行内免责压不住): 书写语义镜直接**不注主旨锚** — 词不上
     # 桌才是根治 (与 1016 中文场景标签剥除同构)。非书写镜保留主旨锚+免责
     # (任何载体面都可能画主旨词, 不只笔类镜)。
-    _beat_blob = " ".join(str(b.get("motion") or "") for b in anim.get("beats") or [])
+    # 1108 批A-5b: 扫描面扩 opening_desc — s52 实锤 (笔在画面句不在 beats,
+    # 反律没开火, 视频照样在纸上写字); 书写语义对冲必须覆盖两载体。
+    _beat_blob = " ".join(
+        [str(anim.get("opening_desc") or "")]
+        + [str(b.get("motion") or "") for b in anim.get("beats") or []])
     _write_hit = WRITE_HIT_RE.search(_beat_blob)
     if thesis and not _write_hit:
         lines.append(
