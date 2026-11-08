@@ -190,6 +190,19 @@
     "GLM 双帧判读 (p0 K2 层 + p70 视频层)"
    ],
    "status": "pending"
+  },
+  {
+   "id": "TR-015",
+   "date": "2026-11-08",
+   "change": "令44 卡镜空镜底 (用户令: 口播承卡镜生图前锁定空镜): pack_shots 尾 join 镜.line_refs×line.adopted (kind∈CARD_OF_SUGG) → 命中镜 card_backdrop=True; 批提示行标 [卡底] (可与 [hook] 叠加); _SYS 规则15 无人物空镜约束 (格式行顺移16); redo.py ♻️ 重做行尾注同尺。下游零改自动闭合 (空镜画面句→K2 空镜头变体+_EMPTY_NEG+h3 工位路由, 全吃批A-3 既有人物判据)",
+   "commit": "931447f",
+   "verify": "3 新用例全绿 (join 幂等/表外 kind 不触发/行标叠加/规则顺移); 全量 6f/657p 失败集=历史债不变。下一集 ③ 起生效, ep5 存量不动",
+   "readout_date": "2026-11-15",
+   "metrics": [
+    "新集卡底镜违例率 (规则15 是 prompt 约束无硬闸, 违例=画面句出现人物)",
+    "卡底镜四病发生率 (对照非卡底镜)"
+   ],
+   "status": "pending"
   }
  ]
 }
