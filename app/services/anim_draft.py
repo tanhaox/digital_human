@@ -2086,15 +2086,38 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
         # 1103 W8c: 图卡豁免 — 图不承载口播原文 (公式图≠文字稿), 该窗字幕是引导
         # 不是复读, 必须回归 (公式段 16 条字幕被撤实锤, 用户令: 加回来)
         if quote_cards:
-            _qc_wins = [(c["a0_us"] / _US, c["a1_us"] / _US) for c in quote_cards
-                        if not c.get("image")]
+            _qc_wins = sorted((c["a0_us"] / _US, c["a1_us"] / _US)
+                              for c in quote_cards if not c.get("image"))
+            # 1108 根修 (ep5 4:54 空窗实锤): 退避=裁窗非灭条 — 原整条删除把
+            # 仅句首被卡尾 (QUOTE_CARD_TAIL_SEC) 扫到的无关句整句误杀 (句#72
+            # 与金句卡内容无关, 1.5s 重叠被灭 6.9s)。改区间减法: 卡期间隐藏,
+            # 卡离场字幕即刻回归; 全程在窗内 (卡=该句原文) 自然整条退避。
             _before_caps = len(cap_events)
-            cap_events = [ev for ev in cap_events
-                          if not any(ev["a0"] < _w1 and ev["a1"] > _w0
-                                     for _w0, _w1 in _qc_wins)]
-            if len(cap_events) != _before_caps:
-                logger.info("[draft] 字幕退避: 截屏卡窗内 %d 条字幕未上屏",
-                            _before_caps - len(cap_events))
+            _kept: list[dict[str, Any]] = []
+            _clipped = _dropped_full = 0
+            for ev in cap_events:
+                _a0, _a1 = float(ev["a0"]), float(ev["a1"])
+                _cur, _pieces = _a0, []
+                for _w0, _w1 in _qc_wins:
+                    if _w1 <= _cur or _w0 >= _a1:
+                        continue
+                    if _cur < _w0:
+                        _pieces.append((_cur, min(_w0, _a1)))
+                    _cur = max(_cur, _w1)
+                if _cur < _a1:
+                    _pieces.append((_cur, _a1))
+                _ok = [(_p0, _p1) for _p0, _p1 in _pieces if _p1 - _p0 >= 0.5]
+                if not _ok:
+                    _dropped_full += 1           # 全程在窗内 → 整条退避 (原语义)
+                    continue
+                if _ok != [(_a0, _a1)]:
+                    _clipped += 1
+                for _p0, _p1 in _ok:
+                    _kept.append({**ev, "a0": _p0, "a1": _p1})
+            cap_events = _kept
+            if _clipped or _dropped_full:
+                logger.info("[draft] 字幕退避: 卡窗裁剪 %d 条 (卡走即回归), "
+                            "整条退避 %d 条", _clipped, _dropped_full)
         cap_stats = _render_captions(script, cap_events, emph_by_sid)
         # R9 同帧音效自动挂 (0916 attach_sound 平移; 缺文件/密度闸门自动跳过)
         sfx_stats = _attach_sound_cues(script, _sound_cues(doc))
