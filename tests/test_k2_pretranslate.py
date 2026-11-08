@@ -59,6 +59,7 @@ def test_pretranslate_skips_cached_and_filtered():
         _shot("s04"),
     ]}
     with patch.object(k2, "_scene_eff_k2", lambda s, b: zh if s["shot_id"] in ("s01", "s04") else "x"), \
+         patch.object(k2, "_warm_book_en", return_value=0), \
          patch("app.services.anim_pipeline.k2_lang.translate_batch",
                return_value={"pending": 1, "ok": 1, "fail": 0}) as m:
         k2.pretranslate(doc)
@@ -82,7 +83,67 @@ def test_native_en_pretranslate_skipped():
     doc = {"book_title": "X", "ep": 2, "shots": [_shot("s01")]}
     doc["shots"][0]["keyframe_en"] = "English native " * 6
     with patch.object(k2, "_scene_eff_k2") as m_asm, \
+         patch.object(k2, "_warm_book_en", return_value=0), \
          patch("app.services.anim_pipeline.k2_lang.translate_batch") as m_b:
         r = k2.pretranslate(doc)
     assert m_asm.call_count == 0 and m_b.call_count == 0
+    assert r["pending"] == 0
+
+
+# ── 1108 书级串预热 (Y1「GPU 零等待」收口) ──────────────────────────────
+
+
+def test_warm_book_en_covers_all_strings(monkeypatch):
+    """预热面 = 角色卡 look×N + 配方四串 + 弧主旨 (按 arc_ids) — s1 惰性首译停 26s 根修."""
+    from app.services.anim_pipeline import k2
+    from app.services.anim_pipeline import h3
+    calls = {"look": [], "str": [], "thesis": [], "standin": []}
+
+    monkeypatch.setattr(k2, "_char_looks",
+                        lambda bt: [("老谭", "深红冲锋衣"), ("阿特金森", "深炭西装")])
+
+    def _look(nm, lk):
+        calls["look"].append(nm)
+        return (nm, lk)
+    def _mk_str(tag):
+        return lambda bt: calls["str"].append(tag) or ""
+    monkeypatch.setattr(k2_lang, "char_look_en", _look)
+    monkeypatch.setattr(k2_lang, "style_head_en", _mk_str("head"))
+    monkeypatch.setattr(k2_lang, "style_head_empty_en", _mk_str("head_empty"))
+    monkeypatch.setattr(k2_lang, "style_tail_en", _mk_str("tail"))
+    monkeypatch.setattr(k2_lang, "character_policy_en", _mk_str("policy"))
+    monkeypatch.setattr(k2_lang, "standin_look_en",
+                        lambda sl: calls["standin"].append(sl) or "")
+
+    def _thesis(bt, th):
+        calls["thesis"].append(th)
+        return ""
+    monkeypatch.setattr(k2_lang, "thesis_en", _thesis)
+    # 弧主旨源: h3.arc_thesis (doc.arcs.metaphor_core)
+    monkeypatch.setattr(h3, "arc_thesis",
+                        lambda doc, aid: {"A1": "信任账户倾覆", "A2": ""}.get(aid, ""))
+    # 无圣经 → 替身分支静默跳过 (except pass)
+    def _no_bible(bt):
+        raise FileNotFoundError(bt)
+    monkeypatch.setattr("app.services.anim_pipeline.director2._bible_cache_path", _no_bible)
+
+    doc = {"book_title": "X", "shots": [{"arc_id": "A1"}, {"arc_id": "A2"}]}
+    n = k2._warm_book_en(doc)
+    assert calls["look"] == ["老谭", "阿特金森"]
+    assert calls["str"] == ["head", "head_empty", "tail", "policy"]
+    assert calls["thesis"] == ["信任账户倾覆"]        # 空主旨弧不调
+    assert calls["standin"] == []
+    assert n == 7
+
+
+def test_pretranslate_warms_even_when_no_pending(monkeypatch):
+    """keyframe_en 全原生 (pending=0) 时书级串预热仍要跑 — ep6 实锤病灶就在这里."""
+    from app.services.anim_pipeline import k2
+    doc = {"book_title": "X", "ep": 2, "shots": [_shot("s01")]}
+    doc["shots"][0]["keyframe_en"] = "English native " * 6
+    warmed = []
+    monkeypatch.setattr(k2, "_warm_book_en",
+                        lambda d, arc_ids=None: warmed.append(arc_ids) or 9)
+    r = k2.pretranslate(doc)
+    assert len(warmed) == 1
     assert r["pending"] == 0

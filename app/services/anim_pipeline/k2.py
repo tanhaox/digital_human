@@ -680,11 +680,61 @@ def _scene_eff_k2(shot: dict[str, Any], book_title: str) -> str:
     return s
 
 
+def _warm_book_en(doc: dict[str, Any], arc_ids: set[str] | None = None) -> int:
+    """书级 EN 串批前预热 (1108 用户令: Y1「GPU 零等待」收口).
+
+    此前书级配方串 (角色卡 look / 风格头 / 空镜头 / 风格尾 / 角色纪律 / 弧主旨)
+    是渲染时惰性首译 — ep6 实锤 s1 在 gate→comfy 间停 26s 等翻译 (每串一次,
+    sha 缓存后后续镜零调用, 但批头几镜 GPU 空转). 预热把它们全压到批前,
+    GPU 循环内真正零 LLM 往返. 幂等: 每函数自带 sha/mtime 缓存, 重复调用零 LLM;
+    arc_ids 缺省从 doc["shots"] 收集 (v3 调用方按实际待跑镜传入)."""
+    from . import k2_lang
+    from .h3 import arc_thesis
+    bt = str(doc.get("book_title") or "")
+    n = 0
+    for nm, look, *_ in _char_looks(bt):
+        if nm and look:
+            k2_lang.char_look_en(nm, look)
+            n += 1
+    for fn in (k2_lang.style_head_en, k2_lang.style_head_empty_en,
+               k2_lang.style_tail_en, k2_lang.character_policy_en):
+        fn(bt)
+        n += 1
+    aids = arc_ids if arc_ids is not None else {
+        str(s.get("arc_id") or "") for s in doc.get("shots") or [] if s.get("arc_id")}
+    for aid in sorted(aids):
+        _th = arc_thesis(doc, aid)
+        if _th:
+            k2_lang.thesis_en(bt, _th)
+            n += 1
+    # 1026 兜底: 零身份人物镜的替身 look 英译 (确定性派生, 每书一条)
+    try:
+        from .assembler import _standin
+        from .director2 import _bible_cache_path
+        _bb = json.loads(_bible_cache_path(bt).read_text(encoding="utf-8"))
+        _sn, _sl = _standin(_bb)
+        if _sl and "皮肤" in _sl:
+            k2_lang.standin_look_en(_sl)
+            n += 1
+    except Exception:  # noqa: BLE001 — 无圣经/无替身 = 不预热
+        pass
+    return n
+
+
 def pretranslate(doc: dict[str, Any], only: set[str] | None = None) -> dict:
     """批前预翻译 (1103 Y1 用户令: 批量压上, GPU 零等待) — 渲染循环开始前把全部
     未缓存镜的 EN 一次压上 (每次 LLM 调用带一小批, 坏的走单发补), 渲染期间
-    ensure_en_prompt 全缓存命中, 出图间隙零 LLM 往返。"""
+    ensure_en_prompt 全缓存命中, 出图间隙零 LLM 往返。
+    1108 收口: 书级配方串预热恒跑 (与镜级 pending 无关 — keyframe_en 全原生时
+    镜级零调用, 但书级串仍需首译, 否则 s1 惰性等译 26s 实锤)。"""
     from . import k2_lang
+    try:
+        _nw = _warm_book_en(doc)
+        if _nw:
+            logger.info("[k2-en] 书级串预热 ×%d (look/风格头尾/角色纪律/弧主旨) — GPU 循环零 LLM",
+                        _nw)
+    except Exception:  # noqa: BLE001 — 预热失败回退渲染时惰性首译 (旧行为)
+        logger.warning("[k2-en] 书级串预热失败 (回退惰性)", exc_info=True)
     items: list[tuple[dict, str]] = []
     for shot in doc["shots"]:
         if shot.get("political_flag") or shot.get("brand_card"):

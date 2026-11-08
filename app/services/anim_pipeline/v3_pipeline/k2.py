@@ -99,6 +99,16 @@ def run(job: dict[str, Any], only: set[str] | None = None,
     from app.services.gpu_service_manager import get_gpu_service_manager
     from app.services.anim_pipeline import comfy as comfy_mod
     pdoc = _project_doc(doc)
+    # 1108 用户令 (Y1「GPU 零等待」收口): 书级 EN 串批前预热 — v3 镜 keyframe_en
+    # 全原生零镜级 LLM, 但书级配方串 (look/风格头尾/角色纪律/弧主旨) 惰性首译
+    # 曾在 s1 gate→comfy 间停 26s (ep6 实锤) → 全压批前, GPU 循环零 LLM
+    try:
+        _nw = k2_mod._warm_book_en(
+            pdoc, {str(s.get("arc_id") or "") for s in todo if s.get("arc_id")})
+        if _nw:
+            logger.info("[k2-en] 书级串预热 ×%d — GPU 循环零 LLM (Y1 收口)", _nw)
+    except Exception:  # noqa: BLE001 — 预热失败回退渲染时惰性首译 (旧行为)
+        logger.warning("[k2-en] 书级串预热失败 (回退惰性)", exc_info=True)
     ok = fail = 0
     with get_gpu_service_manager().session(
             "comfyui",
