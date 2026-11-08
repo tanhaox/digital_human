@@ -1,272 +1,323 @@
 {
- "_readme": "变更跟踪账本 (1103 立, 元令执行件): 每次系统结构变更必须登记一行并挂判读窗口; 判读日出结论改 status。改完只为爽 = 违规。机读供爬虫/周检自动化消费。",
- "schema": {
-  "id": "唯一号",
-  "date": "变更日",
-  "change": "改了什么",
-  "commit": "批次",
-  "verify": "怎么算验证通过",
-  "readout_date": "判读日",
-  "metrics": "读哪些数",
-  "status": "pending|pass|fail|rolled_back"
- },
- "entries": [
-  {
-   "id": "TR-001",
-   "date": "2026-11-03",
-   "change": "时长带精简 270-420→180-330 (3-5min档), 字数包络956-1590, 新集默认240s",
-   "commit": "05762d6",
-   "verify": "高效能ep1-3: 完播率≥卓档基线×1.2 且 5s率≥21%",
-   "readout_date": "2026-11-23",
-   "metrics": [
-    "completion_rate",
-    "sec5_rate",
-    "avg_watch_sec",
-    "views"
-   ],
-   "status": "pending"
+  "_readme": "变更跟踪账本 (1103 立, 元令执行件): 每次系统结构变更必须登记一行并挂判读窗口; 判读日出结论改 status。改完只为爽 = 违规。机读供爬虫/周检自动化消费。",
+  "schema": {
+    "id": "唯一号",
+    "date": "变更日",
+    "change": "改了什么",
+    "commit": "批次",
+    "verify": "怎么算验证通过",
+    "readout_date": "判读日",
+    "metrics": "读哪些数",
+    "status": "pending|pass|fail|rolled_back"
   },
-  {
-   "id": "TR-002",
-   "date": "2026-11-03",
-   "change": "白领人群锁+四闸选书SOP (豆包书单坡度判死)",
-   "commit": "e502eac+e994a42",
-   "verify": "高效能均播≥4k(白领档) 且 掉粉率无异常抬升",
-   "readout_date": "高效能Te+7",
-   "metrics": [
-    "views",
-    "fan_lost率",
-    "interest聚集(职场类)"
-   ],
-   "status": "pending"
-  },
-  {
-   "id": "TR-003",
-   "date": "2026-11-03",
-   "change": "框架修正案四条 (播放=池宽信号/ETA产出函数定标/P1判据+职场类聚集/刺激点60-90s)",
-   "commit": "docs批",
-   "verify": "随 TR-001/002 判读自动覆盖",
-   "readout_date": "2026-11-23",
-   "metrics": [],
-   "status": "pending"
-  },
-  {
-   "id": "TR-004",
-   "date": "2026-11-03",
-   "change": "判定卡A 两秒vs三秒卡 — 1103修正落位: ep2-4系成品待传(用户口述)不能承载实验; 改骑顾问ep5=3s卡+瘦身稿 / ep6=2s卡+瘦身稿 (卡型正交于字数, 同书同时段带冻结); ep7用胜者卡",
-   "commit": "-",
-   "verify": "播放差>30%或吸粉率<0.4%→回3s; 播放持平且5s率降幅≤5pp→2s定型",
-   "readout_date": "2026-11-17 (ep6+48h)",
-   "metrics": [
-    "views",
-    "sec5_rate",
-    "fan_growth率",
-    "collects率"
-   ],
-   "status": "pending"
-  },
-  {
-   "id": "TR-005",
-   "date": "2026-11-03",
-   "change": "判定卡B 六拍瘦身版 (新带1350-1590字) — 落位: 顾问ep5-7(未定稿=增量,1103窗口生成); **ep5=3s卡**(主读: 5s率≥21%基线可比) / ep6=2s卡(稳健复验)",
-   "commit": "-",
-   "verify": "ep5 均看≥9.5s 且 5s率≥21% → 定型; 主判读仍高效能ep1-3",
-   "readout_date": "2026-11-15 (ep5+48h 早读) / 2026-11-23 (主)",
-   "metrics": [
-    "avg_watch_sec",
-    "sec5_rate"
-   ],
-   "status": "pending"
-  },
-  {
-   "id": "TR-006",
-   "date": "2026-11-03",
-   "change": "判定卡C 挂车A/B (前置=有效粉真值确认)",
-   "commit": "-",
-   "verify": "掉粉无异常+播放不降→常开",
-   "readout_date": "真值确认后7天",
-   "metrics": [
-    "fan_lost",
-    "views",
-    "fan_growth"
-   ],
-   "status": "blocked_pending_有效粉真值"
-  },
-  {
-   "id": "TR-007",
-   "date": "2026-11-03",
-   "change": "粉丝侧改道: 作品吸粉求和+锚点 (抖音撤粉丝导出); douyin_unified沉淀总表+派生列",
-   "commit": "b60f651..0d44ae9",
-   "verify": "下两次锚点间 派生cum与真锚偏差≤10%",
-   "readout_date": "下一锚点日",
-   "metrics": [
-    "fan_growth_cum vs total_fans锚点"
-   ],
-   "status": "pending"
-  },
-  {
-   "id": "TR-008",
-   "date": "2026-11-03",
-   "change": "顾问ep1已传(1103口述), **ep2-4成品待传、ep5-7待产=争取窗口**: ep2-4存量照发(卡型以发布后5s率自证: ~21%=3s卡/~13%=2s卡, 账本typing待核); ep5=3s卡+瘦身稿/ep6=2s卡+瘦身稿/ep7=胜者卡; 其余升级(高效能建书链/挂车/爬虫)排队至顾问上线后",
-   "commit": "seed 1103+a04c086修",
-   "verify": "判读线封卷(第6样本)+卡A/B按期读数",
-   "readout_date": "2026-11-05 (ep1数据导入+判读线封卷)",
-   "metrics": [
-    "views",
-    "fan_growth",
-    "sec5_rate"
-   ],
-   "status": "pending"
-  },
-  {
-   "id": "TR-009",
-   "date": "2026-11-03",
-   "change": "稿件结构两观察项挂卡 (23集真值回溯画像驱动, 非令=观察): ①你密度 你/百字 — 历史赢家带0.7-1.4, >1.5从未赢过, 新顾问稿ep2-4达2.2-2.5 (自查表对号框架推高); ②钩子段字数 — 赢家17-30, >35三样本全非赢家, 新稿ep2=43/ep6=39",
-   "commit": "1103 S/T/U系批后分析 (数据只读零改动)",
-   "verify": "同书同时段带内比较 (顾问ep2-7, 均20:02档): ①高你密度集(≥2.0)吸粉率与播放 vs 低集(≤1.5) — 显著低→你密度入提示级闸候选; ②钩字>35集5s率 vs ≤30集 — 低≥5pp→钩字上限入闸候选; 不显著→保留框架, 观察项转睡眠",
-   "readout_date": "各集发布+7d 滚动 (ep2-7)",
-   "metrics": [
-    "你/百字",
-    "钩子段字数",
-    "views",
-    "fan_growth",
-    "sec5_rate"
-   ],
-   "status": "pending"
-  },
-  {
-   "id": "TR-010",
-   "date": "2026-11-08",
-   "change": "产线新二令: 令38 运镜判定人检为准/GLM帧判降级辅助 (1107 s22判平移实为推, s6判推实为摇 双误读); 令39 运镜镜槽域[6,10] 上限入闸 (502dc06, h3工位10s硬上限截尾陪葬)",
-   "commit": "502dc06 + 8b449fc (缓存no-cache) + f6cda83 (批5收官)",
-   "verify": "全量56镜重掷(job a489e895, 1108 00:12)人检: ①运镜镜执行率人检统计 (帧判只做初筛对照, 摇域s6型 vs s22型分桶) ②>10s固定镜(r2v)零截尾抽听尾部事件; 15运镜镜全在[6,10]域内=闸零误伤",
-   "readout_date": "2026-11-10",
-   "status": "pending"
-  },
-  {
-   "id": "TR-011",
-   "date": "2026-11-08",
-   "change": "令40 三修: ①r2v 持镜句官方 Static Shot (旧句自带推许可, s1/s5/s7/s9 固定镜推进四连实锤) ②圣经 era_anchor/motion_style 环境句+相机句拆除 (s13/s14 山脊镜漂办公室逐字出处定谳; 生成规格三处同步防复发) ③背影放行+转身整体律 (s9 180°扭头废片; 0922 禁背影条款解除) + s13 存量镜重写 (捏笔→合本按膝, K2 重生图 PASS)",
-   "commit": "1108 四修批 (r2v.py 持镜句 / director2.py 规格三处 / 圣经三字段 / s13 四字段+重投影 / test_r2v_asset_ref 契约更新)",
-   "verify": "六镜重掷 (v3_h3 点名换seed job bfc689f0): ①s1/s5/s7/s9 固定镜人检零推进零偏移 ②s13/s14 全程户外山脊零办公室渗漏 ③s9 背影保持零扭头 (或转身整体转) — 人检为准, GLM 帧判只做初筛",
-   "readout_date": "2026-11-10",
-   "status": "pending"
-  },
-  {
-   "id": "TR-012",
-   "date": "2026-11-08",
-   "change": "令41 角色外观锚三通道: ①K2 EN路 look_en LLM缓存翻译前置 (char_look_en, sha缓存 fail-open; 旧注释'look已内联'假设在v3断裂=writer画面句零外观词实锤) ②_cast_negative 确定性派生 cast反外观负词 (zh_scene经build_workflow进负词通道, 空时与旧版字节一致) ③③规则13+look摘要截断40→120 (shots/arcs两处)。存量帧判: s2/s4/s14干净, s3服装漂, s6/s7/s10胡须漂移, s12=品牌位非生成(误判更正)",
-   "commit": "69f3ddd",
-   "verify": "漂移镜 s3/s6/s7/s10 v3_k2 点名重生图 (job 86186d73) → GLM 复判: ①胡须零回归 (对照定妆照基线无眼镜无胡须) ②s3冲锋衣回深红 ③正向前置实弹证据=渲染串686→1145 (+459 look_en); 后续新集整集外观连续性人检",
-   "readout_date": "2026-11-10",
-   "metrics": [
-    "GLM面部帧判",
-    "外观连续性人检"
-   ],
-   "status": "pending"
-  },
-  {
-   "id": "TR-013",
-   "date": "2026-11-08",
-   "change": "令42 空镜防人两通道: ①style_prompt_head_empty 书级风格空镜变体头 (K2 build_prompt 零人物镜换头, 判据镜像人物镜 cast 通道) ②K2 _EMPTY_NEG 防人负词 + _scene_has_person 手部剥词判据 (手部镜剥后零人物→空镜处理; 4 处 _person_in 换判据)。k2_lang.style_head_empty_en EN 投影镜像 (sha 缓存 fail-open)",
-   "commit": "859b75f",
-   "verify": "8 镜 K2 重掷 → GLM 判 8/8 零人 (修复前 9/9 空镜冒人); 9 镜视频重掷+中段帧 GLM 判: A类纯空镜 4/4 全程无人 (s36/s37/s39/s56), 手部镜 5/5 视频中途冒整人 (s30/s51/s52/s54/s55, 眼镜+胡子男; 根因=圣经 character_policy 无条件注入 [角色固定出场/必须有脸/胡须眼镜识别词] + identity lock 断言 faces, H3 build_prompt 无人物判据) → 批A-4 另案",
-   "readout_date": "2026-11-10",
-   "metrics": [
-    "GLM 中段帧判",
-    "新集空镜/手部镜人检"
-   ],
-   "status": "pending"
-  },
-  {
-   "id": "TR-014",
-   "date": "2026-11-08",
-   "change": "令43 召唤词不上桌·视频层五律 (批A-4→A-6 外观/人物一致性根治): ①character_policy 无人物镜不注 + Identity lock 无脸镜剥 faces 断言 (2a83e5c) ②_strip_policy_summon 召唤句整句剥: 识别句 [名人/胡须/眼镜] + 面部毛词任何框架句 (1210 串旗: 否定句具象词同样召唤; h3+r2v 双工位) + 无人物镜 EN 种子词剥 a man's hand→the hand (60271e2) ③袖口锚: ③ 规则14 + _REDO_SYS 规则9 (手部镜画面句必须带袖口/前臂来处; ♻️ 列队重做同尺) ④WRITE_HIT_RE 反律扫描面扩 opening_desc (aedf59c) ⑤重掷全链 redo_k2 (🎲=K2 换seed→视频, s35 实锤保图重掷治不了 K2 层)。存量数据刀: s25 背影物理免疫/s33 悬笔中性化/s34+s51 LLM 换构图+终末剥刀 (否定串旗+静物笔)",
-   "commit": "2a83e5c/60271e2/0d48e34/aedf59c",
-   "verify": "用户报障 12 镜四类病 GLM 双帧判 12/12 全净: 胡子 5/5 (s25 背影/s31/s33/s35 redo_k2 全链/s45 r2v 剥句), 伪字 3/3 (s24/s26 redo_k2; s34 剥否定串旗「没有笔和纸」→「桌面空无一物」第 6 抽净 — K2 扛住/H3 视频层召唤 5 抽实锤), 断手 2/2 (s52 合本+笔出画构图/s55 用户 redo 袖口锚), 冒人 2/2 (s54 换 seed; s51 剥静物笔+笔架 redo_k2 全链, 视频 8s 零书写零脸, 红袖口在)。pytest 6f/656p (新增 8 用例全绿, 失败集=历史债不变)",
-   "readout_date": "2026-11-10",
-   "metrics": [
-    "新集四病人检 (胡子/伪字/断手/冒人) 零复发",
-    "GLM 双帧判读 (p0 K2 层 + p70 视频层)"
-   ],
-   "status": "pending"
-  },
-  {
-   "id": "TR-015",
-   "date": "2026-11-08",
-   "change": "令44 卡镜空镜底 (用户令: 口播承卡镜生图前锁定空镜): pack_shots 尾 join 镜.line_refs×line.adopted (kind∈CARD_OF_SUGG) → 命中镜 card_backdrop=True; 批提示行标 [卡底] (可与 [hook] 叠加); _SYS 规则15 无人物空镜约束 (格式行顺移16); redo.py ♻️ 重做行尾注同尺。下游零改自动闭合 (空镜画面句→K2 空镜头变体+_EMPTY_NEG+h3 工位路由, 全吃批A-3 既有人物判据)",
-   "commit": "931447f",
-   "verify": "3 新用例全绿 (join 幂等/表外 kind 不触发/行标叠加/规则顺移); 全量 6f/657p 失败集=历史债不变。下一集 ③ 起生效, ep5 存量不动",
-   "readout_date": "2026-11-15",
-   "metrics": [
-    "新集卡底镜违例率 (规则15 是 prompt 约束无硬闸, 违例=画面句出现人物)",
-    "卡底镜四病发生率 (对照非卡底镜)"
-   ],
-   "status": "pending"
-  },
-  {
-   "id": "TR-016",
-   "date": "2026-11-08",
-   "change": "令45/47 装配卡系统: v3.cards (分诊采纳) 接链装配按行号→口播句轴上屏 (三源同权, 自动卡让位); ≤6字标签卡遴选闸; 清单段卡窗 _list_span (a0=锚后首个序数/项词命中句=念第一项时入, a1=双通道延伸连续2 miss 停, 项词≥4 启用; 二轮修引入句早入4.1s); build_cards 重跑保留已渲染 img",
-   "commit": "84877d7/a82579c/34cce65/8331329",
-   "verify": "ep5 装配实弹: c03 清单段 152.7-179.1 (剪映轴 2:38.5 对齐用户报点 2:38:17)/c04 接力 163.8-179.1/c07 回退锚句窗; 全量 6f/658p 失败集=历史债不变",
-   "readout_date": "2026-11-15",
-   "metrics": [
-    "下一集清单卡入点是否=念第一项句 (项词通道 2 字通用词误中风险 ID-144)",
-    "三源上屏分布 vs 分诊设计意图匹配率"
-   ],
-   "status": "pending"
-  },
-  {
-   "id": "TR-017",
-   "date": "2026-11-08",
-   "change": "令46 卡图渲染契约三轮: 白底 70% 双层坑根修 (html 透明+body 单层, alpha 232→179); 去品牌条去边框; 字 48/44 bold; ECharts LR 树切割根修 (非叶 label 默认 left 左溢 → 全节点 position:right+symbolSize 0+right 26%); PNG omit_background",
-   "commit": "a82579c/389fc69/927cafb",
-   "verify": "GLM 三图复验零切割; 新契约断言入测试 (无品牌/无框/白底70%/position:right); 全量 6f/658p",
-   "readout_date": "2026-11-15",
-   "metrics": [
-    "下一集卡图人检 (切割/字号观感/白底叠视频效果)"
-   ],
-   "status": "pending"
-  },
-  {
-   "id": "TR-018",
-   "date": "2026-11-08",
-   "change": "1023 截屏卡字幕退避语义修正: 整条删除→区间减法 (卡期间隐藏/卡离场当帧回归/全程在窗句保持整条退避)。病例: 金句卡 1.5s 尾扫到句#72 句首, 无关句 6.9s 整句误杀 → 4:54-4:59 字幕空窗",
-   "commit": "dc44bd2",
-   "verify": "重装配 draft 实况: 句#72 字幕 294.28-299.65 卡走即回归; 全集字幕洞扫描仅剩卡窗本身; 全量 6f/658p",
-   "readout_date": "2026-11-15",
-   "metrics": [
-    "下一集装配后字幕洞扫描 (应仅剩卡窗洞)",
-    "卡走即回归的接缝观感 (0 帧间隙人检)"
-   ],
-   "status": "pending"
-  },
-  {
-   "id": "TR-019",
-   "date": "2026-11-08",
-   "change": "令48 盘上退回: resolve_video 单源助手 (video_file 悬空→盘上 anim/{sid}.mp4, 双无才降级图); 装配 real:mp4:fb + H3 端点双端接入, 品牌镜豁免。补 restart 守卫盲区 (只保当下队列, 不救已悬空镜)",
-   "commit": "1b19b48/d6a404b",
-   "verify": "resolve_video 4 用例; ep5 s1 补跑复原 anim_done+预览 200; 全集悬空镜扫描=0; 全量 6f/659p",
-   "readout_date": "2026-11-15",
-   "metrics": [
-    "悬空镜自动退回命中数 (装配日志 real:mp4:fb 计数)",
-    "重掷失败后预览不再变图 (下集观察)"
-   ],
-   "status": "pending"
-  },
-  {
-   "id": "TR-020",
-   "date": "2026-11-08",
-   "change": "令49 讲述双声部并弧: merge_narr_modules (相邻 comm/quote 模块并弧, 主导语态=行数多者平手取 comm; 段标后模块 hard_start 不并); boundary_issues 混弧合法化限于讲述类; resplit 只拆结构位混入弧。ep6 实锤: 引用/解说行行交替 → 15/24 单行弧 → 13 弧 narr 单行归零, 段标边界保持 (核心一/二/三各成一弧)",
-   "commit": "7784d8a",
-   "verify": "15 用例 (新增并弧形态/段标硬界/混弧合法/结构位混入仍红痕); 全量 6f/662p; ep6 实弹 24→13 弧 issues 空 world 9/9",
-   "readout_date": "2026-11-15",
-   "metrics": [
-    "下一集 ② 弧分布 (narr 单行弧应为 0)",
-    "并弧后 world/metaphor 质量 (一段一世界是否更连贯)"
-   ],
-   "status": "pending"
-  }
- ]
+  "entries": [
+    {
+      "id": "TR-001",
+      "date": "2026-11-03",
+      "change": "时长带精简 270-420→180-330 (3-5min档), 字数包络956-1590, 新集默认240s",
+      "commit": "05762d6",
+      "verify": "高效能ep1-3: 完播率≥卓档基线×1.2 且 5s率≥21%",
+      "readout_date": "2026-11-23",
+      "metrics": [
+        "completion_rate",
+        "sec5_rate",
+        "avg_watch_sec",
+        "views"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-002",
+      "date": "2026-11-03",
+      "change": "白领人群锁+四闸选书SOP (豆包书单坡度判死)",
+      "commit": "e502eac+e994a42",
+      "verify": "高效能均播≥4k(白领档) 且 掉粉率无异常抬升",
+      "readout_date": "高效能Te+7",
+      "metrics": [
+        "views",
+        "fan_lost率",
+        "interest聚集(职场类)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-003",
+      "date": "2026-11-03",
+      "change": "框架修正案四条 (播放=池宽信号/ETA产出函数定标/P1判据+职场类聚集/刺激点60-90s)",
+      "commit": "docs批",
+      "verify": "随 TR-001/002 判读自动覆盖",
+      "readout_date": "2026-11-23",
+      "metrics": [],
+      "status": "pending"
+    },
+    {
+      "id": "TR-004",
+      "date": "2026-11-03",
+      "change": "判定卡A 两秒vs三秒卡 — 1103修正落位: ep2-4系成品待传(用户口述)不能承载实验; 改骑顾问ep5=3s卡+瘦身稿 / ep6=2s卡+瘦身稿 (卡型正交于字数, 同书同时段带冻结); ep7用胜者卡",
+      "commit": "-",
+      "verify": "播放差>30%或吸粉率<0.4%→回3s; 播放持平且5s率降幅≤5pp→2s定型",
+      "readout_date": "2026-11-17 (ep6+48h)",
+      "metrics": [
+        "views",
+        "sec5_rate",
+        "fan_growth率",
+        "collects率"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-005",
+      "date": "2026-11-03",
+      "change": "判定卡B 六拍瘦身版 (新带1350-1590字) — 落位: 顾问ep5-7(未定稿=增量,1103窗口生成); **ep5=3s卡**(主读: 5s率≥21%基线可比) / ep6=2s卡(稳健复验)",
+      "commit": "-",
+      "verify": "ep5 均看≥9.5s 且 5s率≥21% → 定型; 主判读仍高效能ep1-3",
+      "readout_date": "2026-11-15 (ep5+48h 早读) / 2026-11-23 (主)",
+      "metrics": [
+        "avg_watch_sec",
+        "sec5_rate"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-006",
+      "date": "2026-11-03",
+      "change": "判定卡C 挂车A/B (前置=有效粉真值确认)",
+      "commit": "-",
+      "verify": "掉粉无异常+播放不降→常开",
+      "readout_date": "真值确认后7天",
+      "metrics": [
+        "fan_lost",
+        "views",
+        "fan_growth"
+      ],
+      "status": "blocked_pending_有效粉真值"
+    },
+    {
+      "id": "TR-007",
+      "date": "2026-11-03",
+      "change": "粉丝侧改道: 作品吸粉求和+锚点 (抖音撤粉丝导出); douyin_unified沉淀总表+派生列",
+      "commit": "b60f651..0d44ae9",
+      "verify": "下两次锚点间 派生cum与真锚偏差≤10%",
+      "readout_date": "下一锚点日",
+      "metrics": [
+        "fan_growth_cum vs total_fans锚点"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-008",
+      "date": "2026-11-03",
+      "change": "顾问ep1已传(1103口述), **ep2-4成品待传、ep5-7待产=争取窗口**: ep2-4存量照发(卡型以发布后5s率自证: ~21%=3s卡/~13%=2s卡, 账本typing待核); ep5=3s卡+瘦身稿/ep6=2s卡+瘦身稿/ep7=胜者卡; 其余升级(高效能建书链/挂车/爬虫)排队至顾问上线后",
+      "commit": "seed 1103+a04c086修",
+      "verify": "判读线封卷(第6样本)+卡A/B按期读数",
+      "readout_date": "2026-11-05 (ep1数据导入+判读线封卷)",
+      "metrics": [
+        "views",
+        "fan_growth",
+        "sec5_rate"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-009",
+      "date": "2026-11-03",
+      "change": "稿件结构两观察项挂卡 (23集真值回溯画像驱动, 非令=观察): ①你密度 你/百字 — 历史赢家带0.7-1.4, >1.5从未赢过, 新顾问稿ep2-4达2.2-2.5 (自查表对号框架推高); ②钩子段字数 — 赢家17-30, >35三样本全非赢家, 新稿ep2=43/ep6=39",
+      "commit": "1103 S/T/U系批后分析 (数据只读零改动)",
+      "verify": "同书同时段带内比较 (顾问ep2-7, 均20:02档): ①高你密度集(≥2.0)吸粉率与播放 vs 低集(≤1.5) — 显著低→你密度入提示级闸候选; ②钩字>35集5s率 vs ≤30集 — 低≥5pp→钩字上限入闸候选; 不显著→保留框架, 观察项转睡眠",
+      "readout_date": "各集发布+7d 滚动 (ep2-7)",
+      "metrics": [
+        "你/百字",
+        "钩子段字数",
+        "views",
+        "fan_growth",
+        "sec5_rate"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-010",
+      "date": "2026-11-08",
+      "change": "产线新二令: 令38 运镜判定人检为准/GLM帧判降级辅助 (1107 s22判平移实为推, s6判推实为摇 双误读); 令39 运镜镜槽域[6,10] 上限入闸 (502dc06, h3工位10s硬上限截尾陪葬)",
+      "commit": "502dc06 + 8b449fc (缓存no-cache) + f6cda83 (批5收官)",
+      "verify": "全量56镜重掷(job a489e895, 1108 00:12)人检: ①运镜镜执行率人检统计 (帧判只做初筛对照, 摇域s6型 vs s22型分桶) ②>10s固定镜(r2v)零截尾抽听尾部事件; 15运镜镜全在[6,10]域内=闸零误伤",
+      "readout_date": "2026-11-10",
+      "status": "pending"
+    },
+    {
+      "id": "TR-011",
+      "date": "2026-11-08",
+      "change": "令40 三修: ①r2v 持镜句官方 Static Shot (旧句自带推许可, s1/s5/s7/s9 固定镜推进四连实锤) ②圣经 era_anchor/motion_style 环境句+相机句拆除 (s13/s14 山脊镜漂办公室逐字出处定谳; 生成规格三处同步防复发) ③背影放行+转身整体律 (s9 180°扭头废片; 0922 禁背影条款解除) + s13 存量镜重写 (捏笔→合本按膝, K2 重生图 PASS)",
+      "commit": "1108 四修批 (r2v.py 持镜句 / director2.py 规格三处 / 圣经三字段 / s13 四字段+重投影 / test_r2v_asset_ref 契约更新)",
+      "verify": "六镜重掷 (v3_h3 点名换seed job bfc689f0): ①s1/s5/s7/s9 固定镜人检零推进零偏移 ②s13/s14 全程户外山脊零办公室渗漏 ③s9 背影保持零扭头 (或转身整体转) — 人检为准, GLM 帧判只做初筛",
+      "readout_date": "2026-11-10",
+      "status": "pending"
+    },
+    {
+      "id": "TR-012",
+      "date": "2026-11-08",
+      "change": "令41 角色外观锚三通道: ①K2 EN路 look_en LLM缓存翻译前置 (char_look_en, sha缓存 fail-open; 旧注释'look已内联'假设在v3断裂=writer画面句零外观词实锤) ②_cast_negative 确定性派生 cast反外观负词 (zh_scene经build_workflow进负词通道, 空时与旧版字节一致) ③③规则13+look摘要截断40→120 (shots/arcs两处)。存量帧判: s2/s4/s14干净, s3服装漂, s6/s7/s10胡须漂移, s12=品牌位非生成(误判更正)",
+      "commit": "69f3ddd",
+      "verify": "漂移镜 s3/s6/s7/s10 v3_k2 点名重生图 (job 86186d73) → GLM 复判: ①胡须零回归 (对照定妆照基线无眼镜无胡须) ②s3冲锋衣回深红 ③正向前置实弹证据=渲染串686→1145 (+459 look_en); 后续新集整集外观连续性人检",
+      "readout_date": "2026-11-10",
+      "metrics": [
+        "GLM面部帧判",
+        "外观连续性人检"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-013",
+      "date": "2026-11-08",
+      "change": "令42 空镜防人两通道: ①style_prompt_head_empty 书级风格空镜变体头 (K2 build_prompt 零人物镜换头, 判据镜像人物镜 cast 通道) ②K2 _EMPTY_NEG 防人负词 + _scene_has_person 手部剥词判据 (手部镜剥后零人物→空镜处理; 4 处 _person_in 换判据)。k2_lang.style_head_empty_en EN 投影镜像 (sha 缓存 fail-open)",
+      "commit": "859b75f",
+      "verify": "8 镜 K2 重掷 → GLM 判 8/8 零人 (修复前 9/9 空镜冒人); 9 镜视频重掷+中段帧 GLM 判: A类纯空镜 4/4 全程无人 (s36/s37/s39/s56), 手部镜 5/5 视频中途冒整人 (s30/s51/s52/s54/s55, 眼镜+胡子男; 根因=圣经 character_policy 无条件注入 [角色固定出场/必须有脸/胡须眼镜识别词] + identity lock 断言 faces, H3 build_prompt 无人物判据) → 批A-4 另案",
+      "readout_date": "2026-11-10",
+      "metrics": [
+        "GLM 中段帧判",
+        "新集空镜/手部镜人检"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-014",
+      "date": "2026-11-08",
+      "change": "令43 召唤词不上桌·视频层五律 (批A-4→A-6 外观/人物一致性根治): ①character_policy 无人物镜不注 + Identity lock 无脸镜剥 faces 断言 (2a83e5c) ②_strip_policy_summon 召唤句整句剥: 识别句 [名人/胡须/眼镜] + 面部毛词任何框架句 (1210 串旗: 否定句具象词同样召唤; h3+r2v 双工位) + 无人物镜 EN 种子词剥 a man's hand→the hand (60271e2) ③袖口锚: ③ 规则14 + _REDO_SYS 规则9 (手部镜画面句必须带袖口/前臂来处; ♻️ 列队重做同尺) ④WRITE_HIT_RE 反律扫描面扩 opening_desc (aedf59c) ⑤重掷全链 redo_k2 (🎲=K2 换seed→视频, s35 实锤保图重掷治不了 K2 层)。存量数据刀: s25 背影物理免疫/s33 悬笔中性化/s34+s51 LLM 换构图+终末剥刀 (否定串旗+静物笔)",
+      "commit": "2a83e5c/60271e2/0d48e34/aedf59c",
+      "verify": "用户报障 12 镜四类病 GLM 双帧判 12/12 全净: 胡子 5/5 (s25 背影/s31/s33/s35 redo_k2 全链/s45 r2v 剥句), 伪字 3/3 (s24/s26 redo_k2; s34 剥否定串旗「没有笔和纸」→「桌面空无一物」第 6 抽净 — K2 扛住/H3 视频层召唤 5 抽实锤), 断手 2/2 (s52 合本+笔出画构图/s55 用户 redo 袖口锚), 冒人 2/2 (s54 换 seed; s51 剥静物笔+笔架 redo_k2 全链, 视频 8s 零书写零脸, 红袖口在)。pytest 6f/656p (新增 8 用例全绿, 失败集=历史债不变)",
+      "readout_date": "2026-11-10",
+      "metrics": [
+        "新集四病人检 (胡子/伪字/断手/冒人) 零复发",
+        "GLM 双帧判读 (p0 K2 层 + p70 视频层)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-015",
+      "date": "2026-11-08",
+      "change": "令44 卡镜空镜底 (用户令: 口播承卡镜生图前锁定空镜): pack_shots 尾 join 镜.line_refs×line.adopted (kind∈CARD_OF_SUGG) → 命中镜 card_backdrop=True; 批提示行标 [卡底] (可与 [hook] 叠加); _SYS 规则15 无人物空镜约束 (格式行顺移16); redo.py ♻️ 重做行尾注同尺。下游零改自动闭合 (空镜画面句→K2 空镜头变体+_EMPTY_NEG+h3 工位路由, 全吃批A-3 既有人物判据)",
+      "commit": "931447f",
+      "verify": "3 新用例全绿 (join 幂等/表外 kind 不触发/行标叠加/规则顺移); 全量 6f/657p 失败集=历史债不变。下一集 ③ 起生效, ep5 存量不动",
+      "readout_date": "2026-11-15",
+      "metrics": [
+        "新集卡底镜违例率 (规则15 是 prompt 约束无硬闸, 违例=画面句出现人物)",
+        "卡底镜四病发生率 (对照非卡底镜)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-016",
+      "date": "2026-11-08",
+      "change": "令45/47 装配卡系统: v3.cards (分诊采纳) 接链装配按行号→口播句轴上屏 (三源同权, 自动卡让位); ≤6字标签卡遴选闸; 清单段卡窗 _list_span (a0=锚后首个序数/项词命中句=念第一项时入, a1=双通道延伸连续2 miss 停, 项词≥4 启用; 二轮修引入句早入4.1s); build_cards 重跑保留已渲染 img",
+      "commit": "84877d7/a82579c/34cce65/8331329",
+      "verify": "ep5 装配实弹: c03 清单段 152.7-179.1 (剪映轴 2:38.5 对齐用户报点 2:38:17)/c04 接力 163.8-179.1/c07 回退锚句窗; 全量 6f/658p 失败集=历史债不变",
+      "readout_date": "2026-11-15",
+      "metrics": [
+        "下一集清单卡入点是否=念第一项句 (项词通道 2 字通用词误中风险 ID-144)",
+        "三源上屏分布 vs 分诊设计意图匹配率"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-017",
+      "date": "2026-11-08",
+      "change": "令46 卡图渲染契约三轮: 白底 70% 双层坑根修 (html 透明+body 单层, alpha 232→179); 去品牌条去边框; 字 48/44 bold; ECharts LR 树切割根修 (非叶 label 默认 left 左溢 → 全节点 position:right+symbolSize 0+right 26%); PNG omit_background",
+      "commit": "a82579c/389fc69/927cafb",
+      "verify": "GLM 三图复验零切割; 新契约断言入测试 (无品牌/无框/白底70%/position:right); 全量 6f/658p",
+      "readout_date": "2026-11-15",
+      "metrics": [
+        "下一集卡图人检 (切割/字号观感/白底叠视频效果)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-018",
+      "date": "2026-11-08",
+      "change": "1023 截屏卡字幕退避语义修正: 整条删除→区间减法 (卡期间隐藏/卡离场当帧回归/全程在窗句保持整条退避)。病例: 金句卡 1.5s 尾扫到句#72 句首, 无关句 6.9s 整句误杀 → 4:54-4:59 字幕空窗",
+      "commit": "dc44bd2",
+      "verify": "重装配 draft 实况: 句#72 字幕 294.28-299.65 卡走即回归; 全集字幕洞扫描仅剩卡窗本身; 全量 6f/658p",
+      "readout_date": "2026-11-15",
+      "metrics": [
+        "下一集装配后字幕洞扫描 (应仅剩卡窗洞)",
+        "卡走即回归的接缝观感 (0 帧间隙人检)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-019",
+      "date": "2026-11-08",
+      "change": "令48 盘上退回: resolve_video 单源助手 (video_file 悬空→盘上 anim/{sid}.mp4, 双无才降级图); 装配 real:mp4:fb + H3 端点双端接入, 品牌镜豁免。补 restart 守卫盲区 (只保当下队列, 不救已悬空镜)",
+      "commit": "1b19b48/d6a404b",
+      "verify": "resolve_video 4 用例; ep5 s1 补跑复原 anim_done+预览 200; 全集悬空镜扫描=0; 全量 6f/659p",
+      "readout_date": "2026-11-15",
+      "metrics": [
+        "悬空镜自动退回命中数 (装配日志 real:mp4:fb 计数)",
+        "重掷失败后预览不再变图 (下集观察)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-020",
+      "date": "2026-11-08",
+      "change": "令49 讲述双声部并弧: merge_narr_modules (相邻 comm/quote 模块并弧, 主导语态=行数多者平手取 comm; 段标后模块 hard_start 不并); boundary_issues 混弧合法化限于讲述类; resplit 只拆结构位混入弧。ep6 实锤: 引用/解说行行交替 → 15/24 单行弧 → 13 弧 narr 单行归零, 段标边界保持 (核心一/二/三各成一弧)",
+      "commit": "7784d8a",
+      "verify": "15 用例 (新增并弧形态/段标硬界/混弧合法/结构位混入仍红痕); 全量 6f/662p; ep6 实弹 24→13 弧 issues 空 world 9/9",
+      "readout_date": "2026-11-15",
+      "metrics": [
+        "下一集 ② 弧分布 (narr 单行弧应为 0)",
+        "并弧后 world/metaphor 质量 (一段一世界是否更连贯)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-021",
+      "date": "2026-11-08",
+      "change": "载体闸可读性+blankify 黑名单制: 消息模板 {_hit} 字面量泄漏补 f; 词前白名单 (仅量词语境敢插) 废除 → 词后黑名单 (布满|写着|显示…=内容描述处不硬插防自相矛盾), 插入点钉死首个命中处与质检同口径, 词前 6 字已有空白/留白跳过",
+      "commit": "2045204",
+      "verify": "+test_blankify_carriers_ep6_shapes 5 例; 既有基线全保 (手机屏幕亮起显示来电→手改结论不变); ep6 实弹 POST /shots/fix 9/9 自动修 manual 空 gate true",
+      "readout_date": "2026-11-15",
+      "metrics": [
+        "下一集 ③ 载体镜一键合规覆盖率 (manual 残留数)",
+        "黑名单外生僻内容动词误插观察"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-022",
+      "date": "2026-11-08",
+      "change": "屏弃误标根修: 旧语义切块音频包 (块起于槽中) 进 ⑤, 锚匹配把 20/40 槽误标「已屏弃」并落盘毒标 (仅开页即写)。孤儿块判据: 有块首行连模糊 (≥0.55) 都锚不到任何槽首 = 包未按槽切 (真按槽包每块必起于槽首, 屏弃=块缺席不产孤儿) → unaligned 三不写 (不标屏弃/不回填/不落盘, 空包同判); ⑤ 页未对齐横幅取代屏弃文案 (指路🔁按槽重生成)",
+      "commit": "1739a3b",
+      "verify": "+test_legacy_package_never_mutes_slots; 77 绿; 实弹 unaligned=false (ep6 用户已按槽重生成自愈)",
+      "readout_date": "2026-11-15",
+      "metrics": [
+        "下一集首进 ⑤ 时旧包是否再出现屏弃误标 (应为未对齐横幅)"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-023",
+      "date": "2026-11-08",
+      "change": "大字字幕念出根修: 拆书 LLM 自发明行内标注 (【大字字幕】, 全仓零教学=模仿稿内合法标记语法) 全链照抄被 TTS 念出。三闸剥除: slot_texts 念稿出口 + _anchor 锚归一化 (带标音频↔干净行精确对上) + 改字回填 blk_lines; 分诊入口闸 strip_inline_markers (口播行剥行内【..】, 结构/注释行保原样); ep6 数据修复 line44+narration×2+块28 ✎编辑重合成 (回听复检 diff=大/字/字/幕)",
+      "commit": "4e4a3a3",
+      "verify": "+test_tts_boundary_strips_invented_markers +test_strip_inline_markers; shots+triage 88 绿; ep6 终验 40 块零【..】残留",
+      "readout_date": "2026-11-15",
+      "metrics": [
+        "下一集分诊 result.stripped_markers 计数 (发明标注发生率)",
+        "下集音频零标记念出"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "TR-024",
+      "date": "2026-11-08",
+      "change": "令50 基础语速定档: df 哑参数实锤复认 (TTS2 服务端丢弃, 两轮重合成对照 4.75→4.90→4.99 全在抽样方差内) 后撤除误设键; 通道=atempo 40 块整包 ×1.0526 + 大段重拼; 巡航锚 4.485→5.17 (锚=护栏非总督: BAND±10% 带内不动, 总督=合成自然速); 误设 df 期间三轮重合成为无效成本 (教训: 调参前先查端点文档注释)",
+      "commit": "数据批 (voices.config_json, 无代码)",
+      "verify": "ep6 实测 4.75→5.14 字/s (308字/分); 40/40 块 accel_bak 原始备份; pinned+governed 40",
+      "readout_date": "2026-11-15",
+      "metrics": [
+        "下集听感语速验收 (5.14 vs 原 4.75)",
+        "整包提速按钮需求拍板 (ID-146)"
+      ],
+      "status": "pending"
+    }
+  ]
 }
