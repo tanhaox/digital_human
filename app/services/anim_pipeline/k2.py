@@ -90,12 +90,18 @@ FACE_LAW = ("。人物面部五官完整清晰：明确的眼睛、鼻子和嘴�
             "（正脸或四分之三侧脸, 不画纯背影/背身剪影）；人物完整入画，头顶不被画幅裁切")
 
 
-def _person_in(scene: str, book_title: str = "") -> bool:
+def _person_in(scene: str, book_title: str = "",
+               extra_names: "tuple[str, ...] | list[str]" = ()) -> bool:
     try:
         if any(w in (scene or "") for w in CST.person_words()):
             return True
     except Exception:  # noqa: BLE001 — 宪法不可读退不锚 (宽进)
         pass
+    # 1109 令53: 调用方补充名单 (v3 ② cast 自创名 + 背影 — 宪法词表缺背影,
+    # v3 cast 不在 v2 圣经; 乔伊盲区实锤: 含 cast 的镜被判空镜 → 人物锁全撤)。
+    # v2 调用方缺省 () = 字节不动。
+    if any(nm and nm in (scene or "") for nm in extra_names or ()):
+        return True
     # 1015 修 (s33/s49/s51 修脸静默跳过实锤): 圣经角色名 (林肯/老谭...) 不在宪法词表 —
     # 与 final_gate 同源补齐 (bible characters 并入)
     if book_title:
@@ -124,8 +130,29 @@ import re as _re
 _HAND_PAT = _re.compile(r"(?:男|女)性的?手|(?:他|她)的手|[一这那]只手|手部特写")
 
 
-def _scene_has_person(scene: str, book_title: str = "") -> bool:
-    return _person_in(_HAND_PAT.sub("", scene or ""), book_title)
+def _scene_has_person(scene: str, book_title: str = "",
+                      extra_names: "tuple[str, ...] | list[str]" = ()) -> bool:
+    return _person_in(_HAND_PAT.sub("", scene or ""), book_title, extra_names)
+
+
+def _v3_person_extras(doc: dict[str, Any] | None) -> tuple[str, ...]:
+    """1109 令53: v3 路人物判定补充名单 = ② arcs cast 名单 + 背影。
+
+    - cast 条目兼容 str / {zh|name} (② 页手编历史形态两种都有)。
+    - 背影 = 人物在场信号 (宪法 person_words 缺背影, s53 先例: 背影人物应在场)。
+    - v2 doc (无 "v3" 键) → () — v2 线字节不动。
+    """
+    if not doc or not doc.get("v3"):
+        return ()
+    names: list[str] = ["背影"]
+    for a in (doc.get("v3") or {}).get("arcs") or []:
+        for c in a.get("cast") or []:
+            nm = c if isinstance(c, str) else str(
+                (c or {}).get("zh") or (c or {}).get("name") or "")
+            nm = nm.strip()
+            if nm and nm not in names:
+                names.append(nm)
+    return tuple(names)
 
 
 def _clean_scene(scene: str) -> str:
@@ -197,7 +224,7 @@ def strip_negative(scene: str, negatives: list[str],
 
 def build_prompt(scene_zh: str, book_title: str = "", style: dict | None = None,
                  page: str = "", thesis: str = "", lang: str = "zh",
-                 zh_scene: str = "") -> str:
+                 zh_scene: str = "", cast_names: "tuple[str, ...] | list[str]" = ()) -> str:
     """K2 提示词 — Krea2 官方指南范式 (0914 全网学习定稿):
 
     [风格定调句(仅头一次)] + [画面自然语言长句] + [构图升级] + [防字句] + [轻量收尾锚]
@@ -221,7 +248,7 @@ def build_prompt(scene_zh: str, book_title: str = "", style: dict | None = None,
     _src = str(zh_scene or scene_zh or "")
     _empty_head = bool(
         page == "k2" and _src.strip() and st.get("style_prompt_head_empty")
-        and not _scene_has_person(_src, book_title)
+        and not _scene_has_person(_src, book_title, cast_names)
         and not _MULTI_PERSON_RE.search(_src))
     # 1017 W7 语言架构 (用户令): K2 产线纯英 — lang='en' 时军规/头尾全走 EN 投影
     # (k2_lang: 翻译层+镜级缓存; 中文单一源字段不动, EN 是渲染投影)
@@ -235,7 +262,7 @@ def build_prompt(scene_zh: str, book_title: str = "", style: dict | None = None,
         if thesis:
             _scene = _scene + f". Theme anchor: {_kl.thesis_en(book_title, thesis)}"
         _law = _kl.SKIN_HAIR_LAW_EN if page == "k2" else ""
-        if page == "k2" and _scene_has_person(_src, book_title):
+        if page == "k2" and _scene_has_person(_src, book_title, cast_names):
             _law += _kl.FACE_LAW_EN
             _cp = _kl.character_policy_en(book_title)
             if _cp:
@@ -253,7 +280,7 @@ def build_prompt(scene_zh: str, book_title: str = "", style: dict | None = None,
     law = SKIN_HAIR_LAW() if page == "k2" else ""
     # 1014 五官军规: 人物在场才锚 (纯物件镜锚五官会诱导模型幻觉出人脸)
     # 1108 批A-3: _person_in → _scene_has_person (手部镜剥词, 同 EN 路)
-    if page == "k2" and _scene_has_person(_src, book_title):
+    if page == "k2" and _scene_has_person(_src, book_title, cast_names):
         law += FACE_LAW
     # 1013 双人根治: character 页不吃产线景深配方 — "完整的环境空间/背景延伸至
     # 远方/三层纵深感"与定妆照纯白立绘背景对冲, 且给画面塞人塞物的空间理由
@@ -414,7 +441,8 @@ def build_workflow(scene_zh: str, seed: int, prefix: str, extra_loras: list[dict
                    book_title: str = "", style: dict | None = None,
                    portrait: bool = False, page: str = "",
                    thesis: str = "", lang: str = "zh",
-                   zh_scene: str = "") -> dict[str, Any]:
+                   zh_scene: str = "",
+                   cast_names: "tuple[str, ...] | list[str]" = ()) -> dict[str, Any]:
     """2ST 工作流 (API 格式), 节点 ID 对齐 history 真相图. 默认链 = 书级风格配方的 LoRA.
 
     style (0922): 显式配方覆写 (风格选择板试镜 — 库成员/Kimi 提案逐个出样张).
@@ -448,7 +476,7 @@ def build_workflow(scene_zh: str, seed: int, prefix: str, extra_loras: list[dict
         "261": {"class_type": "EmptyLatentImage", "inputs": {
             "width": 720 if portrait else 1280, "height": 1280 if portrait else 720,
             "batch_size": 1}},
-        "264": {"class_type": "CLIPTextEncode", "inputs": {"text": build_prompt(scene_zh, book_title, style=st, page=page, thesis=thesis, lang=lang, zh_scene=zh_scene), "clip": ["258", 0]}},
+        "264": {"class_type": "CLIPTextEncode", "inputs": {"text": build_prompt(scene_zh, book_title, style=st, page=page, thesis=thesis, lang=lang, zh_scene=zh_scene, cast_names=cast_names), "clip": ["258", 0]}},
         # 1006 用户令(蓝色皮肤根治): cfg 1.0→2.0 + 真负面提示词替代 ConditioningZeroOut
         # (cfg=1.0 数学上负面通道=零影响力; 2.0 实证蓝→白且伪影少于2.5)
         # 1008 规层 R6: 拼接 platform_bans_negative (compliance_visual.json 单一事实源,
@@ -769,9 +797,11 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
     dest = out_dir / f"{shot['shot_id']}.png"
     prefix = f"anim/{shots_mod._safe(doc['book_title'])}/ep{doc['ep']}/k2/{shot['shot_id']}"
     scene_eff = _scene_eff_k2(shot, doc["book_title"])
+    _extras = _v3_person_extras(doc)   # 1109 令53: v3 cast+背影 (v2 doc → ())
     # 0927 终串机检 (观察模式, prompt_gate): 扫描对象=真正发给 CLIPTextEncode 的
     # 拼装串 (补 visual_ban_scan 只扫 doc 字段的盲区); 只标记不阻断
-    _gate = prompt_gate.scan(build_prompt(scene_eff, doc["book_title"], page="k2"),
+    _gate = prompt_gate.scan(build_prompt(scene_eff, doc["book_title"], page="k2",
+                                          cast_names=_extras),
                              scene_zh=scene_eff, book_title=doc["book_title"])
     if _gate:
         shot["prompt_gate"] = _gate
@@ -827,7 +857,7 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
         lambda sd: build_workflow(_scene_eff_en, sd, prefix,
                                   shot.get("extra_loras"), book_title=doc["book_title"],
                                   page="k2", thesis=_thesis, lang="en",
-                                  zh_scene=_zh_src),
+                                  zh_scene=_zh_src, cast_names=_extras),
         dest, int(shot.get("seed") or 0), f"k2 {shot['shot_id']}", shot=shot,
         book_title=str(doc.get("book_title") or ""))
     if dirty:

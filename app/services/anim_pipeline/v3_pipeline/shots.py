@@ -474,7 +474,14 @@ _SYS = """你是动画分镜的画师。给定「镜」清单 (镜号|所属弧�
    **无人物空镜或简单静物** (桌面静物/风景/纯环境/建筑一角), 画面让位文字层 —
    禁人物、禁手部、禁复杂多主体 (大字压复杂画面=脏, 且人物镜=外观四病重灾区,
    空镜=零病 批A 实证)。用本弧视觉世界内的中性场景承接。
-16. 每条只输出画面句, 严格 JSON: {"shots":[{"sid":"s1","keyframe_zh":"..."}]}"""
+16. **空镜禁人物残留与搁笔** (1109 s3 实锤: 画面句写「玻璃后透出模糊人影」+
+   「一支笔搁在纸上」→ 视频把剪影实体化成与全片风格冲突的路人执笔书写, 废片):
+   主体不是人物的画面句 (静物/环境/空场) 禁写 人影/剪影/身影/背影/路人/行人
+   等任何人物残留词 (剪影连物体剪影也一并换写法, 如「错落的支架轮廓」);
+   要人气用环境暗示 (空着的椅子/未收的杯子/亮着的屏幕)。
+   空镜静物**禁搁笔** — 一支笔/钢笔/铅笔搁放=书写邀请, 视频会造人来执笔
+   (规则12 同因: 静物有笔=邀请函)。
+17. 每条只输出画面句, 严格 JSON: {"shots":[{"sid":"s1","keyframe_zh":"..."}]}"""
 
 # 运镜词黑名单 (规则 8 的执法词表; 景别词不算)
 KEYFRAME_CAM_WORDS = ("镜头", "机位", "跟拍", "平移", "推近", "拉远", "摇镜",
@@ -739,11 +746,13 @@ def has_blocking_issues(issues: dict[str, list[str]] | None) -> bool:
     return any(v for k, v in (issues or {}).items() if k != ARC_LEVEL_KEY)
 
 
-def text_layer_issues(shots: list[dict[str, Any]]) -> dict[str, list[str]]:
+def text_layer_issues(shots: list[dict[str, Any]],
+                      book_title: str = "") -> dict[str, list[str]]:
     """按弧跑 writer_failures, 过滤掉 ④ 导演才产的项。
 
     返回 {sid: [...]} — 镜级问题按镜归因; 无法归因到镜的场级配额问题归 ARC_LEVEL_KEY
     (实锤: 旧版用 split(' ')[0] 把「分区人物配额: …」当 sid, 44 条场级提醒淹没 14 条镜级真问题)。
+    book_title (1109 令53): 空镜人物残留/搁笔检查的人物判定需要圣经角色名 (v2 镜缺省零扰动)。
     """
     from app.services.anim_pipeline.scene_writer import writer_failures
     # 1105 修 (ep5 实锤): v3 文字阶段还没有实测时间, 旧实现给每镜假 t_start=0 →
@@ -828,6 +837,29 @@ def text_layer_issues(shots: list[dict[str, Any]]) -> dict[str, list[str]]:
         logger.warning("[v3:shots] 全集配额质检异常 (跳过): %s", exc)
     if arc_q:
         out.setdefault(ARC_LEVEL_KEY, []).extend(arc_q)
+    # ── 1109 令53: 空镜人物残留/搁笔确定性检查 (s3 实锤: 空镜冒 2D 路人) ──
+    # 人物判定不上 extra_names (③ 期 cast 可后编辑): 宪法词表+圣经名 (book_title)。
+    try:
+        from app.services.anim_pipeline.k2 import _scene_has_person
+        for s in shots:
+            if s.get("brand_card"):
+                continue
+            kf = str(s.get("keyframe_zh") or "")
+            if not kf or _scene_has_person(kf, book_title):
+                continue
+            sid = str(s["sid"])
+            _res = [w for w in ("人影", "剪影", "背影") if w in kf]
+            if _res:
+                out.setdefault(sid, []).append(
+                    f"{sid} 空镜残留人物词 ({'/'.join(_res)}) — 人物词不上桌才防视频冒人 "
+                    "(1109 s3 实锤): 删掉, 或换空椅/未收的杯子/亮着的屏幕等环境暗示")
+            if any(p in kf for p in ("钢笔", "铅笔", "圆珠笔", "毛笔", "马克笔",
+                                     "粉笔", "一支笔", "一枝笔")):
+                out.setdefault(sid, []).append(
+                    f"{sid} 空镜搁笔 — 笔在画=书写邀请, 视频会造人执笔 (s3 实锤): "
+                    "静物镜去笔; 需要笔的镜让人物执笔")
+    except Exception as exc:  # noqa: BLE001 — 质检失败不炸产线
+        logger.warning("[v3:shots] 空镜残留检查异常 (跳过): %s", exc)
     # 弧级排后 (前端先看镜级)
     if ARC_LEVEL_KEY in out:
         out[ARC_LEVEL_KEY] = out.pop(ARC_LEVEL_KEY)
@@ -986,7 +1018,7 @@ def run(job: dict[str, Any]) -> None:
         logger.warning("[v3:shots] 画面句 LLM 失败 (留空待手填): %s", exc)
 
     cards = build_cards(v3, shots)
-    issues = text_layer_issues(shots)
+    issues = text_layer_issues(shots, book_title=str(job.get("book_title") or ""))
     for sid, lst in cast_gate_issues(shots, arcs).items():
         issues.setdefault(sid, []).extend(lst)
     n_issue = sum(len(v) for v in issues.values())

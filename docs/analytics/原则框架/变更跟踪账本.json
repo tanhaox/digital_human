@@ -346,6 +346,20 @@
     "blankify 兜底触发率 (LLM 违令率观察)"
    ],
    "status": "pending"
+  },
+  {
+   "id": "TR-027",
+   "date": "2026-11-09",
+   "change": "令53 空镜冒人三连根修 (ep6 s3 空镜 H3 冒 2D 路人执笔书写): ①③规则16/♻️规则11/④规则6 同尺 — 空镜禁人影/剪影/背影/路人残留词+禁搁笔 (环境暗示替代); ②H3 空镜 EN 剥词扩面 _FIG_SEED_RE (figures/silhouettes→shapes, 只动拼装串); ③人物判定源并入 v3 cast+背影 (_v3_person_extras; k2/h3 run_shot 双渲染器接线, v2 doc 零扰动); text_layer_issues 增空镜残留人物词/搁笔双查 (带 book_title) 喂 ③/♻️ 自愈环",
+   "commit": "本批 (shots/direct/redo 提示词 + k2/h3 判定接线 + 校验 + 测试)",
+   "verify": "test_v3_empty_shot_guard 12 用例; test_h3_hand_person_gate 探针随签名扩展; pytest 686p 失败集=历史债原样",
+   "readout_date": "2026-11-16",
+   "metrics": [
+    "ep7 ③ 产出空镜残留命中数 (text_layer_issues 空镜人物词/搁笔条目, 预期 ≈0)",
+    "ep7 ⑧ 页空镜冒人复核数 (人检, 预期 0; 对照 ep6 已知 7 风险镜)",
+    "ep7 H3 prompt 剥词触发次数 (日志 figures→shapes, 观察 LLM 违令率)"
+   ],
+   "status": "pending"
   }
  ]
 }

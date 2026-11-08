@@ -1598,10 +1598,10 @@ def test_batch_prompt_card_backdrop_tag():
 
 
 def test_sys_rule15_card_backdrop():
-    """_SYS 规则15 = 大字卡底镜无人物空镜约束; 输出格式顺移 16。"""
+    """_SYS 规则15 = 大字卡底镜无人物空镜约束; 输出格式行随规则插入顺移 (现 17)。"""
     assert "大字卡底镜" in v3shots._SYS and "[卡底]" in v3shots._SYS
     assert "无人物空镜或简单静物" in v3shots._SYS
-    assert "16. 每条只输出画面句, 严格 JSON" in v3shots._SYS   # 格式行顺移 16
+    assert "17. 每条只输出画面句, 严格 JSON" in v3shots._SYS   # 1109 规则16 插入后顺移
 
 
 def test_build_cards_preserves_rendered_image():

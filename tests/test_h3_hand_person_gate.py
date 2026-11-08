@@ -77,15 +77,18 @@ def test_build_workflow_forwards_zh_scene(monkeypatch, tmp_path):
     _orig = _h3.build_prompt
 
     def _spy(anim, book_title="", page="", text_event=None, in_image_text=None,
-             thesis="", zh_scene=""):
+             thesis="", zh_scene="", cast_names=()):
         _seen["zh"] = zh_scene
+        _seen["cast"] = cast_names
         return _orig(anim, book_title, page=page, thesis=thesis,
-                     zh_scene=zh_scene)
+                     zh_scene=zh_scene, cast_names=cast_names)
 
     monkeypatch.setattr(_h3, "build_prompt", _spy)
     _h3.build_workflow("img.png", dict(_ANIM), 1, "p", book_title=_BOOK,
-                       zh_scene="一只男性的手把便签纸摊开在桌面上")
+                       zh_scene="一只男性的手把便签纸摊开在桌面上",
+                       cast_names=("背影", "老谭"))
     assert _seen["zh"] == "一只男性的手把便签纸摊开在桌面上"
+    assert _seen["cast"] == ("背影", "老谭")   # 1109 令53: extras 同链透传
 
 
 # ── 1108 批A-5: 召唤词不上桌 — policy 识别句剥离 + 无人物镜种子词剥离 ──

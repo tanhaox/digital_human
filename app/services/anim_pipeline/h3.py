@@ -237,6 +237,15 @@ _HAND_SEED_RE = re.compile(
     r"(?i)\b(?:a|an)\s+(?:man|woman|male|female)'s\s+"
     r"(hand|hands|finger|fingers|arm|arms|fist|fists|palm|palms)\b")
 
+# 1109 令53: 无人物镜 EN 人物残留词剥离 — s3 实锤 (beats "blurred figures
+# flicker behind the frosted glass" → H3 把玻璃后剪影实体化成与全片 2.5D 冲突
+# 的 2D 路人, 还按「笔在画=邀请」造人执笔书写): 人影/剪影不在人物词表 → 判了
+# 无人物镜, 人物词就不该上桌 — 人物词在场 + 人物锁全撤 = 模型自由发挥。
+# figure/silhouette 在此判据下无图表义; 同 _HAND_SEED_RE 先例只动拼装串不落盘。
+_FIG_SEED_RE = re.compile(
+    r"(?i)\b((?:blurred|faint|dim|dark|vague)\s+)?(figures?|silhouettes?)\b")
+_FIG_SEED_SUB = r"\1shapes"
+
 
 def _strip_policy_summon(cp: str) -> str:
     """剥 character_policy 的召唤句 (确定性, 零 LLM)。
@@ -269,7 +278,8 @@ def arc_thesis(doc: dict[str, Any], arc_id: str = "") -> str:
 
 def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
                  text_event: dict | None = None, in_image_text: list | None = None,
-                 thesis: str = "", zh_scene: str = "") -> str:
+                 thesis: str = "", zh_scene: str = "",
+                 cast_names: "tuple[str, ...] | list[str]" = ()) -> str:
     # 1016 修2: text_event/in_image_text 从镜级直传 — 旧版读 anim.get(...) 永远为空
     # (两字段在镜级, 调用方却只传 shot["anim"]), 事件字/合成字从未真正进过提示词.
     beats = anim["beats"]
@@ -283,14 +293,17 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
     _no_person = False
     if str(zh_scene or "").strip():
         from .k2 import _scene_has_person
-        _no_person = not _scene_has_person(zh_scene, book_title)
+        _no_person = not _scene_has_person(zh_scene, book_title, cast_names)
     if _no_person:  # 1108 批A-5 ②: 无人物镜种子词剥离 — 只动拼装串不落盘
+        # 1109 令53: 剥词面扩 figures/silhouettes (s3 空镜冒 2D 路人实锤)
+        def _strip_person_seed(txt: str) -> str:
+            return _FIG_SEED_RE.sub(
+                _FIG_SEED_SUB, _HAND_SEED_RE.sub(r"the \1", txt))
         anim = dict(anim)
-        anim["opening_desc"] = _HAND_SEED_RE.sub(
-            r"the \1", str(anim.get("opening_desc") or ""))
+        anim["opening_desc"] = _strip_person_seed(
+            str(anim.get("opening_desc") or ""))
         anim["beats"] = [
-            {**b, "motion": _HAND_SEED_RE.sub(
-                r"the \1", str(b.get("motion") or ""))}
+            {**b, "motion": _strip_person_seed(str(b.get("motion") or ""))}
             for b in (anim.get("beats") or [])]
         beats = anim["beats"]
     _ident = ("Identity lock: keep all characters' faces, hairstyles and "
@@ -605,7 +618,8 @@ def build_workflow(image_name: str, anim: dict[str, Any], seed: int, prefix: str
                    thesis: str = "", cam_move: str = "",
                    cam_speed: str = "",
                    cam_amp: str = "", cam_v3_family: str = "",
-                   cam_v3_dir: str = "", zh_scene: str = "") -> dict[str, Any]:
+                   cam_v3_dir: str = "", zh_scene: str = "",
+                   cast_names: "tuple[str, ...] | list[str]" = ()) -> dict[str, Any]:
     """H3 I2V 工作流 (API 格式), 节点 ID 对齐最爱视频真相图 (102.4s/10s).
 
     qc_history (1004 修): 该镜既往机检判决 (乱码/崩坏史) → 重 roll 时注入
@@ -613,7 +627,8 @@ def build_workflow(image_name: str, anim: dict[str, Any], seed: int, prefix: str
     _prompt = build_prompt(anim, book_title, page="k2",  # 1007: H3 与 K2 同风格 (page 隔离)
                            text_event=text_event, in_image_text=in_image_text,  # 1016 修2: 镜级直传
                            thesis=thesis,  # 1017 W3: 弧主旨锚
-                           zh_scene=zh_scene)  # 1108 批A-4: 无人物镜两锁收口
+                           zh_scene=zh_scene,  # 1108 批A-4: 无人物镜两锁收口
+                           cast_names=cast_names)  # 1109 令53: v3 cast+背影进判定
     if qc_history:
         _kinds = {str(r.get("kind") or r.get("what") or "") for r in qc_history}
         if any("乱码" in k for k in _kinds):
@@ -735,6 +750,8 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
     dest = base_dir / "anim" / f"{shot['shot_id']}.mp4"
     prefix = f"video/anim/{shots_mod._safe(doc['book_title'])}/ep{doc['ep']}/{shot['shot_id']}"
     _cmove = cam_move_kind(str(shot.get("camera") or ""))
+    from .k2 import _v3_person_extras   # 1109 令53: v3 cast+背影 (v2 doc → ())
+    _extras = _v3_person_extras(doc)
     _h3_anim = shot["anim"]
     if _cmove:  # B-CAM1 运镜镜: anim 浅拷贝 (剥 locked-off camera, 不落盘)
         _h3_anim = dict(_h3_anim)
@@ -765,7 +782,8 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
                             text_event=shot.get("h3_text_event"),
                             in_image_text=shot.get("in_image_text"), thesis=_thesis,
                             cam_move=_cmove,
-                            zh_scene=str(shot.get("keyframe_zh") or ""))  # 批A-4
+                            zh_scene=str(shot.get("keyframe_zh") or ""),  # 批A-4
+                            cast_names=_extras)  # 1109 令53
     else:
         src_img = base_dir / shot["image_file"]
         if not src_img.exists():
@@ -787,7 +805,8 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
                             text_event=shot.get("h3_text_event"),
                             in_image_text=shot.get("in_image_text"), thesis=_thesis,
                             cam_move=_cmove,
-                            zh_scene=str(shot.get("keyframe_zh") or ""))  # 批A-4
+                            zh_scene=str(shot.get("keyframe_zh") or ""),  # 批A-4
+                            cast_names=_extras)  # 1109 令53
     # 10s 热机 ~102s, 冷机翻倍, 留余量; 0919 实锤: 长镜 (6.9-8.8s) 在低显存节点
     # 帧数放大超线性, 600s 定额连杀 s11/s12/s21 两轮 (ComfyUI 实际都跑完了,
     # 产物躺 output 成孤儿) — 超时按时长伸缩

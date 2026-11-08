@@ -35,6 +35,9 @@ _REDO_SYS = """你是动画分镜导演。给定若干镜 (镜号|当前画面�
    袖口或前臂来处 (颜色接旧句角色服装, 如: 深红色冲锋衣的袖口与前臂), 禁孤立
    悬空手 — 图上腕部无来处=视频全程断手。
 10. motion = 主体+动作+起承节奏 一句 (只动画面句里已有的实体, 禁添画面外动物/器物)。
+11. 空镜禁人物残留与搁笔 (1109 同 ③ 规则16, s3 实锤): 主体不是人物的画面句禁
+    人影/剪影/身影/背影/路人 等人物残留词 (人气用空椅/未收的杯子/亮屏暗示);
+    空镜静物禁搁笔 (笔在画=书写邀请, 视频会造人执笔)。
 严格 JSON: {"shots":[{"sid":"s1","keyframe_zh":"...","motion":"..."}]}"""
 
 
@@ -174,7 +177,7 @@ def run(job: dict[str, Any], sids: list[str], to_image: bool = True,
     _apply(new_zh)
 
     # 文字层质检 + 运镜词闸 (改动镜): 不过 → 带反馈补投一次
-    iss = text_layer_issues(shots)
+    iss = text_layer_issues(shots, book_title=str(job.get("book_title") or ""))
     cam_hit = {sid: keyframe_camera_issues(by_sid[sid].get("keyframe_zh"))
                for sid in new_zh}
     bad = [sid for sid in new_zh if iss.get(sid) or cam_hit[sid]]
