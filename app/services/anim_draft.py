@@ -1764,8 +1764,9 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                     """1108 用户令 (清单段机制, 跨集通用): 清单族卡窗=清单口播段,
                     非锚句窗 — c03 实锤: 锚 L46 引入句 (s22 区 135.6s), 清单本体
                     s25-s31 (148.6-179.1s), 卡 4 秒就消失/错段双病。
-                    a0 = 锚句后 ≤12 句内首个含卡名词句 (清单引入句), 找不到回退锚句;
-                    a1 = 从 a0 向后扫, 句命中 项词/序数模式 → 延伸, 连续 2 句 miss → 停。
+                    a0 = 锚句后 ≤15 句内首个 序数/项词 命中句 (**念第一项时入**,
+                    非"起名字"引入句 — 1108 二轮用户实锤入点太早);
+                    a1 = 从 a0 向后扫, 句命中 → 延伸, 连续 2 句 miss → 停。
                     判据: 项词 ≥4 才启用 (少项双分支卡回退锚句窗)。"""
                     import bisect as _bs
                     _raw = _PAUSE.sub("", _line_txt.get(line_no, ""))
@@ -1779,18 +1780,23 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                               if len(w) >= 2]
                     if len(_items) < 4:
                         return None                      # 少项卡回退锚句窗
-                    _title = re.split(r"[/、：:，,。\s\d]+", str(text))[0][:4]
-                    _a0_i = _seg_i
-                    for _k in range(_seg_i, min(_seg_i + 13, len(_sent_segs))):
-                        _t = _PAUSE.sub("", str(_sent_segs[_k].get("text") or ""))
-                        if _title and _title in _t:
+
+                    def _hit(k: int) -> bool:
+                        _t = _PAUSE.sub("", str(_sent_segs[k].get("text") or ""))
+                        return bool(_ORD_PAT.search(_t)
+                                    or any(_w in _t for _w in _items))
+
+                    _a0_i = None
+                    for _k in range(_seg_i, min(_seg_i + 16, len(_sent_segs))):
+                        if _hit(_k):
                             _a0_i = _k
                             break
+                    if _a0_i is None:
+                        return None                      # 锚后无清单句 → 回退锚句窗
                     _te = float(_sent_segs[_a0_i]["t_end"])
                     _miss = 0
                     for _k in range(_a0_i + 1, len(_sent_segs)):
-                        _t = _PAUSE.sub("", str(_sent_segs[_k].get("text") or ""))
-                        if _ORD_PAT.search(_t) or any(_w in _t for _w in _items):
+                        if _hit(_k):
                             _te = float(_sent_segs[_k]["t_end"])
                             _miss = 0
                         else:
