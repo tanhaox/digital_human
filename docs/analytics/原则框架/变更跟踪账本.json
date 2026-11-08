@@ -360,6 +360,21 @@
     "ep7 H3 prompt 剥词触发次数 (日志 figures→shapes, 观察 LLM 违令率)"
    ],
    "status": "pending"
+  },
+  {
+   "id": "TR-028",
+   "date": "2026-11-09",
+   "change": "令54 ③ 页问题给解法+一键更新: split_slot_line (祸源行对半拆→插行重编号→弧段平移→重装包→_llm_fill 补新槽→下游清戳) + fix_shot_text (质检问题清单进 LLM 反馈定点重写, 最小改动保场景, 补投一轮) + 前端 🔧/⚡/一键修全部/↻真化 + slot_overs 上桌 GET + frozen 409",
+   "commit": "本批 (shots.py 两函数 + anim_v3.py 两端点 + shots.js 四接线 + 测试)",
+   "verify": "test_v3_shots_fixtext 6 用例; pytest 692p 失败集=历史债原样; ep7 实弹: s24/s47 两超限槽拆行清零 (46→48 镜), fix_text 15 问题镜 fixed 14",
+   "readout_date": "2026-11-16",
+   "metrics": [
+    "ep7+ 槽超限镜数 (③ 页 warns, 预期 0 — 拆行后清零已实证)",
+    "一键修收敛率 fixed/(fixed+unfixed) (ep7 首轮 14/23; 观察二次点击是否收敛)",
+    "卡名闸残留镜数 (ep7 残 9 — 隐喻静物镜 vs 弧绑 cast 闸的冲突, 攒证据后拍豁免规则)",
+    "搁笔词表误伤数 (黑板粉笔末类静物, s28 实锤 — 词表演化观察)"
+   ],
+   "status": "pending"
   }
  ]
 }

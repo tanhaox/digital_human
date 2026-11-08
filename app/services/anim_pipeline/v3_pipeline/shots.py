@@ -866,6 +866,251 @@ def text_layer_issues(shots: list[dict[str, Any]],
     return out
 
 
+# ── 1109 用户令: 问题要给解法 — 一键修 (LLM 定点重写) / 一键拆行 ────────
+
+def _look_catalog(book_title: str) -> dict[str, str]:
+    """圣经角色卡 look 摘要 ({卡名: look[:120]}) — run()/fix/拆行共用的组装件。"""
+    try:
+        import json as _json
+
+        from app.services.anim_pipeline.director2 import _bible_cache_path
+        bible = _json.loads(_bible_cache_path(book_title).read_text(encoding="utf-8"))
+        return {str(c.get("name") or "").strip(): str(c.get("look") or "").strip()[:120]
+                for c in (bible.get("characters") or [])
+                if str(c.get("name") or "").strip()}
+    except Exception:  # noqa: BLE001 — 无圣经 = 空目录 (行内不注 look)
+        return {}
+
+
+def _shot_feedback(s: dict[str, Any],
+                   iss: dict[str, list[str]]) -> list[str]:
+    """镜级待修清单 = 质检命中 + 运镜词 + 长度 (80-200)。"""
+    out = [str(t) for t in (iss.get(str(s.get("sid"))) or [])]
+    cam = keyframe_camera_issues(str(s.get("keyframe_zh") or ""))
+    if cam:
+        out.append(f"画面句混运镜词 {'/'.join(cam)} — 只画定格, 运镜归导演层")
+    n = len(str(s.get("keyframe_zh") or "").strip())
+    if n and n < KF_MIN_CHARS:
+        out.append(f"画面句 {n} 字不足 {KF_MIN_CHARS} 下限")
+    elif n > 220:
+        out.append(f"画面句 {n} 字超 200 上限")
+    return out
+
+
+_FIX_SYS_ADDENDUM = """
+
+【修复模式 (1109 用户令: 质检问题必须给解法, 不只列出)】
+输入行 = 镜号[标签]|视觉世界|立意|本弧讲什么|本弧角色|本弧实体|口播原文|目标时长|旧画面句|质检问题
+任务: 只消除「质检问题」列点名的毛病, **最小改动** — 场景/主体/构图/光源保持旧画面句原样
+(修复≠重做: 禁换方案、禁换场景); 重写后的整句仍须满足上方全部硬性要求 (80-200字/起点帧/
+零文字载体/空镜零人物残留零搁笔/零运镜词/零引号)。
+每条只输出画面句, 严格 JSON: {"shots":[{"sid":"s1","keyframe_zh":"..."}]}"""
+
+
+def fix_shot_text(doc: dict[str, Any], sids: list[str],
+                  book_title: str = "") -> dict[str, Any]:
+    """质检问题一键修 (1109 用户令): LLM 按问题清单定点重写画面句。
+
+    与 ♻️ 列队重做 (redo, 换方案) 不同: 修复保场景保构图只消除违例;
+    应用后仍带问题的镜带反馈补投一次。只动 doc, 落盘归调用方 (ep_guard 内)。
+    返回 {fixed: [sid], unfixed: {sid: [残留问题]}, issues, gate}。
+    """
+    from app.services.llm_service import get_llm_service, _parse_json
+    v3 = doc.setdefault("v3", {})
+    shots = v3.get("shots") or []
+    arcs = v3.get("arcs") or []
+    line_of = {ln["no"]: ln for ln in (v3.get("lines") or [])}
+    arc_of = {a["arc_id"]: a for a in arcs}
+    want = {str(x) for x in sids}
+    iss_all = text_layer_issues(shots, book_title)
+    todo = [s for s in shots
+            if str(s.get("sid")) in want and not s.get("brand_card")]
+    if not todo:
+        return {"fixed": [], "unfixed": {}, "issues": iss_all,
+                "gate": not has_blocking_issues(iss_all)}
+    cards = _look_catalog(book_title)
+    # hook 分区 (与 _llm_fill 同尺: 句长估时累加, 前 60s)
+    zone_of: dict[str, str] = {}
+    acc = 0.0
+    for s in shots:
+        zone_of[str(s.get("sid"))] = "hook" if acc < 60 else ""
+        acc += float(s.get("est_s") or 0)
+
+    def _rows(batch: list[dict[str, Any]]) -> str:
+        rows = []
+        for s in batch:
+            a = arc_of.get(s.get("arc_id")) or {}
+            tag = ("[hook]" if zone_of.get(str(s.get("sid"))) == "hook" else "") \
+                + ("[卡底]" if s.get("card_backdrop") else "")
+            cast_txt = "、".join(
+                f"{n}({cards[n]})" if cards.get(str(n)) else str(n)
+                for n in (a.get("cast") or []))
+            vocab_txt = "、".join(f'{v.get("zh")}={v.get("en")}'
+                                  for v in (a.get("vocab") or []))
+            text = " ".join(str((line_of.get(n) or {}).get("text") or "")
+                            for n in (s.get("line_refs") or []))[:100]
+            fb = "; ".join(_shot_feedback(s, iss_all)) or "画面不满意"
+            rows.append(
+                f'{s["sid"]}{tag}|{a.get("world", "")}|{str(a.get("metaphor") or "")[:60]}|'
+                f'{str(a.get("narrative") or "")[:40]}|{cast_txt}|{vocab_txt}|{text}|'
+                f'{s.get("est_s")}s|{str(s.get("keyframe_zh") or "")[:160]}|{fb}')
+        return ("镜号|视觉世界|立意|本弧讲什么|本弧角色|本弧实体|口播原文|目标时长|旧画面句|质检问题\n"
+                + "\n".join(rows))
+
+    sys_p = _SYS
+    if any(zone_of.get(str(s.get("sid"))) == "hook" for s in todo):
+        try:
+            from app.services.anim_pipeline.hook_zone import ZONE_RULES
+            sys_p += "\n\n【特区宪法 — 钩子/行动召镜必须遵守】\n" + str(ZONE_RULES)
+        except Exception:  # noqa: BLE001
+            pass
+    sys_p += _FIX_SYS_ADDENDUM
+
+    def _ask(batch: list[dict[str, Any]]) -> dict[str, str]:
+        raw = get_llm_service().chat(
+            sys_p, _rows(batch), model="pro", temperature=0.4,
+            response_format={"type": "json_object"}, tag="v3_fix")
+        return {str(r.get("sid")): str(r.get("keyframe_zh") or "").strip()
+                for r in (_parse_json(raw).get("shots") or [])}
+
+    def _still_bad(s: dict[str, Any], zh: str) -> list[str]:
+        probe = {**s, "keyframe_zh": zh}
+        return _shot_feedback(probe, text_layer_issues([probe], book_title))
+
+    applied: dict[str, str] = {}
+    got = _ask(todo)
+    for s in todo:
+        zh = got.get(str(s["sid"]))
+        if zh and len(zh) >= KF_MIN_CHARS:
+            applied[str(s["sid"])] = zh[:600]
+    retry = [s for s in todo
+             if str(s["sid"]) not in applied
+             or _still_bad(s, applied[str(s["sid"])] )]
+    if retry:  # 带反馈补投一次 (与 ③ 自愈环同构)
+        got2 = _ask(retry)
+        for s in retry:
+            zh = got2.get(str(s["sid"]))
+            if zh and len(zh) >= KF_MIN_CHARS:
+                applied[str(s["sid"])] = zh[:600]
+    by_sid = {str(s["sid"]): s for s in shots}
+    fixed = []
+    for sid, zh in applied.items():
+        s = by_sid.get(sid)
+        if s is not None and zh != str(s.get("keyframe_zh") or ""):
+            s["keyframe_zh"] = zh
+            fixed.append(sid)
+        elif s is not None and zh == str(s.get("keyframe_zh") or ""):
+            fixed.append(sid)   # LLM 判无需改 (原句即合规/已按新规豁免)
+    issues = text_layer_issues(shots, book_title)
+    for sid, lst in cast_gate_issues(shots, arcs).items():
+        issues.setdefault(sid, []).extend(lst)
+    v3["shot_issues"] = issues
+    v3.setdefault("gates", {})["shots"] = not has_blocking_issues(issues)
+    unfixed = {sid: _shot_feedback(by_sid[sid], issues)
+               for sid in fixed if _shot_feedback(by_sid[sid], issues)}
+    return {"fixed": fixed, "unfixed": unfixed, "issues": issues,
+            "gate": not has_blocking_issues(issues)}
+
+
+def _split_halves(text: str) -> tuple[str, str] | None:
+    """超长口播行按标点对半拆 (。！？； 优先, 退 ，、：); 拆不出返回 None。"""
+    t = str(text or "").strip()
+    if len(t) < 20:
+        return None
+    mid = len(t) // 2
+    for stops in ("。！？；", "，、："):
+        best = None
+        for i, ch in enumerate(t[:-1]):        # 末位标点不拆 (后半空)
+            if ch in stops and (best is None or abs(i - mid) < abs(best - mid)):
+                best = i
+        if best is not None and best >= 8 and len(t) - best - 1 >= 8:
+            return t[:best + 1], t[best + 1:].lstrip()
+    return None
+
+
+def split_slot_line(doc: dict[str, Any], sid: str,
+                    book_title: str = "") -> dict[str, Any]:
+    """超限槽一键拆行 (1109 用户令: 槽长>15s 必须给解法)。
+
+    超限根因 = 槽内最长口播行独大 (装包按行粒度, 单行>15s 切不开) →
+    该行按标点对半拆成两行 → 重装包 → line_refs 未变的镜原句保留,
+    拆出的新槽画面句由 LLM 补 (走 ③ 同一套提示词与铁律)。
+    结构变 = 下游作废清戳 (与重跑 ③ 同语义)。
+    """
+    v3 = doc.setdefault("v3", {})
+    shots = v3.get("shots") or []
+    lines = v3.get("lines") or []
+    arcs = v3.get("arcs") or []
+    s = next((x for x in shots if str(x.get("sid")) == str(sid)), None)
+    if s is None:
+        raise ValueError(f"镜 {sid} 不存在")
+    if s.get("brand_card"):
+        raise ValueError("品牌镜走冻结骨架, 不拆行")
+    if float(s.get("est_s") or 0) <= SLOT_MAX_S:
+        raise ValueError(f"{sid} 槽长未超限, 无需拆行")
+    line_of = {ln["no"]: ln for ln in lines}
+    target = max((n for n in (s.get("line_refs") or []) if n in line_of),
+                 key=lambda n: len(str(line_of[n].get("text") or "")))
+    halves = _split_halves(str(line_of[target].get("text") or ""))
+    if halves is None:
+        raise ValueError(f"L{target} 无可拆标点 — 到 ① 页手动拆行")
+    # 插行 (h1 保留 suggs/adopted — 卡挂前半; h2 继承其余字段) + 顺序重编号
+    new_lines: list[dict[str, Any]] = []
+    for ln in lines:
+        if ln["no"] == target:
+            h1 = dict(ln)
+            h1["text"] = halves[0]
+            h2 = {k: v for k, v in ln.items()
+                  if k not in ("text", "suggs", "adopted")}
+            h2["text"] = halves[1]
+            new_lines += [h1, h2]
+        else:
+            new_lines.append(ln)
+    for i, ln in enumerate(new_lines, 1):
+        ln["no"] = i
+    # 弧行号段平移: 祸源行所在弧 end+1 (行数+1), 其后弧 start/end 各+1
+    for a in arcs:
+        start, end = int(a.get("no_start") or 0), int(a.get("no_end") or 0)
+        if start > target:
+            start += 1
+        if end >= target:
+            end += 1
+        a["no_start"], a["no_end"] = start, end
+        a["line_count"] = max(0, end - start + 1)
+    # 重装包 + 原句保留 (line_refs 键锚定 — 未受拆行影响的镜零扰动)
+    old_by_refs = {tuple(x.get("line_refs") or []): x for x in shots}
+    shots2, warns = pack_shots(arcs, new_lines)
+    for s2 in shots2:
+        old = old_by_refs.get(tuple(s2.get("line_refs") or []))
+        if old is not None:
+            for k in ("keyframe_zh", "in_image_text", "text_layer"):
+                if old.get(k) is not None:
+                    s2[k] = old[k]
+    v3["lines"] = new_lines
+    v3["shots"] = shots2
+    # 拆出的新槽 (画面句空) 走 ③ 同尺 LLM 补
+    n_fill = _llm_fill(shots2, arcs, {ln["no"]: ln for ln in new_lines},
+                       None, _look_catalog(book_title) or None)
+    v3["cards"] = build_cards(v3, shots2)
+    issues = text_layer_issues(shots2, book_title)
+    for k2, lst in cast_gate_issues(shots2, arcs).items():
+        issues.setdefault(k2, []).extend(lst)
+    v3["shot_issues"] = issues
+    v3["shot_warnings"] = warns
+    v3.setdefault("gates", {})["shots"] = not has_blocking_issues(issues)
+    # 结构变 = 下游作废 (重跑 ③ 同语义)
+    if v3.get("frozen_at") or v3.get("direct"):
+        v3.pop("frozen_at", None)
+        v3.pop("direct", None)
+        v3.pop("direct_issues", None)
+        v3.setdefault("gates", {})["direct"] = False
+        logger.info("[v3:shots] 拆行 %s (L%d) — 结构变, ④/英化/冻结已清", sid, target)
+    return {"split": {"line": target, "halves": halves},
+            "filled": n_fill, "shots": len(shots2),
+            "warnings": warns, "issues": issues,
+            "gate": not has_blocking_issues(issues)}
+
+
 # ── 景别推断 (④导演页 UI 预填; 生成仍由 LLM 做主) ──────────────────────
 
 _SIZE_WORDS = (("大全景", "大场景"), ("大场景", "大场景"), ("远景", "大场景"),

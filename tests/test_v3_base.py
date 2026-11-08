@@ -85,12 +85,17 @@ def test_wiring_source_asserts():
     src2 = inspect.getsource(anim_v3)
     assert '/line/' in src2                                    # 书级选线端点
     bs = Path("web/books_story.js").read_text(encoding="utf-8")
-    assert "v3-anim" in bs and "applyV3Line" in bs             # 入口分流按钮+实现
-    # 双轨并行 (用户令): 不得吞掉 v2 橙钮 — v3 绿钮是并排新增 (a.after + v3-added), 原钮零改动
-    assert "v3-added" in bs and "a.after(b3)" in bs
-    assert "a.textContent = '🎬 动画v3" not in bs              # 禁换链式覆盖 (旧 bug 回归哨)
+    # 1109 用户令: 🎬 动画v3 = 每集默认入口 (直吃 script_text), 双轨分流/四钮全撤
+    assert "v3-anim" in bs and "/web/v3/index.html" in bs
+    assert "🎬 动画v3 ↗" in bs
+    assert "async function applyV3Line" not in bs              # 分流实现退役 (注释提及不算)
+    assert "_v3lineCache = {}" not in bs and "v3-added" not in bs
+    assert "🎬 动画 ↗" not in bs and "音频页 ↗" not in bs      # v2 动画/音频页钮撤
+    assert "async function rerunEp" not in bs                 # 级联重跑函数退役 (注释提及不算)
+    assert "async function ttsPreview" not in bs              # TTS 预览函数退役
+    assert ">🔊 TTS音频<" not in bs and ">级联重跑" not in bs  # 钮本体撤 (注释提及不算)
     bj = Path("web/books.js").read_text(encoding="utf-8")
-    assert "applyV3Line" in bj                                 # 渲染后挂载
+    assert "applyV3Line" in bj                                 # 渲染后挂载 (typeof 守卫 no-op)
     # CSP 家规 (实锤事故: inline module 被 script-src 'self' 静默拦, 页面卡加载中):
     # /web/v3/ 全部页面零内联 script/style, 逻辑与样式一律外置
     for pg in Path("web/v3").glob("*.html"):

@@ -244,6 +244,7 @@ def v3_shots_get(book_id: str, ep: int):
                                    "line_count", "est_s", "world", "metaphor")}
             for a in (v3.get("arcs") or [])]
     # ④ 导演: 已填数据 + 景别预填 + 词表 (单一事实源 → UI 与 H3 壳同表)
+    from app.services.anim_pipeline.v3_pipeline import shots as v3_shots_mod
     from app.services.anim_pipeline.v3_pipeline.shots import suggest_size
     from app.services.anim_pipeline.v3_pipeline import direct as v3_direct
     direct = v3.get("direct") or {}
@@ -258,6 +259,9 @@ def v3_shots_get(book_id: str, ep: int):
             "issues": v3.get("shot_issues") or {},
             "direct_issues": v3.get("direct_issues") or {},
             "warnings": v3.get("shot_warnings") or [],
+            "slot_overs": [{"sid": s.get("sid"), "est_s": s.get("est_s")}
+                           for s in shots
+                           if float(s.get("est_s") or 0) > v3_shots_mod.SLOT_MAX_S],
             "gates": v3_pipeline.gates_view(doc), "ready": bool(shots)}
 
 
@@ -424,13 +428,65 @@ def v3_shots_fix(book_id: str, ep: int):
         f2, m2 = strip_quoted_labels(shots, cur_issues)   # 引号标签/申报注释就地删
         fixed += [x for x in f2 if x not in fixed]
         manual += m2
-        issues = text_layer_issues(shots)
+        issues = text_layer_issues(shots, book_title=book_title)  # 1109 令53: 圣经名入判定
         v3["shot_issues"] = issues
         v3.setdefault("gates", {})["shots"] = not has_blocking_issues(issues)
         from app.services.anim_pipeline import shots as shots_mod
         shots_mod.save(doc)
     return {"fixed": len(fixed), "fixed_sids": fixed, "manual": manual,
             "issues": issues, "gate": not has_blocking_issues(issues)}
+
+
+class FixTextBody(BaseModel):
+    sids: list[str] = []
+
+
+@router.post("/ep/{book_id}/{ep}/shots/fix_text")
+def v3_shots_fix_text(book_id: str, ep: int, body: FixTextBody):
+    """一键修 (1109 用户令: 质检问题必须给解法): LLM 按问题清单定点重写画面句.
+
+    空镜搁笔/人物残留/载体/终态词/运镜词/引号/长度 — 保场景保构图最小改动,
+    仍带问题的镜带反馈补投一次。放行冻结 (已进 ④ 英化) 后禁改。
+    """
+    from app.services.anim_pipeline.v3_pipeline.shots import fix_shot_text
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    with anim_service.ep_guard(book_id, ep):
+        doc = _load_v3_doc(book_title, ep)
+        if (doc.get("v3") or {}).get("frozen_at"):
+            raise HTTPException(status_code=409, detail="已放行冻结 — 改稿先重跑 ③")
+        r = fix_shot_text(doc, body.sids, book_title=book_title)
+        from app.services.anim_pipeline import shots as shots_mod
+        shots_mod.save(doc)
+    return r
+
+
+class SplitSlotBody(BaseModel):
+    sid: str = ""
+
+
+@router.post("/ep/{book_id}/{ep}/shots/split_slot")
+def v3_shots_split_slot(book_id: str, ep: int, body: SplitSlotBody):
+    """超限槽一键拆行 (1109 用户令): 槽长>15s → 祸源口播行按标点对半拆 →
+    重装包 (未受影响镜原句保留) → 新槽画面句 LLM 补 → 下游作废清戳。"""
+    from app.services.anim_pipeline.v3_pipeline.shots import split_slot_line
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    with anim_service.ep_guard(book_id, ep):
+        doc = _load_v3_doc(book_title, ep)
+        try:
+            r = split_slot_line(doc, body.sid, book_title=book_title)
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc))
+        from app.services.anim_pipeline import shots as shots_mod
+        shots_mod.save(doc)
+    return r
 
 
 class DirectSaveBody(BaseModel):
@@ -1004,7 +1060,7 @@ def v3_shots_save(book_id: str, ep: int, body: ShotSaveBody):
                            for c in body.cards]
         from app.services.anim_pipeline.v3_pipeline.shots import has_blocking_issues
         from app.services.anim_pipeline.v3_pipeline.shots import text_layer_issues
-        issues = text_layer_issues(list(cur.values()))
+        issues = text_layer_issues(list(cur.values()), book_title=book_title)  # 1109 令53
         v3["shot_issues"] = issues
         v3.setdefault("gates", {})["shots"] = not has_blocking_issues(issues)
         from app.services.anim_pipeline import shots as shots_mod

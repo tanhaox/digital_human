@@ -27,7 +27,7 @@ const TYPE_ZH = { narr: '叙事弧', quote: '书证镜', persona: '人设镜',
   hook: '钩子', cta: '行动召', brand: '品牌' };
 const STYLE_ZH = { list: '清单卡', quote: '金句卡', event: '事件字', img: '配图', title: '标题卡' };
 
-let SHOTS = [], CARDS = [], ARCS = [], ISSUES = {}, WARNINGS = [], FROZEN = false;
+let SHOTS = [], CARDS = [], ARCS = [], ISSUES = {}, WARNINGS = [], SLOT_OVERS = [], FROZEN = false;
 let dirty = new Set(), GATE_OPEN = false;
 
 /* ── 数据 ─────────────────────────────────────────────── */
@@ -37,7 +37,7 @@ async function refresh() {
     (await fetch(`${BASE}/state`)).json(),
   ]);
   SHOTS = d.shots || []; CARDS = d.cards || []; ARCS = d.arcs || [];
-  ISSUES = d.issues || {}; WARNINGS = d.warnings || [];
+  ISSUES = d.issues || {}; WARNINGS = d.warnings || []; SLOT_OVERS = d.slot_overs || [];
   $('sub').textContent = `${st.book_title} · 第${st.ep}集`;
   renderHeader(); renderRail(st, d.gates); renderAxis();
   if (st.running_job) runner.attach(st.running_job);   // 刷新重挂
@@ -221,7 +221,7 @@ function shotBlock(s) {
       ${srcBadge}
       ${iss.length ? `<span class="qcdot" title="${esc(iss.join(' | '))}"></span>` : ''}
       <span class="flex1"></span>
-      <button class="iconbtn" data-act="reroll" data-sid="${esc(s.sid)}" title="重写这一镜的画面句">↻ 重写</button>
+      <button class="iconbtn" data-act="reroll" data-sid="${esc(s.sid)}" title="按质检问题 LLM 定点重写 (保场景保构图, 最小改动)">↻ 重写</button>
     </div>
     <div class="kf" contenteditable="true" spellcheck="false" data-sid="${esc(s.sid)}"
          data-k="keyframe_zh">${esc(s.keyframe_zh || '')}</div>
@@ -243,7 +243,8 @@ function renderSide() {
     for (const t of shotIssues(s.sid)) {
       items.push(`<div class="qitem" data-jump="${esc(s.sid)}">
         <span class="sj">${esc(s.sid)}</span>
-        <span class="txt">${esc(shortIssue(t)).slice(0, 120)}</span></div>`);
+        <span class="txt">${esc(shortIssue(t)).slice(0, 120)}</span>
+        <button class="iconbtn" data-fix="${esc(s.sid)}" title="LLM 按质检问题定点重写此镜 (保场景保构图, 最小改动)">🔧</button></div>`);
     }
   }
   $('qcount').textContent = items.length;
@@ -253,6 +254,10 @@ function renderSide() {
   $('qlist').querySelectorAll('[data-jump]').forEach(el => {
     el.onclick = () => jumpTo(el.dataset.jump);
   });
+  // 1109 用户令: 问题必须给解法 — 逐项 🔧 定点修
+  $('qlist').querySelectorAll('[data-fix]').forEach(b => {
+    b.onclick = () => fixText([b.dataset.fix], b);
+  });
 
   const arc = arcIssues();
   $('acount').textContent = arc.length;
@@ -260,9 +265,52 @@ function renderSide() {
     ? arc.map(x => `<div class="aitem">${esc(x)}</div>`).join('')
     : '<div class="qempty">✓ 无</div>';
 
-  $('warncard').innerHTML = WARNINGS.length
-    ? WARNINGS.map(w => `<div class="hint">💡 ${esc(w)}</div>`).join('') : '';
-  $('warncard').hidden = !WARNINGS.length;
+  // 槽长超限 = 可执行解法 (拆行), 不与普通提醒混排
+  const plain = WARNINGS.filter(w => !String(w).includes('超 H3'));
+  $('warncard').innerHTML =
+    plain.map(w => `<div class="hint">💡 ${esc(w)}</div>`).join('')
+    + SLOT_OVERS.map(o => `<div class="hint">💡 ${esc(o.sid)} 槽长 ${(o.est_s || 0).toFixed(1)}s 超 H3 15s 上限
+      <button class="btn-fix" data-split="${esc(o.sid)}" title="祸源口播行按标点对半拆 → 重装包 (未受影响镜原句保留) → 新槽画面句 LLM 补">⚡ 一键拆行</button></div>`).join('');
+  $('warncard').hidden = !plain.length && !SLOT_OVERS.length;
+  $('warncard').querySelectorAll('[data-split]').forEach(b => {
+    b.onclick = () => splitSlot(b.dataset.split, b);
+  });
+}
+
+/* 1109 用户令: 一键修 — LLM 按质检问题定点重写 (最小改动) */
+async function fixText(sids, btn) {
+  if (!sids.length) return;
+  const old = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
+  try {
+    const r = await (await fetch(`${BASE}/shots/fix_text`, { method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sids }) })).json();
+    if (r.detail) { toast('失败: ' + r.detail); return; }
+    const nFix = (r.fixed || []).length, nBad = Object.keys(r.unfixed || {}).length;
+    toast(nFix ? `✓ 已修 ${nFix} 镜` + (nBad ? ` · ${nBad} 镜仍有残留 (再点一轮或手改)` : '')
+               : 'LLM 未产出 — 手改画面句');
+    await refresh();
+  } catch (e) { toast('修复失败: ' + e.message); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = old; } }
+}
+
+/* 1109 用户令: 超限槽一键拆行 (结构重排, 未放行前安全) */
+async function splitSlot(sid, btn) {
+  if (!confirm(`⚡ 拆行 ${sid}：祸源口播行按标点对半拆成两行 → 槽位重排
+(未受影响的镜画面句原样保留, 拆出的新槽由 LLM 补画面句)。
+若已进 ④, 导演参数/英化将作废重跑。确认？`)) return;
+  const old = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ 拆行中…';
+  try {
+    const r = await (await fetch(`${BASE}/shots/split_slot`, { method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sid }) })).json();
+    if (r.detail) { toast('失败: ' + r.detail); return; }
+    toast(`✓ L${r.split.line} 已拆两行 → ${r.shots} 镜重排, 新槽补句 ${r.filled} 镜`);
+    await refresh();
+  } catch (e) { toast('拆行失败: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = old; }
 }
 
 function renderGate(open, ready) {
@@ -276,6 +324,7 @@ function renderGate(open, ready) {
     ? '<div class="gt gold-t">◉ 分镜已放行</div><div class="note">可进 ④ 导演 (景别/运镜/光影)</div>'
     : `<div class="gt">🔒 分镜闸未开</div><div class="note">${ready ? `镜级 ${nIss} 项待清` : '尚未切镜'}</div>`
       + (hasFixable ? '<div class="fixrow"><button class="btn-fix" id="btn-autofix" title="载体补「空白XX」+ 删引号标签/申报注释 (v3 画面里不许有字); 判不了的返回手改">🔧 一键合规</button></div>' : '')
+      + (nIss ? '<div class="fixrow"><button class="btn-fix" id="btn-fixtext" title="带质检问题的镜 (搁笔/人物残留/终态词/运镜词/长度…) 由 LLM 定点重写 — 保场景保构图, 最小改动">🔧 一键修全部</button></div>' : '')
       + (!CARDS.length ? '<div class="fixrow"><button class="btn-fix" id="btn-autocards" title="把①分诊给出的金句/清单/配图/书证/事件建议一次建成卡">＋ 一键建卡</button></div>' : '');
   const ac = document.getElementById('btn-autocards');
   if (ac) ac.onclick = async () => {
@@ -292,6 +341,9 @@ function renderGate(open, ready) {
     await refresh();
     if (r.manual.length) toast('需手改: ' + r.manual[0]);
   };
+  const ft = document.getElementById('btn-fixtext');
+  if (ft) ft.onclick = () => fixText(
+    SHOTS.filter(s => shotIssues(s.sid).length).map(s => s.sid), ft);
   const nx = $('btn-next');
   nx.disabled = !open;
   nx.title = open ? '进入 ④ 导演 (景别/运镜/光影)' : (ready ? '先处置镜级问题' : '先跑分镜');
@@ -339,7 +391,8 @@ $('blocks').addEventListener('click', async ev => {
     return;
   }
   if (b.dataset.act === 'reroll') {
-    toast('单镜重写：直接改画面句，或「重跑分镜」由 LLM 重出全片 (零 GPU)');
+    // 1109 用户令: 重写真化 — 按质检问题 LLM 定点重写 (无问题也走通用重写)
+    await fixText([b.dataset.sid], b);
   }
 });
 
