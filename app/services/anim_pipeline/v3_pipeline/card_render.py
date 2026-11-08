@@ -52,8 +52,9 @@ def _break_lines(text: str, max_chars: int) -> list[str]:
 
 
 def build_card_html(kind: str, title: str, lines: list[str], *,
-                    size: str = "wide", brand: str = "老谭读书 ｜ 商业认知系列") -> str:
-    """纯函数: 内容类型 + 文字 → 完整 HTML 字符串。"""
+                    size: str = "wide", brand: str = "") -> str:
+    """纯函数: 内容类型 + 文字 → 完整 HTML 字符串。
+    1108 用户令: 白底 70% 半透明 (纯透明叠视频脏) / 去品牌条 / 去边框 / 字加大美化。"""
     W, H = SIZES.get(size, SIZES["wide"])
     e = _html.escape
     pad_x, pad_y = (int(W * 0.08), int(H * 0.10))
@@ -107,16 +108,12 @@ def build_card_html(kind: str, title: str, lines: list[str], *,
 * {{ margin:0; padding:0; box-sizing:border-box; }}
 html,body {{ width:{W}px; height:{H}px; }}
 body {{
-  background:transparent;   /* 1108 用户令: 卡图透明底 (叠视频) */
+  background:rgba(255,255,255,0.70);   /* 1108 用户令: 白底 70% 半透明 */
   color:{_C['title']};
   font-family:"Noto Serif SC","Source Han Serif SC","Microsoft YaHei",serif;
   display:flex; flex-direction:column; justify-content:center;
   padding:{pad_y}px {pad_x}px {int(H * 0.16)}px; text-align:{align};
 }}
-.frame {{ position:absolute; inset:26px; border:3px double {_C['gold']};
-          border-radius:14px; pointer-events:none; }}
-.frame2 {{ position:absolute; inset:40px; border:1px solid {_C['gold_thin']};
-           border-radius:10px; pointer-events:none; }}
 .ttl {{ font-weight:800; color:{_C['sub']}; letter-spacing:2px; margin-bottom:34px; }}
 .lst {{ list-style:none; display:flex; flex-direction:column; gap:18px; }}
 .content {{ width:100%; max-width:{int(W * 0.88)}px; margin:0 auto; }}
@@ -130,13 +127,8 @@ body {{
 .lst .tx {{ flex:1; }}
 .big {{ font-weight:800; line-height:1.28; letter-spacing:3px; }}
 .big.solo {{ letter-spacing:8px; }}
-.brand {{ position:absolute; left:0; right:0; bottom:44px; text-align:center;
-          font-size:28px; color:{_C['brand_fg']}; letter-spacing:3px;
-          font-family:"Microsoft YaHei",sans-serif; }}
 </style></head><body>
-<div class="frame"></div><div class="frame2"></div>
 {body}
-<div class="brand">{e(brand)}</div>
 </body></html>"""
 
 
@@ -192,37 +184,38 @@ def build_diagram_html(root: dict, *, size: str = "wide", orient: str = "LR",
         return out
 
     root = _leafless(root)
+    # 1108 用户令二轮: 白底70%/字加大美化/去边框去品牌/切割修复
+    # (实锤: c04 "过程与产出"过字被切 / c07 "客户反应判定" 客字被圆点+左边距吃掉)
+    # 切割修复: 节点圆点全去 (symbolSize 0, 防压字头) + label distance 加宽
+    # + 边距 left 6/right 12 (叶文字右侧留足)
     opt = {
-        "backgroundColor": "transparent",   # 1108 用户令: 透明底
+        "backgroundColor": "rgba(255,255,255,0)",   # 白底由 body 承载 (半透明)
         "animation": False,
         "series": [{
             "type": "tree", "orient": orient, "roam": False,
             "data": [root],
-            # 1108 用户令 (可读性): 字加大/线弱化 — 11 项脑图实锤 "大面积线条, 文字极小"
-            "label": {"fontSize": 34, "color": _C["title"],
-                      "fontFamily": "Microsoft YaHei"},
-            "leaves": {"label": {"fontSize": 30, "color": "#5a4632"}, "symbolSize": 0},
-            "lineStyle": {"color": "#C4AB88", "width": 1.6},
+            "label": {"fontSize": 48, "color": _C["title"],
+                      "fontFamily": "Microsoft YaHei", "fontWeight": "bold",
+                      "distance": 14, "position": "right",
+                      "verticalAlign": "middle"},
+            "leaves": {"label": {"fontSize": 44, "color": "#4a3a28",
+                                 "fontWeight": "bold", "distance": 14},
+                       "symbolSize": 0},
+            "lineStyle": {"color": "#C4AB88", "width": 1.8},
             "itemStyle": {"color": _C["sub"], "borderColor": _C["gold"]},
-            "symbolSize": 7, "initialTreeDepth": -1,
-            "left": "4%", "right": "8%", "top": "8%", "bottom": "8%",
+            "symbolSize": 0, "initialTreeDepth": -1,
+            "left": "4%", "right": "26%", "top": "5%", "bottom": "5%",
         }],
     }
     e = _html.escape
     return f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
 * {{ margin:0; padding:0; box-sizing:border-box; }}
-html,body {{ width:{W}px; height:{H}px; background:transparent; }}
-body {{ position:relative; }}
+html {{ width:{W}px; height:{H}px; background:transparent; }}
+body {{ width:{W}px; height:{H}px; background:rgba(255,255,255,0.70); position:relative; }}
 #c {{ width:{W}px; height:{H}px; position:relative; z-index:1; }}
-.frame {{ position:absolute; inset:20px; border:3px double {_C['gold']}; border-radius:14px;
-          z-index:3; pointer-events:none; }}
-.brand {{ position:absolute; left:0; right:0; bottom:34px; text-align:center;
-          font-size:24px; color:{_C['brand_fg']}; letter-spacing:3px;
-          font-family:"Microsoft YaHei",sans-serif; }}
 </style></head><body>
-<div class="frame"></div><div id="c"></div>
-<div class="brand">{e(brand)}</div>
+<div id="c"></div>
 <script>window.__opt = {json.dumps(opt, ensure_ascii=False)};</script>
 </body></html>"""
 
