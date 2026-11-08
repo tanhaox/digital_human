@@ -915,11 +915,12 @@ def test_muted_slot_selfheal():
         "lines": [{"no": 1, "text": "第一句。"}, {"no": 2, "text": "第二句。"}],
         "shots": [{"sid": "s1", "line_refs": [1]}, {"sid": "s2", "line_refs": [2]}]}}
     # s1 的块在, s2 的块被屏 → 只有 s2 标
-    out, _drift = sync_muted_slots(doc, [{"text": "第一句。"}])
+    out, _drift, _un = sync_muted_slots(doc, [{"text": "第一句。"}])
+    assert _un is False
     assert out == {"s1": False, "s2": True}
     assert doc["v3"]["shots"][1]["audio_muted"] is True
     # 恢复 (块回来) → 自动清标
-    out2, _ = sync_muted_slots(doc, [{"text": "第一句。"}, {"text": "第二句。"}])
+    out2, _, _ = sync_muted_slots(doc, [{"text": "第一句。"}, {"text": "第二句。"}])
     assert out2 == {"s1": False, "s2": False}
     assert not doc["v3"]["shots"][1].get("audio_muted")
 
@@ -933,12 +934,39 @@ def test_drift_edited_vs_muted_distinction():
                   {"no": 2, "text": "被删掉的句。"}],
         "shots": [{"sid": "s1", "line_refs": [1]}, {"sid": "s2", "line_refs": [2]}]}}
     # s1 被改字 (对个号→对齐一下), s2 的块被屏
-    muted, drifted = sync_muted_slots(doc, [
+    muted, drifted, _un = sync_muted_slots(doc, [
         {"text": "先对齐一下：你上回项目加需求，是你没写清楚"}])
+    assert _un is False
     assert drifted == {"s1": True, "s2": False}       # 改字 → drifted
     assert muted == {"s1": False, "s2": True}         # 真没块 → muted
     assert doc["v3"]["lines"][0]["text"] == "先对齐一下：你上回项目加需求，是你没写清楚"  # 第五处同步: 整行=块行
     assert not doc["v3"]["shots"][0].get("audio_muted")  # 改字槽不跳工位
+
+
+def test_legacy_package_never_mutes_slots():
+    """1108 ep6 实锤: 旧语义切块包 (块起于槽中) 曾被误标 20/40 槽「屏弃」并落盘 —
+    孤儿块判据: 有块首行连模糊 (≥0.55) 都锚不到任何槽首 = 包未按槽切 → 三不写;
+    按槽重生成 (一槽一块) 后真屏弃判定恢复。"""
+    from app.services.anim_pipeline.v3_pipeline.tts_slot import sync_muted_slots
+    doc = {"v3": {
+        "lines": [{"no": 1, "text": "第一句。"}, {"no": 2, "text": "第二句。"},
+                  {"no": 3, "text": "第三句。"}],
+        "shots": [{"sid": "s1", "line_refs": [1]}, {"sid": "s2", "line_refs": [2]},
+                  {"sid": "s3", "line_refs": [3]}]}}
+    # 旧语义包: 块A 起于 s1 槽首, 块B 起于 s2 句中 (拼了 s2 后半 + s3) → 孤儿块
+    muted, drifted, unaligned = sync_muted_slots(doc, [
+        {"text": "第一句。"},
+        {"text": "态度直接冷下来不是方案错了，第三句的内容"}])
+    assert unaligned is True
+    assert muted == {} and drifted == {}
+    assert all("audio_muted" not in s for s in doc["v3"]["shots"])   # 不落毒标
+    assert doc["v3"]["lines"][1]["text"] == "第二句。"               # 不回填
+    # 按槽重生成后: 锚全对上 → 对齐; s3 块缺席 = 真屏弃
+    muted2, _, un2 = sync_muted_slots(doc, [
+        {"text": "第一句。"}, {"text": "第二句。"}])
+    assert un2 is False
+    assert muted2 == {"s1": False, "s2": False, "s3": True}
+    assert doc["v3"]["shots"][2]["audio_muted"] is True
 
 
 def test_manifest_line_to_segment_mapping():

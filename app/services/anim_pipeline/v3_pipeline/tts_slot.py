@@ -70,13 +70,17 @@ def _anchor(text: str) -> str:
 
 
 def sync_muted_slots(doc: dict[str, Any], blocks: list[dict[str, Any]]
-                    ) -> tuple[dict[str, bool], dict[str, bool]]:
-    """锚匹配块↔槽, 区分两种失配 (1106 用户问: 是修改了还是摒弃了?):
+                    ) -> tuple[dict[str, bool], dict[str, bool], bool]:
+    """锚匹配块↔槽, 区分三种失配 (1106 用户问: 是修改了还是摒弃了?):
 
+    - unaligned = 包不是按槽切的 (1108 ep6 实锤: 旧语义切块包曾把 20/40 槽
+      误标「屏弃」并落盘毒标) → 三不写: 不标屏弃/不回填/不落盘;
+      正道 = 🔁 按槽重生成。判据 = 孤儿块: 有块首行连模糊 (≥0.55) 都锚不到
+      任何槽首 — 真按槽切的包每块必起于槽首 (用户屏弃 = 块缺席, 不产孤儿)。
     - muted  = 块真没了 (用户 🔇屏蔽) → 槽标 audio_muted, K2/盖章/H3 跳过
     - drifted = 块在但首行被 ✎编辑改了 → **第五处同步**: 槽口播行回填音频文本
       (音频侧微调字是 ⑤ 的正常精修, v3.lines 就是念出来的稿; 回填后锚自然对齐,
-      下次读取不再失配)。返回 ({sid: muted}, {sid: drifted})。
+      下次读取不再失配)。返回 ({sid: muted}, {sid: drifted}, unaligned)。
     """
     import difflib
     import re as _re2
@@ -88,6 +92,19 @@ def sync_muted_slots(doc: dict[str, Any], blocks: list[dict[str, Any]]
                   for b in blocks]
     muted_out: dict[str, bool] = {}
     drift_out: dict[str, bool] = {}
+    _slot_keys = []
+    for s in (v3.get("shots") or []):
+        _r0 = (s.get("line_refs") or [None])[0]
+        _ft = lines.get(_r0, {}).get("text") if _r0 is not None else None
+        _k = _anchor(_ft) if str(_ft or "").strip() else ""
+        if _k:
+            _slot_keys.append(_k)
+    if not blocks or any(
+            not t or not any(
+                difflib.SequenceMatcher(None, k, t[:len(k) + 4]).ratio() >= 0.55
+                for k in _slot_keys)
+            for t in blk_firsts):
+        return {}, {}, True                      # 未对齐: 三不写
     for s in (v3.get("shots") or []):
         refs = s.get("line_refs") or []
         first = lines.get(refs[0], {}) if refs else {}
@@ -124,5 +141,5 @@ def sync_muted_slots(doc: dict[str, Any], blocks: list[dict[str, Any]]
         else:
             muted_out[sid] = True; drift_out[sid] = False
             s["audio_muted"] = True
-    return muted_out, drift_out
+    return muted_out, drift_out, False
 

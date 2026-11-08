@@ -96,14 +96,13 @@ async function boot() {
   };
   const muted = Object.entries(d.muted_slots || {}).filter(([, v]) => v).map(([k]) => k);
   const drifted = Object.entries(d.drifted_slots || {}).filter(([, v]) => v).map(([k]) => k);
-  if (muted.length || drifted.length) {
-    const parts = [];
-    if (muted.length) parts.push(`🔇 已屏弃 <b>${muted.length}</b> 槽 (${muted.join('/')}) — K2/盖章/H3 跳过; 恢复=音频工坊重新勾选`);
-    if (drifted.length) parts.push(`✎ 已改字 <b>${drifted.length}</b> 槽 (${drifted.join('/')}) — 口播行已随音频回填 (音频在, 不跳过任何工位)`);
-    $('body').insertAdjacentHTML('afterbegin',
+  const parts = [];
+  if (d.unaligned) parts.push(`⚠ 音频包与当前槽位<b>未对齐</b> (${d.blocks.length} 块 vs ${d.n_slots} 槽) — 这是旧语义切块包, 不是「屏弃」; 点「🔁 按槽重生成」一槽一块重合成后自动消除`);
+  if (muted.length) parts.push(`🔇 已屏弃 <b>${muted.length}</b> 槽 (${muted.join('/')}) — K2/盖章/H3 跳过; 恢复=音频工坊重新勾选`);
+  if (drifted.length) parts.push(`✎ 已改字 <b>${drifted.length}</b> 槽 (${drifted.join('/')}) — 口播行已随音频回填 (音频在, 不跳过任何工位)`);
+  if (parts.length) $('body').insertAdjacentHTML('afterbegin',
       `<div class="blk blk-mutedsum">${parts.join('<br>')}</div>`);
-  }
-  $('stat').textContent = `${d.blocks.length} 块 · ~${d.total_s}s — ${d.pinned ? '钉选版' : '最新验收版'}${muted.length ? ` · 🔇${muted.length}` : ''}${drifted.length ? ` · ✎${drifted.length}` : ''}`;
+  $('stat').textContent = `${d.blocks.length} 块 · ~${d.total_s}s — ${d.pinned ? '钉选版' : '最新验收版'}${d.unaligned ? ' · ⚠未对齐' : ''}${muted.length ? ` · 🔇${muted.length}` : ''}${drifted.length ? ` · ✎${drifted.length}` : ''}`;
 }
 
 function bindOps(blocks) {
