@@ -119,6 +119,15 @@ def _person_in(scene: str, book_title: str = "") -> bool:
 import re as _re
 
 
+# 1108 批A-3: 手部镜判据 — 画面句只写「一只手/男性的手」≠人物在场 (s51/s52/s54/s55
+# 手部镜升格整人实锤)。剥手部短语后再判; 背影/身影人物 (s53) 不受剥词影响照常在场。
+_HAND_PAT = _re.compile(r"(?:男|女)性的?手|(?:他|她)的手|[一这那]只手|手部特写")
+
+
+def _scene_has_person(scene: str, book_title: str = "") -> bool:
+    return _person_in(_HAND_PAT.sub("", scene or ""), book_title)
+
+
 def _clean_scene(scene: str) -> str:
     """K2 提示词清洁工 (0923 用户实锤: 产线图与选型板完全不一致):
 
@@ -187,7 +196,8 @@ def strip_negative(scene: str, negatives: list[str],
 
 
 def build_prompt(scene_zh: str, book_title: str = "", style: dict | None = None,
-                 page: str = "", thesis: str = "", lang: str = "zh") -> str:
+                 page: str = "", thesis: str = "", lang: str = "zh",
+                 zh_scene: str = "") -> str:
     """K2 提示词 — Krea2 官方指南范式 (0914 全网学习定稿):
 
     [风格定调句(仅头一次)] + [画面自然语言长句] + [构图升级] + [防字句] + [轻量收尾锚]
@@ -205,16 +215,27 @@ def build_prompt(scene_zh: str, book_title: str = "", style: dict | None = None,
         for k, v in ov.items():
             if v is not None:
                 st[k] = v
+    # 1108 批A-3: 空镜换头判据 — 风格头正向召唤 chibi 人物实锤 (空镜画面句零人物词,
+    # 模型按头补人)。zh_scene 优先 (中文人物词+手部剥词, 与 cast 负词同源同由);
+    # 字段缺=回退全头, 他书/手部镜外字节零扰动。
+    _src = str(zh_scene or scene_zh or "")
+    _empty_head = bool(
+        page == "k2" and _src.strip() and st.get("style_prompt_head_empty")
+        and not _scene_has_person(_src, book_title)
+        and not _MULTI_PERSON_RE.search(_src))
     # 1017 W7 语言架构 (用户令): K2 产线纯英 — lang='en' 时军规/头尾全走 EN 投影
     # (k2_lang: 翻译层+镜级缓存; 中文单一源字段不动, EN 是渲染投影)
     if lang == "en":
         from . import k2_lang as _kl
         _head = _kl.style_head_en(book_title) or st["style_prompt_head"]
+        if _empty_head:
+            _head = (_kl.style_head_empty_en(book_title)
+                     or str(st["style_prompt_head_empty"]))
         _scene = _clean_scene((scene_zh or "").strip().rstrip("。"))
         if thesis:
             _scene = _scene + f". Theme anchor: {_kl.thesis_en(book_title, thesis)}"
         _law = _kl.SKIN_HAIR_LAW_EN if page == "k2" else ""
-        if page == "k2" and _person_in(_scene, book_title):
+        if page == "k2" and _scene_has_person(_src, book_title):
             _law += _kl.FACE_LAW_EN
             _cp = _kl.character_policy_en(book_title)
             if _cp:
@@ -231,18 +252,27 @@ def build_prompt(scene_zh: str, book_title: str = "", style: dict | None = None,
     # 头发反向锚"分组雕塑感"治塑料感 (1006 皮肤药无差别罩住头发 = 光滑壳实锤)。
     law = SKIN_HAIR_LAW() if page == "k2" else ""
     # 1014 五官军规: 人物在场才锚 (纯物件镜锚五官会诱导模型幻觉出人脸)
-    if page == "k2" and _person_in(scene, book_title):
+    # 1108 批A-3: _person_in → _scene_has_person (手部镜剥词, 同 EN 路)
+    if page == "k2" and _scene_has_person(_src, book_title):
         law += FACE_LAW
     # 1013 双人根治: character 页不吃产线景深配方 — "完整的环境空间/背景延伸至
     # 远方/三层纵深感"与定妆照纯白立绘背景对冲, 且给画面塞人塞物的空间理由
     boost = "" if page == "character" else COMPOSITION_BOOST
-    return (st["style_prompt_head"] + scene + boost
+    _head = st["style_prompt_head"]
+    if _empty_head:  # 1108 批A-3: 空镜换头 (zh 路)
+        _head = str(st["style_prompt_head_empty"])
+    return (_head + scene + boost
             + PROTECT_TAIL + law + st["style_prompt_tail"])
 
 
 # 基础负面词 (1006 蓝皮肤/黑虚空配方, 定稿勿动)
 _BASE_NEGATIVE = ("blue skin, glowing skin, transparent skin, black background, "
                   "empty background, flat 2D, blurry, low quality, text, watermark, deformed")
+
+# 1108 批A-3: 空镜防人负词 — 书级风格带 style_prompt_head_empty (空镜变体头) 且镜内
+# 零人物时追加 (9/9 空镜冒人实锤)。不含 character/hand — 防与风格头用语/手部镜打架。
+_EMPTY_NEG = ("person, people, man, woman, boy, girl, human figure, "
+              "human silhouette, visible face")
 
 # 1015 多人治理条件化 (ep4 无脸战役定罪): 1006 多人禁令否定词会"渗"进注意力最重的
 # 脸部区 (社区已知: genur/dskjal 案例; 本地实验矩阵: LoRA=0+摘禁令=出脸唯一组合) —
@@ -371,6 +401,12 @@ def _negative_prompt(book_title: str = "", page: str = "", scene: str = "",
         cast_neg = _cast_negative(zh_scene, book_title)
         if cast_neg:
             out += ", " + cast_neg
+        # 1108 批A-3: 空镜防人 — 书级风格带空镜变体头才执法 (数据闸: 他书/旧风格
+        # 字节零扰动); 手部镜剥词后判, 人群镜豁免 (CROWD_NEG 已在)。
+        if (zh_scene and not _scene_has_person(zh_scene, book_title)
+                and not _MULTI_PERSON_RE.search(zh_scene)
+                and resolve_style(book_title).get("style_prompt_head_empty")):
+            out += ", " + _EMPTY_NEG
     return out
 
 
@@ -412,7 +448,7 @@ def build_workflow(scene_zh: str, seed: int, prefix: str, extra_loras: list[dict
         "261": {"class_type": "EmptyLatentImage", "inputs": {
             "width": 720 if portrait else 1280, "height": 1280 if portrait else 720,
             "batch_size": 1}},
-        "264": {"class_type": "CLIPTextEncode", "inputs": {"text": build_prompt(scene_zh, book_title, style=st, page=page, thesis=thesis, lang=lang), "clip": ["258", 0]}},
+        "264": {"class_type": "CLIPTextEncode", "inputs": {"text": build_prompt(scene_zh, book_title, style=st, page=page, thesis=thesis, lang=lang, zh_scene=zh_scene), "clip": ["258", 0]}},
         # 1006 用户令(蓝色皮肤根治): cfg 1.0→2.0 + 真负面提示词替代 ConditioningZeroOut
         # (cfg=1.0 数学上负面通道=零影响力; 2.0 实证蓝→白且伪影少于2.5)
         # 1008 规层 R6: 拼接 platform_bans_negative (compliance_visual.json 单一事实源,
@@ -519,7 +555,7 @@ def _inject_char_looks(scene: str, book_title: str, shot: dict | None = None) ->
     # 1026 兜底 (s10 实锤: '职场人物(时代锚服装列表)'型镜句 — 无卡名无身份 →
     # 模型自由造人, 一帧绿发黑发各色领带随机人群): 有人物但零身份信号 →
     # 前置观众替身 look。有 皮肤/发型/发色 词(=writer 已自带造型括注)不扰。
-    if scene and _person_in(scene, book_title) and not any(
+    if scene and _scene_has_person(scene, book_title) and not any(
             w in scene for w in ("皮肤", "发型", "发色", "短发", "长发", "卷发")):
         try:
             from .assembler import _standin
@@ -605,7 +641,7 @@ def _scene_eff(shot: dict[str, Any], book_title: str) -> str:
         # 1026 兜底: fallback 模板 EN 零身份 (随机人群实锤) — zh 侧判零身份
         # (无卡名+无皮肤/发型词) → 替身 look 英译前置
         _named = any((c[0] or "") in _zh for c in _cards)
-        if (not _named and _person_in(_zh or en, book_title)
+        if (not _named and _scene_has_person(_zh or en, book_title)
                 and not any(w in _zh for w in ("皮肤", "发型", "发色", "短发", "长发", "卷发"))):
             try:
                 from .assembler import _standin
@@ -622,7 +658,7 @@ def _scene_eff(shot: dict[str, Any], book_title: str) -> str:
     scene = _inject_char_looks(str(shot.get("image_prompt_zh") or ""), book_title)
     scene += main_color_tint(_bible_hue(book_title))  # 1016 W1: 主色尾单源
     # 1017 无脸根治: 圣经角色纪律进 K2 (逐字取书; 人物镜才挂)
-    if _person_in(scene, book_title):
+    if _scene_has_person(scene, book_title):
         from .h3 import character_policy  # 惰性: h3 顶部引 brand, 避免环
         _cp = character_policy(book_title)
         if _cp:
@@ -743,7 +779,7 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
                                   page="k2", thesis=_thesis, lang="en",
                                   zh_scene=_zh_src),
         dest, int(shot.get("seed") or 0), f"k2 {shot['shot_id']}", shot=shot,
-        face_check=_person_in(scene_eff, doc["book_title"]),
+        face_check=_scene_has_person(scene_eff, doc["book_title"]),
         book_title=str(doc.get("book_title") or ""))
     if dirty:
         shot["text_suspect"] = True

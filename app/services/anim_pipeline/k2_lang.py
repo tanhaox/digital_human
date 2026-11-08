@@ -26,6 +26,7 @@ the Chinese scene description into ONE fluent English prompt segment. Rules:
    no quotes inside, no explanation. (json key fixed as "en")"""
 
 _BOOK_HEAD: dict[str, tuple[str, str]] = {}   # book → (style_head_sha, en)
+_BOOK_HEAD_EMPTY: dict[str, tuple[str, str]] = {}  # book → (empty_head_sha, en) 1108 批A-3
 _BOOK_TAIL: dict[str, tuple[str, str]] = {}   # book → (style_tail_sha, en)
 _ARC_THESIS: dict[tuple[str, str], str] = {}  # (book, thesis_sha) → en
 _BOOK_POLICY: dict[str, tuple[float, str]] = {}  # book → (bible_mtime, policy_en)
@@ -198,6 +199,26 @@ def style_head_en(book_title: str) -> str:
     except Exception:  # noqa: BLE001
         return head
     _BOOK_HEAD[book_title] = (sha, en)
+    return en
+
+
+def style_head_empty_en(book_title: str) -> str:
+    """空镜变体风格头 EN 投影 (1108 批A-3; 镜像 style_head_en, 进程缓存+sha 失效)."""
+    from .config import resolve_style
+    head = str(resolve_style(book_title).get("style_prompt_head_empty") or "")
+    if not head:
+        return ""
+    sha = _sha(head)
+    hit = _BOOK_HEAD_EMPTY.get(book_title)
+    if hit and hit[0] == sha:
+        return hit[1]
+    try:
+        en = _chat(head)
+        if len(en) < 10:
+            raise ValueError("empty")
+    except Exception:  # noqa: BLE001
+        return head
+    _BOOK_HEAD_EMPTY[book_title] = (sha, en)
     return en
 
 
