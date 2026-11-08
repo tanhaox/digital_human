@@ -904,6 +904,8 @@ _FIX_SYS_ADDENDUM = """
 任务: 只消除「质检问题」列点名的毛病, **最小改动** — 场景/主体/构图/光源保持旧画面句原样
 (修复≠重做: 禁换方案、禁换场景); 重写后的整句仍须满足上方全部硬性要求 (80-200字/起点帧/
 零文字载体/空镜零人物残留零搁笔/零运镜词/零引号)。
+质检问题点名的改动优先于「保持原样」: 如「卡名入画」须添人物时, 在原场景里让该角色入画即可
+(人物一入画, 空镜禁令随之解除, 不算换方案)。
 每条只输出画面句, 严格 JSON: {"shots":[{"sid":"s1","keyframe_zh":"..."}]}"""
 
 
@@ -923,6 +925,10 @@ def fix_shot_text(doc: dict[str, Any], sids: list[str],
     arc_of = {a["arc_id"]: a for a in arcs}
     want = {str(x) for x in sids}
     iss_all = text_layer_issues(shots, book_title)
+    # 1109 补 (s13 实锤): 卡名闸同入修复宇宙 — 否则纯卡名问题的镜文字层干净,
+    # 反馈退化「画面不满意」, LLM 只能化妆式微调, 页面条目永不消失
+    for _sid, _lst in cast_gate_issues(shots, arcs).items():
+        iss_all.setdefault(_sid, []).extend(_lst)
     todo = [s for s in shots
             if str(s.get("sid")) in want and not s.get("brand_card")]
     if not todo:
@@ -975,7 +981,10 @@ def fix_shot_text(doc: dict[str, Any], sids: list[str],
 
     def _still_bad(s: dict[str, Any], zh: str) -> list[str]:
         probe = {**s, "keyframe_zh": zh}
-        return _shot_feedback(probe, text_layer_issues([probe], book_title))
+        out = _shot_feedback(probe, text_layer_issues([probe], book_title))
+        # 1109 补: 卡名闸同步进复检 — 与页面条目同宇宙, 闸过了才许报 fixed
+        out += _shot_feedback(probe, cast_gate_issues([probe], arcs))
+        return out
 
     applied: dict[str, str] = {}
     got = _ask(todo)

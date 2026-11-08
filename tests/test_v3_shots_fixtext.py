@@ -29,6 +29,68 @@ def _doc(kf: str = PEN_KF, line_text: str | None = None):
 
 # ── 一键修 ─────────────────────────────────────────────────────────
 
+def _cast_doc():
+    """弧绑 cast 而画面句零卡名 — 纯卡名闸问题镜 (s13 实锤形, 文字层干净)."""
+    doc = _doc(kf=CLEAN_KF)
+    doc["v3"]["arcs"][0]["cast"] = ["老谭"]
+    return doc
+
+
+def test_cast_gate_feedback_reaches_llm(monkeypatch):
+    """卡名闸消息必须进 LLM 反馈 (s13 实锤: 不进则退化「画面不满意」,
+    LLM 化妆式微调, 页面条目永不消失)。"""
+    from app.services import llm_service
+    doc = _cast_doc()
+    seen = {}
+
+    def fake_chat(sys_p, prompt, **kw):
+        seen["prompt"] = prompt
+        import json
+        import re
+        return json.dumps({"shots": [
+            {"sid": s, "keyframe_zh": CLEAN_KF + "老谭立于桌旁。"}
+            for s in re.findall(r"^(s\d+)", prompt, flags=re.M)]})
+    monkeypatch.setattr(llm_service.get_llm_service().__class__, "chat",
+                        staticmethod(fake_chat), raising=False)
+    v3shots.fix_shot_text(doc, ["s1"])
+    assert "未以卡名入画面句" in seen["prompt"]      # 真问题逐字上桌
+    assert "画面不满意" not in seen["prompt"]        # 不再退化兜底语
+
+
+def test_cast_gate_fixed_only_when_name_in(monkeypatch):
+    """复检同宇宙: 卡名入句才报 fixed; 名字不进句 → unfixed 带卡名消息。"""
+    from app.services import llm_service
+
+    # 修好版: 老谭入句 → fixed, unfixed 空
+    doc = _cast_doc()
+
+    def ok_chat(sys_p, prompt, **kw):
+        import json
+        import re
+        return json.dumps({"shots": [
+            {"sid": s, "keyframe_zh": CLEAN_KF + "老谭立在长桌尽头。"}
+            for s in re.findall(r"^(s\d+)", prompt, flags=re.M)]})
+    monkeypatch.setattr(llm_service.get_llm_service().__class__, "chat",
+                        staticmethod(ok_chat), raising=False)
+    r = v3shots.fix_shot_text(doc, ["s1"])
+    assert "s1" in r["fixed"] and "s1" not in r["unfixed"]
+
+    # 修不好版: 仍零卡名 → 不许报修好
+    doc2 = _cast_doc()
+
+    def bad_chat(sys_p, prompt, **kw):
+        import json
+        import re
+        return json.dumps({"shots": [
+            {"sid": s, "keyframe_zh": CLEAN_KF + " 光影更亮。" * 3}
+            for s in re.findall(r"^(s\d+)", prompt, flags=re.M)]})
+    monkeypatch.setattr(llm_service.get_llm_service().__class__, "chat",
+                        staticmethod(bad_chat), raising=False)
+    r2 = v3shots.fix_shot_text(doc2, ["s1"])
+    assert "s1" in r2["unfixed"]
+    assert any("未以卡名入画面句" in t for t in r2["unfixed"]["s1"])
+
+
 def test_fix_shot_text_rewrites_only_target(monkeypatch):
     """问题镜定点重写, 干净镜不动; 补投一轮后清零。"""
     doc = _doc()
