@@ -224,6 +224,38 @@ FACE_IDENTITY_BAN = (
     "facial hair ever appears or grows; the jawline, skin, eyebrows and all "
     "facial features never morph, age or change in any frame.")
 
+# 1108 批A-5 ①: character_policy 召唤句剥离 — policy 正向点名「名人靠…胡须、
+# 眼镜…识别」把面部毛/眼镜词送上桌 (s25/31/33/35/s45 视频层长须实锤: 首帧净、
+# 尾帧长须; policy 尾部"一律光洁"压不住 = 令41 串尾弱锚定律)。1024 铁律: 词
+# 不上桌才是根治。确定性剥句: 含「识别」且含 名人/胡须/眼镜 的整句 (书级无关,
+# 圣经数据源不动)。
+_POLICY_SEG_RE = re.compile(r"[^。；;]*[。；;]?")
+
+# 1108 批A-5 ②: 无人物镜 EN 种子词剥离 — s51 opening_desc "a man's hand…"
+# 把 "man" 送上桌, 视频中途长出眼镜+领带男 (p0 HAND-ONLY / p50 PERSON 实锤);
+# s54 全文零人物词仍冒 = 纯 per-seed 先验 (换 seed 重掷治, 不归文本通道)。
+_HAND_SEED_RE = re.compile(
+    r"(?i)\b(?:a|an)\s+(?:man|woman|male|female)'s\s+"
+    r"(hand|hands|finger|fingers|arm|arms|fist|fists|palm|palms)\b")
+
+
+def _strip_policy_summon(cp: str) -> str:
+    """剥 character_policy 的召唤句 (确定性, 零 LLM)。
+
+    两类整句剥: ① 识别句 (含「识别」且含 名人/胡须/眼镜 — 正向点名);
+    ② 任何框架下的面部毛词句 (无胡须/禁胡茬 这类否定句同样剥 — 1210 串旗
+    机制: 禁句具象词被视频模型当正向提示; 视频层外观唯一事实源=Picture 1/
+    参考图 + identity lock, 文本不上桌零信息损失)。"""
+    _BEARD = ("胡须", "胡子", "胡茬", "络腮胡", "山羊胡", "八字胡")
+    def _drop(m):
+        seg = m.group(0)
+        if any(w in seg for w in _BEARD):
+            return ""
+        if "识别" in seg and any(w in seg for w in ("名人", "眼镜")):
+            return ""
+        return seg
+    return _POLICY_SEG_RE.sub(_drop, cp).strip()
+
 
 def arc_thesis(doc: dict[str, Any], arc_id: str = "") -> str:
     """弧主旨单读口 (1017 W3, 立意单一源): doc.arcs 的 metaphor_core 优先,
@@ -253,6 +285,15 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
     if str(zh_scene or "").strip():
         from .k2 import _scene_has_person
         _no_person = not _scene_has_person(zh_scene, book_title)
+    if _no_person:  # 1108 批A-5 ②: 无人物镜种子词剥离 — 只动拼装串不落盘
+        anim = dict(anim)
+        anim["opening_desc"] = _HAND_SEED_RE.sub(
+            r"the \1", str(anim.get("opening_desc") or ""))
+        anim["beats"] = [
+            {**b, "motion": _HAND_SEED_RE.sub(
+                r"the \1", str(b.get("motion") or ""))}
+            for b in (anim.get("beats") or [])]
+        beats = anim["beats"]
     _ident = ("Identity lock: keep all characters' faces, hairstyles and "
               "outfits consistent with Picture 1 — outfit COLORS stay pixel-faithful to Picture 1 for "
               "every frame: no recoloring, no hue shift, no costume redesign.")
@@ -287,7 +328,7 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
             "on any surface, board, screen or sign.")
         lines.append("")
     # 1017 无脸根治: 圣经角色纪律进渲染链 (逐字取书, 组装器不推导)
-    _cp = character_policy(book_title)
+    _cp = _strip_policy_summon(character_policy(book_title))  # 批A-5 ①: 识别召唤句不上桌
     if _cp and not _no_person:  # 1108 批A-4: 无人物镜不注 — "角色固定出场/必须有脸"是冒人召唤
         lines.append(f"Character law (book bible, mandatory): {_cp}")
         lines.append("")

@@ -86,3 +86,55 @@ def test_build_workflow_forwards_zh_scene(monkeypatch, tmp_path):
     _h3.build_workflow("img.png", dict(_ANIM), 1, "p", book_title=_BOOK,
                        zh_scene="一只男性的手把便签纸摊开在桌面上")
     assert _seen["zh"] == "一只男性的手把便签纸摊开在桌面上"
+
+
+# ── 1108 批A-5: 召唤词不上桌 — policy 识别句剥离 + 无人物镜种子词剥离 ──
+
+def _bible_with(monkeypatch, tmp_path, policy):
+    import json as _json
+    from app.services.anim_pipeline import director2 as d2
+    bb = tmp_path / "bible.json"
+    bb.write_text(_json.dumps({
+        "characters": [{"name": "老谭"}],
+        "character_policy": policy,
+    }), encoding="utf-8")
+    monkeypatch.setattr(d2, "_bible_cache_path", lambda bt: bb)
+
+
+def test_policy_summon_stripped(monkeypatch, tmp_path):
+    """① 胡子族根修: 「名人靠…胡须、眼镜…识别」句不上桌, 其余条款保留。"""
+    _bible_with(monkeypatch, tmp_path, (
+        "每集2-3名Q版三头身角色固定出场，卡通脸必须有五官。"
+        "名人（如书中真实人物）靠标志性发型、胡须、眼镜、着装剪裁等特征识别，不做写实肖像。"
+        "男性角色一律下巴光洁无胡须"))
+    out = h3.build_prompt(dict(_ANIM), _BOOK)  # 不传 zh_scene = 人物镜旧路, policy 照注
+    assert "Character law" in out
+    assert "标志性发型" not in out and "不做写实肖像" not in out   # 识别召唤句整句剥
+    assert "卡通脸必须有五官" in out                                 # 非召唤条款保留
+    # 1210 串旗机制: 否定句的具象词同样被当正向提示 — 面部毛词句任何框架都剥
+    # (视频层外观唯一事实源 = Picture 1/参考图 + identity lock)
+    assert "一律下巴光洁无胡须" not in out
+    assert "胡" not in out.split("Character law")[1].split("\n")[0]
+
+
+def test_hand_seed_stripped_only_when_no_person(monkeypatch, tmp_path):
+    """② 无人物镜 EN 种子词剥离: man's hand → the hand; v2 路字节不动。"""
+    _setup(monkeypatch, tmp_path)
+    out = h3.build_prompt(dict(_ANIM), _BOOK,
+                          zh_scene="一只男性的手把便签纸摊开在桌面上")
+    assert "man's hand" not in out
+    assert "the hand spreads note papers" in out
+    # v2 路 (不传 zh_scene): 种子词保留 = 字节不动
+    out_v2 = h3.build_prompt(dict(_ANIM), _BOOK)
+    assert "a man's hand spreads note papers" in out_v2
+
+
+def test_sys_sleeve_anchor_rule():
+    """③ 断手防复发: 画面句契约含袖口锚规则 (s52/s55 K2 首帧断手实锤)。"""
+    from app.services.anim_pipeline.v3_pipeline import shots as shots_mod
+    assert "袖口或前臂" in shots_mod._SYS
+    # ♻️ 列队重做同尺 (1108 用户问机制一致性实锤: _REDO_SYS 旧版只到规则8,
+    # 手部镜经列队重做会重出孤手/外观漂移)
+    from app.services.anim_pipeline.v3_pipeline import redo as redo_mod
+    assert "袖口或前臂" in redo_mod._REDO_SYS
+    assert "角色外观继承" in redo_mod._REDO_SYS
