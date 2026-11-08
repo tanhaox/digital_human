@@ -332,6 +332,20 @@
     "video_qc VLM 半区真删 (≥1 周观察后)"
    ],
    "status": "pending"
+  },
+  {
+   "id": "TR-026",
+   "date": "2026-11-08",
+   "change": "令52 文字载体源头治理: ②arcs 铁律6 (世界/vocab/隐喻禁依赖图内文字) + ③shots _SYS 规则3 改写 (不选「没字就奇怪」的载体场景, 换无字陈设/动作形态传达优先, 空白XX 降次选) + ♻️redo _REDO_SYS 同尺 + 校验消息改「换陈设优先」; blankify_carriers 保留为 LLM 违令安全网",
+   "commit": "本批 (arcs/shots/redo 提示词 + 消息)",
+   "verify": "test_carrier_scenes_banned_at_source (三处同尺断言); pytest 673p 失败集=历史债原样",
+   "readout_date": "2026-11-15",
+   "metrics": [
+    "ep7 ③ 产出载体命中数 (issues 里「文字载体」条目数, 预期 ≈0 或全部次选形态)",
+    "ep7 K2 页空载体画面 (空白招牌类) 出现数 (预期 0)",
+    "blankify 兜底触发率 (LLM 违令率观察)"
+   ],
+   "status": "pending"
   }
  ]
 }

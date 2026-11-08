@@ -1638,3 +1638,20 @@ def test_resolve_video_disk_fallback(tmp_path):
                                    base) == "anim/s9.mp4"
     # ④ 双无 → None (调用方降级 still/gap)
     assert shots_mod.resolve_video({"shot_id": "s404"}, base) is None
+
+
+def test_carrier_scenes_banned_at_source():
+    """1108 用户令 (源头治理): 电影几乎没有文字特写 — 「没字就奇怪」的载体场景
+    在规划提示词层就不许选, 不再靠下游 blankify 补空白 (空招牌反而假)。
+    ②世界 / ③画面句 / ♻️重设计 三处同尺。"""
+    import inspect
+
+    from app.services.anim_pipeline.v3_pipeline import arcs, redo
+    assert "没字就奇怪" in v3shots._SYS and "招牌" in v3shots._SYS
+    assert "动作/构图/道具形态/人物反应" in v3shots._SYS          # 替代表征指引
+    assert "次选" in v3shots._SYS                                  # 无字形态是次选非首选
+    assert "没字就奇怪" in redo._REDO_SYS and "招牌" in redo._REDO_SYS
+    assert "没字就奇怪" in arcs._SYS and "vocab 不收文字载体实体" in arcs._SYS
+    # 校验消息同尺: 换陈设优先, 空白XX 降为实在躲不开的次选
+    src = inspect.getsource(v3shots)
+    assert "换无字陈设或用动作/形态传达" in src
