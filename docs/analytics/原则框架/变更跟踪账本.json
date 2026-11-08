@@ -254,6 +254,19 @@
     "重掷失败后预览不再变图 (下集观察)"
    ],
    "status": "pending"
+  },
+  {
+   "id": "TR-020",
+   "date": "2026-11-08",
+   "change": "令49 讲述双声部并弧: merge_narr_modules (相邻 comm/quote 模块并弧, 主导语态=行数多者平手取 comm; 段标后模块 hard_start 不并); boundary_issues 混弧合法化限于讲述类; resplit 只拆结构位混入弧。ep6 实锤: 引用/解说行行交替 → 15/24 单行弧 → 13 弧 narr 单行归零, 段标边界保持 (核心一/二/三各成一弧)",
+   "commit": "7784d8a",
+   "verify": "15 用例 (新增并弧形态/段标硬界/混弧合法/结构位混入仍红痕); 全量 6f/662p; ep6 实弹 24→13 弧 issues 空 world 9/9",
+   "readout_date": "2026-11-15",
+   "metrics": [
+    "下一集 ② 弧分布 (narr 单行弧应为 0)",
+    "并弧后 world/metaphor 质量 (一段一世界是否更连贯)"
+   ],
+   "status": "pending"
   }
  ]
 }
