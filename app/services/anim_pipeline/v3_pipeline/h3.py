@@ -38,7 +38,7 @@ def _reproject(doc: dict[str, Any]) -> int:
 
 
 def run(job: dict[str, Any], only: set[str] | None = None,
-        retry_failed: bool = False) -> None:
+        retry_failed: bool = False, redo_k2: bool = False) -> None:
     """v3_h3 相位本体: 盖章闸 → 运镜注入 → v2 h3.run_batch。"""
     from app.services.anim_pipeline import shots as shots_mod
     from app.services.anim_pipeline import h3 as h3_mod
@@ -48,6 +48,28 @@ def run(job: dict[str, Any], only: set[str] | None = None,
     v3 = doc.get("v3") or {}
     if not v3.get("stamp"):
         raise SystemExit("⑦ 未盖章 — H3 吃实测时长, 先在 ⑦ 页盖章 (时长真相源)")
+
+    # 1108 批A-6 点名重掷全链 (用户令: s35 胡子印记重掷不去 — 保图重掷永远
+    # 治不了首帧病): 先 K2 同句换 seed 重生 (当前代码带 look 锚/cast 负词/
+    # 空镜防人), 再走视频工位。同 redo.py 口径: 清 k2 状态 (k2.run 只补缺图)
+    # + force 新 seed + 重生完即过审。品牌镜跳过 (冻结资产零 GPU 直通)。
+    if only and redo_k2:
+        from app.services.anim_pipeline.v3_pipeline import k2 as v3k2
+        for s3 in (doc.get("v3") or {}).get("shots") or []:
+            if str(s3.get("sid")) in only and not s3.get("brand_card"):
+                s3.pop("k2", None)
+        shots_mod.save(doc)
+        v3k2.run(job, only={s for s in only}, force_new_seed=True)
+        doc = shots_mod.load_doc(job["book_title"], job["ep"])  # k2.run 自存盘 → 重载
+        v3 = doc.get("v3") or {}
+        _v3r = {str(x["sid"]): x for x in (v3.get("shots") or [])}
+        for s2 in doc.get("shots") or []:
+            s3 = _v3r.get(str(s2.get("shot_id")))
+            if (s3 is not None and str(s2.get("shot_id")) in only
+                    and (s3.get("k2") or {}).get("image")):
+                s3["k2"]["status"] = "approved"   # 全链: 重生完即过审 (同 redo)
+        shots_mod.save(doc)
+        logger.info("[v3:h3] 重掷全链: %d 镜 K2 已重生过审", len(only))
 
 
     # ⑥ 拼合收口 (1107 批2): 旧注入循环退役 — 渲染字段由 stamp.render_fields

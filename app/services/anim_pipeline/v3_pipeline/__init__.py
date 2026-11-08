@@ -60,7 +60,8 @@ def _h_redo(job: dict[str, Any]) -> None:
 def _h_h3(job: dict[str, Any]) -> None:
     from . import h3
     h3.run(job, only=set(job.get("only") or []) or None,
-           retry_failed=bool(job.get("retry_failed")))
+           retry_failed=bool(job.get("retry_failed")),
+           redo_k2=bool(job.get("redo_k2")))
 def _h_stamp(job: dict[str, Any]) -> None:
     from . import stamp
     stamp.run(job)

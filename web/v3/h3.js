@@ -101,7 +101,7 @@ function renderGrid() {
                 title="品牌卡重置: 失效后批内零 GPU 直通重插定稿资产 (秒回)">↺ 重置</button>`
       : `<button class="iconbtn" data-act="reroll" data-sid="${esc(s.sid)}"
                 ${stt !== 'anim_done' && stt !== 'anim_fail' ? ' disabled' : ''}
-                title="换 h3_seed 重生本镜">${stt === 'planned' || stt === 'approved' ? '▶ 生成' : '🎲 重掷'}</button>`}
+                title="先 K2 同句换seed重生 (当前代码锚 look/防人) → 再生视频 (~4-5min)">${stt === 'planned' || stt === 'approved' ? '▶ 生成' : '🎲 重掷'}</button>`}
       </div>
     </div>`;
   }).join('');
@@ -111,7 +111,7 @@ function renderGrid() {
       try {
         const r = await fetch(`${BASE}/v3_h3`, { method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ only: [b.dataset.sid] }) });
+          body: JSON.stringify({ only: [b.dataset.sid], redo_k2: true }) });
         if (!r.ok) { toast('启动失败: ' + (await r.json()).detail); b.disabled = false; return; }
         runner.attach(await r.json());
       } catch (e) { toast('失败: ' + e.message); b.disabled = false; }

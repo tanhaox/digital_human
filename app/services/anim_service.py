@@ -207,7 +207,8 @@ def start_phase(book_ref: str, ep: int, phase: str, *, only: set[str] | None = N
                 scorched: bool = False, chain_h3: bool = False,
                 concept_only: bool = False, continue_scenes: bool = False,
                 to_image: bool = False, note: str = "",
-                to_video: bool = False) -> dict[str, Any]:
+                to_video: bool = False,
+                redo_k2: bool = False) -> dict[str, Any]:
     """启动相位 job (plan=规划 / replan=单场 / k2=批生图 / h3=批生视频). 返回 job view.
 
     reset (0915 三级清障): k2=保规划清图+视频历史; h3=保规划+图清视频历史.
@@ -248,6 +249,7 @@ def start_phase(book_ref: str, ep: int, phase: str, *, only: set[str] | None = N
         "to_image": to_image,  # 0927 redo 购物篮: 只到生图 (K2 停 img_done 走人检)
         "note": note,          # 1106 v3_redo: 重做原因带进重设计提示
         "to_video": to_video,  # 1106 v3_redo: ⑧页列队重做 — 全链到视频
+        "redo_k2": redo_k2,    # 1108 批A-6: v3_h3 点名重掷全链 (先 K2 再视频)
         "cancel": False,
         "progress": None, "result": None, "error": None,
         "log": [], "started_at": time.strftime("%Y-%m-%dT%H:%M:%S"), "finished_at": None,

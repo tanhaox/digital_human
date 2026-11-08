@@ -178,8 +178,10 @@ def _build_prompt(shot: dict[str, Any], char_names: list[str],
     if thesis:
         prompt += f" Narrative anchor: {thesis} — the scene, props and motion all serve this thesis."
     # 1017 无脸根治: 圣经角色纪律 (逐字取书)
-    from .h3 import character_policy  # 惰性避环
-    _cp = character_policy(book_title)
+    # 1108 批A-5 ①镜像: 剥召唤句 — 胡子族 5/5 全是 r2v 工位 (人物镜路由),
+    # h3 侧剥了 r2v 没剥 = 药下错工位 (s4 四轮同款); s35 重掷仍长须实锤。
+    from .h3 import character_policy, _strip_policy_summon  # 惰性避环
+    _cp = _strip_policy_summon(character_policy(book_title))
     if _cp:
         prompt += f" Character law (book bible, mandatory): {_cp}"
     from .h3 import motion_style  # 惰性: h3 顶部引 brand, 避免环

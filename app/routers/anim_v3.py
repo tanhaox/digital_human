@@ -99,6 +99,7 @@ class PhaseStartBody(BaseModel):
     to_video: bool = False          # v3_redo: ⑧页列队重做 — 重设计→生图→生视频全链
     note: str = ""                  # v3_redo: 重做原因 (带进重设计提示)
     retry_failed: bool = False      # v3_h3: 连败镜重试 (换 h3_seed)
+    redo_k2: bool = False           # v3_h3 点名重掷全链: 先 K2 同句换seed重生再视频 (批A-6)
 
 
 @router.post("/ep/{book_id}/{ep}/{phase}")
@@ -117,6 +118,7 @@ def v3_start(book_id: str, ep: int, phase: str, body: PhaseStartBody | None = No
     kw = {"only": only}
     if phase == "v3_h3":
         kw["retry_failed"] = bool(body and body.retry_failed)
+        kw["redo_k2"] = bool(body and body.redo_k2)
     if phase == "v3_redo":
         kw["to_image"] = bool(body and body.to_image)
         kw["to_video"] = bool(body and body.to_video)
