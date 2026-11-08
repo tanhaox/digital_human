@@ -1756,6 +1756,49 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                                _marks[-1][2] if _marks else None)
                     return (_t0, _te) if _te is not None else None
 
+                _ORD_PAT = re.compile(
+                    r"第[一二三四五六七八九十百\d]+(?:到[第]?[一二三四五六七八九十百\d]+)?项"
+                    r"|最后[一两二]项")
+
+                def _list_span(line_no: int, text: str):
+                    """1108 用户令 (清单段机制, 跨集通用): 清单族卡窗=清单口播段,
+                    非锚句窗 — c03 实锤: 锚 L46 引入句 (s22 区 135.6s), 清单本体
+                    s25-s31 (148.6-179.1s), 卡 4 秒就消失/错段双病。
+                    a0 = 锚句后 ≤12 句内首个含卡名词句 (清单引入句), 找不到回退锚句;
+                    a1 = 从 a0 向后扫, 句命中 项词/序数模式 → 延伸, 连续 2 句 miss → 停。
+                    判据: 项词 ≥4 才启用 (少项双分支卡回退锚句窗)。"""
+                    import bisect as _bs
+                    _raw = _PAUSE.sub("", _line_txt.get(line_no, ""))
+                    if len(_raw) < 14:
+                        return None
+                    _i0 = _flow.find(_raw[:14])
+                    if _i0 < 0:
+                        return None
+                    _seg_i = _bs.bisect_right([m[0] for m in _marks], _i0) - 1
+                    _items = [w for w in re.split(r"[/、：:，,。\s]+", str(text))
+                              if len(w) >= 2]
+                    if len(_items) < 4:
+                        return None                      # 少项卡回退锚句窗
+                    _title = re.split(r"[/、：:，,。\s\d]+", str(text))[0][:4]
+                    _a0_i = _seg_i
+                    for _k in range(_seg_i, min(_seg_i + 13, len(_sent_segs))):
+                        _t = _PAUSE.sub("", str(_sent_segs[_k].get("text") or ""))
+                        if _title and _title in _t:
+                            _a0_i = _k
+                            break
+                    _te = float(_sent_segs[_a0_i]["t_end"])
+                    _miss = 0
+                    for _k in range(_a0_i + 1, len(_sent_segs)):
+                        _t = _PAUSE.sub("", str(_sent_segs[_k].get("text") or ""))
+                        if _ORD_PAT.search(_t) or any(_w in _t for _w in _items):
+                            _te = float(_sent_segs[_k]["t_end"])
+                            _miss = 0
+                        else:
+                            _miss += 1
+                            if _miss >= 2:
+                                break
+                    return float(_sent_segs[_a0_i]["t_start"]), _te
+
                 _v3n = 0
                 for _vc in (_v3.get("cards") or []):
                     # 1108 用户令 (遴选): ≤6 字标签卡不上屏 — "丑话清单"/"翻脸
@@ -1764,11 +1807,18 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                         logger.info("[draft] v3标签卡 %s '%s' ≤6字跳过",
                                     _vc.get("cid"), str(_vc.get("text"))[:8])
                         continue
-                    _sp = _span_of(int(_vc.get("line_no") or 0))
+                    _sp = (_list_span(int(_vc.get("line_no") or 0),
+                                      str(_vc.get("text") or ""))
+                           if str(_vc.get("kind")) in ("图示", "总结", "提示")
+                           else None) or _span_of(int(_vc.get("line_no") or 0))
                     if not _sp:
                         logger.warning("[draft] v3卡 %s 行文本未命中句轴, 跳过",
                                        _vc.get("cid"))
                         continue
+                    if _sp[1] - _sp[0] >= 6.0 and str(_vc.get("kind")) in (
+                            "图示", "总结", "提示"):
+                        logger.info("[draft] v3清单卡 %s 清单段 %.1f-%.1fs",
+                                    _vc.get("cid"), _sp[0], _sp[1])
                     if str(_vc.get("kind")) == "图示" and not _vc.get("image"):
                         logger.info("[draft] v3图示卡 %s 无渲染图, 跳过", _vc.get("cid"))
                         continue
