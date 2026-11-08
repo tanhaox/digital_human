@@ -363,11 +363,38 @@ def test_blankify_carriers():
         "s23": ["s23 画面句含终态词 (停在中间位置) — …"],
     }
     fixed, manual = v3shots.blankify_carriers(shots, issues)
-    assert fixed == ["s5"]                                   # 量词后才敢插
+    assert fixed == ["s5"]
     assert "几张空白便签" in shots[0]["keyframe_zh"]
-    assert shots[1]["keyframe_zh"].startswith("手机屏幕")     # 「手机屏幕」不出量词 → 不硬插
+    assert shots[1]["keyframe_zh"].startswith("手机屏幕")     # 词后「显示」= 内容描述 → 不硬插
     assert "in_image_text" not in shots[0]                    # 不再写申报字段
     assert len(manual) == 2 and any("s8" in m for m in manual)
+
+
+def test_blankify_carriers_ep6_shapes():
+    """1108 ep6 实锤 (镜级问题 9 全灭根因): 巨型屏幕/背景屏幕墙/米色便签 全不是量词语境,
+    词前白名单 0/9 — 改词后黑名单制: 无内容动词处一律直插; 「布满纹路」类内容描述仍手改。"""
+    shots = [
+        {"sid": "s18", "keyframe_zh": "三块并排巨型屏幕的近景，屏幕冷光从上方压下来"},
+        {"sid": "s20", "keyframe_zh": "桌面级静物中景，背景屏幕墙虚化成蓝橙光斑"},
+        {"sid": "s36", "keyframe_zh": "俯视一张米色便签纸贴在木质桌板上，纸面空白"},
+        {"sid": "s41", "keyframe_zh": "中间屏幕布满细密的橙红脉冲纹路"},
+        {"sid": "s42", "keyframe_zh": "已经写过空白屏幕的对照镜"},
+    ]
+    issues = {
+        "s18": ["s18 画面句含文字载体「屏幕」但未写空白 — …"],
+        "s20": ["s20 画面句含文字载体「屏幕」但未写空白 — …"],
+        "s36": ["s36 画面句含文字载体「便签」但未写空白 — …"],
+        "s41": ["s41 画面句含文字载体「屏幕」但未写空白 — …"],
+        "s42": ["s42 画面句含文字载体「屏幕」但未写空白 — …"],
+    }
+    fixed, manual = v3shots.blankify_carriers(shots, issues)
+    assert fixed == ["s18", "s20", "s36"]
+    assert "巨型空白屏幕" in shots[0]["keyframe_zh"]
+    assert "背景空白屏幕墙" in shots[1]["keyframe_zh"]
+    assert "米色空白便签纸" in shots[2]["keyframe_zh"]
+    assert shots[3]["keyframe_zh"] == "中间屏幕布满细密的橙红脉冲纹路"   # 布满 → 手改
+    assert shots[4]["keyframe_zh"] == "已经写过空白屏幕的对照镜"          # 词前已有空白 → 不动
+    assert len(manual) == 1 and "s41" in manual[0] and "内容描述" in manual[0]
 
 
 def test_arc_level_quotas_are_episode_scoped():

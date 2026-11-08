@@ -335,7 +335,7 @@ def writer_failures(doc: dict[str, Any], arc_id: str) -> list[str]:
             _blanked = "空白" in zh[max(0, zh.find(_hit) - 6): zh.find(_hit) + len(_hit) + 2]
             if not _blanked:
                 fails.append(f"{sid} 画面句含文字载体「{_hit}」但未写空白 — "
-                             "载体改写「空白{_hit}」或删除该物件 (文案信息进 text_layer)")
+                             f"载体改写「空白{_hit}」或删除该物件 (文案信息进 text_layer)")
         # 1015 H3 战役: motion 散文禁文字 (花字/事件字规格只准走三路由字段)
         # 1021 修: 先剥后拦 (只拦不剥 = 0920 军规同坑, ep7 两连败主因之一) —
         # 命中子句确定性删除, 剥净即过; 剥不净才 fail 驱动重写

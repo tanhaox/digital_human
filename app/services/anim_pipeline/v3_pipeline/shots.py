@@ -846,15 +846,18 @@ def suggest_size(text: str) -> str:
 # ── 一键空白化 (1105 用户令: v3 停用图内字通道) ────────────────────────
 
 _CARRIER_WORD = re.compile(r"含文字载体「(.+?)」")
-_BLANK_PRE = re.compile(r"[张块面些的页幅副边]$")   # 载体词前是量词/结构助词才敢插「空白」
-                                                 # (1107 补「边」: 旁边便签 → 旁边空白便签)
+# 1108 词前白名单制废除 (ep6 实锤 9/9 全灭: 巨型屏幕/背景屏幕墙/米色便签 全不是量词语境,
+# 白名单只接得住「几张便签」) — 改词后黑名单: 载体词后 6 字内有内容动词 = 此处在描述
+# 载体内容, 机械插「空白」自相矛盾 (空白屏幕布满纹路) → 手改; 其余语境一律直插
+_NO_INSERT_POST = re.compile(r"布满|写满|写着|显示|列出|打出|滚动|播放")
 
 
 def blankify_carriers(shots: list[dict[str, Any]],
                       issues: dict[str, list[str]]) -> tuple[list[str], list[str]]:
-    """把问题镜的载体就地补「空白」(几张便签→几张空白便签)。
+    """把问题镜的载体就地补「空白」(巨型屏幕→巨型空白屏幕)。
 
-    返回 (改过的 sid, 待人工清单)。「手机屏幕」这类不出量词的插不进去 → 手改。
+    只动首个命中处 (质检同口径); 词后是内容动词 (显示/布满) 的地方机械插空白
+    会自相矛盾 → 手改。返回 (改过的 sid, 待人工清单)。
     终态词属语义改写, 一律不自动动刀。
     """
     by_sid = {s["sid"]: s for s in shots}
@@ -874,22 +877,21 @@ def blankify_carriers(shots: list[dict[str, Any]],
                     manual.append(f"{sid}: {iss[:80]}")
                 continue
             word = m.group(1)
-            inserted = resolved = False
-            for h in re.finditer(re.escape(word), zh):
-                pre = zh[max(0, h.start() - 2):h.start()]
-                if "空白" in pre or "留白" in pre:
-                    resolved = True                 # 早已写过空白 → 无需动, 也不算改
-                    break
-                if _BLANK_PRE.search(pre):
-                    zh = zh[:h.start()] + "空白" + zh[h.start():]
-                    inserted = resolved = True
-                    break
-            if inserted:
-                s["keyframe_zh"] = zh
-                if sid not in fixed:
-                    fixed.append(sid)
-            elif not resolved:
-                manual.append(f"{sid}: 载体「{word}」需手改 — 写成「空白{word}」或换别的陈设")
+            h0 = zh.find(word)
+            if h0 < 0:
+                continue                           # 画面句已改 (陈旧 issue) → 重算自清
+            pre = zh[max(0, h0 - 6):h0]            # 与质检同窗 (词前 6 字)
+            post = zh[h0 + len(word):h0 + len(word) + 6]
+            if "空白" in pre or "留白" in pre:
+                continue                           # 早已写过空白 → 无需动, 也不算改
+            if _NO_INSERT_POST.search(post):
+                manual.append(f"{sid}: 载体「{word}」词后是内容描述 ({post[:6]}) — "
+                              "需手改成「空白{word}泛着微光」或删掉该物件")
+                continue
+            zh = zh[:h0] + "空白" + zh[h0:]
+            s["keyframe_zh"] = zh
+            if sid not in fixed:
+                fixed.append(sid)
     return fixed, manual
 
 
