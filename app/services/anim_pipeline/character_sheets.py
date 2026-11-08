@@ -417,7 +417,7 @@ def render_missing(book_title: str, emit) -> tuple[int, int]:
     if work:
         with GPU_JOB_LOCK:
             for i, c in enumerate(work, 1):
-                emit(f"定妆照 {i}/{len(work)}: {c['name']} 渲染中 (含违禁守门)…")
+                emit(f"定妆照 {i}/{len(work)}: {c['name']} 渲染中 (OCR 检字守门)…")
                 dirty = render_gated(
                     lambda sd, lk=c.get("look") or "": build_workflow(
                         _scene(lk), sd,
@@ -501,7 +501,7 @@ def start_design(book_id: str, book_title: str, names: list[str],
                 return
             with GPU_JOB_LOCK:
                 for i, c in enumerate(todo, 1):
-                    _emit(j, f"定妆照 {i}/{len(todo)}: {c['name']} 渲染中 (含违禁守门)…")
+                    _emit(j, f"定妆照 {i}/{len(todo)}: {c['name']} 渲染中 (OCR 检字守门)…")
                     dirty = render_gated(
                         lambda sd, lk=c.get("look") or "": build_workflow(
                             _scene(lk), sd,

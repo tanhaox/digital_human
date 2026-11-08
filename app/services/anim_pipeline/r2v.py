@@ -18,7 +18,6 @@ from typing import Any
 
 from . import (
     comfy,
-    video_qc,  # 视频产物机检 (观察模式, 同 h3)
 )
 from . import ledger as _ledger
 from . import shots as shots_mod

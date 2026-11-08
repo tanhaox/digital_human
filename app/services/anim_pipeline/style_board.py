@@ -1009,40 +1009,19 @@ def render_motion_sample(book_id: str, book_title: str) -> dict:
                         _emit(j, f"旧片被占用 (页面正在播放?) 关闭后重试: {_exc}")
                         raise
                     image_name = comfy.upload_image(frame)
-                    from . import (
-                        video_qc,  # 1012: 出片机检 (红旗/衣色漂移) + 重掷到过关
-                    )
-                    _qc_hist: list = []
-                    _shot_qc = {"shot_id": "motion-sample",
-                                "image_file": f"{_safe_name(book_title)}/{frame.name}"}
-                    _final_sus: dict | None = None
-                    for _attempt in range(3):  # 确定性验收不过 → 带禁令换种子重掷 (H3漂移靠掷)
-                        # 前缀掺时间戳: 同配方重掷会被 ComfyUI 执行缓存 0.03s 秒回放
-                        # 不产新文件 → 搬运工找旧文件失败 (m1_00004 实锤); 破缓存必掺
-                        _wf = h3.build_workflow(
-                            image_name, anim, _BOARD_SEED + 7 + _attempt * 13,
-                            f"video/styleboard/{_safe_name(book_title)}/motion/"
-                            f"m{_attempt + 1}_{int(time.time())}",
-                            book_title=book_title, qc_history=_qc_hist or None)
-                        comfy.run_workflow(_wf, dest=dest, timeout_sec=600 + 240 * 5,
-                                           label=f"motion-sample#{_attempt}",
-                                           soft_timeout_sec=90 * 5 + 120,
-                                           interrupt_grace_sec=load().comfy.interrupt_grace_sec)
-                        _sus = video_qc.check(dest, _shot_qc, {"book_title": book_title})
-                        _bad = [k for k in (_sus.get("kinds") or [])
-                                if k in ("红旗", "衣色漂移", "首帧漂移")]
-                        if not _bad:
-                            _final_sus = _sus or None
-                            _emit(j, "机检干净 ✓" if not _sus else
-                                  f"机检通过 (观察项 {_sus.get('kinds')})")
-                            break
-                        _qc_hist.append({"kind": ",".join(_bad),
-                                         "what": str(_sus.get("what") or "")[:60],
-                                         "ts": time.strftime("%Y-%m-%dT%H:%M:%S")})
-                        _final_sus = _sus
-                        _emit(j, f"第{_attempt + 1}掷命中 {_bad} → 带禁令换种子重掷…")
-                    else:
-                        _emit(j, f"⚠ 三掷仍 {((_final_sus or {}).get('kinds') or [])} — 请人检/调动画律")
+                    # 1108 用户令 (令51: AI 图检废除): 机检三掷循环撤除 — 出片直出,
+                    # 人眼验 (圣经页可播, 不满意改动画律再试)。旧机检/重掷链 git 可考。
+                    # 前缀掺时间戳: 同配方重掷会被 ComfyUI 执行缓存 0.03s 秒回放
+                    # 不产新文件 → 搬运工找旧文件失败 (m1_00004 实锤); 破缓存必掺
+                    _wf = h3.build_workflow(
+                        image_name, anim, _BOARD_SEED + 7,
+                        f"video/styleboard/{_safe_name(book_title)}/motion/"
+                        f"m1_{int(time.time())}",
+                        book_title=book_title)
+                    comfy.run_workflow(_wf, dest=dest, timeout_sec=600 + 240 * 5,
+                                       label="motion-sample",
+                                       soft_timeout_sec=90 * 5 + 120,
+                                       interrupt_grace_sec=load().comfy.interrupt_grace_sec)
                     fps[dest.name] = _fp
                     _save_fps(book_title, fps)
                     _emit(j, "动画试渲出片 ✓ (5s H3)")

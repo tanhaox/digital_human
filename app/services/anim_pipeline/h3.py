@@ -20,7 +20,6 @@ from typing import Any
 from . import brand as brand_mod
 from . import (
     comfy,
-    video_qc,  # 0927 P1-B 视频产物机检 (观察模式)
 )
 from . import ledger as _ledger
 from . import shots as shots_mod
@@ -810,8 +809,7 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
     import hashlib as _h
     shot["gen_narr_sha"] = _h.md5(
         shots_mod.norm_for_match(shot.get("narration") or "").encode("utf-8")).hexdigest()[:10]
-    # 1103 Y3: video_qc 后置成批 (用户令, 同 k2-en 教训: 云端 VLM 禁内联 GPU 循环 —
-    # GLM 活每镜 10-20s 卡 GPU 间隙, 429 空转烧往返); run_batch 批尾统一扫 qc_video
+    # 1108 用户令 (令51): 视频机检撤除 — 出片直出, ⑧ 页人检 = 唯一检
     shot["attempts"]["h3"] += 1
     shot["error"] = None
     shots_mod.transition(shot, "anim_done")
@@ -821,31 +819,9 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
     return dest
 
 
-def qc_video(shot: dict[str, Any], doc: dict[str, Any], dest: Path) -> None:
-    """视频机检 (1103 Y3 从 run_shot 内联抽出, run_batch 批尾成扫).
-
-    观察模式: 只标记 video_suspect 交人检不阻断 anim_done (text_suspect 同构);
-    1004 修条目: 新片先清旧标记; 判决进 qc_rejects 历史 (重 roll 时对症禁令锚)。
-    fail-open: 机检异常静默跳过 (观察闸漏标只损失信号)。"""
-    shot.pop("video_suspect", None)
-    try:
-        _sus = video_qc.check(dest, shot, doc)
-    except Exception:  # noqa: BLE001 — 机检异常不炸批扫
-        return
-    if not _sus:
-        return
-    shot["video_suspect"] = _sus
-    # 1017 W5: 视频闸判决 → 书级负词沉淀回路 (fail-open)
-    from . import neg_learn
-    neg_learn.record_verdict(str(doc.get("book_title") or ""),
-                             ",".join(_sus.get("kinds") or []))
-    _r = shot.setdefault("qc_rejects", [])
-    _r.append({"kind": ",".join(_sus.get("kinds") or []),
-               "what": str(_sus.get("what") or "")[:60],
-               "ts": time.strftime("%Y-%m-%dT%H:%M:%S")})
-    del _r[:-8]
-    logger.warning("[video_qc] %s %s %s", shot["shot_id"],
-                   _sus.get("kinds"), _sus.get("what"))
+# 1108 用户令 (令51: AI 图检废除): qc_video 视频抽帧机检撤除 — 抽 3 帧 × VLM
+# 三查 (崩坏/文字残留/首帧漂移) 每镜烧 token 且精度不如人眼; ⑧ 页人检 = 唯一检。
+# (历史: 0927 P1-B 立闸 / 1103 Y3 后置成批 — git 可考)
 
 
 def _pick_video_station(shot: dict[str, Any]) -> str:
@@ -900,7 +876,6 @@ def run_batch(doc: dict[str, Any], only: set[str] | None = None, retry_failed: b
         and (s["status"] == "approved" or (retry_failed and s["status"] == "anim_fail"))
     )
     done = 0
-    _qc_pending: list[tuple[dict, Path]] = []  # 1103 Y3: 机检后置收集
     for shot in doc["shots"]:
         if only is not None and shot["shot_id"] not in only:
             continue
@@ -937,7 +912,6 @@ def run_batch(doc: dict[str, Any], only: set[str] | None = None, retry_failed: b
                 else:
                     _dest = run_shot(shot, doc)
                     logger.info("[h3] %s done (工位路由→h3)", shot["shot_id"])
-                _qc_pending.append((shot, _dest))
                 # 1006 用户令(爬行根治): 镜间释放显存 — H3 模型栈 ~46GB/49GB,
                 # 连跑 2-3 镜后碎片化 → 换页爬行(70s/步 vs 正常10s/步);
                 # 镜间 /free 清干净再重载(~60s), 每镜总时 ~3min vs 爬行 ~12min = 4x 提速
@@ -957,15 +931,4 @@ def run_batch(doc: dict[str, Any], only: set[str] | None = None, retry_failed: b
                 on_shot_done(shot["shot_id"], done, pending)
             except Exception:
                 logger.warning("[h3] 进度回调异常", exc_info=True)
-    # 1103 Y3: 视频机检批尾成扫 — 云端 VLM 已全部移出 GPU 渲染循环 (用户令,
-    # 同 k2-en 教训); 渲染批完 GPU 已空, 一遍连续扫 (stop 可断, 已扫即存)
-    if _qc_pending:
-        logger.info("[video_qc] 批尾机检 %d 镜 (渲染循环零云调用)", len(_qc_pending))
-        for shot, dest in _qc_pending:
-            if stop_check and stop_check():
-                logger.info("[video_qc] 协作取消: 批尾机检中断 (已扫 %d)",
-                            _qc_pending.index((shot, dest)))
-                break
-            qc_video(shot, doc, dest)
-        shots_mod.save(doc)
     return {"ok": ok, "fail": fail}

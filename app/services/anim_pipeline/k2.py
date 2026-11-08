@@ -829,7 +829,6 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
                                   page="k2", thesis=_thesis, lang="en",
                                   zh_scene=_zh_src),
         dest, int(shot.get("seed") or 0), f"k2 {shot['shot_id']}", shot=shot,
-        face_check=_scene_has_person(scene_eff, doc["book_title"]),
         book_title=str(doc.get("book_title") or ""))
     if dirty:
         shot["text_suspect"] = True
@@ -891,49 +890,10 @@ def _ocr_dirty(png: Path) -> bool:
     return False
 
 
-def _vlm_dirty(png: Path) -> str | None:
-    """VLM 兜底 (0923 用户双实锤: 试渲_1 伪文字 + 试渲_3 各国国旗): 正向提示词压不住的
-    都靠这道 — K2 风格化乱字 OCR 读不出 (假阴性), 国旗国徽正向禁令无效。
-    glm-4v-flash 一次查: 文字/国旗/国徽/地图/政治人物。返回违禁简述或 None。"""
-    try:
-        import base64
-        import io as _io
-
-        from PIL import Image
-
-        from app.services.reverse_prompt_service import _chat as _vlm_chat
-        im = Image.open(png).convert("RGB")
-        if im.width > 960:
-            im = im.resize((960, int(im.height * 960 / im.width)))
-        buf = _io.BytesIO()
-        im.save(buf, "JPEG", quality=80)
-        b64 = base64.b64encode(buf.getvalue()).decode()
-        out = _vlm_chat(
-            "data:image/jpeg;base64," + b64,
-            "仔细看这张动画画面, 逐项检查: "
-            "①任何可见的文字/字母/数字/汉字 (含招牌/匾额/标签/屏幕上的伪文字乱码) "
-            "②任何国家的国旗 ③国徽/军徽/警徽/党徽/帽徽/领章 "
-            "④中国地图或带国界线/省界的地图 (1015 口径: 藏宝图/游戏地图/示意小地图不算) "
-            "⑤军装警服制式元素 ⑥政治人物或国家领导人形象 "
-            "⑦吸烟/香烟/饮酒/醉酒 ⑧赌博 (扑克/骰子/老虎机/筹码) "
-            "⑨暴力血腥 (血/伤口/断肢/尸体) ⑩色情暴露 (裸体/暴露) ⑪毒品/注射器 "
-            "⑫红旗/红色横幅/红色条幅 (楼顶/建筑/窗外城市天际线上的; 室内红布装饰与人物红衣服不算)。"
-            '只输出 JSON: {"violations": ["文字"/"国旗"/"国徽"/"地图"/"政治人物"/'
-            '"吸烟饮酒"/"赌博"/"暴力血腥"/"色情暴露"/"毒品"/"红旗"], "what": "简述位置"} '
-            '— 全无则 {"violations": [], "what": ""}', max_tokens=96)
-        m = re.search(r'"violations"\s*:\s*\[([^\]]*)\]', out or "")
-        hits = m.group(1)[:80] if (m and m.group(1).strip()) else ""
-        # 1012 二段式: 远处小旗全帧 VLM 看不见 (实锤) — 像素预筛+放大3x确认
-        try:
-            from .video_qc import _flag_banner  # 混合检测: 上半屏红块→放大VLM
-            if _flag_banner(png):
-                hits = (hits + ', "红旗"' if hits else '"红旗"')
-        except Exception:  # noqa: BLE001 — 不可用放行 (同 VLM fail-open)
-            pass
-        return hits or None
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("[k2] VLM 违禁兜底不可用 (放行): %s", exc)
-        return None
+# 1108 用户令 (令51: AI 图检废除): _vlm_dirty 违禁扫 + _vlm_face_bad 面部闸 撤除 —
+# AI 识别精度不如人眼扫一遍, 纯浪费 token; K2 页人检 = 唯一图检。
+# (历史: 0923 立闸 / 1014 面部闸 / 1012 红旗二段 / 1021 豁免闸 — 均随本令退役;
+#  git 历史可考。OCR 检字保留: 本地毫秒级零 token, text_suspect 只帮人眼定位。)
 
 
 # 1008 规层 R7: 前十 = 政治红线 (绝不落盘); 后六 = 平台禁止类 (同样绝不落盘 —
@@ -942,10 +902,6 @@ def _vlm_dirty(png: Path) -> str | None:
 # 抖音审核风险级, 与政治红线同规格 (换seed重掷/绝不落盘)
 _HARD_VIOLATIONS = ("国旗", "国徽", "党徽", "军徽", "警徽", "军装", "警服", "领导人", "地图", "政治人物",
                     "吸烟", "饮酒", "赌博", "暴力血腥", "色情暴露", "毒品", "红旗", "红色横幅")
-# 1021 可豁免硬项白名单: 只收**内容判定类** (叙事正当性争议空间, 如"决策是赌博"
-# 的骨牌/骰子隐喻); 政治红线 (国旗/国徽/党徽/军徽/警徽/军装/警服/领导人/地图/
-# 政治人物) 绝不入豁免 — gate_exempt 写了也不生效
-_EXEMPTABLE_GATES = {"吸烟", "饮酒", "赌博", "暴力血腥", "色情暴露", "毒品", "红旗", "红色横幅"}
 
 # 1014 P4 (s51 实锤): 视觉孪生致死时画面句里没有致死词本身, 判决回流剥词空转
 # 死循环 — 硬词扩带孪生族 (棋盘+地形线条渲出来就是地图; 棋盘/兵棋又会被 VLM
@@ -955,118 +911,30 @@ _HARD_TWIN = {"地图": ("地形", "疆域", "版图", "国界", "边境线", "�
               "赌博": ("棋盘", "棋牌", "骰子", "筹码", "扑克", "兵棋", "象棋", "军棋")}
 
 
-def _vlm_face_bad(png: Path) -> str | None:
-    """五官完整性闸 (1014 ep3 批图实锤: s28无眼/s34空白脸/s12缺嘴鼻)。
-
-    判定器两版史: 一版走 glm-4v-flash 同通道 — 实弹对着 s34 空白脸两把答"正常"
-    (模型望不穿), 按安静验证纪律 (终审=qwen3-vl) 换 **bl CLI (qwen3-vl-plus)**
-    为主判, glm 退兜底。软级: 违禁外的质量红线, 重掷仍坏保留交人检。fail-open。"""
-    _ask = ("检查这张动画画面中所有人物的面部。是否有任何人物缺五官："
-            "没有眼睛、没有嘴巴、或整张脸空白光滑无五官(只有腮红)？"
-            '只输出 JSON: {"face_bad": "无眼或缺嘴或空白脸的简述", "what": "位置"} '
-            '— 全部人物五官正常则 face_bad 为空串, 不要输出别的')
-    import shutil
-    import subprocess
-    try:  # 主判: qwen3-vl (bl CLI, 项目纪律=终审级眼力)。参数列表直传 (shell=True
-        # 会被 prompt 里的双引号切碎参数 — "Unexpected argument: /" 闸哑火实锤)
-        _bl = shutil.which("bl.cmd") or shutil.which("bl") or "bl"
-        r = subprocess.run(
-            [_bl, "vision", "describe", "--image", str(png), "--prompt", _ask, "--quiet"],
-            capture_output=True, text=True, timeout=120)
-        m = re.search(r'"face_bad"\s*:\s*"([^"]{0,12})"', r.stdout or "")
-        if m:
-            v = m.group(1).strip()
-            if v and not v.startswith("无"):  # "无异常"类表述按空处理
-                return v
-            return None
-        if r.returncode != 0:
-            logger.warning("[k2] qwen 面部闸 rc=%s: %s", r.returncode, (r.stderr or "")[:80])
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("[k2] qwen 面部闸异常: %s", exc)
-    try:  # 兜底: glm-4v-flash (弱眼力, 有总比没有强)
-        import base64
-        import io as _io
-
-        from PIL import Image
-
-        from app.services.reverse_prompt_service import _chat as _vlm_chat
-        im = Image.open(png).convert("RGB")
-        if im.width > 960:
-            im = im.resize((960, int(im.height * 960 / im.width)))
-        buf = _io.BytesIO()
-        im.save(buf, "JPEG", quality=80)
-        b64 = base64.b64encode(buf.getvalue()).decode()
-        out = _vlm_chat("data:image/jpeg;base64," + b64, _ask, max_tokens=64)
-        m = re.search(r'"face_bad"\s*:\s*"([^"]{0,8})"', out or "")
-        v = m.group(1).strip() if m else ""
-        return v or None
-    except Exception as exc:  # noqa: BLE001
-        logger.warning("[k2] VLM 面部闸不可用 (放行): %s", exc)
-        return None
-
-
 def render_gated(seed_to_wf, dest: Path, seed: int, label: str, *, retries: int = 1,
                   shot: dict[str, Any] | None = None,
-                  face_check: bool = False,
                   book_title: str = "") -> bool:
-    """出图 + 违禁守门双道: seed_to_wf(seed) 产工作流; 命中换 seed+1 重掷。
+    """出图 + 本地 OCR 检字守门: seed_to_wf(seed) 产工作流; 命中换 seed 重掷。
 
-    第一道 OCR (真文字, 毫秒级); 第二道 VLM (伪文字/国旗/国徽/地图/政治人物, 秒级)。
-    分级处置 (0923 用户实锤 国旗+国徽双中):
-    - 文字类 (软, 质量问题): 重掷后仍脏 → 保留 + 返回 True 交人检;
-    - 政治类 (硬, 抖音红线): **绝不落盘** — 重掷到额度用尽仍脏 → 恢复旧图或删图, True。
-    - 五官类 (软, 1014): face_check=True (人物镜) 时 VLM 查无眼/缺嘴/空白脸 —
-      重掷一次, 仍坏保留交人检 (ep3 s28/s34/s12 实锤)。
+    1108 用户令 (令51): AI 图检 (VLM 违禁扫/面部闸) 全撤 — 识别精度不如人眼
+    扫一遍, 纯浪费 token; K2 页人检 = 唯一图检。本函数只留本地 OCR 检字
+    (毫秒级零 token): 命中重掷, 仍脏 → 保留 + 返回 True 交人检 (text_suspect)。
     判定器不可用自动放行。
-    1004 修 (s16 死循环实锤): 判决回流 shot.gate_rejects (reason/hard/ts, 截 8 条) —
-    ♻️重规划吃反馈根除载体, 🎨重做生图前剔除致死子句, 打破"换seed→同构图→再杀"环。"""
-    prev = dest.read_bytes() if dest.exists() else None
-    hard = False
-    reasons: list[str] = []
-    # 1021 镜级豁免闸 (ep7 s65-s68 实锤: 多米诺骨牌阵被 VLM 误判"赌博"硬杀连坐
-    # 删图 — 用户令"别硬拦截"): shot.gate_exempt 声明的**内容判定类**项不算脏;
-    # 政治红线五族+地图锁死不可豁免 (机器白名单, 抖音绝对红线)
-    _ex = ({h for h in (shot.get("gate_exempt") or []) if h in _EXEMPTABLE_GATES}
-           if shot is not None else set())
+    1004 修 (s16 死循环实锤): 判决回流 shot.gate_rejects — ♻️重规划吃反馈。"""
     for attempt in range(retries + 1):
         wf = seed_to_wf(seed + attempt)
         comfy.run_workflow(wf, dest=dest, timeout_sec=300, label=f"{label}#{attempt}")
-        # 0923 修: VLM 永远跑 — OCR 先脏会短路跳过 VLM, 国徽漏检实锤 (红色制服+徽章诱导)
-        vbad = _vlm_dirty(dest)
-        if vbad and _ex:
-            _hits = {h for h in _HARD_VIOLATIONS if h in str(vbad)}
-            if _hits and _hits <= _ex:  # 命中项全部已豁免 → 视为干净 (不重掷不删图)
-                logger.info("[gate] %s 豁免命中 %s (gate_exempt, 交人检)", label,
-                            "/".join(sorted(_hits)))
-                vbad = None
-        fbad = (_vlm_face_bad(dest) or "") if (face_check and not vbad) else ""
-        hard = bool(vbad) and any(h in str(vbad) for h in _HARD_VIOLATIONS)
-        if vbad:
-            reasons.append(f"{vbad}{'[硬]' if hard else '[软]'}")
-        if fbad:
-            reasons.append(f"{fbad}[软·五官]")
-        if shot is not None and (vbad or fbad or _ocr_dirty(dest)):
+        if not _ocr_dirty(dest):
+            return False
+        logger.warning("[k2] 检字命中重掷 (%s 第%d次)", label, attempt + 1)
+        if shot is not None:
             gr = shot.setdefault("gate_rejects", [])
-            gr.append({"reason": str(vbad or fbad or "OCR文字"), "hard": hard,
+            gr.append({"reason": "OCR文字", "hard": False,
                        "ts": time.strftime("%Y-%m-%dT%H:%M:%S")})
             del gr[:-8]  # 截尾留 8
-            # 1017 W5: 图像闸判决 → 书级负词沉淀回路 (fail-open)
+            # 1017 W5: 判决 → 书级负词沉淀回路 (fail-open)
             from . import neg_learn
-            neg_learn.record_verdict(book_title, str(vbad or fbad or "OCR文字"))
-        if not (vbad or fbad or _ocr_dirty(dest)):
-            return False
-        logger.warning("[k2] 违禁守门重掷 (%s 第%d次, %s%s)", label, attempt + 1,
-                       vbad or fbad or "OCR文字", " [硬·政治]" if hard else "")
-    if hard:
-        if prev is not None:  # 政治红线: 脏图绝不留 — 有旧图恢复旧图, 无旧图删脏图
-            dest.write_bytes(prev)
-            logger.warning("[k2] 硬违禁未通过, 已恢复上一版: %s", dest.name)
-        else:
-            dest.unlink(missing_ok=True)
-            logger.warning("[k2] 硬违禁未通过且无旧版, 弃图: %s", dest.name)
-        if shot is not None:
-            shot["error"] = (f"硬违禁({','.join(reasons)}) 连杀, 换seed无效 — "
-                             "已自动剔除致死子句, 再🎨重做; 仍杀则♻️重规划 (带判决反馈)")[:500]
+            neg_learn.record_verdict(book_title, "OCR文字")
     return True
 
 

@@ -2354,3 +2354,13 @@ laotan-tech 加【科技版专属约束】（高于通用规则）：
 - **动机/背景**: 每集人工撤卡不可持续; 遴选标准应沉淀进分诊 prompt 或装配闸。
 - **涉及模块**: app/services/anim_pipeline/v3_pipeline/shots.py (build_cards), 分诊 prompt
 - **备注**: 下一集分诊 card_text 质量观察后定阈值。
+
+### ID-147：【动画·机检】video_qc.py VLM 半区真删 (令51 第二步)
+
+- **状态**: pending (观察期, ≥1 周后执行 — 2026-11-15 之后)
+- **优先级**: P3
+- **提出时间**: 2026-11-08
+- **描述**: 令51 AI 图检废除已撤全部产线调用点 (K2 双闸 / H3 批尾成扫 / r2v 死引用 / style_board 三掷); video_qc.py 内 VLM 半区 (check/_vlm/_flag_banner/抽帧) 标 DEPRECATED。观察期后 send2trash 删 VLM 半区函数 — **writer_audit 必须保留** (assembler 可重放断言仍在役)。
+- **动机/背景**: 删除类两步法 (B 系列纪律): 第一步停调已落, 第二步真删待观察期过。
+- **涉及模块**: app/services/anim_pipeline/video_qc.py
+- **备注**: 删前现场 grep 复核 check/_vlm/_flag_banner 零引用 (审计清单会漂移)。
