@@ -1758,6 +1758,12 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
 
                 _v3n = 0
                 for _vc in (_v3.get("cards") or []):
+                    # 1108 用户令 (遴选): ≤6 字标签卡不上屏 — "丑话清单"/"翻脸
+                    # 急救卡" 4 字占屏零信息量 (用户实锤: 这有什么好上屏的)
+                    if len(str(_vc.get("text") or "").strip()) <= 6:
+                        logger.info("[draft] v3标签卡 %s '%s' ≤6字跳过",
+                                    _vc.get("cid"), str(_vc.get("text"))[:8])
+                        continue
                     _sp = _span_of(int(_vc.get("line_no") or 0))
                     if not _sp:
                         logger.warning("[draft] v3卡 %s 行文本未命中句轴, 跳过",
