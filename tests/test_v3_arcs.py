@@ -50,9 +50,57 @@ def test_boundary_clean_passes():
 
 def test_boundary_cross_mode_flagged():
     sk = arcs.build_skeleton(arcs.modules_of(_lines()))
-    bad = [dict(sk[0]), dict(sk[1], no_end=5), *sk[3:]]   # 书证弧吞掉评论行
+    # 1108 修订: comm+quote 混弧合法; 结构位 (hook) 混入仍违例
+    bad = [dict(sk[0], no_end=5), *sk[2:]]                # 钩子弧吞掉书证+评论行
     issues = arcs.boundary_issues(bad, _lines())
     assert any("跨语态" in i for i in issues), issues
+
+
+def test_boundary_narr_mix_passes():
+    """1108 用户令: 讲述双声部 (comm+quote) 合法混弧 — 引用句是笔法不是弧界。"""
+    sk = arcs.build_skeleton(arcs.modules_of(_lines()))
+    mixed = [sk[0], dict(sk[1], no_end=5), *sk[3:]]       # 书证弧并掉评论行
+    assert arcs.boundary_issues(mixed, _lines()) == []
+
+
+def test_merge_narr_modules_ep6_shape():
+    """1108 用户令 (ep6 实锤 15/24 单行弧): 相邻讲述模块并弧, 结构位是天然弧界。"""
+    lines = [
+        {"no": 1, "text": "先认清楚三个阶段。", "mode": "comm"},
+        {"no": 2, "text": "书里明确说，这是规律。", "mode": "quote"},
+        {"no": 3, "text": "客户开始怀疑，不一定是对你不满意。", "mode": "comm"},
+        {"no": 4, "text": "书里乔伊就是栽在这里。", "mode": "quote"},
+        {"no": 5, "text": "怀疑不会自己消失。", "mode": "comm"},
+        {"no": 6, "text": "这一集给你两件工具。", "mode": "hook"},
+        {"no": 7, "text": "重建期第一个动作。", "mode": "comm"},
+        {"no": 8, "text": "书里这句一定要记。", "mode": "quote"},
+    ]
+    mods = arcs.merge_narr_modules(arcs.modules_of(lines))
+    assert [(m["mode"], m["no_start"], m["no_end"]) for m in mods] == [
+        ("comm", 1, 5),      # 五行讲述并一弧 (3 comm 主导), 不再 5 个单行弧
+        ("hook", 6, 6),      # 结构位是天然弧界, 不并
+        ("comm", 7, 8),      # hook 后的讲述重新起弧
+    ]
+    sk = arcs.build_skeleton(mods)
+    assert [a["type"] for a in sk] == ["narr", "hook", "narr"]
+    assert arcs.boundary_issues(sk, lines) == []
+
+
+def test_merge_respects_section_boundary():
+    """段标=节目段落边界, 并弧不得跨越 (ep6 二轮实锤: 跨四段标并成 26 行巨弧)。"""
+    lines = [
+        {"no": 1, "text": "核心一第一句。", "mode": "comm"},
+        {"no": 2, "text": "书里说这是规律。", "mode": "quote"},
+        {"no": 3, "text": "【120-165s｜核心二】", "mode": "section"},
+        {"no": 4, "text": "核心二第一句。", "mode": "comm"},
+        {"no": 5, "text": "书里这句要记。", "mode": "quote"},
+    ]
+    mods = arcs.merge_narr_modules(arcs.modules_of(lines))
+    assert [(m["no_start"], m["no_end"]) for m in mods] == [
+        (1, 2), (4, 5)]      # 段内并弧, 段标两侧各自成弧
+    sk = arcs.build_skeleton(mods)
+    assert [a["arc_id"] for a in sk] == ["A1", "A2"]
+    assert arcs.boundary_issues(sk, lines) == []
 
 
 def test_boundary_missing_and_duplicate_flagged():

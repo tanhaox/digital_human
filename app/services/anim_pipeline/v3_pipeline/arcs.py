@@ -2,8 +2,9 @@
 """v3 ② 立意 (V2) — 语态驱动切弧 + 弧界执法 + LLM 只做创作.
 
 分层纪律 (与 ① 同构):
-- 确定性层 = 骨架与执法: 连续同语态行聚成「稿模块」; 弧必须单一语态
-  (= 弧界落模块边界, 用户令) — 违者红痕拒放行, 不靠 LLM 自觉。
+- 确定性层 = 骨架与执法: 连续同语态行聚成「稿模块」; 弧界必须落模块边界
+  (用户令) — 1108 修订: 讲述双声部 (comm+quote) 相邻模块并弧合法 (引用句
+  是笔法不是弧界, ep6 15/24 单行弧实锤), 结构位混入仍红痕拒放行。
 - LLM 层 = 创作: 每弧产出 视觉世界(world) + 隐喻核心(A=B); 超长评论段可建议
   在行边界内再拆 (拆点仍须单语态)。
 
@@ -24,6 +25,10 @@ TYPE_OF_MODE = {
     "hook": "hook", "cta": "cta", "brand": "brand",
 }
 NON_NARRATIVE = ("hook", "cta", "brand")     # 非叙事位: 系列冻结语言, 不分配立意
+# 1108 用户令 (ep6 实锤: 引用句/解说句行行交替 → 15/24 弧单行): 讲述双声部
+# (解说 comm + 书证 quote) 是作者的引用笔法不是弧界 — 相邻讲述模块并成一弧
+# (整模块并吞, 弧界仍落模块边界); hook/cta/persona/brand 是结构位, 保持纯语态。
+NARR_MERGEABLE = {"comm", "quote"}
 CHARS_PER_SEC = 4.5                          # 中文口播估时 (与 ① 预估同口径)
 SPLIT_SUGGEST_LINES = 15                     # 单语态段超过此值, 提示可在段内再拆
 
@@ -37,10 +42,12 @@ def modules_of(lines: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     mods: list[dict[str, Any]] = []
     last_mode: str | None = None
+    pending_break = False                # 段标/卡/图指令后 → 下一模块 hard_start
     for ln in lines:
         mode = str(ln.get("mode") or "unknown")
         if mode in ("section", "card", "img", "note"):
             last_mode = None            # 硬断点
+            pending_break = True
             continue
         if not str(ln.get("text") or "").strip() or mode == "unknown":
             continue                     # 软跳过 (不断)
@@ -49,7 +56,8 @@ def modules_of(lines: list[dict[str, Any]]) -> list[dict[str, Any]]:
             mods[-1]["lines"].append(ln)
         else:
             mods.append({"mode": mode, "no_start": ln["no"], "no_end": ln["no"],
-                         "lines": [ln]})
+                         "lines": [ln], "hard_start": pending_break})
+            pending_break = False
         last_mode = mode
     return mods
 
@@ -57,6 +65,29 @@ def modules_of(lines: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def est_seconds(lines: list[dict[str, Any]]) -> float:
     chars = sum(len(str(l.get("text") or "").strip()) for l in lines)
     return round(chars / CHARS_PER_SEC, 1)
+
+
+def merge_narr_modules(mods: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """1108 用户令 (讲述双声部并弧): 相邻且语态均 ∈ NARR_MERGEABLE 的模块并成一弧。
+
+    整模块并吞 (不切模块内部) → 弧界仍落模块边界 (原令精神不变);
+    主导语态 = 行数多者 (平手取 comm=解说主导, 书证句是论据不是骨架)。
+    hook/cta/persona/brand 模块是天然弧界 (特区宪法按弧型注入, 混弧失保护);
+    段标/卡/图指令后的模块 hard_start — 段落边界不并 (ep6 二轮实锤: A7 跨
+    四个段标并成 26 行/159.8s 巨弧)。
+    """
+    out: list[dict[str, Any]] = []
+    for m in mods:
+        if (out and m["mode"] in NARR_MERGEABLE and out[-1]["mode"] in NARR_MERGEABLE
+                and not m.get("hard_start")):
+            prev = out[-1]
+            prev["lines"] += m["lines"]
+            prev["no_end"] = m["no_end"]
+            _c = sum(1 for l in prev["lines"] if l.get("mode") == "comm")
+            prev["mode"] = "comm" if _c * 2 >= len(prev["lines"]) else "quote"
+        else:
+            out.append(dict(m))
+    return out
 
 
 def build_skeleton(mods: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -86,7 +117,8 @@ def effective_nos(lines: list[dict[str, Any]]) -> set[int]:
 def boundary_issues(arcs: list[dict[str, Any]],
                     lines: list[dict[str, Any]]) -> list[str]:
     """执法 (用户令: 弧界必须落模块边界):
-    ① 弧内单一语态 (= 不跨语态, 即弧界只在模块边界)
+    ① 弧内语态单一 或 ⊆ 讲述双声部 {comm, quote} (1108 修订: 引用句是笔法
+    不是弧界; 结构位 hook/cta/persona/brand 混入仍违例 — 特区宪法按弧型注入)
     ② 有效行恰好归属一弧 (无遗漏/无重复/无归属到段标等无效行)
     """
     mode_of = {ln["no"]: str(ln.get("mode") or "unknown") for ln in lines}
@@ -104,8 +136,11 @@ def boundary_issues(arcs: list[dict[str, Any]],
             issues.append(f"{aid}: 区间内无有效行 [{s}, {e}]")
             continue
         modes = {mode_of.get(no) for no in nos}
-        if len(modes) > 1:
-            issues.append(f"{aid}: 跨语态 {sorted(modes)} — 弧界未落模块边界")
+        # 1108 用户令: 讲述双声部 (comm+quote) 合法混弧 — 引用句是笔法不是弧界;
+        # 结构位 (hook/cta/persona/brand) 混入仍红痕 (特区宪法按弧型注入, 混弧失保护)
+        if len(modes) > 1 and not modes <= NARR_MERGEABLE:
+            issues.append(f"{aid}: 跨语态 {sorted(modes)} — 混弧仅限讲述类(comm/quote), "
+                          "结构位(hook/cta/persona/brand)必须纯语态弧")
         for no in nos:
             if no in seen:
                 issues.append(f"L{no} 同时属于 {seen[no]} 与 {aid} (重复归属)")
@@ -313,7 +348,7 @@ def run(job: dict[str, Any]) -> None:
     if not lines:
         raise SystemExit("未分诊 — 先跑 ① 文稿分诊")
 
-    mods = modules_of(lines)
+    mods = merge_narr_modules(modules_of(lines))
     if not mods:
         raise SystemExit("无有效语态行 — 回 ① 分诊页补标语态")
     arcs = build_skeleton(mods)

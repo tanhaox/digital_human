@@ -983,9 +983,10 @@ def v3_shots_save(book_id: str, ep: int, body: ShotSaveBody):
 
 @router.post("/ep/{book_id}/{ep}/concept/resplit")
 def v3_concept_resplit(book_id: str, ep: int):
-    """按语态变化点把跨语态的弧拆回多弧 (确定性修复, 保留首段立意文字)。
+    """按语态变化点把非法混弧拆回多弧 (确定性修复, 保留首段立意文字)。
 
     实锤: 人闸合并了不同语态的相邻弧 (书证+评论+书证) → 弧界未落模块边界。
+    1108 修订: 讲述双声部 (comm+quote) 混弧已合法 — 只拆结构位混入的弧。
     """
     from app.services.anim_pipeline.v3_pipeline.arcs import (boundary_issues,
                                                              est_seconds, TYPE_OF_MODE)
@@ -1007,6 +1008,12 @@ def v3_concept_resplit(book_id: str, ep: int):
         for a in v3.get("arcs") or []:
             seg = [no for no in range(int(a["no_start"]), int(a["no_end"]) + 1) if no in valid]
             if not seg:
+                continue
+            # 1108 用户令: 讲述双声部 (comm+quote) 是合法混弧 — 不拆;
+            # 只拆结构位 (hook/cta/persona/brand) 混入的非法弧
+            _modes = {str(line_of[n].get("mode") or "") for n in seg}
+            if _modes <= {"comm", "quote"}:
+                out.append(dict(a))
                 continue
             # 按语态变化点切段
             groups: list[list[int]] = []
