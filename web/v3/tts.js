@@ -30,7 +30,12 @@ async function boot() {
     (await fetch(`${BASE}/state`)).json(),
   ]);
   $('sub').textContent = `${st.book_title} · 第${st.ep}集`;
-  rail($('rail'), { line: st.line, gates: st.gates, active: 'tts' });
+  rail($('rail'), { line: st.line, gates: st.gates, active: 'tts',
+    audioReady: st.audioReady });                    // K2 站锁随音频就位同步亮
+  const nx = $('btn-next');                          // 1108: ⑤ 下一步 = ⑥ K2 (音频定稿后)
+  const k2ok = !!st.gates.direct && !!st.audioReady;
+  nx.disabled = !k2ok;
+  nx.title = k2ok ? '进入 ⑥ K2 生图 (烧卡工位)' : '音频块数=未屏弃槽位数后解锁';
   $('btn-audio').href = `/web/audio.html?book_id=${encodeURIComponent(B)}&ep_index=${E}`;
 
   if (!d.has_audio) {
@@ -223,6 +228,13 @@ async function submitEditor(id) {
 }
 
 $('btn-refresh').onclick = boot;
+$('btn-next').onclick = async () => {
+  try {
+    const r = await fetch('./k2.html', { method: 'HEAD' });
+    if (r.ok) { location.href = './k2.html' + location.search; return; }
+  } catch { /* 未上线 */ }
+  toast('⑥ K2 页建设中 — 音频包已就位');
+};
 
 /* 按槽重生成 (D 刀): 段表按槽重切 → 音频线合成 → 钉选新包; 块[i]↔槽[i] 1:1 */
 $('btn-gen').onclick = async () => {
