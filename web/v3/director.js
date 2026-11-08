@@ -88,7 +88,7 @@ async function boot() {
   }
   rail($('rail'), { line: st.line, gates: GATES, active: 'direct' });
   if (st.running_job) runner.attach(st.running_job);   // 刷新重挂 (v2 同模式)
-  renderBlocks(); renderRhythm(); renderCounts(); renderSide();
+  renderBlocks(); renderRhythm(); renderCounts(); renderSide(); refreshDirty();
   paintAllClauses();                                   // 运镜句预览 (服务端单源)
   const run = $('btn-run'), save = $('btn-save');
   run.disabled = false; run.title = 'LLM 按官方词表填四元组 (程序管步数/工位)';
@@ -148,7 +148,7 @@ async function saveDirect() {
     }
     await boot();
   } catch (e) { toast('保存失败: ' + e.message); }
-  $('save-label').textContent = '💾 保存导演';
+  refreshDirty();   // 1108: 保存完成后按钮应显性变「确认放行」(原硬编码还原, 放行形态从不露面 = K2 被卡用户找不到按钮)
 }
 
 /* ── 顶栏 ─────────────────────────────────────────────── */
