@@ -238,18 +238,32 @@ def arc_thesis(doc: dict[str, Any], arc_id: str = "") -> str:
 
 def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
                  text_event: dict | None = None, in_image_text: list | None = None,
-                 thesis: str = "") -> str:
+                 thesis: str = "", zh_scene: str = "") -> str:
     # 1016 修2: text_event/in_image_text 从镜级直传 — 旧版读 anim.get(...) 永远为空
     # (两字段在镜级, 调用方却只传 shot["anim"]), 事件字/合成字从未真正进过提示词.
     beats = anim["beats"]
     # 批4 光影槽: ④ light_en 软接线 (空则跳过 — 存量镜/未补译镜零扰动)
     _light = str(anim.get("light_en") or "").strip()
+    # 1108 批A-4: 无人物镜 (空镜/手部特写) 两锁收口 — 手=种子, character_policy
+    # "角色固定出场/必须有脸/胡须眼镜识别词" + identity lock "characters' faces"
+    # =放大器, 5/5 手部镜视频中途冒整人实锤 (s30/s51/s52/s54/s55); 纯空镜无
+    # 种子不冒 (4/4 佐证)。判据同 K2 批A-3 (_scene_has_person, 手部剥词);
+    # zh_scene 不传 (v2 路) = 字节不动。
+    _no_person = False
+    if str(zh_scene or "").strip():
+        from .k2 import _scene_has_person
+        _no_person = not _scene_has_person(zh_scene, book_title)
+    _ident = ("Identity lock: keep all characters' faces, hairstyles and "
+              "outfits consistent with Picture 1 — outfit COLORS stay pixel-faithful to Picture 1 for "
+              "every frame: no recoloring, no hue shift, no costume redesign.")
+    if _no_person:  # 正向改写: 不断言 faces (1024 铁律, 不枚举禁物防反向召唤)
+        _ident = ("Identity lock: everything visible in Picture 1 stays itself for "
+                  "every frame — outfit and object COLORS stay pixel-faithful to "
+                  "Picture 1: no recoloring, no hue shift, no costume redesign.")
     lines = [
         "integrated_multimodal_description:",
         f"[Shot 1] {style_h3(book_title, page=page)}. At 0.00 seconds the frame fully matches Picture 1: "
-        f"{_strip_scene_label(_de_traditional(anim['opening_desc'].strip()))}. Identity lock: keep all characters' faces, hairstyles and "
-        "outfits consistent with Picture 1 — outfit COLORS stay pixel-faithful to Picture 1 for "
-        "every frame: no recoloring, no hue shift, no costume redesign."
+        f"{_strip_scene_label(_de_traditional(anim['opening_desc'].strip()))}. {_ident}"
         + (f" Lighting continuity: {_light}" if _light else ""),
         "",
         f"Physical lock for the whole video: {_de_traditional(anim['physical_lock'].strip())} — "
@@ -274,7 +288,7 @@ def build_prompt(anim: dict[str, Any], book_title: str = "", page: str = "",
         lines.append("")
     # 1017 无脸根治: 圣经角色纪律进渲染链 (逐字取书, 组装器不推导)
     _cp = character_policy(book_title)
-    if _cp:
+    if _cp and not _no_person:  # 1108 批A-4: 无人物镜不注 — "角色固定出场/必须有脸"是冒人召唤
         lines.append(f"Character law (book bible, mandatory): {_cp}")
         lines.append("")
     # 1012 场景时代锁 (治风格卡场景越权): 风格锚只管画法, 场景/服饰/环境归时代锚
@@ -547,14 +561,15 @@ def build_workflow(image_name: str, anim: dict[str, Any], seed: int, prefix: str
                    thesis: str = "", cam_move: str = "",
                    cam_speed: str = "",
                    cam_amp: str = "", cam_v3_family: str = "",
-                   cam_v3_dir: str = "") -> dict[str, Any]:
+                   cam_v3_dir: str = "", zh_scene: str = "") -> dict[str, Any]:
     """H3 I2V 工作流 (API 格式), 节点 ID 对齐最爱视频真相图 (102.4s/10s).
 
     qc_history (1004 修): 该镜既往机检判决 (乱码/崩坏史) → 重 roll 时注入
     对症禁令锚 (glyph lock 之上的第二道伪字防线 — 判决回流防复发)。"""
     _prompt = build_prompt(anim, book_title, page="k2",  # 1007: H3 与 K2 同风格 (page 隔离)
                            text_event=text_event, in_image_text=in_image_text,  # 1016 修2: 镜级直传
-                           thesis=thesis)  # 1017 W3: 弧主旨锚
+                           thesis=thesis,  # 1017 W3: 弧主旨锚
+                           zh_scene=zh_scene)  # 1108 批A-4: 无人物镜两锁收口
     if qc_history:
         _kinds = {str(r.get("kind") or r.get("what") or "") for r in qc_history}
         if any("乱码" in k for k in _kinds):
@@ -705,7 +720,8 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
                             qc_history=(shot.get("qc_rejects") or None),
                             text_event=shot.get("h3_text_event"),
                             in_image_text=shot.get("in_image_text"), thesis=_thesis,
-                            cam_move=_cmove)
+                            cam_move=_cmove,
+                            zh_scene=str(shot.get("keyframe_zh") or ""))  # 批A-4
     else:
         src_img = base_dir / shot["image_file"]
         if not src_img.exists():
@@ -726,7 +742,8 @@ def run_shot(shot: dict[str, Any], doc: dict[str, Any]) -> Path:
                             qc_history=(shot.get("qc_rejects") or None),
                             text_event=shot.get("h3_text_event"),
                             in_image_text=shot.get("in_image_text"), thesis=_thesis,
-                            cam_move=_cmove)
+                            cam_move=_cmove,
+                            zh_scene=str(shot.get("keyframe_zh") or ""))  # 批A-4
     # 10s 热机 ~102s, 冷机翻倍, 留余量; 0919 实锤: 长镜 (6.9-8.8s) 在低显存节点
     # 帧数放大超线性, 600s 定额连杀 s11/s12/s21 两轮 (ComfyUI 实际都跑完了,
     # 产物躺 output 成孤儿) — 超时按时长伸缩
