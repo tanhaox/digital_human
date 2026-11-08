@@ -98,3 +98,23 @@ def test_save_endpoint_imports_resolve():
             line = line.strip()
             if line.startswith("from ") and " import " in line:
                 exec(line, {})       # 真解析: 模块不存在/名字不存在/相对导入错 都会炸
+
+
+def test_strip_inline_markers():
+    """1108 ep6 实锤: 拆书 LLM 自发明【大字字幕】标注混进稿被 TTS 念出 —
+    分诊入口剥口播行内【..】; 注释/结构行保原样 (注释是生产信息)。"""
+    from app.services.anim_pipeline.v3_pipeline.triage import strip_inline_markers
+    lines = [
+        {"no": 1, "mode": "quote", "text": "书里一条铁律：优先保护你的声誉【大字字幕】。"},
+        {"no": 2, "mode": "comm", "text": "开头【强调】中间也有标注的行尾【收】"},
+        {"no": 3, "mode": "note", "text": "**沟通宁可过多**【封面 + 收尾大字】"},
+        {"no": 4, "mode": "card", "text": "【卡:止损两问】两轮不开吗？"},
+        {"no": 5, "mode": "comm", "text": "没有标记的普通行"},
+    ]
+    n = strip_inline_markers(lines)
+    assert n == 2
+    assert lines[0]["text"] == "书里一条铁律：优先保护你的声誉。"
+    assert lines[1]["text"] == "开头中间也有标注的行尾"
+    assert "【封面 + 收尾大字】" in lines[2]["text"]       # 注释行不动
+    assert lines[3]["text"].startswith("【卡:")            # 结构行不动
+    assert lines[4]["text"] == "没有标记的普通行"

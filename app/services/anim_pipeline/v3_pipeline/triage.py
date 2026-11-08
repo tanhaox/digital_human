@@ -158,6 +158,22 @@ def llm_triage(lines: list[dict[str, Any]]) -> dict[int, dict[str, Any]]:
     return out
 
 
+_INLINE_MARKER = re.compile(r"【[^】]*】")
+
+
+def strip_inline_markers(lines: list[dict[str, Any]]) -> int:
+    """1108 出口闸: 口播行剥 LLM 自发明行内标注 (ep6 实锤: 【大字字幕】被 TTS 念出)。
+    合法标记全是行首且已在 route_markers 路由; 行内【..】只会是发明物。
+    注释/结构行 (note/card/img/section) 保原样 — 注释是给用户看的生产信息。"""
+    n = 0
+    for ln in lines:
+        if ln.get("mode") not in ("section", "card", "img", "note") \
+                and _INLINE_MARKER.search(str(ln.get("text") or "")):
+            ln["text"] = _INLINE_MARKER.sub("", ln["text"]).strip()
+            n += 1
+    return n
+
+
 def run(job: dict[str, Any]) -> None:
     """v3_triage 相位本体: 载稿 → 确定性层 → LLM 层 → 合并落盘。"""
     from app.services.anim_pipeline import shots as shots_mod
@@ -212,8 +228,10 @@ def run(job: dict[str, Any]) -> None:
         logger.warning("[v3:triage] LLM 标注失败 (退确定性层): %s", exc)
 
     det_list_hint(lines)
+    _stripped = strip_inline_markers(lines)
     blocks = sum(1 for ln in lines if ln["flag"] and ln["flag"]["level"] == "block")
-    job["result"] = {"lines": len(lines), "blocks": blocks, "routed": len(cards)}
+    job["result"] = {"lines": len(lines), "blocks": blocks, "routed": len(cards),
+                     "stripped_markers": _stripped}
 
     # 落盘: 只写 v3 命名空间 (doc 不存在则建壳)
     doc = shots_mod.load_doc(book_title, job["ep"]) if shots_mod.shots_path(book_title, job["ep"]).exists() else \

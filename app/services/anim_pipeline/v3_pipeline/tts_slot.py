@@ -22,9 +22,9 @@ def slot_texts(doc: dict[str, Any]) -> list[dict[str, str]]:
     lines = {ln["no"]: ln for ln in (v3.get("lines") or [])}
     out: list[dict[str, str]] = []
     for s in (v3.get("shots") or []):
-        parts = [str(lines[no].get("text") or "").strip()
-                 for no in (s.get("line_refs") or [])
-                 if no in lines and str(lines[no].get("text") or "").strip()]
+        parts = [_MARKER_RE.sub("", str(lines[no].get("text") or "")).strip()
+                 for no in (s.get("line_refs") or []) if no in lines]
+        parts = [p for p in parts if p]
         if parts:
             out.append({"sid": str(s["sid"]), "text": "\n".join(parts)})
     return out
@@ -59,13 +59,21 @@ def resegment_by_slots(db, script_id: str, slots: list[dict[str, str]]) -> int:
     return len(slots)
 
 _PAUSE_MARK = __import__("re").compile(r"\s*-\d+(?:\.\d+)?s-")
+# 1108 ep6 实锤: 拆书 LLM 自发明的行内标注 (【大字字幕】) 混进稿 — 全链照抄到
+# TTS 被念出。合法标记全是行首且分诊已路由, 行内【..】= 必是发明物 → 三处统一剥
+_MARKER_RE = __import__("re").compile(r"【[^】]*】")
+
+
+def _strip_marks(text: str) -> str:
+    """剥气口标记 + 行内【..】发明标注 (念稿/锚/回填共用)。"""
+    return _MARKER_RE.sub("", _PAUSE_MARK.sub("", str(text or "")))
 
 
 def _anchor(text: str) -> str:
-    """归一化锚: 只取首行 + 剥气口标记 (-0.8s-) — manifest 文本多行且带标记,
+    """归一化锚: 只取首行 + 剥气口/标注 — manifest 文本多行且带标记,
     直接取前 N 字会跨行吃到第二行 (s15/s24/s34/s41 四连误伤实锤)。"""
     first = str(text or "").splitlines()[0] if str(text or "").strip() else ""
-    t = _PAUSE_MARK.sub("", first)
+    t = _strip_marks(first)
     return t.strip().replace("　", "")[:12]
 
 
@@ -87,7 +95,7 @@ def sync_muted_slots(doc: dict[str, Any], blocks: list[dict[str, Any]]
     _pm = _re2.compile(r"\s*-\d+(?:\.\d+)?s-")
     v3 = doc.get("v3") or {}
     lines = {ln["no"]: ln for ln in (v3.get("lines") or [])}
-    blk_firsts = [(_pm.sub("", str(b.get("text") or "").splitlines()[0]).strip()
+    blk_firsts = [(_strip_marks(str(b.get("text") or "").splitlines()[0]).strip()
                    if str(b.get("text") or "").strip() else "")
                   for b in blocks]
     muted_out: dict[str, bool] = {}
@@ -128,8 +136,8 @@ def sync_muted_slots(doc: dict[str, Any], blocks: list[dict[str, Any]]
             s["audio_muted"] = False
             # 第五处同步: 槽内各行 ← 音频块行 (剥气口标记; 行数一致才逐行, 否则只回填首行)
             blk = next(b for b in blocks
-                       if _pm.sub("", str(b.get("text") or "").splitlines()[0]).strip() == best)
-            blk_lines = [_pm.sub("", x).strip()
+                       if _strip_marks(str(b.get("text") or "").splitlines()[0]).strip() == best)
+            blk_lines = [_strip_marks(x).strip()
                          for x in str(blk.get("text") or "").splitlines() if x.strip()]
             refs_eff = [no for no in refs if str(lines.get(no, {}).get("text") or "").strip()]
             if len(blk_lines) == len(refs_eff):

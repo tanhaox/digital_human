@@ -969,6 +969,29 @@ def test_legacy_package_never_mutes_slots():
     assert doc["v3"]["shots"][2]["audio_muted"] is True
 
 
+def test_tts_boundary_strips_invented_markers():
+    """1108 ep6 实锤: 拆书 LLM 自发明行内标注 (【大字字幕】) 一路照抄被 TTS 念出 —
+    念稿出口 (slot_texts) / 锚 (_anchor) / 改字回填 三处统一剥, 口播永远干净。"""
+    from app.services.anim_pipeline.v3_pipeline import tts_slot as ts
+    doc = {"v3": {
+        "lines": [{"no": 1, "text": "书里一条铁律：优先保护你的声誉【大字字幕】。"}],
+        "shots": [{"sid": "s1", "line_refs": [1]}]}}
+    out = ts.slot_texts(doc)
+    assert out == [{"sid": "s1", "text": "书里一条铁律：优先保护你的声誉。"}]   # 不念
+    # 锚: 带标与不带标归一化相等 (带标音频 ↔ 干净行 精确对上, 不误判漂移)
+    assert ts._anchor("书里一条铁律：优先保护你的声誉【大字字幕】。 -0.8s-") \
+        == ts._anchor("书里一条铁律：优先保护你的声誉。")
+    # 改字漂移回填: 块带发明标 + 改字 → 回填进行的文本也剥标
+    doc2 = {"v3": {
+        "lines": [{"no": 1, "text": "书里一条铁律：优先保护你的声誉。"}],
+        "shots": [{"sid": "s1", "line_refs": [1]}]}}
+    muted, drifted, un = ts.sync_muted_slots(doc2, [
+        {"text": "书里一条铁矩：优先保护你的名声【大字字幕】，而不是盯着短期收入。"}])
+    assert un is False and drifted == {"s1": True}
+    assert doc2["v3"]["lines"][0]["text"] \
+        == "书里一条铁矩：优先保护你的名声，而不是盯着短期收入。"      # 回填已剥标
+
+
 def test_manifest_line_to_segment_mapping():
     """1106 总根修: _manifest_callback 曾把行号当段序号 (v2 一段一行蒙对,
     v3 槽段多行后偏 2-3 格 — 编辑/屏蔽/重roll 全打错段)。验包含段映射。"""
