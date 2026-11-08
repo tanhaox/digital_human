@@ -1722,6 +1722,64 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                                 ",".join(p.get("image") or "-" for p in _pinned))
             except Exception as _pexc:  # noqa: BLE001 — 钉卡失败不炸装配
                 logger.warning("[draft] 钉卡接入失败 (跳过): %s", _pexc)
+            # 1108 用户令 (装配接链): v3.cards (分诊建议采纳卡) 按行号→句轴上屏。
+            # 断链实锤: 分诊 14 建议 9 卡全集分布 (line 3-114), 装配只吃自动检测
+            # → 3 张挤 247-281s, 前 4 分钟零卡 (用户报障 "文字集中 4:13-4:54")。
+            # 设计卡与钉卡同级 (分诊采纳=用户点头过), 自动卡让位; 图示卡无渲染图
+            # 跳过 (纯文字长清单=断句残片, build_cards 宁缺勿滥同则)。
+            try:
+                _PAUSE = re.compile(r"-\d+(?:\.\d+)?s-")   # 与 0918 字幕洗涤同款
+                _v3 = (doc or {}).get("v3") or {}
+                _line_txt = {int(ln["no"]): str(ln.get("text") or "")
+                             for ln in (_v3.get("lines") or [])}
+                # 句轴拼接流: 段有序表 (char_start, t_start, t_end),
+                # 行文本剥停顿标记后在流中定位首/尾窗 → 映射回段时间
+                _flow, _marks, _pos = "", [], 0
+                for _sg in _sent_segs:
+                    _t = _PAUSE.sub("", str(_sg.get("text") or ""))
+                    _flow += _t
+                    _marks.append((_pos, float(_sg["t_start"]), float(_sg["t_end"])))
+                    _pos = len(_flow)
+
+                def _span_of(line_no: int):
+                    _raw = _PAUSE.sub("", _line_txt.get(line_no, ""))
+                    if len(_raw) < 14:
+                        return None
+                    _i = _flow.find(_raw[:14])
+                    if _i < 0:
+                        return None
+                    _j = _flow.find(_raw[-14:], max(0, _i))
+                    if _j < 0:
+                        _j = _i
+                    _t0 = next((m[1] for m in reversed(_marks) if m[0] <= _i), 0.0)
+                    _te = next((m[2] for m in reversed(_marks) if m[0] < _j + 14),
+                               _marks[-1][2] if _marks else None)
+                    return (_t0, _te) if _te is not None else None
+
+                _v3n = 0
+                for _vc in (_v3.get("cards") or []):
+                    _sp = _span_of(int(_vc.get("line_no") or 0))
+                    if not _sp:
+                        logger.warning("[draft] v3卡 %s 行文本未命中句轴, 跳过",
+                                       _vc.get("cid"))
+                        continue
+                    if str(_vc.get("kind")) == "图示" and not _vc.get("image"):
+                        logger.info("[draft] v3图示卡 %s 无渲染图, 跳过", _vc.get("cid"))
+                        continue
+                    _a0 = tc_us + int(round(_sp[0] * _US))
+                    _a1 = tc_us + int(round((_sp[1] + QUOTE_CARD_TAIL_SEC) * _US))
+                    _pinned.append({"start": 0, "end": 0,
+                                    "lines": [str(_vc.get("text") or "").strip()],
+                                    "kind": str(_vc.get("kind") or "金句"),
+                                    "pinned": True, "image": _vc.get("image"),
+                                    "a0_us": _a0, "a1_us": max(_a1, _a0 + 800_000)})
+                    _v3n += 1
+                if _v3n:
+                    logger.info("[draft] v3设计卡 ×%d (图:%s)", _v3n,
+                                ",".join(str(p.get("image") or "-")
+                                         for p in _pinned[-_v3n:]))
+            except Exception as _v3exc:  # noqa: BLE001 — 接链失败不炸装配
+                logger.warning("[draft] v3设计卡接入失败 (跳过): %s", _v3exc)
             # 1103 Z+T: 金句/口诀标记自动上卡 (writer 注释即锚 — 前缀洗剥后内容
             # 上屏, 确定性零 LLM; "金句：内容"/"口诀：内容"/"本集一句复盘：内容")
             try:

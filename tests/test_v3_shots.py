@@ -1519,3 +1519,21 @@ def test_sys_rule15_card_backdrop():
     assert "大字卡底镜" in v3shots._SYS and "[卡底]" in v3shots._SYS
     assert "无人物空镜或简单静物" in v3shots._SYS
     assert "16. 每条只输出画面句, 严格 JSON" in v3shots._SYS   # 格式行顺移 16
+
+
+def test_build_cards_preserves_rendered_image():
+    """1108 img 回写防丢: ③ 重跑重建 cards, 已渲染卡图链接按内容锚保留。"""
+    lines = _lines()
+    lines[1]["adopted"] = ["quote"]
+    lines[1]["suggs"] = [{"kind": "quote",
+                          "card_text": "书里说：信任是一点一滴存出来的账户。"}]
+    sh, _ = v3shots.pack_shots(_arcs(), lines)
+    v3 = {"lines": lines}
+    v3["cards"] = v3shots.build_cards(v3, sh)   # 第一次 (run() 同款写回)
+    v3["cards"][0]["image"] = "v3_c01"          # 模拟渲染端点回写
+    again = v3shots.build_cards(v3, sh)         # ③ 重跑 = 重建
+    assert again, "卡消失"
+    _t12 = str(v3["cards"][0]["text"])[:12]
+    hit = [c for c in again if str(c.get("text"))[:12] == _t12]
+    assert hit and hit[0].get("image") == "v3_c01", \
+        f"重跑丢 img: {[(c.get('line_no'), c.get('image')) for c in again]}"

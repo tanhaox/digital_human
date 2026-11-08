@@ -176,6 +176,15 @@ def _clip(s: str, n: int) -> str:
 def build_cards(v3: dict[str, Any], shots: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """卡来源二路: ①卡指令行 (v3.cards) + ②分诊采纳的建议 (line.adopted)。
     全部挂到「句」(line_no), 再映射到包含该句的镜 (sid)。"""
+    # 1108 用户令 (img 回写防丢): ③ 重跑重建 cards 会抹掉已渲染卡图链接
+    # (11-05 渲染 3 张 → 11-06+ 重跑后 img 全 None, 装配失联实锤)。
+    # cid 经 _merge_same_list 重编号会漂, 用内容锚 (line_no, text前12) 保留。
+    _old_img: dict[tuple, tuple] = {}
+    for c in v3.get("cards") or []:
+        if c.get("image"):
+            _old_img[(int(c.get("line_no") or 0),
+                      str(c.get("text") or "")[:12])] = (str(c["image"]),
+                                                         c.get("image_file"))
     line2sid = {}
     for s in shots:
         for no in s["line_refs"]:
@@ -250,7 +259,14 @@ def build_cards(v3: dict[str, Any], shots: list[dict[str, Any]]) -> list[dict[st
         if _dg:
             _card["diagram"] = _dg
         cards.append(_card)
-    return _merge_same_list(cards)
+    cards = _merge_same_list(cards)
+    # 1108 img 回写防丢: 合并重编号后按内容锚回填渲染链接
+    for c in cards:
+        _hit = _old_img.get((int(c.get("line_no") or 0),
+                             str(c.get("text") or "")[:12]))
+        if _hit and not c.get("image"):
+            c["image"], c["image_file"] = _hit
+    return cards
 
 
 _LISTISH_KINDS = ("图示", "提示", "总结")
