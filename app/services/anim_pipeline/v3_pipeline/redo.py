@@ -52,10 +52,11 @@ def redesign(doc: dict[str, Any], sids: list[str], note: str = "") -> dict[str, 
             continue
         a = arcs.get(str(s.get("arc_id") or "")) or {}
         why = note or str((s.get("k2") or {}).get("error") or "")[:80] or "画面不满意, 换构图方案"
+        bd = " [卡底:口播叠大字卡,必须无人物空镜/简单静物]" if s.get("card_backdrop") else ""
         rows.append(f'{sid}|{str(s.get("keyframe_zh") or "")[:160]}'
                     f'|{str((direct.get(sid) or {}).get("motion") or "")[:80]}'
                     f'|{str(a.get("world") or "")[:24]}'
-                    f'|{str(a.get("narrative") or "")[:30]}|{why}')
+                    f'|{str(a.get("narrative") or "")[:30]}|{why}{bd}')
     if not rows:
         return {}
     raw = get_llm_service().chat(

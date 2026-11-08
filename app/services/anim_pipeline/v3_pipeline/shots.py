@@ -103,6 +103,13 @@ def pack_shots(arcs: list[dict[str, Any]], lines: list[dict[str, Any]]
         s["sid"] = f"s{i}"                     # 全局连续镜号 (s1..sN)
         if float(s.get("est_s") or 0) > SLOT_MAX_S:
             warns.append(f"{s['sid']} 槽长 {s['est_s']:.1f}s 超 H3 {SLOT_MAX_S:g}s 上限 — 必须拆行/拆镜")
+    # 1108 用户令 (卡镜空镜底): 口播承载已采纳卡建议的镜, 生图前锁定空镜底 —
+    # join = 镜.line_refs × line.adopted (③ 装包时点, 早于 K2/H3)。
+    # 下游自动闭合: 空镜画面句 → K2 空镜头变体+_EMPTY_NEG (批A-3 判据) + h3 工位路由。
+    for s in shots:
+        s["card_backdrop"] = any(
+            [k for n in s["line_refs"] if (ln := line_of.get(n))
+             for k in (ln.get("adopted") or []) if k in CARD_OF_SUGG])
     return shots, warns
 
 
@@ -442,7 +449,11 @@ _SYS = """你是动画分镜的画师。给定「镜」清单 (镜号|所属弧�
 14. **手部镜袖口锚** (1108 批A-5: s52/s55 K2 首帧断手实锤 — 画面句只写孤手,
    图上腕部无来处, 视频全程断手漂浮): 画面句出现手/手部特写/手部动作时, 必须写明
    袖口或前臂来处 (颜色接角色卡 look, 如: 深红色冲锋衣的袖口与前臂), 禁孤立悬空手。
-15. 每条只输出画面句, 严格 JSON: {"shots":[{"sid":"s1","keyframe_zh":"..."}]}"""
+15. **大字卡底镜** (1108 用户令, 行标 [卡底]): 该镜口播将叠大字卡, 画面句必须是
+   **无人物空镜或简单静物** (桌面静物/风景/纯环境/建筑一角), 画面让位文字层 —
+   禁人物、禁手部、禁复杂多主体 (大字压复杂画面=脏, 且人物镜=外观四病重灾区,
+   空镜=零病 批A 实证)。用本弧视觉世界内的中性场景承接。
+16. 每条只输出画面句, 严格 JSON: {"shots":[{"sid":"s1","keyframe_zh":"..."}]}"""
 
 # 运镜词黑名单 (规则 8 的执法词表; 景别词不算)
 KEYFRAME_CAM_WORDS = ("镜头", "机位", "跟拍", "平移", "推近", "拉远", "摇镜",
@@ -538,7 +549,8 @@ def _batch_prompt(batch: list[dict[str, Any]], arc_of: dict[str, dict],
     for s in batch:
         a = arc_of.get(s["arc_id"]) or {}
         text = str(s.get("narration") or "")[:100]
-        tag = "[hook]" if zone_of.get(s["sid"]) == "hook" else ""
+        tag = ("[hook]" if zone_of.get(s["sid"]) == "hook" else "") \
+            + ("[卡底]" if s.get("card_backdrop") else "")
         # 本弧角色 (批1 选角): 卡名+look 摘要 — 卡名入画面句是身份锚 + ⑧ r2v 路由前提
         cast_txt = ""
         _cast = a.get("cast") or []

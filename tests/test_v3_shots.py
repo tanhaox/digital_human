@@ -1480,3 +1480,42 @@ def test_h3_light_wire_and_thesis_scoping():
     assert "v3_cam_clause" in h3_src and "arc_thesis" in h3_src, \
         "v3 镜必须摘除 Narrative anchor (v3_cam_clause 键 = ⑥ 投影标记)"
     assert "v3_cam_clause" in inspect.getsource(R.run_shot)
+
+
+# ── 1108 用户令 (卡镜空镜底): 生图前锁定空镜底 — join × 批提示标记 × 规则15 ──
+
+def test_card_backdrop_join_and_flag():
+    """line_refs × adopted 命中镜打 card_backdrop; 未采纳镜 False; 幂等。"""
+    lines = _lines()
+    lines[1]["adopted"] = ["quote"]          # no.2 采纳金句
+    lines[3]["adopted"] = ["list"]           # no.4 采纳清单
+    sh, _ = v3shots.pack_shots(_arcs(), lines)
+    flagged = {s["sid"]: s["card_backdrop"] for s in sh}
+    hit = [s for s in sh if 2 in s["line_refs"] or 4 in s["line_refs"]]
+    miss = [s for s in sh if s["sid"] not in {h["sid"] for h in hit}]
+    assert hit and all(flagged[s["sid"]] for s in hit)
+    assert miss and not any(flagged[s["sid"]] for s in miss)
+    # 非 CARD_OF_SUGG 的采纳不触发 (book→在表内, 用表外 kind 验证)
+    lines2 = _lines()
+    lines2[1]["adopted"] = ["music"]
+    sh2, _ = v3shots.pack_shots(_arcs(), lines2)
+    assert not any(s["card_backdrop"] for s in sh2)
+
+
+def test_batch_prompt_card_backdrop_tag():
+    """批提示行标 [卡底] (可与 [hook] 叠加); 表头不变。"""
+    s = {"sid": "s1", "arc_id": "A1", "est_s": 4.0, "narration": "测试口播",
+         "card_backdrop": True, "line_refs": [1]}
+    arc_of = {"A1": {"world": "雪山", "metaphor": "信任账户", "narrative": "n"}}
+    p = v3shots._batch_prompt([dict(s)], arc_of, {1: {"text": "测试口播"}}, {"s1": "hook"})
+    assert "s1[hook][卡底]" in p
+    p2 = v3shots._batch_prompt([dict(s, card_backdrop=False)], arc_of,
+                               {1: {"text": "测试口播"}}, {"s1": ""})
+    assert "[卡底]" not in p2
+
+
+def test_sys_rule15_card_backdrop():
+    """_SYS 规则15 = 大字卡底镜无人物空镜约束; 输出格式顺移 16。"""
+    assert "大字卡底镜" in v3shots._SYS and "[卡底]" in v3shots._SYS
+    assert "无人物空镜或简单静物" in v3shots._SYS
+    assert "16. 每条只输出画面句, 严格 JSON" in v3shots._SYS   # 格式行顺移 16
