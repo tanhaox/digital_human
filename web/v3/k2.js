@@ -12,6 +12,16 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g,
 const ST_ZH = { planned: '待图', img_done: '图出', approved: '✓ 已过审', failed: '✗ 失败' };
 let SHOTS = [], FROZEN = false;
 
+/* 1108 修 (ep6 实锤「已选 7 镜 按钮失效」): job 完成 onFinished→boot() 会重建全部
+   checkbox, 旧版 cart 条停在旧值而 cartSids() 读到空 → startRedo 静默 return。
+   SEL 单源: 渲染勾选态/cartSids 都从 SEL 出, 跨重渲染存活; sessionStorage 兜刷新。 */
+const SEL = new Set(JSON.parse(sessionStorage.getItem('k2sel') || '[]'));
+function selSync() {
+  const live = new Set(SHOTS.map(s => s.sid));
+  [...SEL].forEach(x => { if (!live.has(x)) SEL.delete(x); });
+  try { sessionStorage.setItem('k2sel', JSON.stringify([...SEL])); } catch (e) {}
+}
+
 const runner = createJobRunner({
   /* 1106 用户令: 逐镜增量刷新 — 每生成完一张, 立刻拉那张图替换占位 (不等全批);
      实现挂在 job.js 的轮询回调上, 面板进度条本身就是逐镜推进的数据源 */
@@ -103,7 +113,7 @@ function renderGrid() {
     return `<div class="kcard ${st === 'approved' ? 'approved' : (s.suspect ? 'suspect' : '')}${s.muted ? ' kmut' : ''}" data-sid="${esc(s.sid)}">
       <div class="kimg">${img}</div>
       <div class="kmeta">
-        ${s.brand ? '' : `<input type="checkbox" class="ksel" data-sid="${esc(s.sid)}" title="加入购物篮 (列队重做)">`}
+        ${s.brand ? '' : `<input type="checkbox" class="ksel" data-sid="${esc(s.sid)}"${SEL.has(s.sid) ? ' checked' : ''} title="加入购物篮 (列队重做)">`}
         <span class="ksid">${esc(s.sid)}</span>
         <span class="ksize">${esc(s.size || '')}</span>
         <span class="kcam">${esc(s.cam || '')}${s.cam && s.cam !== '固定' ? ' ↦' : ''}</span>
@@ -123,8 +133,12 @@ function renderGrid() {
       </div>
     </div>`;
   }).join('');
+  selSync(); refreshCart();
   $('grid').querySelectorAll('.ksel').forEach(cb => {
-    cb.onchange = () => { refreshCart(); };
+    cb.onchange = () => {
+      cb.checked ? SEL.add(cb.dataset.sid) : SEL.delete(cb.dataset.sid);
+      selSync(); refreshCart();
+    };
   });
   $('grid').querySelectorAll('button[data-act]').forEach(b => {
     b.onclick = async () => {
@@ -150,7 +164,7 @@ function renderGrid() {
 }
 
 function cartSids() {
-  return [...document.querySelectorAll('.ksel:checked')].map(c => c.dataset.sid);
+  return SHOTS.filter(s => SEL.has(s.sid)).map(s => s.sid);
 }
 function refreshCart() {
   const n = cartSids().length;
@@ -159,7 +173,7 @@ function refreshCart() {
 }
 async function startRedo() {
   const sids = cartSids();
-  if (!sids.length) return;
+  if (!sids.length) { toast('未选镜 — 勾选镜卡片上的选择框'); return; }
   if (!confirm(`🎨 重做到生图 ${sids.length} 镜?
 LLM重设计画面句 → 重译英文 → 生图后停在人检 (视频归 ⑧ 页)`)) return;
   const note = prompt('重做原因 (可空, 会带进重设计提示; 留空用系统默认)', '') ?? '';
@@ -167,11 +181,13 @@ LLM重设计画面句 → 重译英文 → 生图后停在人检 (视频归 ⑧ 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ only: sids, note }) });
   if (!r.ok) { toast('启动失败: ' + (await r.json()).detail); return; }
+  SEL.clear(); selSync(); refreshCart();
   runner.attach(await r.json());
 }
 $('btn-redo-img').onclick = startRedo;
 $('btn-cart-clear').onclick = () => {
-  document.querySelectorAll('.ksel:checked').forEach(c => { c.checked = false; });
+  SEL.clear(); selSync();
+  document.querySelectorAll('.ksel').forEach(c => { c.checked = false; });
   refreshCart();
 };
 
