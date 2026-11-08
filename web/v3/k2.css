@@ -25,3 +25,5 @@
 /* 购物篮条样式已上移 v3.css (1106 ⑧页复用); .ksel 保留别名 */
 
 .kcard.kmut { opacity:.45; }
+.kbadge.bd-r { background:#c62828; color:#fff; font-weight:700; }  /* 1108 R 标 (v2 同款红底白字) */
+.ktry { font-size:11px; color:var(--t3, #8a94a3); font-family:var(--mono); }  /* 1108 生图次数 */

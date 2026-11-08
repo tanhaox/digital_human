@@ -140,6 +140,9 @@ def run(job: dict[str, Any], only: set[str] | None = None,
                                    "seed": seed,
                                    "text_suspect": bool(v2shot.get("text_suspect"))}
                         s["seed"] = seed
+                        # 1108 v2 机制继承: 生图次数镜级计数 (redo 清 k2 键不清它
+                        # → 跨重做累计; ⑥ 页卡底「N 试」)
+                        s["k2_runs"] = int(s.get("k2_runs") or 0) + 1
                         ok += 1
                         logger.info("[v3:k2] %s ✓ (%d/%d)", sid, ok, total)
                     else:

@@ -84,12 +84,18 @@ function renderCounts() {
 }
 
 /* 灯箱预览 (1106 用户令: 看图效果对齐 style_bible + 连续翻页审核)
-   事件委托在 #grid 上 — 增量刷新换 innerHTML 也不用重绑 */
+   事件委托在 #grid 上 — 增量刷新换 innerHTML 也不用重绑
+   1108 R 标: 点开看过 = 本地摘徽章 + POST reviewed (v2 语义, 独立文件不吃集锁) */
 $('grid').addEventListener('click', ev => {
   const img = ev.target.closest('.kimg img');
   if (!img || !img.src) return;
   const card = img.closest('.kcard');
   const sid = card?.dataset.sid;
+  const rbd = card?.querySelector('.kbadge.bd-r');
+  if (rbd) {
+    rbd.remove();
+    fetch(`${BASE}/reviewed/${encodeURIComponent(sid)}`, { method: 'POST' }).catch(() => {});
+  }
   const gallery = SHOTS.filter(x => x.image_url).map(x => ({
     src: x.image_url, cap: `${x.sid} · ${x.size || ''} ${x.cam || ''} · ~${x.est_s}s`}));
   if (typeof lbOpen === 'function')
@@ -117,8 +123,10 @@ function renderGrid() {
         <span class="ksid">${esc(s.sid)}</span>
         <span class="ksize">${esc(s.size || '')}</span>
         <span class="kcam">${esc(s.cam || '')}${s.cam && s.cam !== '固定' ? ' ↦' : ''}</span>
+        ${s.runs > 1 ? `<span class="ktry" title="此镜累计生图 ${s.runs} 次 (含重做/重掷)">${s.runs} 试</span>` : ''}
         <span class="flex1"></span>
         ${s.muted ? '<span class="kbadge planned" title="音频已屏弃 — 盖章/H3 跳过">🔇屏弃</span>' : ''}
+        ${s.redo_review ? '<span class="kbadge bd-r" title="重做待复查: 此镜刚被列队重做 — 点开看过 / ✅过审后消除">R</span>' : ''}
         ${s.suspect ? '<span class="kbadge failed" title="OCR 检字命中 — 看图确认是否乱字">⚠文字</span>' : ''}
         <span class="kbadge ${st}">${ST_ZH[st] || st}</span>
       </div>

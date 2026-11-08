@@ -102,6 +102,7 @@ function renderGrid() {
         <span class="hsize">${esc(s.size || '')}</span>
         <span class="hcam">${esc(s.cam || '')}</span>
         <span class="flex1"></span>
+        ${s.redo_review ? '<span class="hbadge bd-r" title="重做待复查: 此镜刚被列队重做 — 播放看过后消除">R</span>' : ''}
         <span class="hbadge ${stt}">${ST_ZH[stt] || stt}</span>
       </div>
       ${s.error ? `<div class="herr">${esc(s.error)}</div>` : ''}
@@ -161,6 +162,15 @@ $('btn-retry').onclick = async () => {
   if (!r.ok) { toast('启动失败: ' + (await r.json()).detail); return; }
   runner.attach(await r.json());
 };
+
+// 1108 R 标 (v2 机制继承): 播放看过 = 摘徽章 + POST reviewed (v2 actions.js 语义)
+document.addEventListener('play', ev => {
+  const card = ev.target.closest?.('.hcard');
+  const badge = card?.querySelector('.hbadge.bd-r');
+  if (!badge) return;
+  badge.remove();
+  fetch(`${BASE}/reviewed/${encodeURIComponent(card.dataset.sid)}`, { method: 'POST' }).catch(() => {});
+}, true);
 
 // ── 购物篮 (1106 用户令: 对齐 v2 — 清空 + ♻️列队重做全链) ──
 function cartSids() {

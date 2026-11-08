@@ -581,6 +581,7 @@ def v3_k2_get(book_id: str, ep: int):
         return {"shots": [], "gates": {}, "frozen": False, "ready": False}
     v3 = doc.get("v3") or {}
     direct = v3.get("direct") or {}
+    r_flags = anim_service._load_review_flags(book_title, ep)  # 1108 R 标 (v2 机制 v3 继承)
     out = []
     for s in (v3.get("shots") or []):
         k2s = s.get("k2") or {}
@@ -601,7 +602,11 @@ def v3_k2_get(book_id: str, ep: int):
                     "image": img, "image_url": url,
                     "status": k2s.get("status") or "planned",
                     "seed": k2s.get("seed"), "suspect": bool(k2s.get("text_suspect")),
-                    "error": k2s.get("error")})
+                    "error": k2s.get("error"),
+                    # 1108 v2 机制继承: R 标 (列队重做待复查) + 生图次数 (镜级计数,
+                    # redo 清 k2 键不清它 → 跨重做累计)
+                    "redo_review": s["sid"] in r_flags,
+                    "runs": int(s.get("k2_runs") or 0)})
     return {"shots": out, "gates": v3_pipeline.gates_view(doc),
             "frozen": bool(v3.get("frozen_at")), "ready": bool(out)}
 
@@ -656,15 +661,38 @@ def v3_k2_approve(book_id: str, ep: int, body: K2ApproveBody):
         doc = _load_v3_doc(book_title, ep)
         v3 = doc.setdefault("v3", {})
         n = 0
+        cleared: list[str] = []
+        flags = anim_service._load_review_flags(book_title, ep)  # 1108 R 标: 过审即消
         for s in (v3.get("shots") or []):
             k2s = s.get("k2") or {}
             want = body.all or s["sid"] in body.sids
             if want and k2s.get("status") == "img_done":
                 k2s["status"] = "approved"
                 n += 1
+                if flags.pop(s["sid"], None) is not None:
+                    cleared.append(s["sid"])
         from app.services.anim_pipeline import shots as shots_mod
         shots_mod.save(doc)
-    return {"approved": n}
+    if cleared:
+        anim_service._save_review_flags(book_title, ep, flags)
+    return {"approved": n, "review_cleared": cleared}
+
+
+@router.post("/ep/{book_id}/{ep}/reviewed/{sid}")
+def v3_shot_viewed(book_id: str, ep: int, sid: str):
+    """1108 R 标清除 (v2 viewed 语义): 用户打开看过该镜 → 撤「重做待复查」标。
+
+    R 标在独立文件不吃集锁 — 批量任务进行中也能清 (v2 409 死锁教训)。"""
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title)
+    flags = anim_service._load_review_flags(book_title, ep)
+    had = flags.pop(sid, None) is not None
+    if had:
+        anim_service._save_review_flags(book_title, ep, flags)
+    return {"cleared": had}
 
 
 # ── ⑥ TTS (V6 薄壳: 复用音频线, 只读展示 + 试听 + 深链) ───────────────
@@ -912,6 +940,7 @@ def v3_h3_get(book_id: str, ep: int):
     out = []
     from app.services.anim_pipeline import shots as shots_mod
     _ebase = shots_mod.ep_dir(book_title, ep)
+    _r_flags = anim_service._load_review_flags(book_title, ep)  # 1108 R 标 (⑧ 页同继承)
     for s in (doc.get("shots") or []):
         d = direct.get(str(s.get("shot_id"))) or {}
         # 1108 用户令 (盘上退回): 记录悬空退回盘上同窗文件 (预览不降级为图)
@@ -936,7 +965,8 @@ def v3_h3_get(book_id: str, ep: int):
                     "video": vf, "error": str(s.get("error") or "")[:200] or None,
                     # 品牌视频走专用端点 (资产在 ep 目录外, /file/ 拦穿越)
                     "video_url": (f"/api/anim/v3/ep/{book_id}/{ep}/h3/brand-video"
-                                  if (s.get("brand_card") and vf) else None)})
+                                  if (s.get("brand_card") and vf) else None),
+                    "redo_review": str(s.get("shot_id")) in _r_flags})  # 1108 R 标
     return {"shots": out, "gates": v3_pipeline.gates_view(doc),
             "stamped": bool((v3.get("stamp") or {}).get("at"))}
 

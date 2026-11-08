@@ -110,6 +110,35 @@ def retranslate(doc: dict[str, Any], sids: list[str]) -> int:
     return n
 
 
+def _mark_redo_review_v3(job: dict[str, Any], sids: list[str], want: str) -> None:
+    """1108 v2 机制继承 (用户令「重渲标记 v3 没继承」): 列队重做成功镜打 R 标。
+
+    v2 语义 (anim_service._mark_redo_review): to_image 线认 img_done (图是新的),
+    全链线认 anim_done (视频是新的); 独立文件 redo_review.json 不进 shots.json,
+    不吃集锁 — 看片/过审随时可清。"""
+    from app.services import anim_service
+    from app.services.anim_pipeline import shots as shots_mod
+    try:
+        doc = shots_mod.load_doc(job["book_title"], job["ep"])   # 只读, 批已收队
+        v3s = {s["sid"]: s for s in (doc.get("v3") or {}).get("shots") or []}
+        v2s = {str(s.get("shot_id")): s for s in doc.get("shots") or []}
+        flags = anim_service._load_review_flags(job["book_title"], job["ep"])
+        hit = 0
+        for sid in sids:
+            if want == "img_done":
+                okk = (v3s.get(sid) or {}).get("k2", {}).get("status") == "img_done"
+            else:
+                okk = (v2s.get(sid) or {}).get("status") == "anim_done"
+            if okk:
+                flags[sid] = True
+                hit += 1
+        if hit:
+            anim_service._save_review_flags(job["book_title"], job["ep"], flags)
+        logger.info("[v3:redo] R 标: %d/%d 镜打待复查 (认 %s)", hit, len(sids), want)
+    except Exception as exc:  # noqa: BLE001 — 打标失败不污染任务结果
+        logger.warning("[v3:redo] R 标失败 (忽略): %s", exc)
+
+
 def run(job: dict[str, Any], sids: list[str], to_image: bool = True,
         note: str = "", to_video: bool = False) -> None:
     """v3_redo 相位本体: 重设计 → 重译 → 清K2状态 → k2.run(only, 换seed) →
@@ -175,6 +204,7 @@ def run(job: dict[str, Any], sids: list[str], to_image: bool = True,
     if not to_video:
         # 1106 用户令: ⑤ 页只到生图 (视频归 ⑧ 页) — 重做完停 img_done 走人检,
         # 不自动过审; to_image 参数保留兼容但本页语义恒为真。
+        _mark_redo_review_v3(job, list(new_zh), "img_done")   # 1108 R 标
         job["result"] = {"redesigned": len(new_zh), "retranslated": n_en,
                          "to_image": True}
         return
@@ -206,5 +236,6 @@ def run(job: dict[str, Any], sids: list[str], to_image: bool = True,
     shots_mod.save(doc)
     logger.info("[v3:redo] 列队重做全链: %d 镜重投影过审 → 转 H3", len(new_zh))
     v3h3.run(job, only=set(new_zh))
+    _mark_redo_review_v3(job, list(new_zh), "anim_done")      # 1108 R 标 (全链)
     job["result"] = {"redesigned": len(new_zh), "retranslated": n_en,
                      "to_video": True}
