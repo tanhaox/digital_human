@@ -324,8 +324,10 @@ def test_card_render_html_builds_for_all_kinds():
                         ("结论", ["边界即信任"]), ("标题", ["核心二三"]),
                         ("提示", ["先做这个"]), ("口诀", ["丑话前置"])):
         h = cr.build_card_html(kind, "标题", lines)
-        assert "<html>" in h and "老谭读书" in h
-        assert "content" in h
+        assert "<html>" in h and "content" in h
+        # 1108 用户令: 去品牌条/去边框/白底 70% 半透明
+        assert "老谭读书" not in h and "frame" not in h
+        assert "rgba(255,255,255,0.70)" in h
 
 
 def test_diagram_html_builds():
@@ -336,7 +338,10 @@ def test_diagram_html_builds():
         {"name": "可靠度", "children": [{"name": "按时"}]}]}
     h = cr.build_diagram_html(root)
     assert "echarts" not in h.lower() or "__opt" in h    # 选项通过 __opt 注入
-    assert "__opt" in h and "tree" in h and "老谭读书" in h
+    assert "__opt" in h and "tree" in h
+    # 1108 用户令: 去品牌/去边框/白底 70%/全标签右侧 (切割根修)
+    assert "老谭读书" not in h and "frame" not in h
+    assert "rgba(255,255,255,0.70)" in h and '"position": "right"' in h
     # 叶子必须去掉圆点 (实锤: leaves.symbolSize 不生效)
     import json
     opt = json.loads(h.split("window.__opt = ", 1)[1].split(";</script>", 1)[0])
