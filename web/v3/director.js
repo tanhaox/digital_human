@@ -94,6 +94,17 @@ async function boot() {
   run.disabled = false; run.title = 'LLM 按官方词表填四元组 (程序管步数/工位)';
   save.disabled = false; save.title = '保存导演参数 + 复检放行';
   run.onclick = runDirect; save.onclick = saveDirect;
+  const nx = $('btn-next');                    // 1108 用户令: ④ 下一步 = ⑤ TTS
+  nx.disabled = !GATES.direct;                 // (1106 站序: TTS 便宜先定稿, K2 烧卡殿后)
+  nx.title = GATES.direct ? '进入 ⑤ TTS (配音定稿后再烧卡)' : '先保存并放行 (触发英文化批)';
+  nx.onclick = async () => {
+    if (DIRTY.size) await saveDirect();
+    try {
+      const r = await fetch('./tts.html', { method: 'HEAD' });
+      if (r.ok) { location.href = './tts.html' + location.search; return; }
+    } catch { /* 未上线 */ }
+    toast('⑤ TTS 页建设中 — 导演参数已保存');
+  };
 }
 
 /* ── 生成 / 保存 ──────────────────────────────────────── */
