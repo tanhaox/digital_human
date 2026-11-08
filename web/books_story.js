@@ -42,11 +42,13 @@ function renderPage(b) {
     // 0913 用户令: 确认后仍可直接重生成 (单集覆盖, 不级联) — 确认≠锁死, 重新生成后回 draft 需再确认
     btns.push(`<button class="sm" onclick="run('episodes/${e.ep}/generate', this)">生成 (pro)</button>`);
     btns.push(`<button class="sm secondary" onclick="openEdit(${e.ep})" ${e.script_text ? '' : 'disabled title="先生成稿"'}>修稿</button>`);
-    // TTS 先行 (0912 用户令): 稿→音→人耳验收, 复用音频加工页 (2.5 说书音色走 persona 链)
-    btns.push(`<button class="sm" style="background:#5b21b6" onclick="ttsPreview(${e.ep})" ${e.script_text ? '' : 'disabled title="先生成稿"'}>🔊 TTS音频</button>`);
     // 1018 C4d (R9): 确认3 前有未清校验问题 → 弹窗警示 (warn 不 block, 人闸保留终审权)
     btns.push(`<button class="sm warn" onclick="confirmEp(${e.ep}, this)" ${e.status==='draft' ? '' : 'disabled title="稿子需先生成并人工过稿"'}>确认3</button>`);
-    btns.push(`<button class="sm secondary" onclick="rerunEp(${e.ep})" ${e.status==='pending' ? 'disabled' : ''}>级联重跑≥${e.ep}</button>`);
+    // 1109 用户令: 🎬 动画v3 = 每集默认产线入口 (TTS音频/级联重跑/音频页/v2动画 四钮撤)
+    // — v3 分诊直吃 script_text (无需进产线), ⑤ TTS 在线内自产
+    if (e.script_text) {
+      btns.push(`<a class="ep-prod-btn v3-anim" data-ep="${e.ep}" href="/web/v3/index.html?book_id=${encodeURIComponent(BOOKS.cur.id)}&ep_index=${e.ep}" target="_blank" style="background:#1e5c3a;color:#fff;padding:0.3rem 0.65rem;font-size:0.82rem;border-radius:4px;text-decoration:none" title="v3 八页线: 分诊→立意→分镜文字→导演→K2∥TTS→盖章→H3">🎬 动画v3 ↗</a>`);
+    }
     if (e.status === 'confirmed' && !e.script_id) {
       // 0908 双产线: 静读书=produce 进产线(audio页 pptx链); 老谭=bs1 页单工坊直跳
       btns.push(`<button class="sm ep-prod-btn" style="background:#14532d" onclick="produceEp(${e.ep})">进产线 →</button>`);
@@ -55,10 +57,6 @@ function renderPage(b) {
     }
     if (e.script_id) {
       btns.push(`<button class="sm ep-prod-btn" style="background:#4c1d95" onclick="location.href='/web/publish_card.html?book_id=${encodeURIComponent(BOOKS.cur.id)}&ep=${e.ep}'" title="本集封面(横/竖, HF模板化) + 发布三件套(标题/简介/标签), 数据全对应本集">📋发布卡</button>`);
-      btns.push(`<a class="ep-prod-btn" href="/web/audio.html?script_id=${e.script_id}&book_id=${encodeURIComponent(BOOKS.cur.id)}&ep_index=${e.ep}" target="_blank" style="background:#334155;color:#e2e8f0;padding:0.3rem 0.65rem;font-size:0.82rem;border-radius:4px;text-decoration:none">音频页 ↗</a>`);
-      // 0914 动画产线系统化 (与 📐页单工坊 二选一): 动线=文字→音频→分镜→K2→人检→H3→剪映草稿
-      // 1105 v3 双轨: 书级选线分流 — 绑定 v3 的书由 applyV3Line 渲染后换 v3 八页线入口
-      btns.push(`<a class="ep-prod-btn v3-anim" data-ep="${e.ep}" href="/web/anim.html?book_id=${encodeURIComponent(BOOKS.cur.id)}&ep_index=${e.ep}" target="_blank" style="background:#9a3412;color:#fff;padding:0.3rem 0.65rem;font-size:0.82rem;border-radius:4px;text-decoration:none" title="动画产线工坊 (与页单工坊二选一): 音频→规划(吃真实音频)→K2生图→人检→H3视频→剪映草稿">🎬 动画 ↗</a>`);
       // 重跑进产线 (2026-08-20): 删旧 Script 重建, 换新产线/发现错误时用
       btns.push(`<button class="sm warn ep-prod-btn" onclick="rerunProduce(${e.ep})" title="删旧产线产物, 重新进产线">重跑进产线</button>`);
       btns.push(`<button class="sm ep-bs1-btn" style="display:none;background:#14532d"
@@ -78,7 +76,7 @@ function renderPage(b) {
       : (e.status === 'draft' && e.script_text
           ? '<div style="margin:0.25rem 0 0;font-size:0.78rem;color:#86efac">✓ 确定性校验清零</div>' : '');
     return `<div style="border-top:1px solid #334155; padding:0.7rem 0">
-      <div class="kv"><b>第${e.ep}集 ${esc(e.title || '')}</b> <span class="badge ${e.status==='confirmed'?'':'need'}">${EP_BADGE[e.status] || e.status}</span>${_issues.length ? ` <span class="badge" style="background:#7f1d1d;color:#fecaca">⚠ ${_issues.length}项校验红灯</span>` : ''}${(e.roadmap || {})._stale_outline ? '<span class="badge" style="background:#7f1d1d;color:#fecaca" title="总纲已重排,此稿基于旧总纲 — 建议级联重跑">⚠旧总纲稿</span>' : ''}${genAt}${_chkTip ? ` <span class="hint" title="${esc(_chkTip)}">自检▸</span>` : ''}</div>
+      <div class="kv"><b>第${e.ep}集 ${esc(e.title || '')}</b> <span class="badge ${e.status==='confirmed'?'':'need'}">${EP_BADGE[e.status] || e.status}</span>${_issues.length ? ` <span class="badge" style="background:#7f1d1d;color:#fecaca">⚠ ${_issues.length}项校验红灯</span>` : ''}${(e.roadmap || {})._stale_outline ? '<span class="badge" style="background:#7f1d1d;color:#fecaca" title="总纲已重排,此稿基于旧总纲 — 建议逐集「生成 (pro)」重做">⚠旧总纲稿</span>' : ''}${genAt}${_chkTip ? ` <span class="hint" title="${esc(_chkTip)}">自检▸</span>` : ''}</div>
       ${issuesHtml}
       ${e.script_text ? `<pre class="script">${esc(stripMarks(e.script_text).slice(0, 1200))}${stripMarks(e.script_text).length > 1200 ? '\n…' : ''}</pre>` : ''}
       <div class="toolbar" style="margin-top:0.5rem;margin-bottom:0">${btns.join('')}</div>
@@ -109,7 +107,7 @@ function renderPage(b) {
         <button class="sm secondary" onclick="syncStoryL0()" title="从蒸馏 facing-units 自动编排总纲">🔄 同步蒸馏</button>
         <button class="sm" style="background:#7c2d12" onclick="genFandengFull(this)" title="樊登前置架构: 蒸馏一遍成型全书讲述稿(2-5分钟) → 总编剧按稿切系列, 逐集拐棍=切片">🎭 樊登全书稿</button>
         ${(b.fandeng_full || {}).exists ? `<button class="sm secondary" onclick="window.open('/books/${b.id}/fandeng-full', '_blank')" title="打开 data/l0/${encodeURIComponent(b.book_title)}/fandeng_full.txt (新标签, 可 Ctrl+F)">📖 全书稿</button>` : ''}
-        <button class="sm warn" onclick="rerunOutline(this)" title="系列总编剧强制重排 (现读最新提示词), 覆盖现总纲+灵魂三问 (自动备份); 逐集稿需另点级联重跑">🔁 重跑总纲</button>
+        <button class="sm warn" onclick="rerunOutline(this)" title="系列总编剧强制重排 (现读最新提示词), 覆盖现总纲+灵魂三问 (自动备份); 逐集稿需另点「生成 (pro)」">🔁 重跑总纲</button>
         <button class="sm secondary" onclick="window.open('/web/style_board.html?book_id=${b.id}', '_blank')" title="风格选型 (0922): ep1 钩子段切 3 试镜镜 → 风格库轮询 + Kimi 新配方 → 选择板点选落绑定; 动画开工硬挡板要求先绑定">🎨 风格选型</button>
         <button class="sm secondary" onclick="window.open('/web/style_bible.html?book_id=${b.id}', '_blank')" title="艺术圣经 (0922): 大纲→风格选型→圣经独立页; 选定配方后为本书产统一视觉身份 (色板/质感/角色策略), 分镜每镜必继承">📖 艺术圣经</button>
         <button class="sm secondary" onclick="window.open('/web/style_characters.html?book_id=${b.id}', '_blank')" title="角色设计台 (0923): 圣经角色卡 → 定妆照沉淀 (书级风格×look全身立绘), _资产/角色设计/, 全书人物锚">👥 人物造型</button>
@@ -228,7 +226,7 @@ async function rerunOutline(btn) {
   if (!BOOKS.cur) return;
   const hadScript = (BOOKS.cur.episodes || []).some(e => e.script_text);
   const msg = '⚠️ 重跑总纲：用最新提示词强制重排系列总纲+灵魂三问（现总纲自动备份，可回滚）。'
-    + (hadScript ? '逐集稿不会自动重做 — 重排后建议对受影响集「级联重跑」。\n\n确认继续？' : '\n\n确认继续？');
+    + (hadScript ? '逐集稿不会自动重做 — 重排后建议对受影响集逐集「生成 (pro)」。\n\n确认继续？' : '\n\n确认继续？');
   if (!confirm(msg)) return;
   await run('rerun-outline', btn);
 }
@@ -366,7 +364,7 @@ async function saveRoadmap() {
     });
     await loadBook(BOOKS.cur.id);
     toast('总纲已保存', 'success');
-    if (hadScript) toast('已改总纲，建议对受影响集级联重跑', 'info');
+    if (hadScript) toast('已改总纲，建议对受影响集逐集「生成 (pro)」重做', 'info');
   } catch (e) {
     toast('保存失败: ' + e.message, 'error');
   } finally { _busy = false; }
@@ -375,7 +373,7 @@ async function saveRoadmap() {
 // ── 批量 ──
 async function generateRemaining(btn) {
   // 0912 修: 只生成 pending/generating (原 status!=='confirmed' 会把 draft 已有稿静默覆盖重生成);
-  // draft 集要重做走单集"生成(pro)"或"级联重跑"
+  // draft 集要重做走单集"生成(pro)"
   // 0912 用户悟 / 0914 结构参数化: 生成顺序 工具集 → ep1(大钩子) → 末集(行动册) — 头尾吃工具集的真实内容,
   // ep1 先生成只能对着 roadmap 凭空许诺
   const total = (BOOKS.cur.episodes || []).length;
@@ -425,13 +423,6 @@ async function confirmRemaining(btn) {
   finally { _busy = false; }
 }
 
-// ── 破坏性操作防护 ──
-async function rerunEp(n) {
-  const affected = (BOOKS.cur.episodes || []).filter(e => e.ep >= n).length;
-  if (!confirm(`⚠️ 级联重跑第 ${n} 集起：将清空第 ${n}~${n+affected-1} 集（共${affected}集）的稿件并重新生成，不可恢复！\n\n确认继续？`)) return;
-  await run(`episodes/${n}/rerun`);
-}
-
 // ── 修稿 modal ──
 function openEdit(n) {
   EDIT_EP = n;
@@ -477,29 +468,9 @@ async function produceEp(n) {
   setTimeout(() => location.href = `/web/audio.html?script_id=${r.script_id}&book_id=${encodeURIComponent(BOOKS.cur.id)}&ep_index=${n}`, 1200);
 }
 
-// ── TTS 先行 (0912 用户令 → 0917 改令×2): 稿→[人工勾选→手动生成]→人耳验收 → 确认3 → 进产线/页单工坊.
-// 复用音频加工页人工听检 (与新闻线无异, 音色=persona 链自动落 2.5 说书).
-// 0917 用户令: ① 不自动生成 — 勾选/生成全在音频加工页人工; ② 每次点击都按当前稿件
-// 全新重建 (force: 删旧 Script 级联 segments/audio_jobs/audio_files — 旧勾选/旧时长/
-// 重排空槽/回听记录全清, 磁盘 wav 留底) — "不管改没改稿都当全新任务, 勾选不沿用".
-async function ttsPreview(n) {
-  const e = BOOKS.cur.episodes.find(x => x.ep === n);
-  if (!e || !e.script_text) { toast('先生成稿', 'info'); return; }
-  const draft = e.status !== 'confirmed';
-  if (!confirm(`第${n}集 全新准备音频工位？\n${draft ? '当前是草稿 — 按当前稿重建段落。' : '已确认稿。'}\n旧勾选/旧音频记录将清空，跳转后自行勾选段落并点击「生成音频」。`)) return;
-  try {
-    // produce(preview+force): 删旧 Script (级联 segments/audio_jobs/audio_files) + 按当前稿重建
-    const r = await api(`/books/${BOOKS.cur.id}/episodes/${n}/produce`, {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ persona_id: currentPersonaId(), preview: true, force: true }),
-    });
-    const sid = r.script_id;
-    setTimeout(() => location.href =
-      `/web/audio.html?script_id=${sid}&book_id=${encodeURIComponent(BOOKS.cur.id)}&ep_index=${n}`, 400);
-  } catch (err) { toast('进入音频加工页失败: ' + err.message, 'error'); }
-}
-
 // 重跑进产线 (2026-08-20): 删旧 Script/segments 重建 → 跳 audio 页 (可换 PPT 产线)
+// 1109 用户令: TTS音频/级联重跑/音频页/v2动画 四钮撤 — TTS 与音频加工走 v3 线 ⑤ 页,
+// 单集重做走「生成 (pro)」(ttsPreview/rerunEp 函数随之退役)
 async function rerunProduce(n) {
   const e = BOOKS.cur.episodes.find(x => x.ep === n);
   if (!confirm(`⚠️ 重跑第 ${n} 集进产线？\n\n将删除该集已有的 Script/解析段 (旧 TTS/导演任务保留在磁盘)，重新生成新的进产线产物，然后跳转音频页。\n\n用于发现错误重做，或切换新产线 (如 PPT 出片)。`)) return;
@@ -535,31 +506,5 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 
-// 1105 v3 双轨: 🎬动画 按钮按书级选线换链 (绑定 v3 → /web/v3/; 查询失败保持 v2, 入口永不炸)
-const _v3lineCache = {};
-async function applyV3Line(bookId) {
-  if (!bookId) return;
-  try {
-    if (!_v3lineCache[bookId]) {
-      const r = await fetch(`/api/anim/v3/line/${encodeURIComponent(bookId)}`);
-      if (!r.ok) return;
-      _v3lineCache[bookId] = (await r.json()).line || 'v2';
-    }
-    if (_v3lineCache[bookId] !== 'v3') return;
-    // 双轨并行 (用户令): 橙钮 v2 原样不动, 绿钮 v3 并排新增 — 两线随时可入, 回退通道物理保证
-    document.querySelectorAll('a.v3-anim').forEach(a => {
-      const ep = a.dataset.ep || 1;
-      const href = `/web/v3/index.html?book_id=${encodeURIComponent(bookId)}&ep_index=${ep}`;
-      let b3 = a.nextElementSibling;
-      if (b3 && b3.classList.contains('v3-added')) { b3.href = href; return; }
-      b3 = document.createElement('a');
-      b3.className = 'ep-prod-btn v3-added';
-      b3.target = '_blank';
-      b3.href = href;
-      b3.style.cssText = 'background:#1e5c3a;color:#fff;padding:0.3rem 0.65rem;font-size:0.82rem;border-radius:4px;text-decoration:none';
-      b3.title = 'v3 八页线: 分诊→立意→分镜文字→导演→K2∥TTS→盖章→H3 (并行双轨 — 左侧橙钮仍为 v2 工坊)';
-      b3.textContent = '🎬 动画v3 ↗';
-      a.after(b3);
-    });
-  } catch (e) { /* 查询失败 = v2 原样, 入口不炸 */ }
-}
+// 1109 用户令: 🎬 动画v3 = 每集默认入口 (renderEp 直渲染, 不再按书级选线分流)
+// — applyV3Line/_v3lineCache 退役 (books.js 的 typeof 守卫自然 no-op)。
