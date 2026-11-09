@@ -147,6 +147,22 @@ def source_hash(script: str) -> str:
     return hashlib.md5(str(script or "").encode("utf-8")).hexdigest()[:12]
 
 
+def invalidate_downstream(v3: dict[str, Any], level: str = "arcs") -> bool:
+    """① 页编辑后下游闸回退 (1109 令55 补): 改字/语态 → arcs 级; 改采纳 → shots 级。
+
+    ① 页改字不写 DB (工作副本), 源稿指纹不变 — 但 ②③ 产物基于旧行, 闸必须
+    回退强制重跑 (数据保留, ②③ 重跑自然覆盖)。返回是否有闸被动 (toast 用)。
+    """
+    chain = ("arcs", "shots", "direct") if level == "arcs" else ("shots", "direct")
+    hit = False
+    gates = v3.setdefault("gates", {})
+    for g in chain:
+        if gates.get(g):
+            hit = True
+        gates[g] = False
+    return hit
+
+
 def script_stale(book_ref: str, ep: int) -> bool | None:
     """DB 源稿 ≠ ① 分诊快照指纹 → True (②-⑧ 全链基于老稿); 无指纹/无快照 → None 不判。
 
@@ -271,6 +287,7 @@ def run(job: dict[str, Any]) -> None:
     doc["v3"]["gates"]["triage"] = blocks == 0
     doc["v3"]["triage_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
     _old_hash = str(doc["v3"].get("source_hash") or "")   # 覆盖前采旧指纹
+    doc["v3"].pop("lines_edited", None)    # 重导入: ① 页手改被 DB 稿覆盖, 旗标清
     doc["v3"]["source_hash"] = source_hash(script)   # 1109: 源稿指纹 — 下游比对
     # 1109: 源稿指纹变了 (含存量集首采) → ②③④ 产物基于老稿, 闸链回退强制重跑。
     # 数据保留不删 (②③ 重跑自然覆盖); 同稿重跑 (指纹同) 不误伤下游闸。

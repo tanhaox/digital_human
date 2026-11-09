@@ -32,6 +32,7 @@ async function refresh() {
     (nb ? `<span class="badge bad">🔴 ${nb}</span>` : '<span class="badge ok">🔴 0</span>') +
     (nw ? `<span class="badge warn">🟡 ${nw}</span>` : '') +
     (ns ? `<span class="badge">💡 ${ns}</span>` : '') +
+    (d.edited ? '<span class="badge warn" title="本页有手改文本 — 🩺 重新分诊将从 DB 稿重新导入并覆盖手改">✏️ 有手改</span>' : '') +
     `<span class="badge">${LINES.length} 行</span>`;
   rail($('rail'), { line: st.line, gates: d.gates, active: 'triage' });
   renderGate(d.gates?.triage, d.triaged);
@@ -158,7 +159,9 @@ async function save() {
     body: JSON.stringify({ lines }) })).json();
   dirty.clear(); $('n-dirty').textContent = 0; $('dirty').textContent = '改稿 0 处未保存';
   await refresh();
-  if (r.gate) toast('✓ 稿净 — 分诊闸已开');
+  if (r.reset_downstream)
+    toast('已改稿 — ②③④ 闸已打回: 重跑 ② 立意后新文才传导到分镜/TTS');
+  else if (r.gate) toast('✓ 稿净 — 分诊闸已开');
 }
 $('btn-next').onclick = async () => {
   if (dirty.size) await save();          // 有未保存改动先落盘 (防丢)

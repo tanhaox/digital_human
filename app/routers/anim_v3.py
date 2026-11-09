@@ -168,7 +168,8 @@ def v3_triage_get(book_id: str, ep: int):
     v3 = doc.get("v3") or {}
     return {"lines": v3.get("lines") or [], "cards": v3.get("cards") or [],
             "gates": v3_pipeline.gates_view(doc),
-            "triaged": bool(v3.get("lines"))}
+            "triaged": bool(v3.get("lines")),
+            "edited": bool(v3.get("lines_edited"))}   # ① 页有手改 — 重新分诊会覆盖
 
 
 class TriageSaveBody(BaseModel):
@@ -1218,7 +1219,7 @@ def v3_concept_save(book_id: str, ep: int, body: ArcSaveBody):
 @router.post("/ep/{book_id}/{ep}/triage/save")
 def v3_triage_save(book_id: str, ep: int, body: TriageSaveBody):
     """一句一行编辑保存: 文本/语态/处置回写 + 确定性重检 + 分诊闸自动开合。"""
-    from app.services.anim_pipeline.v3_pipeline.triage import det_check, route_markers
+    from app.services.anim_pipeline.v3_pipeline.triage import det_check, invalidate_downstream, route_markers
     try:
         book_id, book_title = anim_service.resolve_ep(book_id, ep)
     except anim_service.AnimNotFound as exc:
@@ -1228,7 +1229,8 @@ def v3_triage_save(book_id: str, ep: int, body: TriageSaveBody):
         doc = _load_v3_doc(book_title, ep)
         v3 = doc.setdefault("v3", {})
         old = {ln["no"]: ln for ln in v3.get("lines") or []}
-        n_edit = 0
+        n_edit = 0      # 文本/语态变 (②③④ 全作废)
+        n_adopt = 0     # 采纳变 (③ 卡面作废)
         for row in body.lines:
             ln = old.get(row.get("no"))
             if not ln:
@@ -1243,13 +1245,24 @@ def v3_triage_save(book_id: str, ep: int, body: TriageSaveBody):
                 ln["disp"] = row["disp"]
             if row.get("adopted"):
                 # 采纳的建议种类 (quote/img/book/event/list) — ③ 分镜页据此建卡/配图/书证
-                ln["adopted"] = [str(k) for k in row["adopted"] if k][:6]
+                _ad = [str(k) for k in row["adopted"] if k][:6]
+                if _ad != list(ln.get("adopted") or []):
+                    ln["adopted"] = _ad
+                    n_adopt += 1
             # 编辑后确定性重检 (LLM 标注不重跑 — 病检是执法层)
             mode, routed = route_markers(ln["text"])
             if mode:
                 ln["mode"], ln["disp"] = mode, "routed"
             ln["flag"] = det_check(ln["text"])
         v3["lines"] = list(old.values())
+        # 1109 令55 补: ① 页改字/语态 = 改上游 → ②③④ 闸回退强制重跑
+        # (① 页是工作副本, DB 不动, 指纹不变 — 靠此回退传导失效)
+        reset = False
+        if n_edit:
+            v3["lines_edited"] = True            # 重新分诊=从 DB 重导入, 会覆盖手改
+            reset = invalidate_downstream(v3, "arcs")
+        elif n_adopt:
+            reset = invalidate_downstream(v3, "shots")
         # 闸: 无未处置 block (disp=cleaned/converted 视为处置)
         unresolved = [ln for ln in v3["lines"]
                       if ln.get("flag") and ln["flag"].get("level") == "block"
@@ -1257,6 +1270,7 @@ def v3_triage_save(book_id: str, ep: int, body: TriageSaveBody):
         v3.setdefault("gates", {})["triage"] = not unresolved
         from app.services.anim_pipeline import shots as shots_mod
         shots_mod.save(doc)
-    return {"saved": len(body.lines), "edited": n_edit,
+    return {"saved": len(body.lines), "edited": n_edit, "adopted": n_adopt,
+            "reset_downstream": reset,
             "blocks_unresolved": len(unresolved),
             "gate": not unresolved}

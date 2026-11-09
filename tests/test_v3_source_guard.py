@@ -127,6 +127,33 @@ def test_run_phase_refuses_stale_snapshot(monkeypatch):
     assert hit[-1] == "v3_triage"
 
 
+# ── ① 页编辑 → 下游闸回退 (1109 令55 补) ──────────────────────────
+
+def test_invalidate_downstream_levels():
+    v3 = {"gates": {"triage": True, "arcs": True, "shots": True, "direct": True}}
+    assert v3triage.invalidate_downstream(v3, "arcs") is True      # 有闸被动
+    assert v3["gates"] == {"triage": True, "arcs": False,
+                           "shots": False, "direct": False}
+    v3b = {"gates": {"triage": True, "arcs": True, "shots": True, "direct": False}}
+    assert v3triage.invalidate_downstream(v3b, "shots") is True    # 采纳级: ② 不动
+    assert v3b["gates"]["arcs"] is True
+    assert v3b["gates"]["shots"] is False and v3b["gates"]["direct"] is False
+    v3c = {"gates": {"triage": True, "arcs": False, "shots": False, "direct": False}}
+    assert v3triage.invalidate_downstream(v3c, "arcs") is False    # 本就关 → 无动作
+
+
+def test_triage_save_wiring_resets_downstream():
+    src = open("app/routers/anim_v3.py", encoding="utf-8").read()
+    assert "invalidate_downstream" in src                     # save 端点接线
+    assert '"reset_downstream": reset' in src                 # 回包携带
+    assert '"edited": bool(v3.get("lines_edited"))' in src    # ① GET 曝光手改旗标
+    assert 'v3["lines_edited"] = True' in src
+    tri_src = open("app/services/anim_pipeline/v3_pipeline/triage.py", encoding="utf-8").read()
+    assert 'pop("lines_edited", None)' in tri_src             # 重导入清旗标
+    js = open("web/v3/triage.js", encoding="utf-8").read()
+    assert "②③④ 闸已打回" in js and "✏️ 有手改" in js        # 页面提示
+
+
 # ── 路由接线 (源级断言) ────────────────────────────────────────────
 
 def test_router_stale_gate_wiring():
