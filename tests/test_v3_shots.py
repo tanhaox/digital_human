@@ -455,12 +455,20 @@ def test_build_cards_prefers_card_text_over_priority():
     assert c.get("diagram") and c["sid"] == "s17"
 
 
-def test_build_cards_skips_suggestion_without_card_text():
-    """没卡文字就不建卡: 用口播整句硬截 = 断句残片, 宁缺勿滥。"""
+def test_build_cards_skips_suggestion_without_card_text(monkeypatch):
+    """没卡文字先补产 (1109 根修); 补产失败仍不建卡: 口播整句硬截 = 断句残片,
+    宁缺勿滥 (ep7 采纳饿死实锤 — 静默跳过改显性报告)。"""
+    import app.services.llm_service as llm_service
+
+    def _fail(*a, **kw):
+        raise RuntimeError("no-llm-in-test")
+    monkeypatch.setattr(llm_service.get_llm_service().__class__, "chat",
+                        staticmethod(_fail), raising=False)
     v3 = {"cards": [], "lines": [{
         "no": 5, "text": "第一项，会做什么。第二项，不会做什么。第三项，边界在哪。",
         "adopted": ["list"], "suggs": [{"kind": "list", "text": "成清单排比"}]}]}
     assert v3shots.build_cards(v3, [{"sid": "s1", "line_refs": [5]}]) == []
+    assert v3["card_fill_report"]["llm_fail"] is True   # 不再静默
 
 
 def test_merge_same_list_cards():

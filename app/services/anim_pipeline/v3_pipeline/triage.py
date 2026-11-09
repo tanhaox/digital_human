@@ -138,7 +138,8 @@ suggs 每行给 0-2 条创作建议, kind∈"quote"(对仗短句有金句相)/"i
   只在**首行**给一条 img 建议, diagram 必须覆盖后面各行提到的**全部项**——
   实锤 (丑话清单): 只画了首句的前三项, 最后两项"验收标准/评价"整段丢失。
   分句里没进 diagram 的项, 宁可在结构里加一个分支补上。
-- list 清单卡: ≤50 字"""
+- list 清单卡: ≤50 字
+**card_text 必填**: quote/img/event/list 每条建议必须带 card_text, 缺 card_text 的建议会被系统整条丢弃 (用户采纳了也不建卡 — 1109 ep7 实锤)。"""
 
 
 def source_hash(script: str) -> str:

@@ -1761,7 +1761,10 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
 
                 def _span_of(line_no: int):
                     _raw = _PAUSE.sub("", _line_txt.get(line_no, ""))
-                    if len(_raw) < 14:
+                    # 1109 修 (短金句漏卡): 旧 <14 字直接放弃 — 金句行天然短
+                    # (ep7 实锤「客户翻脸不是意外，是规律」13 字被杀)。整句即
+                    # 搜索串, <6 字才判歧义放弃。
+                    if len(_raw) < 6:
                         return None
                     _i = _flow.find(_raw[:14])
                     if _i < 0:
@@ -1788,7 +1791,7 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                     判据: 项词 ≥4 才启用 (少项双分支卡回退锚句窗)。"""
                     import bisect as _bs
                     _raw = _PAUSE.sub("", _line_txt.get(line_no, ""))
-                    if len(_raw) < 14:
+                    if len(_raw) < 6:          # 1109: 同 _span_of 短句修 (<14 杀金句)
                         return None
                     _i0 = _flow.find(_raw[:14])
                     if _i0 < 0:

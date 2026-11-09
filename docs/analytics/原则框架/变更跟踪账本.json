@@ -448,6 +448,20 @@
     "1109 夜早期证据: 首批 34/34 出片 anim_done×34 (旧同步环同规则跑通, job 尾记 cancelled=收尾后停止非失败)"
    ],
    "status": "pending"
+  },
+  {
+   "id": "TR-034",
+   "date": "2026-11-09",
+   "change": "采纳饿死根修: build_cards 建卡口窄 LLM 补产 card_text (ep7 实锤 ① 分诊 13/13 建议不交卡面文字 → 宁缺勿滥闸全静默跳 → v3.cards=0 → 装配无卡) + 域闸校验 (空/超长拒收) + card_fill_report 显性报告 (③ 页 warnings) + ① prompt card_text 必填硬句 + 装配句轴短句修 (<14 字杀金句 → <6 字才放弃, ep7 c09/c11 实锤)",
+   "commit": "本批 (v3_pipeline/shots.py + triage.py + anim_draft.py + 测试)",
+   "verify": "test_v3_card_backfill 5 用例 + test_v3_shots 跳卡改新契约; pytest 747p 失败集=历史债; ep7 实弹: 补产 13/13 ✓ → 13 卡上屏 (7 文字卡 + 6 图示 PNG 渲染) + 重装配抽查 7/7 命中",
+   "readout_date": "2026-11-16",
+   "metrics": [
+    "下集 ① 分诊建议 card_text 直出率 (prompt 硬句后, 预期升高 — 补产只是兜底)",
+    "补产触发次数与合格率 (ep7 首战 13/13; 不合格/失败落显性报告非静默)",
+    "装配 v3 卡上屏率 (行文本命中句轴比例, 短句修后预期=100%)"
+   ],
+   "status": "pending"
   }
  ]
 }

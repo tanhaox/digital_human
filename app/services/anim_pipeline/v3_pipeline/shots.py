@@ -173,9 +173,92 @@ def _clip(s: str, n: int) -> str:
     return s[:n]
 
 
+_CARD_TEXT_MAX = {"event": 12, "quote": 40, "img": 40, "list": 50, "book": 40}
+
+
+def _valid_card_text(kind: str, ct: str) -> bool:
+    """卡面文字域闸 (1109): 与建卡消费端截断同尺 (event 12 / 其余 40-50)。
+    空/超长 = 不合格拒收 — 落显性报告, 不硬造断句残片。"""
+    ct = str(ct or "").strip()
+    return bool(ct) and len(ct) <= _CARD_TEXT_MAX.get(str(kind), 40)
+
+
+_FILL_SYS = """你是短视频上屏卡的卡面文字补写员。对每条输入输出卡面文字, 严格 JSON 无多余文字:
+{"cards":[{"no":行号,"kind":"event|quote|img|list","card_text":"…","diagram":null或树JSON}]}
+规则 (按 kind):
+- event 事件金字: ≤8 个字的核心词 (如「怀疑坎」「体面退出」), 绝不要整句
+- quote 金句卡: ≤30 字, 取该行文本中最有劲的一段
+- img 图示: ≤30 字的公式/图表/流程/对照内容; 且给 diagram = 树形 JSON
+  {"name":"根","children":[{"name":"分支"}]} (2-3 层, 每节点 ≤10 字, 总节点 ≤12; 纯公式无维度可拆给 null)
+- list 清单卡: ≤50 字, 逐项短词用、分隔
+只从给的行文本里提炼, 不发明行里没有的内容。"""
+
+
+def _fill_adopted_card_texts(v3: dict[str, Any]) -> None:
+    """1109 根修 (ep7 采纳饿死实锤): ① LLM 分诊建议常不交 card_text
+    (ep7 13/13 全空 — prompt 契约形同虚设), build_cards 宁缺勿滥闸全
+    静默跳过 → v3.cards=0 → 装配无卡 (用户「采纳方案去哪了」)。
+    主防线移到建卡口: 对已采纳但无卡面文字的建议做一次窄 LLM 补产,
+    域闸校验 (空/超长拒收), 结果写回 suggs + 落 v3.card_fill_report
+    (③ 页 warnings / autocards 响应显性可见, 不再静默)。"""
+    pend: list[tuple[int, str]] = []          # (no, kind)
+    for ln in v3.get("lines") or []:
+        for k in (ln.get("adopted") or []):
+            k = str(k)
+            if k not in CARD_OF_SUGG:
+                continue
+            sug = next((g for g in (ln.get("suggs") or [])
+                        if g.get("kind") == k), None)
+            if sug is None or str(sug.get("card_text") or "").strip():
+                continue          # 无建议体 / 已带卡面文字 — 不补
+            pend.append((int(ln["no"]), k))
+    rep = {"pending": len(pend), "filled": 0, "rejected": [], "llm_fail": False}
+    v3["card_fill_report"] = rep
+    if not pend:
+        return
+    import json as _json
+    from app.services.llm_service import get_llm_service, _parse_json
+    line_of = {int(l["no"]): l for l in v3.get("lines") or []}
+    body = _json.dumps([{"no": n, "kind": k,
+                         "line_text": str(line_of[n].get("text") or "")}
+                        for n, k in pend], ensure_ascii=False)
+    try:
+        raw = get_llm_service().chat(_FILL_SYS, body, model="flash",
+                                     temperature=0.2,
+                                     response_format={"type": "json_object"},
+                                     tag="v3_cardfill")
+        got = _parse_json(raw) or {}
+        items = got.get("cards") if isinstance(got, dict) else (
+            got if isinstance(got, list) else [])
+    except Exception as exc:  # noqa: BLE001 — 失败退显性报告, 不阻断建卡
+        rep["llm_fail"] = True
+        logger.warning("[v3:shots] 采纳卡面补产 LLM 失败 (%d 条未上屏): %s",
+                       len(pend), exc)
+        return
+    by = {(int(c.get("no") or 0), str(c.get("kind") or "")): c
+          for c in items if isinstance(c, dict)}
+    for n, k in pend:
+        c = by.get((n, k))
+        ct = str((c or {}).get("card_text") or "").strip()
+        if not _valid_card_text(k, ct):
+            rep["rejected"].append(f"L{n}:{k}")
+            continue
+        sug = next(g for g in (line_of[n].get("suggs") or [])
+                   if g.get("kind") == k)
+        sug["card_text"] = ct[:60]
+        dg = (c or {}).get("diagram")
+        if k == "img" and isinstance(dg, dict) and dg.get("name"):
+            sug["diagram"] = dg
+        rep["filled"] += 1
+    logger.info("[v3:shots] 采纳卡面补产: %d/%d ✓, 不合格 %d",
+                rep["filled"], rep["pending"], len(rep["rejected"]))
+
+
 def build_cards(v3: dict[str, Any], shots: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """卡来源二路: ①卡指令行 (v3.cards) + ②分诊采纳的建议 (line.adopted)。
     全部挂到「句」(line_no), 再映射到包含该句的镜 (sid)。"""
+    # 1109 根修: 建卡口先补产卡面文字 (ep7 采纳饿死实锤 — 见 _fill_adopted_card_texts)
+    _fill_adopted_card_texts(v3)
     # 1108 用户令 (img 回写防丢): ③ 重跑重建 cards 会抹掉已渲染卡图链接
     # (11-05 渲染 3 张 → 11-06+ 重跑后 img 全 None, 装配失联实锤)。
     # cid 经 _merge_same_list 重编号会漂, 用内容锚 (line_no, text前12) 保留。
@@ -1346,6 +1429,12 @@ def run(job: dict[str, Any]) -> None:
         logger.warning("[v3:shots] 画面句 LLM 失败 (留空待手填): %s", exc)
 
     cards = build_cards(v3, shots)
+    # 1109 根修: 补产结果显性上桌 (不再静默饿死 — ③ 页 warnings 渲染)
+    _rep = v3.get("card_fill_report") or {}
+    if _rep.get("llm_fail"):
+        warns.append(f"采纳卡面补产: LLM 失败 — {_rep.get('pending', 0)} 条已采纳建议无卡面文字未上屏 (重跑 ③ 再试)")
+    elif _rep.get("rejected"):
+        warns.append(f"采纳卡面补产: {len(_rep['rejected'])}/{_rep.get('pending', 0)} 条不合格未上屏 ({'、'.join(_rep['rejected'][:6])}) — 回 ① 页换建议或改稿")
     issues = text_layer_issues(shots, book_title=str(job.get("book_title") or ""))
     for sid, lst in cast_gate_issues(
             shots, arcs, str(job.get("book_title") or "")).items():
