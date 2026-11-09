@@ -45,12 +45,15 @@ async function refresh() {
   FROZEN = !!st.frozen;
   renderSysWarn(); renderBlocks(); renderSide(); renderGate(d.gates?.shots, d.ready);
   refreshDirty();
-  if (FROZEN) {   // 放行冻结: 画面句转只读 (改稿=作废英文化)
+  if (FROZEN) {   // 放行冻结: 手改面转只读 (手改=作废英化); 🎨 重跑=官方解冻路, 常亮 (1109 用户令)
     document.querySelectorAll('[data-k="keyframe_zh"]').forEach(el => {
       el.contentEditable = 'false';
     });
-    $('btn-run').disabled = true; $('btn-save').disabled = true;
+    $('btn-save').disabled = true;
     $('save-label').textContent = '🔒 已放行冻结';
+    $('btn-run').title = '已放行英文化 — 重跑会作废 ④ 参数/英化/K2 渲染状态 (后端自动清戳解冻)';
+  } else {
+    $('btn-run').title = '';
   }
 }
 
@@ -432,6 +435,7 @@ async function saveShots() {
 $('btn-save').onclick = saveShots;
 
 $('btn-run').onclick = async () => {
+  if (FROZEN && !confirm('🔒 本集已放行英文化。\n重跑 ③ = 分镜画面句全部重新生成, ④ 导演参数 / 英文化 / K2 渲染状态将全部作废 (须重跑)。\n确认重跑？')) return;
   if (dirty.size && !confirm('有未保存改动，继续会覆盖 — 先保存?')) return;
   if (dirty.size) await saveShots();
   const r = await fetch(`${BASE}/v3_shots`, { method: 'POST',
