@@ -456,6 +456,8 @@ _SYS = """你是动画分镜的画师。给定「镜」清单 (镜号|所属弧�
 10. **角色卡名制 (选角)**: 行内有「本弧角色」列且非空时, 画面句中的该角色必须直接
    用卡名指代 (如: 阿特金森的银色轿车), 禁用泛称 (中年男士/西装男人/客户/顾问)
    顶替 — 卡名是跨镜身份锚; 该列为空的镜不写具体人名, 群演用身份词 (路人/店员)。
+   **画面句只许用本弧 cast 内的卡名** — 演员名单里未绑本弧的卡名 (含其他弧绑定的)
+   不许冒名 (1109 反向闸: 选角走 ② 正门, 画师不擅自定角)。
 11. **实体原词制 (词汇表)**: 行内有「本弧实体」列且非空时, 弧内实体一律用表内
    zh 原词指代 (如: 登山杖), 禁同义改写 (手杖/雪杖/登山棍) — 实体词是跨镜视觉
    一致锚 (K2 同实体同画, 英译同实体同词); 表外新实体用自然词即可。
@@ -496,27 +498,38 @@ def keyframe_camera_issues(text: str) -> list[str]:
 
 
 def cast_gate_issues(shots: list[dict[str, Any]],
-                     arcs: list[dict[str, Any]]) -> dict[str, list[str]]:
+                     arcs: list[dict[str, Any]],
+                     book_title: str = "") -> dict[str, list[str]]:
     """卡名闸 (批1 选角): 弧绑定 cast 而画面句零卡名 → 亮灯拦闸。
 
     泛称 (西装男士) 是跨镜身份漂移源头; 卡名不入句, ⑧ 的 r2v 定妆照路由
     永不命中 (h3._pick_video_station: keyframe 含圣经角色名才走 r2v)。
+
+    1109 反向条款 (s1 实锤): 画面句出现**未绑定**的圣经卡名 → 拦。③ writer
+    跨弧偷看同批 cast 列 (A1 hook cast=[] 却写了 老谭+冲锋衣 look) — 选角
+    必须走 ② 正门绑定, ③ 不许冒名 (书中有谁上镜是选角决策, 不是画师自由)。
     """
     cast_of = {a["arc_id"]: a.get("cast") or [] for a in arcs}
+    cards = _look_catalog(book_title) if book_title else {}
     out: dict[str, list[str]] = {}
     for s in shots:
         if s.get("brand_card"):
             continue                      # 品牌镜走冻结骨架, 不经 LLM
         names = cast_of.get(s.get("arc_id") or "") or []
-        if not names:
-            continue                      # 空镜弧/非叙事位: 无卡可拦
         kf = str(s.get("keyframe_zh") or "")
         if not kf:
             continue                      # 空画面句由长度闸管, 不双报
-        if not any(n in kf for n in names):
+        if names and not any(n in kf for n in names):
             out.setdefault(s["sid"], []).append(
                 f"{s['sid']} 弧绑定角色 {'/'.join(names)} 未以卡名入画面句 — "
                 "用卡名指代该角色 (泛称=身份漂移源头, 且 ⑧ 定妆照路由永不命中)")
+        # 反向: 未绑卡名冒名 (含空绑弧冒任何卡名) — 选角走 ② 正门
+        _alien = [n for n in cards if n and n in kf and n not in names]
+        if _alien:
+            out.setdefault(s["sid"], []).append(
+                f"{s['sid']} 画面句出现未绑定卡名 {'/'.join(_alien)} "
+                f"(本弧 cast={'/'.join(names) or '空'}) — 该角色上镜是 ② 选角决策: "
+                "回 ② 立意页补绑, 或画面句改身份词 (不冒卡名)")
     return out
 
 
@@ -945,7 +958,7 @@ def fix_shot_text(doc: dict[str, Any], sids: list[str],
     iss_all = text_layer_issues(shots, book_title)
     # 1109 补 (s13 实锤): 卡名闸同入修复宇宙 — 否则纯卡名问题的镜文字层干净,
     # 反馈退化「画面不满意」, LLM 只能化妆式微调, 页面条目永不消失
-    for _sid, _lst in cast_gate_issues(shots, arcs).items():
+    for _sid, _lst in cast_gate_issues(shots, arcs, book_title).items():
         iss_all.setdefault(_sid, []).extend(_lst)
     # 1109 令54 补: 弧级问题 (分区人物配额「补 sN/sN」) 分发为点名镜反馈
     _arc_fb = _arc_quota_targets(iss_all)
@@ -1004,7 +1017,7 @@ def fix_shot_text(doc: dict[str, Any], sids: list[str],
         probe = {**s, "keyframe_zh": zh}
         out = _shot_feedback(probe, text_layer_issues([probe], book_title))
         # 1109 补: 卡名闸同步进复检 — 与页面条目同宇宙, 闸过了才许报 fixed
-        out += _shot_feedback(probe, cast_gate_issues([probe], arcs))
+        out += _shot_feedback(probe, cast_gate_issues([probe], arcs, book_title))
         return out
 
     applied: dict[str, str] = {}
@@ -1032,7 +1045,7 @@ def fix_shot_text(doc: dict[str, Any], sids: list[str],
         elif s is not None and zh == str(s.get("keyframe_zh") or ""):
             fixed.append(sid)   # LLM 判无需改 (原句即合规/已按新规豁免)
     issues = text_layer_issues(shots, book_title)
-    for sid, lst in cast_gate_issues(shots, arcs).items():
+    for sid, lst in cast_gate_issues(shots, arcs, book_title).items():
         issues.setdefault(sid, []).extend(lst)
     v3["shot_issues"] = issues
     v3.setdefault("gates", {})["shots"] = not has_blocking_issues(issues)
@@ -1127,7 +1140,7 @@ def split_slot_line(doc: dict[str, Any], sid: str,
                        None, _look_catalog(book_title) or None)
     v3["cards"] = build_cards(v3, shots2)
     issues = text_layer_issues(shots2, book_title)
-    for k2, lst in cast_gate_issues(shots2, arcs).items():
+    for k2, lst in cast_gate_issues(shots2, arcs, book_title).items():
         issues.setdefault(k2, []).extend(lst)
     v3["shot_issues"] = issues
     v3["shot_warnings"] = warns
@@ -1298,7 +1311,8 @@ def run(job: dict[str, Any]) -> None:
 
     cards = build_cards(v3, shots)
     issues = text_layer_issues(shots, book_title=str(job.get("book_title") or ""))
-    for sid, lst in cast_gate_issues(shots, arcs).items():
+    for sid, lst in cast_gate_issues(
+            shots, arcs, str(job.get("book_title") or "")).items():
         issues.setdefault(sid, []).extend(lst)
     n_issue = sum(len(v) for v in issues.values())
 
