@@ -262,9 +262,17 @@ function renderSide() {
 
   const arc = arcIssues();
   $('acount').textContent = arc.length;
+  // 1109 令54 补: 弧级问题也要给解法 — 自带「补 sN/sN」点名的挂 🔧 一键修
   $('alist').innerHTML = arc.length
-    ? arc.map(x => `<div class="aitem">${esc(x)}</div>`).join('')
+    ? arc.map(x => {
+        const m = String(x).match(/补 ((?:s\d+)(?:\/s\d+)*)/);
+        const btn = m ? ` <button class="iconbtn" data-fix="${esc(m[1])}" title="把点名的镜改人物镜 (弧绑定角色入画, 保场景保构图)">🔧</button>` : '';
+        return `<div class="aitem">${esc(x)}${btn}</div>`;
+      }).join('')
     : '<div class="qempty">✓ 无</div>';
+  $('alist').querySelectorAll('[data-fix]').forEach(b => {
+    b.onclick = () => fixText(b.dataset.fix.split('/'), b);
+  });
 
   // 槽长超限 = 可执行解法 (拆行), 不与普通提醒混排
   const plain = WARNINGS.filter(w => !String(w).includes('超 H3'));
@@ -326,7 +334,8 @@ function renderGate(open, ready) {
     ? '<div class="gt gold-t">◉ 分镜已放行</div><div class="note">可进 ④ 导演 (景别/运镜/光影)</div>'
     : `<div class="gt">🔒 分镜闸未开</div><div class="note">${ready ? `镜级 ${nIss} 项待清` : '尚未切镜'}</div>`
       + (hasFixable ? '<div class="fixrow"><button class="btn-fix" id="btn-autofix" title="载体补「空白XX」+ 删引号标签/申报注释 (v3 画面里不许有字); 判不了的返回手改">🔧 一键合规</button></div>' : '')
-      + (nIss ? '<div class="fixrow"><button class="btn-fix" id="btn-fixtext" title="带质检问题的镜 (搁笔/人物残留/终态词/运镜词/长度…) 由 LLM 定点重写 — 保场景保构图, 最小改动">🔧 一键修全部</button></div>' : '')
+      + ((nIss || arcIssues().some(x => /补 (?:s\d+)(?:\/s\d+)*/.test(String(x))))
+         ? '<div class="fixrow"><button class="btn-fix" id="btn-fixtext" title="带质检问题的镜 (搁笔/人物残留/终态词/运镜词/长度…) 由 LLM 定点重写 — 保场景保构图, 最小改动">🔧 一键修全部</button></div>' : '')
       + (!CARDS.length ? '<div class="fixrow"><button class="btn-fix" id="btn-autocards" title="把①分诊给出的金句/清单/配图/书证/事件建议一次建成卡">＋ 一键建卡</button></div>' : '');
   const ac = document.getElementById('btn-autocards');
   if (ac) ac.onclick = async () => {
@@ -344,8 +353,13 @@ function renderGate(open, ready) {
     if (r.manual.length) toast('需手改: ' + r.manual[0]);
   };
   const ft = document.getElementById('btn-fixtext');
-  if (ft) ft.onclick = () => fixText(
-    SHOTS.filter(s => shotIssues(s.sid).length).map(s => s.sid), ft);
+  if (ft) ft.onclick = () => {
+    // 镜级问题镜 ∪ 弧级配额点名镜 (1109 令54 补: 弧级问题同入一键修)
+    const sids = new Set(SHOTS.filter(s => shotIssues(s.sid).length).map(s => s.sid));
+    arcIssues().forEach(x => String(x).match(/补 ((?:s\d+)(?:\/s\d+)*)/)
+      ?. [1].split('/').forEach(id => sids.add(id)));
+    fixText([...sids], ft);
+  };
   const nx = $('btn-next');
   nx.disabled = !open;
   nx.title = open ? '进入 ④ 导演 (景别/运镜/光影)' : (ready ? '先处置镜级问题' : '先跑分镜');

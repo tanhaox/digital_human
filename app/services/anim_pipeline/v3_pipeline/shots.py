@@ -908,6 +908,24 @@ _FIX_SYS_ADDENDUM = """
 (人物一入画, 空镜禁令随之解除, 不算换方案)。
 每条只输出画面句, 严格 JSON: {"shots":[{"sid":"s1","keyframe_zh":"..."}]}"""
 
+_ARC_FIX_RE = re.compile(r"补 ((?:s\d+)(?:/s\d+)*)")
+
+
+def _arc_quota_targets(iss: dict[str, list[str]]) -> dict[str, list[str]]:
+    """弧级问题 → 点名镜反馈 (1109 令54 补): 分区人物配额等自带「补 s3/s4/…」
+    修复指令 (final_gate.zone_quota_issues 确定性生成, 格式同源可控) —
+    分发为点名镜的「改人物镜」反馈, 进 fix_shot_text 的 LLM 输入。"""
+    out: dict[str, list[str]] = {}
+    for msg in iss.get(ARC_LEVEL_KEY) or []:
+        m = _ARC_FIX_RE.search(str(msg))
+        if not m:
+            continue
+        hint = ("分区人物配额不足 — 本镜改为人物镜: 弧绑定角色入画 "
+                "(卡名+定妆锚同句, 主体可小, 场景构图保住)")
+        for sid in re.findall(r"s\d+", m.group(1)):
+            out.setdefault(sid, []).append(hint)
+    return out
+
 
 def fix_shot_text(doc: dict[str, Any], sids: list[str],
                   book_title: str = "") -> dict[str, Any]:
@@ -929,6 +947,8 @@ def fix_shot_text(doc: dict[str, Any], sids: list[str],
     # 反馈退化「画面不满意」, LLM 只能化妆式微调, 页面条目永不消失
     for _sid, _lst in cast_gate_issues(shots, arcs).items():
         iss_all.setdefault(_sid, []).extend(_lst)
+    # 1109 令54 补: 弧级问题 (分区人物配额「补 sN/sN」) 分发为点名镜反馈
+    _arc_fb = _arc_quota_targets(iss_all)
     todo = [s for s in shots
             if str(s.get("sid")) in want and not s.get("brand_card")]
     if not todo:
@@ -955,7 +975,8 @@ def fix_shot_text(doc: dict[str, Any], sids: list[str],
                                   for v in (a.get("vocab") or []))
             text = " ".join(str((line_of.get(n) or {}).get("text") or "")
                             for n in (s.get("line_refs") or []))[:100]
-            fb = "; ".join(_shot_feedback(s, iss_all)) or "画面不满意"
+            fb = "; ".join(_shot_feedback(s, iss_all)
+                           + _arc_fb.get(str(s["sid"]), [])) or "画面不满意"
             rows.append(
                 f'{s["sid"]}{tag}|{a.get("world", "")}|{str(a.get("metaphor") or "")[:60]}|'
                 f'{str(a.get("narrative") or "")[:40]}|{cast_txt}|{vocab_txt}|{text}|'
@@ -1017,6 +1038,10 @@ def fix_shot_text(doc: dict[str, Any], sids: list[str],
     v3.setdefault("gates", {})["shots"] = not has_blocking_issues(issues)
     unfixed = {sid: _shot_feedback(by_sid[sid], issues)
                for sid in fixed if _shot_feedback(by_sid[sid], issues)}
+    # 1109 令54 补: 弧级配额复检 — 修完仍点名 → 残留上报 (与页面条目同宇宙)
+    for sid, lst in _arc_quota_targets(issues).items():
+        if sid in fixed:
+            unfixed.setdefault(sid, []).extend(lst)
     return {"fixed": fixed, "unfixed": unfixed, "issues": issues,
             "gate": not has_blocking_issues(issues)}
 

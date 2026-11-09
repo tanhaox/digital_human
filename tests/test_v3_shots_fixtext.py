@@ -30,8 +30,9 @@ def _doc(kf: str = PEN_KF, line_text: str | None = None):
 # ── 一键修 ─────────────────────────────────────────────────────────
 
 def _cast_doc():
-    """弧绑 cast 而画面句零卡名 — 纯卡名闸问题镜 (s13 实锤形, 文字层干净)."""
-    doc = _doc(kf=CLEAN_KF)
+    """弧绑 cast 而画面句零卡名 — 纯卡名闸问题镜 (s13 实锤形)。
+    s1 预填「男子」: 人物配额不双报 (1109 令54 补后配额同入修复宇宙, 夹具要隔离)。"""
+    doc = _doc(kf=CLEAN_KF + "一位男子立于长桌旁。")
     doc["v3"]["arcs"][0]["cast"] = ["老谭"]
     return doc
 
@@ -67,8 +68,9 @@ def test_cast_gate_fixed_only_when_name_in(monkeypatch):
     def ok_chat(sys_p, prompt, **kw):
         import json
         import re
+        # 卡名 (老谭) + 人物词 (男子, 配额同过 — LLM 真实行为: 人物镜双达标)
         return json.dumps({"shots": [
-            {"sid": s, "keyframe_zh": CLEAN_KF + "老谭立在长桌尽头。"}
+            {"sid": s, "keyframe_zh": CLEAN_KF + "老谭与一位男子同立长桌尽头。"}
             for s in re.findall(r"^(s\d+)", prompt, flags=re.M)]})
     monkeypatch.setattr(llm_service.get_llm_service().__class__, "chat",
                         staticmethod(ok_chat), raising=False)
@@ -145,6 +147,48 @@ def test_router_fix_endpoints_wired():
     js = open("web/v3/shots.js", encoding="utf-8").read()
     assert "fix_text" in js and "split_slot" in js and "一键拆行" in js
     assert "一键修全部" in js and "data-fix" in js
+
+
+def test_arc_quota_feedback_reaches_llm(monkeypatch):
+    """弧级配额问题 (分区人物配额「补 sN」) 也要给解法 — 点名镜反馈进 LLM。"""
+    from app.services import llm_service
+    doc = _cast_doc()
+    seen = {}
+
+    def fake_tli(shots, book_title=""):
+        # 单镜探针 / 已有人物的全集 → 干净; 否则弧级配额点名 s1
+        if len(shots) == 1 or any("老谭" in str(s.get("keyframe_zh") or "") for s in shots):
+            return {}
+        return {"弧级": ["分区人物配额: 场A1[hook] 4镜仅2镜有人物 (需≥3) — 补 s1/s2"]}
+
+    monkeypatch.setattr(v3shots, "text_layer_issues", fake_tli)
+
+    def fake_chat(sys_p, prompt, **kw):
+        seen["prompt"] = prompt
+        import json
+        import re
+        return json.dumps({"shots": [
+            {"sid": s, "keyframe_zh": CLEAN_KF + "老谭立在长桌尽头。"}
+            for s in re.findall(r"^(s\d+)", prompt, flags=re.M)]})
+    monkeypatch.setattr(llm_service.get_llm_service().__class__, "chat",
+                        staticmethod(fake_chat), raising=False)
+    r = v3shots.fix_shot_text(doc, ["s1"])
+    assert "分区人物配额不足" in seen["prompt"]       # 弧级问题分发到点名镜
+    assert "人物镜" in seen["prompt"]
+    assert "s1" in r["fixed"] and "s1" not in r["unfixed"]   # 人物入画 → 配额过
+
+
+def test_arc_quota_parse_and_wiring():
+    """解析: 补列表提取 (含 >6 截断 …); 接线: 前端弧级条目挂 🔧。"""
+    t = v3shots._arc_quota_targets(
+        {"弧级": ["分区人物配额: 场A1[hook] 8镜仅3镜有人物 (需≥5) — 补 s3/s4/s5/s6/s7",
+                 "另一条无补指令的弧级问题"]})
+    assert sorted(t) == ["s3", "s4", "s5", "s6", "s7"]
+    assert all("人物镜" in v[0] for v in t.values())
+    assert v3shots._arc_quota_targets({"弧级": ["无补指令"]}) == {}
+    js = open("web/v3/shots.js", encoding="utf-8").read()
+    assert "data-fix" in js and "b.dataset.fix.split('/')" in js   # 弧级多镜合投
+    assert "弧级配额点名镜" in js                                    # 一键修全部并入
 
 
 # ── 一键拆行 ───────────────────────────────────────────────────────
