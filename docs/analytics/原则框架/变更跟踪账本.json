@@ -391,6 +391,62 @@
     "1109 补实弹: ① 页改字闸回退 (ep7 暂无手改, 观察后续)"
    ],
    "status": "pending"
+  },
+  {
+   "id": "TR-030",
+   "date": "2026-11-09",
+   "change": "③ 修复闭环三根因+K2 双锚: 反向闸掩蔽已绑定卡名+外名最长去重 (子串误判冒名); 配额 hint 按 cast 有无分流 (无 cast 写泛称禁卡名); <80字拒稿 dropped 记账进反馈; _name_hits 长名优先+命中即掩蔽 (K2 双入境/错人 look 注入); text_layer all_fake 补 book_title+brand_card (配额计数器认圣经卡名+品牌镜豁免)",
+   "commit": "f9382e2/9c59289 (1109 UX 十连批)",
+   "verify": "test_v3_cast_doctrine +2 / test_k2_outfit_cast +2 / test_v3_shots_fixtext +2 (品牌镜配额反证); pytest 737p 失败集=历史债原样",
+   "readout_date": "2026-11-16",
+   "metrics": [
+    "🔧 一修过率 (实锤前: 同一镜级问题几次都修不过)",
+    "配额假缺口复现数 (『N镜仅M镜有人物』但卡名写法正确, 预期 0)",
+    "K2 同镜双 look (双入境) 复发数 (预期 0)"
+   ],
+   "status": "pending"
+  },
+  {
+   "id": "TR-031",
+   "date": "2026-11-09",
+   "change": "令56 ③ 页手改面: 🎨 FROZEN 常亮+confirm 解冻守门 (作废面明示); 自动保存 1.2s 防抖+focusout 立存, BUSY/STALE/拒稿三守卫; 人闸语义=零改动绝不自动触发放行",
+   "commit": "0c27cb4/70f3a6e (1109 UX 十连批)",
+   "verify": "Playwright 探针 (confirm 拦重跑 / 拒稿不冲手改 / 自动保存落库); pytest 失败集不变",
+   "readout_date": "2026-11-16",
+   "metrics": [
+    "手改丢失反馈 (预期归零)",
+    "自动保存误触发放行数 (预期 0 — 人闸铁律)",
+    "重跑误触数 (confirm 拦截生效观察)"
+   ],
+   "status": "pending"
+  },
+  {
+   "id": "TR-032",
+   "date": "2026-11-09",
+   "change": "④ 拦截项常驻渲染+⚡改固定/↩回③ 双解法钮+空表守卫指路; 运镜槽>10s clamp_move_slots 确定性降固定 (run/save/reroll 三调用点)",
+   "commit": "bb25da1/f9e92fb (1109 UX 十连批)",
+   "verify": "test_v3_direct_clamp 4 用例 (含三调用点源级断言); pytest 失败集不变",
+   "readout_date": "2026-11-16",
+   "metrics": [
+    "下集 ④ 生成『超 h3 工位 10s』拦截项 (预期 0 — clamp 兜底)",
+    "clamp 触发次数 (LLM 对 prompt 规则遵守率 — 教义『prompt 减量出口闸主防』再实证)",
+    "『⑤ 不亮/不动作』类反馈 (预期归零)"
+   ],
+   "status": "pending"
+  },
+  {
+   "id": "TR-033",
+   "date": "2026-11-09",
+   "change": "令57/58 ⑧ 页过审面+状态单源: 点图放大灯箱+✅ 全部过审 (k2/approve 一键); project_h3_status 模块级单源 (批任务写回盘 + /h3 GET 只读投影); 前端过审后本地立现桥",
+   "commit": "a5f7769/7dba3d4/d80e299 (1109 UX 十连批)",
+   "verify": "test_h3_status_projection_single_source (五断言+双消费端源级); Playwright 探针全审后按钮亮; ep7 实弹: 全审 approved×34 后 🎬 批生就绪",
+   "readout_date": "2026-11-16",
+   "metrics": [
+    "后端重启后 /h3 直读 approved (本地立现桥退役路径)",
+    "下批 H3 重烧已成片镜数 (预期 0 — 只升不降)",
+    "⑥↔⑧ 跳页过审操作次数 (预期显著下降)"
+   ],
+   "status": "pending"
   }
  ]
 }
