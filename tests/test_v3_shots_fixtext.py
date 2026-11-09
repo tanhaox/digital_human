@@ -261,3 +261,33 @@ def test_arc_quota_hint_split_by_cast():
     t2 = v3shots._arc_quota_targets(
         {"弧级": ["分区人物配额: 场A1[mid] 8镜仅3镜有人物 (需≥5) — 补 s9"]})
     assert "泛称人物" in t2["s9"][0]
+
+
+def test_text_layer_quota_sees_card_name_persons(tmp_path, monkeypatch):
+    """1109 修 (ep7 配额「修不过」实锤): text_layer_issues 的配额复算必须带
+    book_title — zone_quota_issues 靠它把圣经卡名加进人物词表。缺了 → 只写
+    卡名的镜 (选角律的正确写法) 全被数成「无人」→ 配额永远差数, 点名镜
+    改一万遍也修不过。"""
+    import json as _json
+    from app.services.anim_pipeline import director2
+    bible = tmp_path / "圣经_测试配额.json"
+    bible.write_text(_json.dumps({"characters": [
+        {"name": "阿特金森", "look": "深炭色西装配暗红领带", "role": "书中人物"}]}),
+        encoding="utf-8")
+    monkeypatch.setattr(director2, "_bible_cache_path", lambda bt: bible)
+    # 品牌占位镜吃掉前 70s → 后 8 镜全落 mid; 偶数镜人物只以卡名出现 (零泛称词)
+    shots = [{"sid": "s0", "arc_id": "A0", "arc_type": "brand", "brand_card": True,
+              "line_refs": [], "est_s": 70.0, "narration": "",
+              "keyframe_zh": "", "in_image_text": [], "text_layer": []}]
+    for i in range(1, 9):
+        kf = ("阿特金森的深炭色西装与暗红领带占画面左半，白板反射冷光，景深拉远。"
+              if i >= 3 else
+              "桌面近景：摊开的文件夹与计时器，银灰色金属反光，背景虚化。")
+        shots.append({"sid": f"s{i}", "arc_id": "A1", "arc_type": "narr",
+                      "line_refs": [i], "est_s": 6.0, "narration": "",
+                      "keyframe_zh": kf, "in_image_text": [], "text_layer": []})
+    arc = lambda iss: [x for x in (iss.get("弧级") or []) if "分区人物配额" in x]
+    # 带书名: 卡名可见 → 6/8 ≥ 需 5 → 配额过
+    assert not arc(v3shots.text_layer_issues(shots, "测试配额"))
+    # 反证 (旧 bug 路): 空书名加不进卡名词表 → 6 镜卡名人物全隐形 → 配额告缺
+    assert arc(v3shots.text_layer_issues(shots, ""))

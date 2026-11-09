@@ -845,7 +845,12 @@ def text_layer_issues(shots: list[dict[str, Any]],
     try:
         from app.services.anim_pipeline.final_gate import (depth_quota_issues,
                                                            zone_quota_issues)
-        all_fake = {"shots": [{"shot_id": s["sid"], "arc_id": "",
+        # 1109 修 (ep7 配额「修不过」实锤): book_title 必须带上 — zone_quota_issues
+        # 靠它把圣经卡名加进人物词表; 缺了 → 只写卡名的镜 (选角律的正确写法)
+        # 全被数成「无人」→ 配额永远差数, 点名镜改一万遍也修不过。
+        all_fake = {"book_title": book_title,
+                    "shots": [{"shot_id": s["sid"], "arc_id": "",
+                               "brand_card": s.get("brand_card"),
                                "t_start": t0_of.get(str(s["sid"]), 0.0),
                                "keyframe_zh": s.get("keyframe_zh"),
                                "camera": s.get("camera"),
