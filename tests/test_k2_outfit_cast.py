@@ -97,3 +97,16 @@ def test_casting_law_line(monkeypatch):
                                 style=dict(_STYLE), page="k2", lang="en",
                                 zh_scene="特写：摊开的厚重书籍")
     assert "no people beyond" not in out_empty
+
+
+def test_outfit_cast_hooded_jacket_1109_look():
+    """1109 老谭形象定稿: 酒红色连帽冲锋衣 (含连帽修饰) 也要提到签名;
+    开衫入类目 (观众替身·女 derive 版曾用针织开衫)。"""
+    cards = [("老谭", "中年男性，深棕带灰挑染蓬松短发，穿酒红色连帽冲锋衣"
+                      "（拉链半开），灰蓝色宽松工装长裤，背军绿色大容量户外登山双肩包",
+              []),
+             ("观众替身·女", "青年女性，齐肩直发，穿米色针织开衫内搭白色衬衫", [])]
+    assert [n for n, _ in k2._outfit_cast(
+        "一只穿酒红色连帽冲锋衣袖口的手从画面边缘探入", cards)] == ["老谭"]
+    assert [n for n, _ in k2._outfit_cast("穿米色针织开衫的身影立在窗前", cards)] \
+        == ["观众替身·女"]

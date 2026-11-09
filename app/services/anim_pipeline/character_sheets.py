@@ -98,16 +98,18 @@ def _protect_structural(book_title: str, chars: list[dict],
     卡 — save 是替换式回写, 结构卡是系列资产不是书内人物, LLM 漏了就永久丢)。
 
     结构卡 = 名字含 老谭/观众替身, 或 作者卡 (role 含 作者 / 名字==author)。
-    新表缺哪个就从旧圣经原样补回 (look 不经 LLM 重写 — 固定人设); 新表已有
-    撞名卡 (查理 ⊂ 查理·格林 型) 视作已覆盖。只护 🎲 自动提炼路径 — 页面手动
-    增删改是用户全权, 不走此保护。"""
+    新表缺哪个就从旧圣经原样补回 (look 不经 LLM 重写 — 固定人设); **在场但被
+    LLM 重写** (1109 二次实锤: 🎲 把老谭换成新脸, 与已渲染 30+ 镜旧形象断裂)
+    同样原样回滚; 新表已有撞名卡 (查理 ⊂ 查理·格林 型) 视作已覆盖。只护 🎲
+    自动提炼路径 — 页面手动增删改是用户全权, 不走此保护。"""
     try:
         old = json.loads(_bible_cache_path(book_title).read_text(encoding="utf-8"))
     except Exception:  # noqa: BLE001 — 无旧圣经 = 首次提炼, 无可保护
         return chars
     names = [str(c.get("name") or "") for c in chars]
-    blob = " ".join(names)
-    carry = []
+    chars = [dict(c) for c in chars]
+    carry: list[dict] = []
+    rolled: list[str] = []
     for c in (old.get("characters") or []):
         nm = str(c.get("name") or "").strip()
         if not nm:
@@ -116,14 +118,19 @@ def _protect_structural(book_title: str, chars: list[dict],
                       or "作者" in str(c.get("role") or "") or nm == author)
         if not structural:
             continue
-        if nm in blob or any(nm in n or n in nm for n in names):
-            continue                      # 新表已有 (含撞名变体)
-        carry.append({"name": nm[:24], "role": str(c.get("role") or "")[:64],
-                      "look": str(c.get("look") or "")[:160],
-                      "linked_props": list(c.get("linked_props") or [])})
-    if carry:
-        logger.info("[chars] 结构卡保护补回 %d 张: %s",
-                    len(carry), "、".join(c["name"] for c in carry))
+        verbatim = {"name": nm[:24], "role": str(c.get("role") or "")[:64],
+                    "look": str(c.get("look") or "")[:160],
+                    "linked_props": list(c.get("linked_props") or [])}
+        hit = next((i for i, n in enumerate(names) if n == nm), None)
+        if hit is not None:               # 在场但可能被 LLM 重写 → 原样回滚
+            chars[hit] = verbatim
+            rolled.append(nm)
+        elif not any(nm in n or n in nm for n in names):
+            carry.append(verbatim)        # 缺席 → 补回
+    if carry or rolled:
+        logger.info("[chars] 结构卡保护: 补回 %s / 回滚 %s",
+                    "、".join(c["name"] for c in carry) or "无",
+                    "、".join(rolled) or "无")
     return carry + chars
 
 

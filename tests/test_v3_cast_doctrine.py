@@ -164,3 +164,21 @@ def test_derive_prompt_and_wiring():
                encoding="utf-8").read()
     assert "必含卡·老谭" in src                    # 老谭必含 (🎲 洗卡实锤)
     assert "chars = _protect_structural(book_title, chars, author)" in src
+
+
+def test_derive_rolls_back_rewritten_structural(monkeypatch, tmp_path):
+    """1109 二次实锤: 🎲 把老谭**重写**新脸 (在场≠没被动过) → 原样回滚旧卡。
+    手改走页面 (不经此函数), 手改后旧圣经=手改版 → 保护的就是手改版。"""
+    import json
+    from app.services.anim_pipeline import character_sheets as cs
+    bb = tmp_path / "bb.json"
+    bb.write_text(json.dumps({"characters": [
+        {"name": "老谭", "role": "账号主角", "look": "定稿look", "linked_props": []},
+    ]}, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setattr(cs, "_bible_cache_path", lambda bt: bb)
+    out = cs._protect_structural("测试书", [
+        {"name": "老谭", "role": "r", "look": "LLM重写的新脸"},   # 重写
+        {"name": "柯波兰德", "role": "r", "look": "x"},           # 书内卡照常
+    ])
+    assert out[0]["look"] == "定稿look"                          # 回滚旧文
+    assert out[-1]["name"] == "柯波兰德"                         # 非结构卡不动
