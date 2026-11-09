@@ -525,6 +525,26 @@ def finalize(doc: dict[str, Any]) -> dict[str, Any]:
     return {"frozen": True, "translated": done, "total": len(todo)}
 
 
+def clamp_move_slots(direct: dict[str, dict[str, Any]],
+                     shots: list[dict[str, Any]]) -> list[str]:
+    """1109 确定性纠正 (⑤ 不亮两轮实锤): 运镜镜槽长 >10s 在 h3 工位物理不可能
+    (必截尾) — prompt 规则 304 行早有但 LLM 不稳定遵守 (教义: prompt 只是减量,
+    出口闸才是主防线)。程序层强制降固定, 返回纠正清单供日志/回执。
+
+    拆行 (③ 页) 仍是保留运镜的正路 — 那里拆完重跑 ④ 即可恢复运镜。"""
+    est = {str(s.get("sid")): float(s.get("est_s") or 0) for s in shots}
+    fixed: list[str] = []
+    for sid, d in direct.items():
+        cam = d.get("cam") or {}
+        kind = str(cam.get("kind") or "")
+        if kind and kind not in NO_MOVE and est.get(str(sid), 0) > 10.0:
+            d["cam"] = {"kind": "固定", "dir": "", "amp": "", "speed": ""}
+            fixed.append(f"{sid}({kind}→固定, 槽{est[str(sid)]:.1f}s)")
+    if fixed:
+        logger.info("[v3:direct] 运镜槽>10s 确定性降固定: %s", ", ".join(fixed))
+    return fixed
+
+
 def run(job: dict[str, Any]) -> None:
     """v3_direct 相位本体: 读 v3.shots → LLM 四元组 → 校验 → v3.direct 落盘。"""
     from app.services.anim_pipeline import shots as shots_mod
@@ -538,6 +558,7 @@ def run(job: dict[str, Any]) -> None:
     job["progress"] = {"done": 0, "total": 1, "current": "导演参数生成中"}
     guess_of = {s["sid"]: suggest_size(s.get("keyframe_zh")) for s in shots}
     direct = _llm_fill(shots, v3.get("arcs") or [], guess_of, job)
+    clamp_move_slots(direct, shots)   # 1109: 确定性纠正先于校验 (LLM 不稳定遵守)
     issues = validate(direct, shots)
     # 步数/工位/英文句是执行参数, 随镜固化 (H3 壳直接取, 不再判)
     for s in shots:

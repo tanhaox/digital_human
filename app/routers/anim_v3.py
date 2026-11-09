@@ -543,6 +543,7 @@ def v3_direct_save(book_id: str, ep: int, body: DirectSaveBody):
                 if old_light:   # 批4 光影槽同款保真 (手改不清 light_en)
                     merged[sid]["light_en"] = old_light
         # 执行参数随镜固化 (步数/工位/英文句 — 程序独占, LLM 无感)
+        v3_direct.clamp_move_slots(merged, list(shots.values()))   # 1109: 超10s运镜强制降固定
         for sid, d in merged.items():
             sh = shots.get(sid)
             if sh and d:
@@ -585,6 +586,7 @@ def v3_direct_reroll(book_id: str, ep: int, body: DirectRerollBody):
             d.pop(k, None)
         merged = dict(v3.get("direct") or {})
         merged[body.sid] = d
+        v3_direct.clamp_move_slots(merged, shots)   # 1109: 单镜重掷同守 10s 物理限
         v3["direct"] = merged
         # 批5: 重掷后单镜重译 — 新四元组的 motion/light 需要新 motion_en/light_en
         # (旧态覆盖 entry 丢 motion_en 且无恢复通道, 批4 empty_motion 闸拦死)
