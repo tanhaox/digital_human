@@ -80,6 +80,11 @@ async function refresh() {
 
     const pend = firstPending(d.gates || {});
     d._nextId = pend ? pend.id : null;
+    // 源稿指纹闸 (1109): 改稿后 ① 快照过期 — 入口页第一眼就要看见
+    if (d.script_stale) {
+      el('line-badge').innerHTML +=
+        ' <span class="badge warn">⚠ 稿件已改 — ① 分诊快照是老稿, 回 ① 重跑</span>';
+    }
     rail(el('rail'), { line: d.line, gates: d.gates, active: pend ? pend.id : undefined });
 
     // 轴: 有弧 → 真实弧带; 无 → 基准九段带占位

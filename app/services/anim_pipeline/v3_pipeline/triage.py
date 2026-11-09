@@ -141,6 +141,33 @@ suggs 每行给 0-2 条创作建议, kind∈"quote"(对仗短句有金句相)/"i
 - list 清单卡: ≤50 字"""
 
 
+def source_hash(script: str) -> str:
+    """源稿指纹 (1109): ① 采集, 下游比对 — 改稿后 v3 快照全链过期的判定源。"""
+    import hashlib
+    return hashlib.md5(str(script or "").encode("utf-8")).hexdigest()[:12]
+
+
+def script_stale(book_ref: str, ep: int) -> bool | None:
+    """DB 源稿 ≠ ① 分诊快照指纹 → True (②-⑧ 全链基于老稿); 无指纹/无快照 → None 不判。
+
+    1109 实锤 (顾问 ep7): 用户改稿后 ⑤ TTS 仍读老稿 — ① 跑在改稿之前,
+    快照无人作废。此函数 = 源稿指纹闸的判定源 (run_phase + 路由 409 共用)。
+    """
+    from app.services.anim_pipeline import shots as shots_mod
+    from app.services.anim_pipeline.config import load
+    from app.services.anim_pipeline.planner import fetch_episode, resolve_book
+    cfg = load()
+    book_id, book_title = resolve_book(cfg.db_path, book_ref)
+    if not shots_mod.shots_path(book_title, ep).exists():
+        return None
+    doc = shots_mod.load_doc(book_title, ep)
+    h = str((doc.get("v3") or {}).get("source_hash") or "")
+    if not h:
+        return None
+    row = fetch_episode(cfg.db_path, book_id, ep)
+    return source_hash(str(row.get("script_text") or "")) != h
+
+
 def llm_triage(lines: list[dict[str, Any]]) -> dict[int, dict[str, Any]]:
     """LLM 一次标注 → {no: {mode, issue, suggs}}。失败抛异常由调用方退纯确定性。"""
     from app.services.llm_service import get_llm_service, _parse_json
@@ -243,6 +270,14 @@ def run(job: dict[str, Any]) -> None:
     # 分诊闸: 无未处置 block 即开
     doc["v3"]["gates"]["triage"] = blocks == 0
     doc["v3"]["triage_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+    _old_hash = str(doc["v3"].get("source_hash") or "")   # 覆盖前采旧指纹
+    doc["v3"]["source_hash"] = source_hash(script)   # 1109: 源稿指纹 — 下游比对
+    # 1109: 源稿指纹变了 (含存量集首采) → ②③④ 产物基于老稿, 闸链回退强制重跑。
+    # 数据保留不删 (②③ 重跑自然覆盖); 同稿重跑 (指纹同) 不误伤下游闸。
+    if doc["v3"].get("arcs") and _old_hash != doc["v3"]["source_hash"]:
+        for _g in ("arcs", "shots", "direct"):
+            doc["v3"]["gates"][_g] = False
+        logger.info("[v3:triage] 源稿指纹变更 — ②③④ 闸回退 (下游基于老稿, 须重跑)")
     shots_mod.save(doc)
     logger.info("[v3:triage] %s ep%d: %d 行 (block %d, 路由 %d) → shots.json v3 ✓",
                 book_title, job["ep"], len(lines), blocks, len(cards))

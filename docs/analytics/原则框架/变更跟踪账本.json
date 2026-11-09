@@ -375,6 +375,20 @@
     "搁笔词表误伤数 (黑板粉笔末类静物, s28 实锤 — 词表演化观察)"
    ],
    "status": "pending"
+  },
+  {
+   "id": "TR-029",
+   "date": "2026-11-09",
+   "change": "令55 源稿指纹闸: triage 落 source_hash + script_stale 判定源; run_phase 相位闸 (① 外全拒); 路由 _line_gate 扩 ep 参数 → 17 变更端点 409 (triage/save 豁免); ① 重跑指纹变 → ②③④ 闸回退; /state+/shots 曝光 script_stale → 入口页徽标+③页横幅",
+   "commit": "本批 (triage.py + __init__.py + anim_v3.py + index.js/shots.js + 测试)",
+   "verify": "test_v3_source_guard 6 用例; pytest 700p 失败集=历史债原样; ep7 实弹: 新稿重跑 ① (55 行/行动卡组✓/指纹落) + ② (11 弧待审)",
+   "readout_date": "2026-11-16",
+   "metrics": [
+    "改稿-重跑① 间隔 (观察用户是否被闸拦后及时回 ①, 而非在 ⑤ 才发现)",
+    "409 拦截触发次数 (日志「稿件已改」, 预期改稿日常态化出现)",
+    "① 重跑闸回退误伤数 (同稿重跑闸被动, 预期 0)"
+   ],
+   "status": "pending"
   }
  ]
 }

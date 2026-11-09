@@ -21,12 +21,20 @@ router = APIRouter(prefix="/api/anim/v3", tags=["anim-v3"])
 _V3_PHASES = ("v3_triage", "v3_arcs", "v3_shots", "v3_direct", "v3_k2", "v3_redo", "v3_h3", "v3_stamp")
 
 
-def _line_gate(book_title: str) -> None:
+def _line_gate(book_title: str, ep: int | None = None) -> None:
     if pipeline_line(book_title) != "v3":
         raise HTTPException(
             status_code=409,
             detail=f"《{book_title}》 未开通 v3 线 (书级产线绑定缺省 v2) — "
             "写 outputs/动画/_资产/产线绑定_书名.json {\"line\":\"v3\"} 后重试")
+    if ep is not None:
+        # 源稿指纹闸 (1109): POST 变更操作一律拒老快照 (GET 不拒 — 页面要能开才能看见警告)
+        from app.services.anim_pipeline.v3_pipeline import script_stale
+        if script_stale(book_title, ep):
+            raise HTTPException(
+                status_code=409,
+                detail="稿件已改 — ① 分诊快照是老稿, ②-⑧ 全链过期; "
+                       "请回 ① 文稿分诊页重跑 (改稿=源头, 下游重生成)")
 
 
 @router.get("/line/{book_id}")
@@ -84,11 +92,19 @@ def v3_state(book_id: str, ep: int):
               "cards": len(v3d.get("cards") or []),
               "shot_issues": sum(len(v) for k, v in (v3d.get("shot_issues") or {}).items()
                                  if k != "弧级")}
+    script_stale = None
+    if line == "v3":
+        try:
+            from app.services.anim_pipeline.v3_pipeline import script_stale as _stale
+            script_stale = _stale(book_id, ep)
+        except Exception:  # noqa: BLE001 — 判不了不炸状态页
+            script_stale = None
     return {"book_id": book_id, "book_title": book_title, "ep": ep,
             "line": line, "gates": gates,
             "lines_done": bool(v3d.get("lines")),
             "frozen": bool(v3d.get("frozen_at")),
             "audioReady": audio_ready,
+            "script_stale": script_stale,
             "counts": counts,
             "running_job": running}
 
@@ -111,7 +127,7 @@ def v3_start(book_id: str, ep: int, phase: str, body: PhaseStartBody | None = No
         book_id, book_title = anim_service.resolve_ep(book_id, ep)
     except anim_service.AnimNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc))
-    _line_gate(book_title)
+    _line_gate(book_title, ep)
     only = set(body.only) if (body and body.only) else None
     if only and phase not in ("v3_k2", "v3_redo", "v3_h3"):
         raise HTTPException(status_code=422, detail="only 仅支持 v3_k2/v3_redo")
@@ -202,7 +218,7 @@ def v3_concept_fill_worlds(book_id: str, ep: int):
         book_id, book_title = anim_service.resolve_ep(book_id, ep)
     except anim_service.AnimNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc))
-    _line_gate(book_title)
+    _line_gate(book_title, ep)
     with anim_service.ep_guard(book_id, ep):
         doc = _load_v3_doc(book_title, ep)
         v3 = doc.setdefault("v3", {})
@@ -262,6 +278,7 @@ def v3_shots_get(book_id: str, ep: int):
             "slot_overs": [{"sid": s.get("sid"), "est_s": s.get("est_s")}
                            for s in shots
                            if float(s.get("est_s") or 0) > v3_shots_mod.SLOT_MAX_S],
+            "script_stale": v3_pipeline.script_stale(book_title, ep),
             "gates": v3_pipeline.gates_view(doc), "ready": bool(shots)}
 
 
@@ -297,7 +314,7 @@ def v3_card_diagram(book_id: str, ep: int, body: CardDiagramBody):
         book_id, book_title = anim_service.resolve_ep(book_id, ep)
     except anim_service.AnimNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc))
-    _line_gate(book_title)
+    _line_gate(book_title, ep)
     with anim_service.ep_guard(book_id, ep):
         doc = _load_v3_doc(book_title, ep)
         v3 = doc.setdefault("v3", {})
@@ -324,7 +341,7 @@ def v3_card_render(book_id: str, ep: int, body: CardRenderBody):
         book_id, book_title = anim_service.resolve_ep(book_id, ep)
     except anim_service.AnimNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc))
-    _line_gate(book_title)
+    _line_gate(book_title, ep)
     with anim_service.ep_guard(book_id, ep):
         doc = _load_v3_doc(book_title, ep)
         v3 = doc.setdefault("v3", {})
@@ -379,7 +396,7 @@ def v3_shots_autocards(book_id: str, ep: int):
         book_id, book_title = anim_service.resolve_ep(book_id, ep)
     except anim_service.AnimNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc))
-    _line_gate(book_title)
+    _line_gate(book_title, ep)
     from app.services.anim_pipeline.v3_pipeline.shots import CARD_OF_SUGG, build_cards
     with anim_service.ep_guard(book_id, ep):
         doc = _load_v3_doc(book_title, ep)
@@ -418,7 +435,7 @@ def v3_shots_fix(book_id: str, ep: int):
         book_id, book_title = anim_service.resolve_ep(book_id, ep)
     except anim_service.AnimNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc))
-    _line_gate(book_title)
+    _line_gate(book_title, ep)
     with anim_service.ep_guard(book_id, ep):
         doc = _load_v3_doc(book_title, ep)
         v3 = doc.setdefault("v3", {})
@@ -453,7 +470,7 @@ def v3_shots_fix_text(book_id: str, ep: int, body: FixTextBody):
         book_id, book_title = anim_service.resolve_ep(book_id, ep)
     except anim_service.AnimNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc))
-    _line_gate(book_title)
+    _line_gate(book_title, ep)
     with anim_service.ep_guard(book_id, ep):
         doc = _load_v3_doc(book_title, ep)
         if (doc.get("v3") or {}).get("frozen_at"):
@@ -477,7 +494,7 @@ def v3_shots_split_slot(book_id: str, ep: int, body: SplitSlotBody):
         book_id, book_title = anim_service.resolve_ep(book_id, ep)
     except anim_service.AnimNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc))
-    _line_gate(book_title)
+    _line_gate(book_title, ep)
     with anim_service.ep_guard(book_id, ep):
         doc = _load_v3_doc(book_title, ep)
         try:
@@ -501,7 +518,7 @@ def v3_direct_save(book_id: str, ep: int, body: DirectSaveBody):
         book_id, book_title = anim_service.resolve_ep(book_id, ep)
     except anim_service.AnimNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc))
-    _line_gate(book_title)
+    _line_gate(book_title, ep)
     with anim_service.ep_guard(book_id, ep):
         doc = _load_v3_doc(book_title, ep)
         v3 = doc.setdefault("v3", {})
@@ -555,7 +572,7 @@ def v3_direct_reroll(book_id: str, ep: int, body: DirectRerollBody):
         book_id, book_title = anim_service.resolve_ep(book_id, ep)
     except anim_service.AnimNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc))
-    _line_gate(book_title)
+    _line_gate(book_title, ep)
     with anim_service.ep_guard(book_id, ep):
         doc = _load_v3_doc(book_title, ep)
         v3 = doc.setdefault("v3", {})
@@ -609,7 +626,7 @@ def v3_direct_finalize(book_id: str, ep: int):
         book_id, book_title = anim_service.resolve_ep(book_id, ep)
     except anim_service.AnimNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc))
-    _line_gate(book_title)
+    _line_gate(book_title, ep)
     with anim_service.ep_guard(book_id, ep):
         doc = _load_v3_doc(book_title, ep)
         try:
@@ -712,7 +729,7 @@ def v3_k2_approve(book_id: str, ep: int, body: K2ApproveBody):
         book_id, book_title = anim_service.resolve_ep(book_id, ep)
     except anim_service.AnimNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc))
-    _line_gate(book_title)
+    _line_gate(book_title, ep)
     with anim_service.ep_guard(book_id, ep):
         doc = _load_v3_doc(book_title, ep)
         v3 = doc.setdefault("v3", {})
@@ -743,7 +760,7 @@ def v3_shot_viewed(book_id: str, ep: int, sid: str):
         book_id, book_title = anim_service.resolve_ep(book_id, ep)
     except anim_service.AnimNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc))
-    _line_gate(book_title)
+    _line_gate(book_title, ep)
     flags = anim_service._load_review_flags(book_title, ep)
     had = flags.pop(sid, None) is not None
     if had:
@@ -860,7 +877,7 @@ def v3_tts_generate(book_id: str, ep: int, background_tasks: BackgroundTasks):
         book_id, book_title = anim_service.resolve_ep(book_id, ep)
     except anim_service.AnimNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc))
-    _line_gate(book_title)
+    _line_gate(book_title, ep)
     doc = _load_v3_doc(book_title, ep)
     slots = slot_texts(doc)
     if not slots:
@@ -1034,7 +1051,7 @@ def v3_shots_save(book_id: str, ep: int, body: ShotSaveBody):
         book_id, book_title = anim_service.resolve_ep(book_id, ep)
     except anim_service.AnimNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc))
-    _line_gate(book_title)
+    _line_gate(book_title, ep)
     with anim_service.ep_guard(book_id, ep):
         doc = _load_v3_doc(book_title, ep)
         v3 = doc.setdefault("v3", {})
@@ -1082,7 +1099,7 @@ def v3_concept_resplit(book_id: str, ep: int):
         book_id, book_title = anim_service.resolve_ep(book_id, ep)
     except anim_service.AnimNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc))
-    _line_gate(book_title)
+    _line_gate(book_title, ep)
     with anim_service.ep_guard(book_id, ep):
         doc = _load_v3_doc(book_title, ep)
         v3 = doc.setdefault("v3", {})
@@ -1144,7 +1161,7 @@ def v3_concept_save(book_id: str, ep: int, body: ArcSaveBody):
         book_id, book_title = anim_service.resolve_ep(book_id, ep)
     except anim_service.AnimNotFound as exc:
         raise HTTPException(status_code=404, detail=str(exc))
-    _line_gate(book_title)
+    _line_gate(book_title, ep)
     with anim_service.ep_guard(book_id, ep):
         doc = _load_v3_doc(book_title, ep)
         v3 = doc.setdefault("v3", {})

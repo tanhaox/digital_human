@@ -12,6 +12,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from .triage import script_stale  # noqa: F401 — 源稿指纹闸 (1109), 路由/相位共用
+
 logger = logging.getLogger(__name__)
 
 # 放行闸链 (规划 DAG): key=相位, value=前置相位
@@ -30,6 +32,13 @@ def run_phase(job: dict[str, Any]) -> None:
     handler = _HANDLERS.get(phase)
     if handler is None:
         raise SystemExit(f"v3 相位 [{phase}] 建设中 (V0 骨架) — 见 docs/improvements/进行中-20261105-分镜续跑升级.md")
+    # 源稿指纹闸 (1109): DB 稿已改而 ① 未重跑 → 全链拒 (改稿=源头, 快照必须刷新)
+    if phase != "triage" and job.get("book_id") and job.get("ep"):
+        from .triage import script_stale
+        if script_stale(str(job["book_id"]), int(job["ep"])):
+            raise SystemExit(
+                "稿件已改: DB 源稿 ≠ ① 分诊快照 — ②-⑧ 全链基于老稿已过期, "
+                "请回 ① 文稿分诊页重跑 (重跑后下游自动作废重生成)")
     handler(job)
 
 

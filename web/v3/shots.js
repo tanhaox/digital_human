@@ -27,7 +27,7 @@ const TYPE_ZH = { narr: '叙事弧', quote: '书证镜', persona: '人设镜',
   hook: '钩子', cta: '行动召', brand: '品牌' };
 const STYLE_ZH = { list: '清单卡', quote: '金句卡', event: '事件字', img: '配图', title: '标题卡' };
 
-let SHOTS = [], CARDS = [], ARCS = [], ISSUES = {}, WARNINGS = [], SLOT_OVERS = [], FROZEN = false;
+let SHOTS = [], CARDS = [], ARCS = [], ISSUES = {}, WARNINGS = [], SLOT_OVERS = [], FROZEN = false, STALE = false;
 let dirty = new Set(), GATE_OPEN = false;
 
 /* ── 数据 ─────────────────────────────────────────────── */
@@ -38,6 +38,7 @@ async function refresh() {
   ]);
   SHOTS = d.shots || []; CARDS = d.cards || []; ARCS = d.arcs || [];
   ISSUES = d.issues || {}; WARNINGS = d.warnings || []; SLOT_OVERS = d.slot_overs || [];
+  STALE = !!(d.script_stale ?? st.script_stale);   // 源稿指纹闸 (1109): 快照过期全页亮灯
   $('sub').textContent = `${st.book_title} · 第${st.ep}集`;
   renderHeader(); renderRail(st, d.gates); renderAxis();
   if (st.running_job) runner.attach(st.running_job);   // 刷新重挂
@@ -268,10 +269,11 @@ function renderSide() {
   // 槽长超限 = 可执行解法 (拆行), 不与普通提醒混排
   const plain = WARNINGS.filter(w => !String(w).includes('超 H3'));
   $('warncard').innerHTML =
-    plain.map(w => `<div class="hint">💡 ${esc(w)}</div>`).join('')
+    (STALE ? '<div class="hint">⚠ <b>稿件已改 — 本页是老稿快照</b>: 回 ① 文稿分诊重跑后, ②③ 全链重新生成 (本页任何修改都会被拒)</div>' : '')
+    + plain.map(w => `<div class="hint">💡 ${esc(w)}</div>`).join('')
     + SLOT_OVERS.map(o => `<div class="hint">💡 ${esc(o.sid)} 槽长 ${(o.est_s || 0).toFixed(1)}s 超 H3 15s 上限
       <button class="btn-fix" data-split="${esc(o.sid)}" title="祸源口播行按标点对半拆 → 重装包 (未受影响镜原句保留) → 新槽画面句 LLM 补">⚡ 一键拆行</button></div>`).join('');
-  $('warncard').hidden = !plain.length && !SLOT_OVERS.length;
+  $('warncard').hidden = !STALE && !plain.length && !SLOT_OVERS.length;
   $('warncard').querySelectorAll('[data-split]').forEach(b => {
     b.onclick = () => splitSlot(b.dataset.split, b);
   });
