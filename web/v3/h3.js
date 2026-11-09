@@ -47,7 +47,8 @@ const runner = createJobRunner({
     boot();
   },
   onBusy: busy => { RUNNING = busy;
-    $('btn-run').disabled = busy || BLOCKED; $('btn-retry').disabled = busy; },
+    $('btn-run').disabled = busy || BLOCKED; $('btn-retry').disabled = busy;
+    if (busy) $('btn-approve').disabled = true; },
 });
 
 async function boot() {
@@ -71,7 +72,7 @@ async function boot() {
     : (nApp + nImg) === 0
       ? '🔒 ⑥ K2 未生图 — 回 ⑥ 页 🎨 生图后过审 (✅), H3 只吃 approved'
       : !nApp
-        ? `🔒 ${nImg} 镜图出未过审 — 本页逐镜看图 (点图放大) ✅ 过审后即可批生`
+        ? `🔒 ${nImg} 镜图出未过审 — 点图过目 (可放大翻页) → ✅ 全部过审 → 🎬 批生`
         : !d.stamped
           ? '🔒 ⑦ 未盖章 — H3 吃实测时长, 先盖章'
           : '';
@@ -86,6 +87,7 @@ async function boot() {
     $('btn-run').title = 'approved 镜批生视频 (h3/r2v 工位自动路由)';
   }
   $('btn-run').disabled = BLOCKED || RUNNING;   // 1109: 双旗并集, 任务期不误启
+  $('btn-approve').disabled = !nImg || RUNNING;   // 1109: 全审钮 — 有图出才可点, 任务期锁
 }
 
 function renderCounts() {
@@ -127,10 +129,7 @@ function renderGrid() {
       <div class="hbtns">
         ${s.brand ? `<button class="iconbtn" data-act="reroll" data-sid="${esc(s.sid)}"
                 title="品牌卡重置: 失效后批内零 GPU 直通重插定稿资产 (秒回)">↺ 重置</button>`
-      : `${stt === 'img_done'
-          ? `<button class="iconbtn" data-act="approve" data-sid="${esc(s.sid)}"
-                title="K2 图过审 → approved (H3 批只吃这个状态) — 点卡片图可放大细看">✅ 过审</button>` : ''}
-        <button class="iconbtn" data-act="reroll" data-sid="${esc(s.sid)}"
+      : `<button class="iconbtn" data-act="reroll" data-sid="${esc(s.sid)}"
                 ${stt !== 'anim_done' && stt !== 'anim_fail' ? ' disabled' : ''}
                 title="先 K2 同句换seed重生 (当前代码锚 look/防人) → 再生视频 (~4-5min)">${stt === 'planned' || stt === 'approved' ? '▶ 生成' : '🎲 重掷'}</button>`}
       </div>
@@ -141,14 +140,6 @@ function renderGrid() {
     b.onclick = async () => {
       b.disabled = true;
       try {
-        if (b.dataset.act === 'approve') {   // 1109 用户令: ⑧ 页就地过审, 免跳 ⑥
-          const r = await (await fetch(`${BASE}/k2/approve`, { method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sids: [b.dataset.sid] }) })).json();
-          toast(`✓ ${b.dataset.sid} 已过审 (全集 ${r.approved})`);
-          boot();
-          return;
-        }
         const r = await fetch(`${BASE}/v3_h3`, { method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ only: [b.dataset.sid], redo_k2: true }) });
@@ -183,11 +174,26 @@ $('btn-draft').onclick = async () => {
 
 $('btn-run').onclick = async () => {
   const nApp = SHOTS.filter(s => s.status === 'approved').length;
-  if (!nApp) { toast('无已过审镜 — 先去 ⑥ K2 页过审 (✅ / 全部过审), H3 只吃 approved'); return; }
+  if (!nApp) { toast('无已过审镜 — 先点图过目再 ✅ 全部过审, H3 只吃 approved'); return; }
   const r = await fetch(`${BASE}/v3_h3`, { method: 'POST',
     headers: { 'Content-Type': 'application/json' }, body: '{}' });
   if (!r.ok) { toast('启动失败: ' + (await r.json()).detail); return; }
   runner.attach(await r.json());
+};
+
+// 1109 用户令: 全部过审 (单镜 ✅ 已按令撤, 过目靠点图放大)
+$('btn-approve').onclick = async () => {
+  const sids = SHOTS.filter(s => s.status === 'img_done' && !s.brand).map(s => s.sid);
+  if (!sids.length) { toast('无图出待审镜'); return; }
+  const b = $('btn-approve'); b.disabled = true; b.textContent = '⏳ 过审中…';
+  try {
+    const r = await (await fetch(`${BASE}/k2/approve`, { method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sids }) })).json();
+    toast(`✓ 已过审 ${r.approved} 镜 — 可 🎬 批生`);
+  } catch (e) { toast('过审失败: ' + e.message); }
+  b.disabled = false; b.textContent = '✅ 全部过审';
+  boot();
 };
 $('btn-retry').onclick = async () => {
   const n = SHOTS.filter(s => s.status === 'anim_fail').length;
