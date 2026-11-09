@@ -11,7 +11,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g,
 
 const ST_ZH = { approved: '图过审·待生', anim_done: '✓ 视频出', anim_fail: '✗ 失败',
                 planned: '待图', img_done: '图出·待审' };
-let SHOTS = [];
+let SHOTS = [], BLOCKED = false, RUNNING = false;   // 1109: 首卡点禁钮 + 任务态双旗
 
 /* 1108 修 (与 ⑥ K2 同根): job 完成 boot() 重渲染清 checkbox, cart 条停旧值
    → 重做按钮静默失效。SEL 单源跨重渲染存活; sessionStorage 兜刷新。 */
@@ -46,7 +46,8 @@ const runner = createJobRunner({
     else if (job.status !== 'unknown') toast('H3 结束: ' + (job.status || ''));
     boot();
   },
-  onBusy: busy => { $('btn-run').disabled = busy; $('btn-retry').disabled = busy; },
+  onBusy: busy => { RUNNING = busy;
+    $('btn-run').disabled = busy || BLOCKED; $('btn-retry').disabled = busy; },
 });
 
 async function boot() {
@@ -63,11 +64,28 @@ async function boot() {
   const nApp = SHOTS.filter(s => s.status === 'approved').length;
   const nImg = SHOTS.filter(s => s.status === 'img_done').length;
   const nDone = SHOTS.filter(s => s.status === 'anim_done').length;
-  $('stat').textContent = d.stamped
-    ? `视频 ${nDone}/${SHOTS.length} · 待生 ${nApp}`
+  // 1109 修 (不动作实锤): 常驻状态行只知 ⑦ 盖章, 不知上游卡点 — 用户在
+  // ④ 未放行时点 🎬 只有一闪 toast。改为首卡点指路 + 按钮禁用态带原因。
+  const blocker = !d.gates?.direct
+    ? '🔒 ④ 未放行 — 回 ④ 页: 右栏清拦截项 (⚡改固定) → ✅ 确认放行 (英文化批)'
+    : (nApp + nImg) === 0
+      ? '🔒 ⑥ K2 未生图 — 回 ⑥ 页 🎨 生图后过审 (✅), H3 只吃 approved'
+      : !nApp
+        ? `🔒 ⑥ ${nImg} 镜图出未过审 — 回 ⑥ 页 ✅ 过审后这里才能批生`
+        : !d.stamped
+          ? '🔒 ⑦ 未盖章 — H3 吃实测时长, 先盖章'
+          : '';
+  BLOCKED = !!blocker;
+  if (blocker) {
+    $('stat').textContent = blocker;
+    $('btn-run').title = blocker;
+  } else {
+    $('stat').textContent = `视频 ${nDone}/${SHOTS.length} · 待生 ${nApp}`
       + (nImg ? ` · ⚠ ${nImg} 镜图出未过审 (去 ⑥ 页 ✅)` : '')
-      + ' — 全出后 v2 工坊装配剪映草稿'
-    : '🔒 ⑦ 未盖章 — H3 吃实测时长, 先盖章';
+      + ' — 全出后 v2 工坊装配剪映草稿';
+    $('btn-run').title = 'approved 镜批生视频 (h3/r2v 工位自动路由)';
+  }
+  $('btn-run').disabled = BLOCKED || RUNNING;   // 1109: 双旗并集, 任务期不误启
 }
 
 function renderCounts() {
