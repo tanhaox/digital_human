@@ -293,6 +293,34 @@ FACE_LAW_EN = (
     "mouth or eyes); the face is turned toward the camera (frontal or three-quarter "
     "view — never a pure back view or back silhouette); the full figure stays in "
     "frame with the head uncropped")
+# 1109 双老谭根修 (ep7 s11/s13/s23/s26/s27/s28/s31 实锤): FACE_LAW 的"正面+全身+
+# 头顶不裁"与 ③ 局部在场语法 (袖口探入/背影贴塔/塔尖小点) 正面冲突, 模型两边都
+# 画 = 同角色双入境。形态律按在场形态替换 FACE_LAW (正向指定, 1024 铁律)。
+PRESENCE_LAW_EN = {
+    "partial": (
+        ". Presence form (mandatory): every character appears in the frame "
+        "exactly once, rendered exactly as described — a character described "
+        "only by a body part (forearm, cuff, fingertips, hands) appears only "
+        "as that described part entering the frame; the rest of the frame "
+        "keeps to the described environment and props"),
+    "back": (
+        ". Presence form (mandatory): figures described as seen from behind "
+        "are painted from behind, with identity carried by the outfit and "
+        "silhouette exactly as defined; every character appears in the frame "
+        "exactly once"),
+    "distant": (
+        ". Presence form (mandatory): the distant figure is painted exactly "
+        "once at the described small scale, with identity carried by the "
+        "defined outfit colors; the rest of the frame keeps to the described "
+        "landscape"),
+}
+# look 锚句尾的形态限定 (1109 同因: 全身 look 锚「表情沉稳自信」vs 只写袖口 →
+# 锚的全身人 + 句的局部人 = 双入境; 限定后锚只管服装身份不管在场形态)
+PRESENCE_ANCHOR_EN = {
+    "partial": "; presence: this character appears only as the described body parts",
+    "back": "; presence: this character is seen from behind, face not shown",
+    "distant": "; presence: this character is a small distant figure",
+}
 PROTECT_TAIL_EN = (
     ". The image contains no text, no numbers, no logos; screens show only clean "
     "blank graphic areas; signs and plaques are blank. Buildings, objects and "

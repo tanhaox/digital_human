@@ -129,10 +129,50 @@ import re as _re
 # 手部镜升格整人实锤)。剥手部短语后再判; 背影/身影人物 (s53) 不受剥词影响照常在场。
 _HAND_PAT = _re.compile(r"(?:男|女)性的?手|(?:他|她)的手|[一这那]只手|手部特写")
 
+# 1109 双老谭根修: 在场形态检测 — 二元人物判定与 ③ 局部在场语法结构性冲突的两面
+# 实锤 (ep7 七镜): 判有人 → FACE_LAW "正面+全身+头顶不裁" vs 画面句只有袖口/背影/
+# 塔尖小点 → 模型两边都画 = 同角色双入境 (s11/s13/s23/s26/s27/s28); 判无人 → 空镜
+# 换头 + person 负词 vs 画面句 "一双手伸入" → 硬补幻影人 (s31)。
+# 形态优先级: back > distant > partial (背影镜常带手词, 背影才是形态主语义)。
+_PRESENCE_BACK_RE = _re.compile(r"背影|背对|背向|后脑勺")
+_PRESENCE_DISTANT_RE = _re.compile(r"小如黑点|一个小点|小黑点")
+_PRESENCE_PARTIAL_RE = _re.compile(r"袖口|前臂|指尖|手腕|一双[^，。；]{0,14}手")
+# 形态律 (zh 路 fallback; EN 产线走 k2_lang.PRESENCE_LAW_EN, 语义逐条对齐)
+_PRESENCE_LAW = {
+    "partial": ("。在场形态 (必须遵守): 每个角色在画面中只出现一次、按画面句原样呈现 — "
+                "只以身体局部 (袖口/前臂/指尖/手) 描写的角色, 画面中也只呈现该局部入画; "
+                "画面其余部分保持画面句明写的环境与物件"),
+    "back": ("。在场形态 (必须遵守): 明写背影的角色按背影呈现, 身份由明写服装与轮廓锚定; "
+             "每个角色在画面中只出现一次"),
+    "distant": ("。在场形态 (必须遵守): 远处人物按明写的小尺寸呈现且只出现一次, "
+                "身份由明写服装颜色锚定; 画面其余部分保持明写景致"),
+}
+
+
+def _presence_form(zh_src: str) -> str:
+    """在场形态: ""=全身在场(默认) / back=背影 / distant=远点 / partial=局部。
+
+    判据吃中文源 (与 cast 负词/空镜换头同源同由); UNKNOWN 不猜测 — 三正则零命中
+    即回 "" 走 FACE_LAW 原路。"""
+    s = zh_src or ""
+    if _PRESENCE_BACK_RE.search(s):
+        return "back"
+    if _PRESENCE_DISTANT_RE.search(s):
+        return "distant"
+    if _PRESENCE_PARTIAL_RE.search(s):
+        return "partial"
+    return ""
+
 
 def _scene_has_person(scene: str, book_title: str = "",
                       extra_names: "tuple[str, ...] | list[str]" = ()) -> bool:
-    return _person_in(_HAND_PAT.sub("", scene or ""), book_title, extra_names)
+    s = scene or ""
+    # 1109 s31 实锤: 袖口/指尖局部在场 = 有人在 — 曾被判空镜 → person 负词与
+    # 画面句「一双手伸入」冲突 → 硬补幻影人。局部词不进 _HAND_PAT (那只手=孤立
+    # 手部特写仍按无人在场处理, 批A-3 判据不动)。
+    if _PRESENCE_PARTIAL_RE.search(s):
+        return True
+    return _person_in(_HAND_PAT.sub("", s), book_title, extra_names)
 
 
 def _v3_person_extras(doc: dict[str, Any] | None) -> tuple[str, ...]:
@@ -263,7 +303,10 @@ def build_prompt(scene_zh: str, book_title: str = "", style: dict | None = None,
             _scene = _scene + f". Theme anchor: {_kl.thesis_en(book_title, thesis)}"
         _law = _kl.SKIN_HAIR_LAW_EN if page == "k2" else ""
         if page == "k2" and _scene_has_person(_src, book_title, cast_names):
-            _law += _kl.FACE_LAW_EN
+            # 1109 双老谭根修: 局部/背影/远距在场 → 形态律替换 FACE_LAW (正面+
+            # 全身条款与 ③ 局部在场语法冲突 = 双入境因; 全身在场面走原路)
+            _form = _presence_form(_src)
+            _law += _kl.PRESENCE_LAW_EN[_form] if _form else _kl.FACE_LAW_EN
             _cp = _kl.character_policy_en(book_title)
             if _cp:
                 _law = _kl.CHAR_POLICY_PREFIX_EN + _cp + _law
@@ -280,8 +323,10 @@ def build_prompt(scene_zh: str, book_title: str = "", style: dict | None = None,
     law = SKIN_HAIR_LAW() if page == "k2" else ""
     # 1014 五官军规: 人物在场才锚 (纯物件镜锚五官会诱导模型幻觉出人脸)
     # 1108 批A-3: _person_in → _scene_has_person (手部镜剥词, 同 EN 路)
+    # 1109 双老谭根修: 形态律替换 (zh fallback 路与 EN 路同则)
     if page == "k2" and _scene_has_person(_src, book_title, cast_names):
-        law += FACE_LAW
+        _form = _presence_form(_src)
+        law += _PRESENCE_LAW[_form] if _form else FACE_LAW
     # 1013 双人根治: character 页不吃产线景深配方 — "完整的环境空间/背景延伸至
     # 远方/三层纵深感"与定妆照纯白立绘背景对冲, 且给画面塞人塞物的空间理由
     boost = "" if page == "character" else COMPOSITION_BOOST
@@ -583,8 +628,10 @@ def _inject_char_looks(scene: str, book_title: str, shot: dict | None = None) ->
     # 1026 兜底 (s10 实锤: '职场人物(时代锚服装列表)'型镜句 — 无卡名无身份 →
     # 模型自由造人, 一帧绿发黑发各色领带随机人群): 有人物但零身份信号 →
     # 前置观众替身 look。有 皮肤/发型/发色 词(=writer 已自带造型括注)不扰。
-    if scene and _scene_has_person(scene, book_title) and not any(
-            w in scene for w in ("皮肤", "发型", "发色", "短发", "长发", "卷发")):
+    # 1109 双老谭根修: 形态镜不前置全身替身 (同 _scene_eff EN 兜底, s31 型)。
+    if (scene and not _presence_form(scene)
+            and _scene_has_person(scene, book_title) and not any(
+                w in scene for w in ("皮肤", "发型", "发色", "短发", "长发", "卷发"))):
         try:
             from .assembler import _standin
             from .director2 import _bible_cache_path
@@ -664,12 +711,20 @@ def _scene_eff(shot: dict[str, Any], book_title: str) -> str:
                 else:
                     _face.append("no glasses")
                 _le2 = f"{'; '.join(_face)}; {_le}" if _face else _le
+                # 1109 双老谭根修: 形态镜锚句挂限定 — look 锚自带「表情沉稳自信」
+                # 全身语义, 与只写袖口/背影的画面句并存 = 锚画全身+句画局部 双入境
+                _form = _presence_form(_zh)
+                if _form:
+                    _le2 += _kl0.PRESENCE_ANCHOR_EN[_form]
                 _parts.append(f"{_ne} ({_le2})")
             en = f"{'; '.join(_parts)}. " + en
         # 1026 兜底: fallback 模板 EN 零身份 (随机人群实锤) — zh 侧判零身份
         # (无卡名+无皮肤/发型词) → 替身 look 英译前置
+        # 1109 双老谭根修: 形态镜 (s31 手部镜) 不前置全身替身 — 局部在场吃形态律,
+        # 全身锚反而召唤完整人形
         _named = any((c[0] or "") in _zh for c in _cards)
-        if (not _named and _scene_has_person(_zh or en, book_title)
+        if (not _named and not _presence_form(_zh)
+                and _scene_has_person(_zh or en, book_title)
                 and not any(w in _zh for w in ("皮肤", "发型", "发色", "短发", "长发", "卷发"))):
             try:
                 from .assembler import _standin
