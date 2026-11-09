@@ -38,7 +38,8 @@ const NO_MOVE = ['待定', '固定'];
 const TYPE_ZH = { narr: '叙事弧', quote: '书证镜', persona: '人设镜',
   hook: '钩子', cta: '行动召', brand: '品牌' };
 
-let SHOTS = [], ARCS = [], STATE = {}, DIRTY = new Set(), GATES = {}, FROZEN = false;
+let SHOTS = [], ARCS = [], STATE = {}, DIRTY = new Set(), GATES = {}, FROZEN = false,
+    D_ISSUES = {};   // 1109: ④ 拦截项 (槽长超限等) — 此前只活在 toast 里, 页面零渲染
 let MIN_SLOT = 6;
 
 /* 任务面板 (1105 移植 v2 模式): busy 禁操作钮, 结束刷新, 刷新重挂 */
@@ -62,6 +63,7 @@ async function boot() {
     (await fetch(`${BASE}/state`)).json(),
   ]);
   SHOTS = d.shots || []; ARCS = d.arcs || []; GATES = d.gates || {}; FROZEN = !!st.frozen;
+  D_ISSUES = d.direct_issues || {};
   // 词表以服务端为准 (单一事实源: 后端 CAM_DEFS = H3 壳 = 校验器 = 本页预览)
   if (d.cam_defs) {
     Object.keys(CAM_DEFS).forEach(k => delete CAM_DEFS[k]);
@@ -96,7 +98,10 @@ async function boot() {
   run.onclick = runDirect; save.onclick = saveDirect;
   const nx = $('btn-next');                    // 1108 用户令: ④ 下一步 = ⑤ TTS
   nx.disabled = !GATES.direct;                 // (1106 站序: TTS 便宜先定稿, K2 烧卡殿后)
-  nx.title = GATES.direct ? '进入 ⑤ TTS (配音定稿后再烧卡)' : '先保存并放行 (触发英文化批)';
+  nx.title = GATES.direct ? '进入 ⑤ TTS (配音定稿后再烧卡)'
+    : (SHOTS.every(s => !STATE[s.sid] || !STATE[s.sid].filled)
+        ? '④ 参数空 (③ 重跑已作废) — 先 🎬 生成导演 → 保存 → 确认放行'
+        : '先保存并放行 (触发英文化批)');
   nx.onclick = async () => {
     if (DIRTY.size) await saveDirect();
     try {
@@ -117,6 +122,13 @@ async function runDirect() {
 
 async function saveDirect() {
   const confirmMode = !DIRTY.size && GATES.direct;
+  const nFilled = SHOTS.filter(s => STATE[s.sid] && STATE[s.sid].filled).length;
+  // 1109 修 (⑤ 不亮实锤): ③ 重跑会作废清零 ④ 参数 — 空表保存只会得到
+  // gate:false + 「已保存」误导 toast, 按钮永不亮。空表直接指路, 不发请求。
+  if (!nFilled && !confirmMode) {
+    toast(`0/${SHOTS.length} 镜已填 — 先点 🎬 生成导演 (③ 重跑后 ④ 参数已作废清零), 完成后再保存放行`);
+    return;
+  }
   $('save-label').textContent = '⏳ 保存中…';
   const direct = {};
   for (const s of SHOTS) {
@@ -144,7 +156,10 @@ async function saveDirect() {
     } else if (r.gate) toast('✓ 达标 — 点「确认放行」触发英文化');
     else {
       const first = Object.entries(r.issues || {}).find(([k]) => k !== '弧级');
-      toast(first ? `待清: ${first[1][0]}` : '已保存 (弧级提醒不拦闸)');
+      if (first) toast(`待清: ${first[1][0]}`);
+      else if ((r.saved || 0) < SHOTS.length)
+        toast(`已存 ${r.saved}/${SHOTS.length} 镜 — 未全覆盖 (先 🎬 生成导演 / ↻ 补镜), 放行前须 34 镜全填`);
+      else toast('已保存 (弧级提醒不拦闸)');
     }
     await boot();
   } catch (e) { toast('保存失败: ' + e.message); }
@@ -379,10 +394,36 @@ function renderSide() {
   ];
   $('quotas').innerHTML = rows.map(([k, v, cls]) =>
     `<div class="qrow ${cls}"><span>${k}</span><b>${v}</b></div>`).join('');
-  $('dissues').innerHTML = q.sameAdj
-    ? `<div class="ditem">相邻镜景别相同 ${q.sameAdj} 处 — 每镜与上一镜至少换一档</div>` : '';
+  // 1109 修 (⑤ 不亮实锤): direct_issues (槽长超限等拦截项) 此前只活在保存
+  // toast 的 3.5 秒里, 页面零渲染 + gatecard 只看景别节奏 → 「达标却闸关」
+  // 矛盾 UI。问题必须给解法 (1109 令): 运镜超限镜挂一键「改固定」。
+  const blockers = Object.entries(D_ISSUES).filter(([k]) => k !== '弧级');
+  $('dissues').innerHTML =
+    (q.sameAdj
+      ? `<div class="ditem">相邻镜景别相同 ${q.sameAdj} 处 — 每镜与上一镜至少换一档</div>` : '')
+    + blockers.map(([sid, lst]) => lst.map(t => {
+        const ov = /运镜镜槽长/.test(t);
+        return `<div class="ditem">${sid}: ${t}${ov
+          ? ` <button class="btn-fix" data-fixcam="${sid}" title="运镜改固定镜 (固定镜走 r2v 工位, 可超 10s) — 一键改+保存">⚡ 改固定</button>
+             <button class="btn-fix" data-goto3="${sid}" title="槽长=口播行长度, 只有 ③ 页能拆 → 跳回 ③ 点「⚡ 一键拆行」">↩ 回③拆行</button>` : ''}</div>`;
+      }).join('')).join('');
+  $('dissues').querySelectorAll('[data-fixcam]').forEach(b => {
+    b.onclick = async () => {
+      const sid = b.dataset.fixcam;
+      STATE[sid].cam.kind = '固定';
+      STATE[sid].cam.dir = '无'; STATE[sid].cam.amp = ''; STATE[sid].cam.speed = '';
+      DIRTY.add(sid);
+      b.disabled = true; b.textContent = '⏳';
+      paintClause(sid);
+      await saveDirect();
+    };
+  });
+  $('dissues').querySelectorAll('[data-goto3]').forEach(b => {
+    b.onclick = () => { location.href = './shots.html' + location.search + '#' + b.dataset.goto3; };
+  });
 
-  const ok = q.big >= q.needBig && q.micro <= q.maxMicro && q.sameAdj === 0;
+  const ok = q.big >= q.needBig && q.micro <= q.maxMicro && q.sameAdj === 0
+    && !blockers.length;
   const box = $('gatecard');
   if (FROZEN) {
     box.className = 'card gatebar on';
@@ -393,9 +434,17 @@ function renderSide() {
     return;
   }
   box.className = 'card gatebar' + (ok ? ' on' : '');
+  const nFilled = SHOTS.filter(s => STATE[s.sid] && STATE[s.sid].filled).length;
+  const why = !nFilled
+    ? `${SHOTS.length} 镜 0 已填 — 先点 🎬 生成导演 (③ 重跑后参数作废清零)`
+    : nFilled < SHOTS.length
+      ? `${nFilled}/${SHOTS.length} 镜已填 — ↻ 单镜补掷或 🎬 重生成, 全填才能放行`
+      : blockers.length
+        ? `右栏 ${blockers.length} 镜拦截项待清 (槽长超限) — 改固定或回 ③ 拆行`
+        : '先调整景别节奏 (右栏三项全绿)';
   box.innerHTML = ok
     ? '<div class="gt gold-t">◉ 导演参数达标</div><div class="note">点底部「确认放行」触发英文化批 → ⑤</div>'
-    : '<div class="gt">🔒 导演未完成</div><div class="note">先调整景别节奏 (右栏三项全绿)</div>';
+    : `<div class="gt">🔒 导演未完成</div><div class="note">${why}</div>`;
 }
 
 function refreshDirty() {

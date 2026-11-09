@@ -97,3 +97,9 @@ details > summary { cursor:pointer; font-weight:700; font-size:14px; }
 .savebar { display:flex; gap:10px; align-items:center; margin-top:12px; position:sticky;
            bottom:0; padding:10px 0 calc(8px + env(safe-area-inset-bottom, 0px));
            background:linear-gradient(180deg, transparent, var(--bg) 28%); }
+
+/* 1109: 拦截项解法钮 (dissues 内) — 与 ③ 页 .btn-fix 同语义 */
+#dissues .btn-fix { background:#2a3442; color:#cfd8e3; border:1px solid var(--line2);
+  border-radius:8px; padding:2px 8px; font-size:12.5px; cursor:pointer; }
+#dissues .btn-fix:hover { color:var(--cyan); border-color:var(--cyan); }
+#dissues .btn-fix:disabled { opacity:.5; cursor:default; }
