@@ -381,6 +381,10 @@ $('blocks').addEventListener('input', ev => {
   const sid = ev.target.dataset?.sid;
   if (!sid) return;
   dirty.add(sid); refreshDirty();
+  queueAutoSave();          // 1109: 停笔 1.2s 自动存 (blur 立即存, 见 focusout)
+});
+$('blocks').addEventListener('focusout', ev => {
+  if (ev.target.dataset?.sid) { clearTimeout(autoSaveTimer); autoSave(); }
 });
 
 $('blocks').addEventListener('click', async ev => {
@@ -426,6 +430,9 @@ async function saveShots() {
       sid: s.sid, keyframe_zh: s.keyframe_zh,
       in_image_text: s.in_image_text || [], text_layer: s.text_layer || [] })),
       cards: CARDS }) })).json();
+  // 1109 修 (数据丢失暗雷): 保存被拒 (老稿闸/参数错) 时不清 dirty 不刷新 —
+  // 旧实现照常 refresh 会用服务器旧句冲掉页内手打的内容
+  if (r && r.detail) { toast('保存被拒: ' + r.detail); return r; }
   dirty.clear();
   await refresh();
   if (r.gate) toast('✓ 分镜放行 — 可进 ④');
@@ -433,6 +440,27 @@ async function saveShots() {
   return r;
 }
 $('btn-save').onclick = saveShots;
+
+/* ── 1109 用户令: 自动保存 — 手改停笔即存, 不依赖人工点保存 ──────
+   守闸三条: ① 零改动绝不自动触发 («确认放行»人闸必须亲手点 — 服务端
+   save 会顺带开分镜闸); ② 任务运行中不存 (会被任务覆盖); ③ 老稿快照
+   (STALE) 不存 (服务端必拒)。失败只 toast 一次, 改动留在页内可手存。 */
+let BUSY = false, autoSaveTimer = null, saveInFlight = false, autoSaveToasted = false;
+async function autoSave() {
+  if (!dirty.size || STALE || BUSY || saveInFlight) return;
+  saveInFlight = true;
+  try { await saveShots(); autoSaveToasted = false; }
+  catch (e) {
+    if (!autoSaveToasted) {
+      toast('自动保存失败: ' + e.message + ' — 改动仍在页内, 手点 💾 重试');
+      autoSaveToasted = true;
+    }
+  } finally { saveInFlight = false; }
+}
+function queueAutoSave() {
+  clearTimeout(autoSaveTimer);
+  autoSaveTimer = setTimeout(autoSave, 1200);   // 停笔 1.2s
+}
 
 $('btn-run').onclick = async () => {
   if (FROZEN && !confirm('🔒 本集已放行英文化。\n重跑 ③ = 分镜画面句全部重新生成, ④ 导演参数 / 英文化 / K2 渲染状态将全部作废 (须重跑)。\n确认重跑？')) return;
@@ -445,6 +473,7 @@ $('btn-run').onclick = async () => {
   runner.attach(j);
 };
 function setBusy(on) {
+  BUSY = on;                 // 自动保存守闸: 任务运行中不存 (会被任务覆盖)
   const b = $('btn-run'); b.disabled = on;
   b.textContent = on ? '⏳ 分镜生成中…' : '🎨 重跑分镜';
 }
