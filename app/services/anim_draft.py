@@ -1769,11 +1769,17 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
                     _i = _flow.find(_raw[:14])
                     if _i < 0:
                         return None
-                    _j = _flow.find(_raw[-14:], max(0, _i))
+                    _suf = _raw[-14:]
+                    _j = _flow.find(_suf, max(0, _i))
                     if _j < 0:
                         _j = _i
                     _t0 = next((m[1] for m in reversed(_marks) if m[0] <= _i), 0.0)
-                    _te = next((m[2] for m in reversed(_marks) if m[0] < _j + 14),
+                    # 1109 修 (c09 卡窗越界): 旧写死 +14 (假设后缀恒 14 字) —
+                    # 短金句尾越 1-3 字, 撞空句段 (零字, flow 无痕) 直接跳到
+                    # 下下段结尾: c09「客户翻脸不是意外」1.8s 句段撑成 10.3s,
+                    # 占掉后面段的屏。改用后缀实长 — 行尾即窗尾。
+                    _te = next((m[2] for m in reversed(_marks)
+                                if m[0] < _j + len(_suf)),
                                _marks[-1][2] if _marks else None)
                     return (_t0, _te) if _te is not None else None
 

@@ -41,3 +41,12 @@ def test_wiring_build_draft_consumes_helper():
     assert "aligned = _axis_aligned(doc, shots)" in src
     # v3 判据本体在 helper 内 (不在调用点散拼)
     assert 'or bool((doc.get("v3") or {}).get("stamp")))' in src
+
+
+def test_span_end_uses_suffix_length_source():
+    """1109 c09 卡窗越界根修: _span_of 尾定位必须用后缀实长 — 写死 +14 时
+    短金句尾越 1-3 字 + 撞空句段 (零字) = 窗跳到下下段结尾 (c09 1.8s→10.3s
+    实锤, 占掉后面卡的屏)。源级断言防漂移。"""
+    src = open("app/services/anim_draft.py", encoding="utf-8").read()
+    assert "if m[0] < _j + len(_suf)" in src
+    assert "if m[0] < _j + 14" not in src
