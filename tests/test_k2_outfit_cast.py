@@ -110,3 +110,32 @@ def test_outfit_cast_hooded_jacket_1109_look():
         "一只穿酒红色连帽冲锋衣袖口的手从画面边缘探入", cards)] == ["老谭"]
     assert [n for n, _ in k2._outfit_cast("穿米色针织开衫的身影立在窗前", cards)] \
         == ["观众替身·女"]
+
+
+# ── 1109 子串修: 卡名命中长名优先+掩蔽 ────────────────────────────
+def test_name_hits_longest_first_masks_substring():
+    """「大卫」是「大卫·梅斯特」的子串 — 同一处提及只计长名一次; 独立短名仍命中。"""
+    cards = [("大卫", "中年男性，穿棕色皮夹克", []),
+             ("大卫·梅斯特", "中年白人男性，金丝眼镜，藏青色西装配深蓝领带", []),
+             ("大卫·福克", "中年白人男性，深棕色西装配金色领带", [])]
+    names = [c[0] for c in k2._name_hits(
+        "大卫·梅斯特立在白板前，大卫翻开笔记本。", cards)]
+    assert names == ["大卫·梅斯特", "大卫"]
+    assert [c[0] for c in k2._name_hits("大卫·梅斯特立在白板前。", cards)] \
+        == ["大卫·梅斯特"]
+
+
+def test_scene_eff_no_double_anchor_on_substring_names(monkeypatch):
+    """K2 双锚防护: 句写「大卫·梅斯特」时短卡「大卫」不得再挂一份 look 锚
+    (旧裸子串匹配 = 一人两锚, 双入境新源头)。"""
+    cards = [("大卫", "中年男性，穿棕色皮夹克", []),
+             ("大卫·梅斯特", "中年白人男性，金丝眼镜，藏青色西装配深蓝领带", [])]
+    monkeypatch.setattr(k2, "_char_looks", lambda bt: cards)
+    monkeypatch.setattr(k2_lang, "char_look_en",
+                        lambda nm, lk: (nm, f"look of {nm}"))
+    monkeypatch.setattr(k2, "_bible_hue", lambda bt: "")
+    monkeypatch.setattr(k2, "main_color_tint", lambda h, lang="zh": "")
+    shot = {"keyframe_zh": "大卫·梅斯特站在会议室白板前讲解",
+            "keyframe_en": "a man at a whiteboard"}
+    out = k2._scene_eff(shot, "测试书")
+    assert out.count("look of ") == 1 and "大卫·梅斯特" in out

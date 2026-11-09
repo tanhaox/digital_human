@@ -618,6 +618,23 @@ _OUTFIT_GARMENT_RE = _re.compile(
     r"(?:白大褂|大褂|西装|冲锋衣|大衣|针织衫|开衫|衬衫|外套|卫衣|夹克)")
 
 
+def _name_hits(src: str, cards: list) -> list:
+    """卡名命中 — 长名优先 + 命中即掩蔽 (1109 子串修)。
+
+    圣经同时存在 短卡「大卫」与长卡「大卫·梅斯特」/「大卫·福克」时,
+    裸 `[c for c in cards if c[0] in src]` 把同一处长名提及双计:
+    K2 双锚 = 一人画两个 (双入境新源头)。长名先匹配并从剩余文本掩蔽,
+    短名只命中真正的独立提及。返回原 cards 元组 (保持形状)。"""
+    out: list = []
+    left = src or ""
+    for c in sorted((c for c in (cards or []) if c and c[0]),
+                    key=lambda c: -len(c[0])):
+        if c[0] in left:
+            out.append(c)
+            left = left.replace(c[0], "◇")
+    return out
+
+
 def _outfit_cast(zh: str, cards: list, already: "list[str] | tuple[str, ...]" = ()) -> list:
     """服装签名定角: 画面句以「颜色+服装类」指代的在场者 → 圣经卡。
 
@@ -657,8 +674,8 @@ def _inject_char_looks(scene: str, book_title: str, shot: dict | None = None) ->
     1013 P0 冲突6 (围栏对账): 主体围栏=作者 look 只准引用镜 — render 期注入
     若对非 cite 镜的作者名前置 look = 把违例放大。带 shot 时查 register,
     非 author_cite 的作者名不注入 (writer_audit 事后口的 render 期前哨)。"""
-    for name, look, kws in _char_looks(book_title):
-        if name and name in (scene or "") and not any(k in (scene or "") for k in kws[:3]):
+    for name, look, kws in _name_hits(scene or "", _char_looks(book_title)):
+        if not any(k in (scene or "") for k in kws[:3]):
             if shot is not None:
                 try:
                     from .registers import author_of
@@ -738,7 +755,7 @@ def _scene_eff(shot: dict[str, Any], book_title: str) -> str:
         _zh = str(shot.get("image_prompt_zh") or shot.get("keyframe_zh") or "")
         from . import k2_lang as _kl0
         _cards = _char_looks(book_title)
-        _hit = [(c[0], c[1]) for c in _cards if c[0] and c[0] in _zh]
+        _hit = [(c[0], c[1]) for c in _name_hits(_zh, _cards)]
         # 1109 演员列表感知: 卡名未上桌但服装签名在场 (s31 手部镜) → 服装定角
         # 补锚 — 该在场者是演员列表里的已有演员, 不许自由造人/复制主角
         if _scene_has_person(_zh, book_title):

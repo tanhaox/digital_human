@@ -247,3 +247,17 @@ def test_split_halves_rules():
     assert h and len(h[0]) >= 8 and len(h[1]) >= 8
     assert v3shots._split_halves("无标点文本一二三四五六七八九十") is None
     assert v3shots._split_halves("短。") is None
+
+
+def test_arc_quota_hint_split_by_cast():
+    """1109 修: 点名镜所在弧无绑定 cast → hint 改指「泛称人物, 禁用卡名」
+    (旧 hint 教 LLM 写卡名 = 反向闸拦 ↔ 配额再拦, 永久乒乓无解)。"""
+    t = v3shots._arc_quota_targets(
+        {"弧级": ["分区人物配额: 场A1[mid] 8镜仅3镜有人物 (需≥5) — 补 s3/s4"]},
+        {"s3": ["老谭"], "s4": []})
+    assert "卡名+定妆锚" in t["s3"][0]
+    assert "禁用任何圣经卡名" in t["s4"][0]
+    # 缺省 (不传 cast 表) = 旧调用面兼容, 仍给可执行出路
+    t2 = v3shots._arc_quota_targets(
+        {"弧级": ["分区人物配额: 场A1[mid] 8镜仅3镜有人物 (需≥5) — 补 s9"]})
+    assert "泛称人物" in t2["s9"][0]

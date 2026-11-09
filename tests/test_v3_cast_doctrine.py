@@ -182,3 +182,28 @@ def test_derive_rolls_back_rewritten_structural(monkeypatch, tmp_path):
     ])
     assert out[0]["look"] == "定稿look"                          # 回滚旧文
     assert out[-1]["name"] == "柯波兰德"                         # 非结构卡不动
+
+
+# ── 1109 子串修 (s7 实锤「几次都修不过」) ─────────────────────────
+def test_reverse_gate_substring_of_bound_name(monkeypatch):
+    """短卡「大卫」是绑定名「大卫·梅斯特」的子串 — 裸 `n in kf` 把写对全名的
+    句子误判冒名, 与正向闸 (卡名必须入画) 永久乒乓, LLM 无解。掩蔽后零报。"""
+    monkeypatch.setattr(v3shots, "_look_catalog", lambda bt: {
+        n: f"{n}的look" for n in ("大卫", "大卫·梅斯特", "大卫·福克", "老谭")})
+    doc = _doc("大卫·梅斯特站在白板前，金丝眼镜反着冷光。", cast=["大卫·梅斯特"])
+    iss = v3shots.cast_gate_issues(doc["v3"]["shots"], doc["v3"]["arcs"],
+                                   "值得信赖的顾问")
+    assert iss == {}          # 写的就是绑定全名 → 正反向都干净
+
+
+def test_reverse_gate_alien_reports_longest_only(monkeypatch):
+    """独立提及的未绑定名 (大卫·福克) → 拦; 与其子串的短卡「大卫」不再并列报。"""
+    monkeypatch.setattr(v3shots, "_look_catalog", lambda bt: {
+        n: f"{n}的look" for n in ("大卫", "大卫·梅斯特", "大卫·福克")})
+    doc = _doc("大卫·福克与大卫·梅斯特在会议室对坐。", cast=["大卫·梅斯特"])
+    iss = v3shots.cast_gate_issues(doc["v3"]["shots"], doc["v3"]["arcs"],
+                                   "值得信赖的顾问")
+    msgs = iss.get("s1", [])
+    assert any("未绑定卡名 大卫·福克" in t for t in msgs)
+    assert not any("未绑定卡名 大卫/" in t or "/大卫 " in t for t in msgs)
+    assert not any("未以卡名入画面句" in t for t in msgs)   # 梅斯特在场, 正向过

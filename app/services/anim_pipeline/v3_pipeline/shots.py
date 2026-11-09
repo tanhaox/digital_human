@@ -523,8 +523,18 @@ def cast_gate_issues(shots: list[dict[str, Any]],
             out.setdefault(s["sid"], []).append(
                 f"{s['sid']} 弧绑定角色 {'/'.join(names)} 未以卡名入画面句 — "
                 "用卡名指代该角色 (泛称=身份漂移源头, 且 ⑧ 定妆照路由永不命中)")
-        # 反向: 未绑卡名冒名 (含空绑弧冒任何卡名) — 选角走 ② 正门
-        _alien = [n for n in cards if n and n in kf and n not in names]
+        # 反向: 未绑卡名冒名 (含空绑弧冒任何卡名) — 选角走 ② 正门。
+        # 1109 子串修 (s7 实锤「几次都修不过」): 短名卡「大卫」是绑定名
+        # 「大卫·梅斯特」的子串, 裸 `n in kf` 把已绑定的长名提及误判冒名 →
+        # 与正向闸 (卡名必须入画) 永久乒乓, LLM 无论怎么改都过不了。
+        # 修法: 先把已绑定卡名从句中掩蔽, 再扫外名; 外名互为子串只报最长。
+        _masked = kf
+        for _n in names:
+            if _n:
+                _masked = _masked.replace(_n, "◇")
+        _alien = [n for n in cards if n and n in _masked and n not in names]
+        _alien = [n for n in _alien
+                  if not any(o != n and n in o for o in _alien)]
         if _alien:
             out.setdefault(s["sid"], []).append(
                 f"{s['sid']} 画面句出现未绑定卡名 {'/'.join(_alien)} "
@@ -924,18 +934,29 @@ _FIX_SYS_ADDENDUM = """
 _ARC_FIX_RE = re.compile(r"补 ((?:s\d+)(?:/s\d+)*)")
 
 
-def _arc_quota_targets(iss: dict[str, list[str]]) -> dict[str, list[str]]:
+def _arc_quota_targets(iss: dict[str, list[str]],
+                       cast_by_sid: "dict[str, list] | None" = None
+                       ) -> dict[str, list[str]]:
     """弧级问题 → 点名镜反馈 (1109 令54 补): 分区人物配额等自带「补 s3/s4/…」
     修复指令 (final_gate.zone_quota_issues 确定性生成, 格式同源可控) —
-    分发为点名镜的「改人物镜」反馈, 进 fix_shot_text 的 LLM 输入。"""
+    分发为点名镜的「改人物镜」反馈, 进 fix_shot_text 的 LLM 输入。
+
+    1109 修 (hint 按 cast 分流): 无绑定 cast 的弧若按旧提示「卡名入画」,
+    写了卡名 → 反向闸拦 (冒名) ↔ 删卡名 → 配额再拦 = 永久乒乓无解;
+    无 cast 的点名镜须指明「泛称人物, 禁用卡名」这条唯一出路。"""
     out: dict[str, list[str]] = {}
     for msg in iss.get(ARC_LEVEL_KEY) or []:
         m = _ARC_FIX_RE.search(str(msg))
         if not m:
             continue
-        hint = ("分区人物配额不足 — 本镜改为人物镜: 弧绑定角色入画 "
-                "(卡名+定妆锚同句, 主体可小, 场景构图保住)")
         for sid in re.findall(r"s\d+", m.group(1)):
+            if (cast_by_sid or {}).get(sid):
+                hint = ("分区人物配额不足 — 本镜改为人物镜: 弧绑定角色入画 "
+                        "(卡名+定妆锚同句, 主体可小, 场景构图保住)")
+            else:
+                hint = ("分区人物配额不足 — 本镜改为人物镜: 本弧无绑定角色, "
+                        "写一位泛称人物 (如 一位职场男士/一位职业女性, 只描述"
+                        "身份与外貌, 禁用任何圣经卡名 — 卡名=选角, 归 ② 管)")
             out.setdefault(sid, []).append(hint)
     return out
 
@@ -961,7 +982,9 @@ def fix_shot_text(doc: dict[str, Any], sids: list[str],
     for _sid, _lst in cast_gate_issues(shots, arcs, book_title).items():
         iss_all.setdefault(_sid, []).extend(_lst)
     # 1109 令54 补: 弧级问题 (分区人物配额「补 sN/sN」) 分发为点名镜反馈
-    _arc_fb = _arc_quota_targets(iss_all)
+    _cast_by_sid = {str(s.get("sid")): (arc_of.get(s.get("arc_id")) or {}).get("cast") or []
+                    for s in shots}
+    _arc_fb = _arc_quota_targets(iss_all, _cast_by_sid)
     todo = [s for s in shots
             if str(s.get("sid")) in want and not s.get("brand_card")]
     if not todo:
@@ -988,8 +1011,13 @@ def fix_shot_text(doc: dict[str, Any], sids: list[str],
                                   for v in (a.get("vocab") or []))
             text = " ".join(str((line_of.get(n) or {}).get("text") or "")
                             for n in (s.get("line_refs") or []))[:100]
-            fb = "; ".join(_shot_feedback(s, iss_all)
-                           + _arc_fb.get(str(s["sid"]), [])) or "画面不满意"
+            _fb = (_shot_feedback(s, iss_all)
+                   + _arc_fb.get(str(s["sid"]), []))
+            if str(s["sid"]) in dropped:   # 1109 修: 拒稿原因上桌, 不让 LLM 盲猜
+                _fb.append(f"上一版输出仅 {dropped[str(s['sid'])]} 字被系统拒收 "
+                           "(不在 80-200 字窗) — 保场景保构图写满 80 字以上, "
+                           "用环境/光影/前后景细节补足")
+            fb = "; ".join(_fb) or "画面不满意"
             rows.append(
                 f'{s["sid"]}{tag}|{a.get("world", "")}|{str(a.get("metaphor") or "")[:60]}|'
                 f'{str(a.get("narrative") or "")[:40]}|{cast_txt}|{vocab_txt}|{text}|'
@@ -1021,11 +1049,14 @@ def fix_shot_text(doc: dict[str, Any], sids: list[str],
         return out
 
     applied: dict[str, str] = {}
+    dropped: dict[str, int] = {}   # 1109 修: 短于下限被静默拒收的输出 — 复投带反馈
     got = _ask(todo)
     for s in todo:
         zh = got.get(str(s["sid"]))
         if zh and len(zh) >= KF_MIN_CHARS:
             applied[str(s["sid"])] = zh[:600]
+        elif zh:
+            dropped[str(s["sid"])] = len(zh)
     retry = [s for s in todo
              if str(s["sid"]) not in applied
              or _still_bad(s, applied[str(s["sid"])] )]
@@ -1052,7 +1083,7 @@ def fix_shot_text(doc: dict[str, Any], sids: list[str],
     unfixed = {sid: _shot_feedback(by_sid[sid], issues)
                for sid in fixed if _shot_feedback(by_sid[sid], issues)}
     # 1109 令54 补: 弧级配额复检 — 修完仍点名 → 残留上报 (与页面条目同宇宙)
-    for sid, lst in _arc_quota_targets(issues).items():
+    for sid, lst in _arc_quota_targets(issues, _cast_by_sid).items():
         if sid in fixed:
             unfixed.setdefault(sid, []).extend(lst)
     return {"fixed": fixed, "unfixed": unfixed, "issues": issues,
