@@ -23,3 +23,6 @@
 .bar { display:flex; gap:10px; align-items:baseline; margin:0 0 8px; flex-wrap:wrap; }
 a.ghost { color:var(--cyan); text-decoration:none; }
 .hbadge.bd-r { background:#c62828; color:#fff; font-weight:700; }  /* 1108 R 标 (v2 同款红底白字) */
+
+/* 1109: 首帧图可点放大 (过审=人眼细看) */
+.hmedia img { cursor: zoom-in; }

@@ -71,7 +71,7 @@ async function boot() {
     : (nApp + nImg) === 0
       ? '🔒 ⑥ K2 未生图 — 回 ⑥ 页 🎨 生图后过审 (✅), H3 只吃 approved'
       : !nApp
-        ? `🔒 ⑥ ${nImg} 镜图出未过审 — 回 ⑥ 页 ✅ 过审后这里才能批生`
+        ? `🔒 ${nImg} 镜图出未过审 — 本页逐镜看图 (点图放大) ✅ 过审后即可批生`
         : !d.stamped
           ? '🔒 ⑦ 未盖章 — H3 吃实测时长, 先盖章'
           : '';
@@ -127,7 +127,10 @@ function renderGrid() {
       <div class="hbtns">
         ${s.brand ? `<button class="iconbtn" data-act="reroll" data-sid="${esc(s.sid)}"
                 title="品牌卡重置: 失效后批内零 GPU 直通重插定稿资产 (秒回)">↺ 重置</button>`
-      : `<button class="iconbtn" data-act="reroll" data-sid="${esc(s.sid)}"
+      : `${stt === 'img_done'
+          ? `<button class="iconbtn" data-act="approve" data-sid="${esc(s.sid)}"
+                title="K2 图过审 → approved (H3 批只吃这个状态) — 点卡片图可放大细看">✅ 过审</button>` : ''}
+        <button class="iconbtn" data-act="reroll" data-sid="${esc(s.sid)}"
                 ${stt !== 'anim_done' && stt !== 'anim_fail' ? ' disabled' : ''}
                 title="先 K2 同句换seed重生 (当前代码锚 look/防人) → 再生视频 (~4-5min)">${stt === 'planned' || stt === 'approved' ? '▶ 生成' : '🎲 重掷'}</button>`}
       </div>
@@ -138,6 +141,14 @@ function renderGrid() {
     b.onclick = async () => {
       b.disabled = true;
       try {
+        if (b.dataset.act === 'approve') {   // 1109 用户令: ⑧ 页就地过审, 免跳 ⑥
+          const r = await (await fetch(`${BASE}/k2/approve`, { method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sids: [b.dataset.sid] }) })).json();
+          toast(`✓ ${b.dataset.sid} 已过审 (全集 ${r.approved})`);
+          boot();
+          return;
+        }
         const r = await fetch(`${BASE}/v3_h3`, { method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ only: [b.dataset.sid], redo_k2: true }) });
@@ -145,6 +156,12 @@ function renderGrid() {
         runner.attach(await r.json());
       } catch (e) { toast('失败: ' + e.message); b.disabled = false; }
     };
+  });
+  // 1109: 点图放大细看 (过审=人眼唯一图检, 令51 — 卡片缩图看不清肤色/双入境)
+  const _imgs = [...$('grid').querySelectorAll('.hmedia img')];
+  _imgs.forEach(im => {
+    im.onclick = () => lbOpen(im.src, `${im.alt} 首帧 (K2 图)`,
+      _imgs.map(x => ({ src: x.src, cap: x.alt })));
   });
 }
 
