@@ -37,6 +37,21 @@ def _reproject(doc: dict[str, Any]) -> int:
     return n
 
 
+def project_h3_status(v2_status: str | None, k2_status: str,
+                      audio_muted: bool) -> str:
+    """⑧ 层镜状态投影: v2 盖章快照 + v3 k2 槽 合流 (1109 提炼, 双消费端单源)。
+
+    只升不降且不碰视频态 (1106 四修): anim_done/anim_fail 不被 k2 槽打回 —
+    否则每批重烧已成片镜。屏弃槽 (audio_muted) 不烧 H3。"""
+    st = str(v2_status or "")
+    want = {"approved": "approved", "img_done": "img_done"}.get(str(k2_status or ""))
+    if want and st in ("planned", "img_done") and st != want:
+        st = want
+    if audio_muted and st in ("approved", "img_done"):
+        st = "planned"
+    return st
+
+
 def run(job: dict[str, Any], only: set[str] | None = None,
         retry_failed: bool = False, redo_k2: bool = False) -> None:
     """v3_h3 相位本体: 盖章闸 → 运镜注入 → v2 h3.run_batch。"""
@@ -77,6 +92,8 @@ def run(job: dict[str, Any], only: set[str] | None = None,
     n_rp = _reproject(doc)
     if n_rp:
         logger.info("[v3:h3] 渲染前重拼 %d 镜 (⑥ 拼合函数同源, 镜头句已嵌事件行)", n_rp)
+    # 1109 修 (⑧ 页全审后按钮仍黑): 同步规则提炼 project_h3_status —
+    # 批任务与 /h3 GET 共用 (/h3 只读投影, 批任务写回盘)。
     # 状态现场同步: ⑥ 页过审写在 v3 槽 (k2.status), 盖章快照可能滞后 —
     # 实锤: 过审后启动批生仍 0 approved (doc.shots.status 停在 img_done)。
     # 1106 四修: 只升不降且不碰视频态 — 旧版按 ⑥ k2 态把 anim_done 打回
@@ -87,14 +104,11 @@ def run(job: dict[str, Any], only: set[str] | None = None,
         v3s = v3_by_sid.get(str(s2.get("shot_id")))
         if not v3s:
             continue
-        k2st = str((v3s.get("k2") or {}).get("status") or "")
-        want = {"approved": "approved", "img_done": "img_done"}.get(k2st)
-        if (want and s2.get("status") in ("planned", "img_done")
-                and s2.get("status") != want):
-            s2["status"] = want
-            n_sync += 1
-        if v3s.get("audio_muted") and s2.get("status") in ("approved", "img_done"):
-            s2["status"] = "planned"      # 屏弃槽不烧 H3
+        _new = project_h3_status(s2.get("status"),
+                                 str((v3s.get("k2") or {}).get("status") or ""),
+                                 bool(v3s.get("audio_muted")))
+        if _new != s2.get("status"):
+            s2["status"] = _new
             n_sync += 1
     if n_sync:
         logger.info("[v3:h3] 状态同步 %d 镜 (⑥过审→快照)", n_sync)

@@ -51,3 +51,19 @@ def test_wiring_three_call_sites():
     assert "clamp_move_slots(direct, shots)" in src          # run(): LLM 产出后
     router = open("app/routers/anim_v3.py", encoding="utf-8").read()
     assert router.count("clamp_move_slots(merged") >= 2      # save + reroll
+
+
+def test_h3_status_projection_single_source():
+    """1109 (⑧ 全审后按钮黑实锤): project_h3_status = 批任务与 /h3 GET 单源。
+    过审写 v3 k2 槽, 盖章快照 (v2 status) 滞后 — /h3 必须只读投影同规则。"""
+    from app.services.anim_pipeline.v3_pipeline.h3 import project_h3_status as p
+    assert p("img_done", "approved", False) == "approved"   # 本实锤场景
+    assert p("planned", "img_done", False) == "img_done"
+    assert p("anim_done", "approved", False) == "anim_done" # 只升不降 (1106 四修)
+    assert p("approved", "approved", True) == "planned"     # 屏弃槽
+    assert p("planned", "", False) == "planned"
+    # 双消费端源级断言 (漂移当场崩)
+    router = open("app/routers/anim_v3.py", encoding="utf-8").read()
+    assert "project_h3_status(" in router
+    h3src = open("app/services/anim_pipeline/v3_pipeline/h3.py", encoding="utf-8").read()
+    assert h3src.count("project_h3_status(") >= 2           # def + 批任务调用

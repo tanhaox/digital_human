@@ -51,29 +51,20 @@ const runner = createJobRunner({
     if (busy) $('btn-approve').disabled = true; },
 });
 
-async function boot() {
-  const [d, st] = await Promise.all([
-    (await fetch(`${BASE}/h3`)).json(),
-    (await fetch(`${BASE}/state`)).json(),
-  ]);
-  SHOTS = d.shots || [];
-  $('sub').textContent = `${st.book_title} · 第${st.ep}集`;
-  rail($('rail'), { line: st.line, gates: d.gates, active: 'h3' });
-  if (st.running_job) runner.attach(st.running_job);
-  $('btn-v2').href = `/web/anim.html?book_id=${encodeURIComponent(B)}&ep_index=${E}`;
-  renderCounts(); renderGrid();
+let LASTG = {}, LASTSTAMPED = false;   // 1109: 过审后免整页刷新就地重算闸
+
+function refreshGate() {
   const nApp = SHOTS.filter(s => s.status === 'approved').length;
   const nImg = SHOTS.filter(s => s.status === 'img_done').length;
   const nDone = SHOTS.filter(s => s.status === 'anim_done').length;
-  // 1109 修 (不动作实锤): 常驻状态行只知 ⑦ 盖章, 不知上游卡点 — 用户在
-  // ④ 未放行时点 🎬 只有一闪 toast。改为首卡点指路 + 按钮禁用态带原因。
-  const blocker = !d.gates?.direct
+  // 1109 修 (不动作实锤): 常驻状态行只知 ⑦ 盖章, 不知上游卡点 — 首卡点指路。
+  const blocker = !LASTG.direct
     ? '🔒 ④ 未放行 — 回 ④ 页: 右栏清拦截项 (⚡改固定) → ✅ 确认放行 (英文化批)'
     : (nApp + nImg) === 0
       ? '🔒 ⑥ K2 未生图 — 回 ⑥ 页 🎨 生图后过审 (✅), H3 只吃 approved'
       : !nApp
         ? `🔒 ${nImg} 镜图出未过审 — 点图过目 (可放大翻页) → ✅ 全部过审 → 🎬 批生`
-        : !d.stamped
+        : !LASTSTAMPED
           ? '🔒 ⑦ 未盖章 — H3 吃实测时长, 先盖章'
           : '';
   BLOCKED = !!blocker;
@@ -81,13 +72,29 @@ async function boot() {
     $('stat').textContent = blocker;
     $('btn-run').title = blocker;
   } else {
+    const nImgNB = SHOTS.filter(s => s.status === 'img_done' && !s.brand).length;
     $('stat').textContent = `视频 ${nDone}/${SHOTS.length} · 待生 ${nApp}`
-      + (nImg ? ` · ⚠ ${nImg} 镜图出未过审 (去 ⑥ 页 ✅)` : '')
+      + (nImgNB ? ` · ⚠ ${nImgNB} 镜图出未过审 (去 ⑥ 页 ✅)` : '')
       + ' — 全出后 v2 工坊装配剪映草稿';
     $('btn-run').title = 'approved 镜批生视频 (h3/r2v 工位自动路由)';
   }
   $('btn-run').disabled = BLOCKED || RUNNING;   // 1109: 双旗并集, 任务期不误启
   $('btn-approve').disabled = !nImg || RUNNING;   // 1109: 全审钮 — 有图出才可点, 任务期锁
+}
+
+async function boot() {
+  const [d, st] = await Promise.all([
+    (await fetch(`${BASE}/h3`)).json(),
+    (await fetch(`${BASE}/state`)).json(),
+  ]);
+  SHOTS = d.shots || [];
+  LASTG = d.gates || {}; LASTSTAMPED = !!d.stamped;
+  $('sub').textContent = `${st.book_title} · 第${st.ep}集`;
+  rail($('rail'), { line: st.line, gates: d.gates, active: 'h3' });
+  if (st.running_job) runner.attach(st.running_job);
+  $('btn-v2').href = `/web/anim.html?book_id=${encodeURIComponent(B)}&ep_index=${E}`;
+  renderCounts(); renderGrid();
+  refreshGate();
 }
 
 function renderCounts() {
@@ -190,10 +197,15 @@ $('btn-approve').onclick = async () => {
     const r = await (await fetch(`${BASE}/k2/approve`, { method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sids }) })).json();
-    toast(`✓ 已过审 ${r.approved} 镜 — 可 🎬 批生`);
-  } catch (e) { toast('过审失败: ' + e.message); }
+    if (r && r.detail) { toast('过审被拒: ' + r.detail); boot(); return; }
+    toast(r.approved ? `✓ 已过审 ${r.approved} 镜 — 可 🎬 批生`
+                     : '✓ 全部已是过审态 — 可 🎬 批生');
+    // 1109 (全审后按钮仍黑实锤): 旧服务器 /h3 读盖章快照看不到过审 —
+    // 本地立现 (批任务开跑时 h3.run 会现场同步真状态); 新服务器投影后同真。
+    SHOTS.forEach(s => { if (s.status === 'img_done' && !s.brand) s.status = 'approved'; });
+    renderCounts(); renderGrid(); refreshGate();
+  } catch (e) { toast('过审失败: ' + e.message); boot(); return; }
   b.disabled = false; b.textContent = '✅ 全部过审';
-  boot();
 };
 $('btn-retry').onclick = async () => {
   const n = SHOTS.filter(s => s.status === 'anim_fail').length;

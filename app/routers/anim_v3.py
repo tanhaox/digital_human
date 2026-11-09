@@ -1013,6 +1013,11 @@ def v3_h3_get(book_id: str, ep: int):
         return {"shots": [], "gates": {}, "stamped": False}
     v3 = doc.get("v3") or {}
     direct = v3.get("direct") or {}
+    # 1109 修 (⑧ 页全审后按钮仍黑实锤): 过审写在 v3 k2 槽, 盖章快照滞后 —
+    # 批任务开跑会现场同步 (h3.run), 但页面前置闸读 /h3 → 只读投影同款规则
+    # (不动盘), 与批任务单源 (h3.project_h3_status)。
+    from app.services.anim_pipeline.v3_pipeline.h3 import project_h3_status
+    v3_by_sid = {str(x.get("sid")): x for x in (v3.get("shots") or [])}
     out = []
     from app.services.anim_pipeline import shots as shots_mod
     _ebase = shots_mod.ep_dir(book_title, ep)
@@ -1032,8 +1037,12 @@ def v3_h3_get(book_id: str, ep: int):
             url = f"/api/anim/ep/{book_id}/{ep}/file/{img}"
         else:
             url = None
+        _v3s = v3_by_sid.get(str(s.get("shot_id"))) or {}
         out.append({"sid": str(s.get("shot_id")),
-                    "status": s.get("status"),
+                    "status": project_h3_status(
+                        s.get("status"),
+                        str((_v3s.get("k2") or {}).get("status") or ""),
+                        bool(_v3s.get("audio_muted"))),
                     "brand": bool(s.get("brand_card")),
                     "size": d.get("size"), "cam": (d.get("cam") or {}).get("kind"),
                     "dur_s": (s.get("anim") or {}).get("duration_s"),
