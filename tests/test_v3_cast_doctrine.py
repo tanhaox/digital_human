@@ -111,3 +111,14 @@ def test_shots_rule10_no_pretend_casting():
                encoding="utf-8").read()
     assert "画面句只许用本弧 cast 内的卡名" in src
     assert "不许冒名" in src
+
+
+def test_standins_rule_in_derive_and_arcs():
+    """1109 用户令: 角色台必含观众替身一男一女 (临演=口播的'你'); ② 裁决序同源。"""
+    src = open("app/services/anim_pipeline/character_sheets.py",
+               encoding="utf-8").read()
+    assert "观众替身一男一女" in src and "观众替身·男" in src
+    assert "服装色系" in src                     # 男女撞款=服装定角歧义
+    arcs_src = open("app/services/anim_pipeline/v3_pipeline/arcs.py",
+                    encoding="utf-8").read()
+    assert "男/女临演" in arcs_src
