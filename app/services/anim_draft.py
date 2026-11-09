@@ -1629,6 +1629,18 @@ def _sfx_dur(name_or_path: str) -> float:
         return 1.0
 
 
+def _axis_aligned(doc: dict[str, Any], shots: list[dict[str, Any]]) -> bool:
+    """轴对齐判据 — 决定开场链 (打字卡/书封墙/主书封 = 头部 5.5s) 是否上桌。
+
+    三判据: v1 归真标记 (t_start_orig) / v2 director2 原生轴 (含 opening 预留) /
+    v3 盖章戳 (⑦ = 时长真相源; 盖章轴 0 起, 开场链靠 t_shift 平移让位,
+    dbd02ba 机制)。1109 ep7 实锤: 全新 v3 集 planner_flow=None 且无
+    t_start_orig — 旧两判据全空 → 开场链整段跳过, 成片无头部。"""
+    return (any("t_start_orig" in s for s in shots)
+            or str(doc.get("planner_flow") or "").startswith("director2")
+            or bool((doc.get("v3") or {}).get("stamp")))
+
+
 def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[str, Any]:
     """装配剪映草稿: 42镜时间轴 + 品牌卡 + text_layer 字幕 + 整集口播."""
     book_id, book_title = resolve_ep(book_ref, ep)
@@ -1651,9 +1663,8 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
             raise RuntimeError(
                 f"骨架场 {'、'.join(_empty)} 无镜 — 这些场的口播将只有声音没有画面。"
                 "先 ▶️分镜续跑 补齐 (只填空洞, 不动已有镜), 装配已拦下")
-        # 已对齐判据: v1 归真过 (t_start_orig) 或 v2 原生 manifest 轴 (含 opening 预留)
-        aligned = (any("t_start_orig" in s for s in shots)
-                   or str(doc.get("planner_flow", "")).startswith("director2"))
+        # 已对齐判据 (1109 修: 收 v3 盖章戳 — 见 _axis_aligned; ep7 实锤无头部根因)
+        aligned = _axis_aligned(doc, shots)
         if not aligned:
             logger.warning("[draft] 尚未对齐 (无 t_start_orig), 用规划轴装配 — 建议先跑 align")
         # 归真轴已含 title_card 偏移 → 标题卡与 voice 起点都锚在 tc;
