@@ -321,6 +321,11 @@ PRESENCE_ANCHOR_EN = {
     "back": "; presence: this character is seen from behind, face not shown",
     "distant": "; presence: this character is a small distant figure",
 }
+# 1109 演员列表感知: 人物镜选角律 — 演员来自 prompt 已锚定的圣经卡
+# (防画面句未描写的背景自由造人, ep7 s11 背景小人影实锤)
+CASTING_LAW_EN = (
+    ". Casting: the frame contains no people beyond the characters described "
+    "in the scene — everyone in frame is one of the anchored bible cast above")
 PROTECT_TAIL_EN = (
     ". The image contains no text, no numbers, no logos; screens show only clean "
     "blank graphic areas; signs and plaques are blank. Buildings, objects and "

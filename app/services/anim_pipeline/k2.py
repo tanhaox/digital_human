@@ -88,6 +88,7 @@ def SKIN_HAIR_LAW() -> str:  # 1026 惰性化: 军规改动免重启 (旧 import
 FACE_LAW = ("。人物面部五官完整清晰：明确的眼睛、鼻子和嘴巴，表情可辨"
             "（面部绝不空白、不缺五官、不无嘴无眼）；面部朝向镜头方向可见"
             "（正脸或四分之三侧脸, 不画纯背影/背身剪影）；人物完整入画，头顶不被画幅裁切")
+CASTING_LAW = "。选角: 画面中不出现画面句未描写的人物 — 在场者均为本提示词已锚定的圣经演员卡角色"
 
 
 def _person_in(scene: str, book_title: str = "",
@@ -307,6 +308,9 @@ def build_prompt(scene_zh: str, book_title: str = "", style: dict | None = None,
             # 全身条款与 ③ 局部在场语法冲突 = 双入境因; 全身在场面走原路)
             _form = _presence_form(_src)
             _law += _kl.PRESENCE_LAW_EN[_form] if _form else _kl.FACE_LAW_EN
+            # 1109 演员列表感知: 人物镜挂选角律 — 演员来自本 prompt 已锚定的
+            # 圣经卡, 画面句未描写的人物不入画 (防背景自由造人)
+            _law += _kl.CASTING_LAW_EN
             _cp = _kl.character_policy_en(book_title)
             if _cp:
                 _law = _kl.CHAR_POLICY_PREFIX_EN + _cp + _law
@@ -327,6 +331,7 @@ def build_prompt(scene_zh: str, book_title: str = "", style: dict | None = None,
     if page == "k2" and _scene_has_person(_src, book_title, cast_names):
         _form = _presence_form(_src)
         law += _PRESENCE_LAW[_form] if _form else FACE_LAW
+        law += CASTING_LAW  # 1109 演员列表感知 (zh fallback 路同则)
     # 1013 双人根治: character 页不吃产线景深配方 — "完整的环境空间/背景延伸至
     # 远方/三层纵深感"与定妆照纯白立绘背景对冲, 且给画面塞人塞物的空间理由
     boost = "" if page == "character" else COMPOSITION_BOOST
@@ -604,6 +609,46 @@ def _char_looks(book_title: str) -> list:
     return _CHAR_LOOKS[book_title]
 
 
+# 1109 演员列表感知 (用户令: K2 写提示词时不知道有演员列表): ③ writer 局部镜
+# 惯用服装色指代在场者 (s31「一双穿深红色冲锋衣袖口的手」=老谭、「浅灰色西装
+# 袖口」=观众替身) — 旧机制只认卡名, 服装指代零锚 → 模型不知道衣服属于演员
+# 列表里的谁, 自由造人/复制主角。按圣经 look 服装签名定角: 命中即挂该卡锚。
+_OUTFIT_GARMENT_RE = _re.compile(
+    r"[深浅暗明正]?[一-龥]{1,2}色?(?:正装|休闲)?"
+    r"(?:白大褂|大褂|西装|冲锋衣|大衣|针织衫|衬衫|外套|卫衣|夹克)")
+
+
+def _outfit_cast(zh: str, cards: list, already: "list[str] | tuple[str, ...]" = ()) -> list:
+    """服装签名定角: 画面句以「颜色+服装类」指代的在场者 → 圣经卡。
+
+    - 撞型 (多卡同签名, 如 浅灰西装=查理·格林+观众替身) → 替身优先 (临时演员
+      本职, writer 泛指时按设计意图落替身); 其余撞型不猜 (UNKNOWN 原则)。
+    - 已按卡名锚定的角色不重复定角; 色字双写容差 (浅灰西装/浅灰色西装同签)。
+    """
+    zh_n = (zh or "").replace("色", "")
+    _sigs: dict[str, list] = {}
+    for name, look, _kws in cards or []:
+        if not name or not look or name in (already or ()):
+            continue
+        m = _OUTFIT_GARMENT_RE.search(look)
+        if not m:
+            continue
+        sig = m.group(0).replace("色", "")
+        if len(sig) >= 3:
+            _sigs.setdefault(sig, []).append((name, look))
+    out: list = []
+    _seen: set = set()
+    for sig, owners in _sigs.items():
+        if sig not in zh_n:
+            continue
+        pick = owners[0] if len(owners) == 1 else next(
+            (o for o in owners if "替身" in o[0]), None)
+        if pick and pick[0] not in _seen:
+            _seen.add(pick[0])
+            out.append(pick)
+    return out
+
+
 def _inject_char_looks(scene: str, book_title: str, shot: dict | None = None) -> str:
     """出场角色 look 串确定性前置 (0923 用户实锤 货不对版: 规划层 LLM 只带名字丢造型).
 
@@ -694,6 +739,10 @@ def _scene_eff(shot: dict[str, Any], book_title: str) -> str:
         from . import k2_lang as _kl0
         _cards = _char_looks(book_title)
         _hit = [(c[0], c[1]) for c in _cards if c[0] and c[0] in _zh]
+        # 1109 演员列表感知: 卡名未上桌但服装签名在场 (s31 手部镜) → 服装定角
+        # 补锚 — 该在场者是演员列表里的已有演员, 不许自由造人/复制主角
+        if _scene_has_person(_zh, book_title):
+            _hit += _outfit_cast(_zh, _cards, [n for n, _ in _hit])
         if _hit:
             _parts = []
             for nm, lk in _hit[:3]:
