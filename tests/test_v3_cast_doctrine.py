@@ -122,3 +122,45 @@ def test_standins_rule_in_derive_and_arcs():
     arcs_src = open("app/services/anim_pipeline/v3_pipeline/arcs.py",
                     encoding="utf-8").read()
     assert "男/女临演" in arcs_src
+
+
+def test_derive_protects_structural_cards(monkeypatch, tmp_path):
+    """1109 🎲 实锤: 重提炼不许洗结构卡 — 老谭/观众替身/作者卡 LLM 漏了
+    → 从旧圣经确定性补回 (look 原样); 撞名变体 (查理 ⊃ 查理·格林) 视作已覆盖;
+    非结构旧卡 (书内人物) 不保护 (重提炼的正当职责)。"""
+    import json
+    from app.services.anim_pipeline import character_sheets as cs
+    bb = tmp_path / "bb.json"
+    bb.write_text(json.dumps({"characters": [
+        {"name": "老谭", "role": "账号主角", "look": "深红色冲锋衣look", "linked_props": []},
+        {"name": "观众替身·男", "role": "临演", "look": "浅灰西装look", "linked_props": []},
+        {"name": "大卫·梅斯特", "role": "本书作者·信任公式", "look": "藏青西装look", "linked_props": []},
+        {"name": "汤玛斯", "role": "书中人物", "look": "浅驼西装look", "linked_props": []},
+    ]}, ensure_ascii=False), encoding="utf-8")
+    monkeypatch.setattr(cs, "_bible_cache_path", lambda bt: bb)
+    # LLM 只吐了新书内卡 + 查理 (撞 查理·格林 型不在本夹具, 另测)
+    got = [{"name": "柯波兰德", "role": "书中人物", "look": "x"},
+           {"name": "查理·格林", "role": "书中人物", "look": "y"}]
+    out = cs._protect_structural("测试书", got, author="大卫·梅斯特")
+    names = [c["name"] for c in out]
+    assert names[:3] == ["老谭", "观众替身·男", "大卫·梅斯特"]   # 结构卡前置补回
+    assert "汤玛斯" not in names                                 # 非结构卡不保护
+    assert out[0]["look"] == "深红色冲锋衣look"                  # look 原样不经 LLM
+    # 撞名变体: 新表已有 查理 → 旧 查理·格林 不重复补
+    bb.write_text(json.dumps({"characters": [
+        {"name": "查理·格林", "role": "书中人物", "look": "old"}]}, ensure_ascii=False),
+        encoding="utf-8")
+    out2 = cs._protect_structural("测试书", [{"name": "查理", "role": "r", "look": "n"}])
+    assert [c["name"] for c in out2] == ["查理"]                 # 视作已覆盖
+    # 无旧圣经 (首书) → 原样返回
+    bb.unlink()
+    got3 = [{"name": "柯波兰德", "role": "r", "look": "x"}]
+    assert cs._protect_structural("测试书", got3) == got3
+
+
+def test_derive_prompt_and_wiring():
+    """derive prompt 必含卡三件 (作者/替身男女/老谭) + 保护接线。"""
+    src = open("app/services/anim_pipeline/character_sheets.py",
+               encoding="utf-8").read()
+    assert "必含卡·老谭" in src                    # 老谭必含 (🎲 洗卡实锤)
+    assert "chars = _protect_structural(book_title, chars, author)" in src

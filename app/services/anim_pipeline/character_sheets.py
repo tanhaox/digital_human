@@ -92,6 +92,41 @@ def save_characters(book_title: str, chars: list[dict]) -> dict:
     return {"saved": len(data["characters"])}
 
 
+def _protect_structural(book_title: str, chars: list[dict],
+                        author: str = "") -> list[dict]:
+    """结构卡保护 (1109 🎲 实锤: 重提炼把 老谭/观众替身/书内 8 卡洗成 6 张新书内
+    卡 — save 是替换式回写, 结构卡是系列资产不是书内人物, LLM 漏了就永久丢)。
+
+    结构卡 = 名字含 老谭/观众替身, 或 作者卡 (role 含 作者 / 名字==author)。
+    新表缺哪个就从旧圣经原样补回 (look 不经 LLM 重写 — 固定人设); 新表已有
+    撞名卡 (查理 ⊂ 查理·格林 型) 视作已覆盖。只护 🎲 自动提炼路径 — 页面手动
+    增删改是用户全权, 不走此保护。"""
+    try:
+        old = json.loads(_bible_cache_path(book_title).read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001 — 无旧圣经 = 首次提炼, 无可保护
+        return chars
+    names = [str(c.get("name") or "") for c in chars]
+    blob = " ".join(names)
+    carry = []
+    for c in (old.get("characters") or []):
+        nm = str(c.get("name") or "").strip()
+        if not nm:
+            continue
+        structural = ("老谭" in nm or "观众替身" in nm
+                      or "作者" in str(c.get("role") or "") or nm == author)
+        if not structural:
+            continue
+        if nm in blob or any(nm in n or n in nm for n in names):
+            continue                      # 新表已有 (含撞名变体)
+        carry.append({"name": nm[:24], "role": str(c.get("role") or "")[:64],
+                      "look": str(c.get("look") or "")[:160],
+                      "linked_props": list(c.get("linked_props") or [])})
+    if carry:
+        logger.info("[chars] 结构卡保护补回 %d 张: %s",
+                    len(carry), "、".join(c["name"] for c in carry))
+    return carry + chars
+
+
 def _author_name(raw_author: str) -> str:
     """DB author 字段剥装饰取核心名: '【美】德鲁克（Drucker，P. F. ）'→'德鲁克'。
     先按 ;/著/译 切断取第一作者段, 防译者混入 ('罗伯特·戴博德 著 · 陈赢 译')。"""
@@ -208,6 +243,9 @@ def derive_characters(book_id: str, book_title: str) -> dict:
         "提炼男/女各一张临演卡 (命名 观众替身·男 / 观众替身·女; 名单已有含'观众替身'的卡"
         "视作其一, 只补缺的性别); look 贴合本书受众人群的白领通勤感, 男女 look 的服装色系"
         "必须一眼可区分 (与书内人物卡撞款则换色), 不写肤色;\n"
+        "- **必含卡·老谭 (账号主角·1109 实锤: 🎲 曾把他洗掉)**: 讲述者人设 (口播'我是老谭'), "
+        "每书必含; 本书圣经已有老谭卡则原样沿用 (确定性保护会补回), 首次提炼按讲述者人设"
+        "新建 (中年男性, 深红色冲锋衣, 绿色旅行双肩包 — 账号系列锚);\n"
         "- **每集『贯穿人物』必须逐人覆盖** (同一真实人物跨集并一张卡, role 写清哪几集出场+"
         "叙事功能); 数量以覆盖为准, 一般 4-8 张; 只在成稿节选里反复出场、撑得起画面的可再补 1 张;\n"
         "- 成稿里没出现的人物不建卡 (库外实体/作者生平圈外人一律不要);\n"
@@ -246,6 +284,8 @@ def derive_characters(book_id: str, book_title: str) -> dict:
              for c in chars if (c.get("name") or "").strip()]
     if not chars:
         raise RuntimeError("提炼结果为空 — 稍后重试或 ➕ 手填")
+    # 1109 结构卡保护: 老谭/观众替身/作者卡 LLM 漏了 → 旧圣经确定性补回
+    chars = _protect_structural(book_title, chars, author)
     # 覆盖校验: 每集贯穿人物 (先剥括号注释, 再按顿号切, 再剥"某公司/某"类前缀)
     # 须被某张卡的 name/role 吃住 — 全名或名首二字命中皆算
     misses = []
