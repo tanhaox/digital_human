@@ -193,3 +193,96 @@ def test_negative_prompt_empty_guard(monkeypatch, tmp_path):
     out_gate = k2._negative_prompt(_BOOK, "k2", "an open book close-up",
                                    zh_scene="特写：摊开的厚重书籍")
     assert "human silhouette" not in out_gate
+
+
+# ── 1112 同角色双入境根修 (高效能 ep1 五镜 s5/s15/s17/s20/s29 实锤) ──
+# 三因: ①服装签名滑位成无色泛型词跨卡误锚 (s5 桑德拉被锚进单人床镜)
+# ②look 尾部定妆照姿态/神态子句进锚, 与画面句姿态对冲 = 锚画站姿版+句画场景版
+# ③「无眼镜」明写被裸子串判成戴镜 — 正锚 wearing glasses + 负词漏派双错同向。
+
+_RICH_CHARS = [
+    ("观众替身·男", "黑色短碎发微分，椭圆脸，眉目清爽；上身穿浅天蓝牛津纺衬衫，"
+     "外搭深海军蓝针织开衫；下着卡其色修身休闲西裤；面部无胡须无眼镜，"
+     "站姿端正，一手插裤袋"),
+    ("桑德拉", "深棕色中长发微卷披肩；上身穿浅杏色针织开衫，内搭白色圆领棉质上衣；"
+     "下着深卡其色A字中长裙；面部无胡须无眼镜，神态温婉，双手交叠于身前"),
+    ("史蒂芬·柯维", "银灰短发整齐后梳，戴金丝边方框眼镜；身穿深炭灰西装外套；"
+     "面部无胡须，神态从容笃定，单手自然垂放身侧"),
+    ("柯维儿子", "浅棕色短发微卷，圆脸，眉眼清秀；上身穿红白条纹圆领短袖运动T恤；"
+     "下着深蓝色及膝运动短裤；面部无胡须无眼镜，站姿略含胸，目光微微下垂"),
+]
+
+
+def test_outfit_sig_requires_color():
+    """签名必须带色: 滑位提取的无色泛型词拒锚 (强身份词白大褂/冲锋衣放行)。"""
+    assert k2._outfit_sig("上身穿浅杏色针织开衫，内搭白色上衣") == "浅杏色针织开衫"
+    assert k2._outfit_sig("穿米色针织开衫内搭白色衬衫") == "米色针织开衫"
+    assert k2._outfit_sig("中年白人男性，白大褂配手术帽") == "白大褂"
+    assert k2._outfit_sig("中年男性，穿深红色连帽冲锋衣") == "深红色连帽冲锋衣"
+    # s5 实弹: 替身男自己的「深海军蓝针织开衫」不得锚到浅杏开衫的桑德拉
+    # (替身男本人可中 — 真实流程他已按卡名锚定, here 模拟 already)
+    out5 = k2._outfit_cast(
+        "他仍穿着浅天蓝牛津纺衬衫，深海军蓝针织开衫半褪到肩下",
+        [(n, lk, []) for n, lk in _RICH_CHARS], already=("观众替身·男",))
+    assert [n for n, _ in out5] == []
+
+
+def test_anchor_look_strips_pose_keeps_identity():
+    """look 尾部定妆照姿态/神态子句剥除; 面部锚/服/发全保留 (锚只管身份)。"""
+    lk = k2._anchor_look(_RICH_CHARS[0][1])
+    assert "站姿端正" not in lk and "插裤袋" not in lk
+    assert "面部无胡须无眼镜" in lk and "牛津纺衬衫" in lk
+    lk2 = k2._anchor_look(_RICH_CHARS[2][1])
+    assert "神态从容笃定" not in lk2 and "垂放身侧" not in lk2
+    assert "戴金丝边方框眼镜" in lk2 and "深炭灰西装" in lk2
+
+
+def _rich_setup(monkeypatch):
+    monkeypatch.setitem(k2._CHAR_LOOKS, _BOOK,
+                        [(n, lk, []) for n, lk in _RICH_CHARS])
+    monkeypatch.setattr(k2, "bible_negative", lambda bt: "")
+    monkeypatch.setattr(k2_lang, "char_look_en", lambda nm, lk: (nm, lk))
+    monkeypatch.setattr(k2, "main_color_tint", lambda hue, lang="zh": "")
+    monkeypatch.setattr(k2, "_bible_hue", lambda bt: "")
+
+
+def test_glasses_polarity_no_glasses_written(monkeypatch):
+    """「面部无眼镜」明写 → 正锚 no glasses (非 wearing), 负词照派;
+    戴镜角色 (柯维) → wearing glasses, 负词无 glasses。"""
+    _rich_setup(monkeypatch)
+    out = k2._scene_eff({"keyframe_zh": "桑德拉立在门边",
+                         "keyframe_en": "a woman at the door"}, _BOOK)
+    assert "no glasses" in out and "wearing glasses" not in out
+    assert "神态温婉" not in out and "双手交叠" not in out     # 姿态神态剥除
+    assert "glasses" in k2._cast_negative("桑德拉立在门边", _BOOK)
+    out2 = k2._scene_eff({"keyframe_zh": "史蒂芬·柯维立在讲台",
+                          "keyframe_en": "a man at a podium"}, _BOOK)
+    assert "wearing glasses" in out2 and "no glasses;" not in out2
+    assert "glasses" not in k2._cast_negative("史蒂芬·柯维立在讲台", _BOOK)
+
+
+def test_form_owner_nearest_name_before_cue():
+    zh = ("中景，围栏外，史蒂芬·柯维的肩头微微前倾，桑德拉立在他身旁半步后，"
+          "两人目光齐齐投向场内；远处红土上柯维儿子背对他们低着头站在本垒旁")
+    assert k2._form_owner(zh, ["史蒂芬·柯维", "桑德拉", "柯维儿子"]) == "柯维儿子"
+    assert k2._form_owner("一个短发中年男性的背影立在窗前", ["老谭"]) is None
+
+
+def test_scene_eff_presence_qualifier_only_owner(monkeypatch):
+    """s20 形实弹: 「柯维儿子背对」只给儿子的锚盖背影章 — 前景正面的
+    柯维/桑德拉不盖 (旧版整镜一刀切 = 锚说背影+句说正面, 又一双入境)。"""
+    _rich_setup(monkeypatch)
+    zh = ("中景，围栏外，史蒂芬·柯维的肩头微微前倾，桑德拉立在他身旁半步后，"
+          "两人目光齐齐投向场内；远处红土上柯维儿子背对他们低着头站在本垒旁")
+    out = k2._scene_eff({"keyframe_zh": zh, "keyframe_en": "medium shot at a fence"},
+                        _BOOK)
+    back = k2_lang.PRESENCE_ANCHOR_EN["back"]
+    assert out.count(back) == 1                    # 只有儿子的锚带背影限定
+    # 限定挂儿子锚; 柯维/桑德拉的锚无背影章
+    idx = out.find(back)
+    assert "柯维儿子" in out[max(0, idx - 200):idx]
+    for nm in ("史蒂芬·柯维", "桑德拉"):
+        blk_start = out.find(f"{nm} (")
+        blk_end = out.find(")", blk_start)
+        assert back not in out[blk_start:blk_end]
+    assert "史蒂芬·柯维 (" in out and "桑德拉 (" in out  # 三锚都在

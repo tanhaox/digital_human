@@ -436,7 +436,8 @@ def _cast_negative(zh_scene: str, book_title: str) -> str:
     用户令 (眼镜/胡子随机漂移, 弧内不连续): 角色反外观项按镜级出场名单派生,
     同弧同 cast → 同负词 (弧内一致性自动成立)。规则:
     - look 含 "无胡须" → beard, mustache, stubble, facial hair
-    - look 不含 "眼镜" → glasses (戴镜角色如大卫·梅斯特不触发, 不会误伤)
+    - look 无眼镜 (含明写"无眼镜", 1112 修: 旧裸 `"眼镜" not in look` 把
+      「面部无眼镜」判成戴镜 → no-glasses 负词漏派) → glasses
     匹配源=中文画面句 (角色名中文); EN 串匹配不上中文名, 调用方必须传 zh 源。"""
     if not zh_scene or not book_title:
         return ""
@@ -446,7 +447,8 @@ def _cast_negative(zh_scene: str, book_title: str) -> str:
             if nm and nm in zh_scene:
                 if "无胡须" in look:
                     words += ["beard", "mustache", "stubble", "facial hair"]
-                if "眼镜" not in look:
+                if (_re.search(r"无眼镜|不戴眼镜", look)
+                        or "眼镜" not in look):
                     words.append("glasses")
     except Exception:  # noqa: BLE001 — 角色表坏不炸渲染
         return ""
@@ -613,9 +615,71 @@ def _char_looks(book_title: str) -> list:
 # 惯用服装色指代在场者 (s31「一双穿深红色冲锋衣袖口的手」=老谭、「浅灰色西装
 # 袖口」=观众替身) — 旧机制只认卡名, 服装指代零锚 → 模型不知道衣服属于演员
 # 列表里的谁, 自由造人/复制主角。按圣经 look 服装签名定角: 命中即挂该卡锚。
+# 1112 修: 面料修饰入类目 (灯芯绒/牛津纺/粗布 — 「深棕色灯芯绒西装」整签提取,
+# 旧版滑位成碎签); 签名必须带色 (见 _outfit_sig)。
 _OUTFIT_GARMENT_RE = _re.compile(
-    r"[深浅暗明正]?[一-龥]{1,2}色?(?:正装|休闲|连帽)?"
+    r"[深浅暗明正]?[一-龥]{1,2}色?(?:正装|休闲|连帽|针织|灯芯绒|牛津纺|粗布)?"
     r"(?:白大褂|大褂|西装|冲锋衣|大衣|针织衫|开衫|衬衫|外套|卫衣|夹克)")
+# 1112 双入境根修 (高效能 ep1 五镜实锤): 泛型裸词签名跨卡误锚 — 桑德拉 look
+# 「浅杏色针织开衫」被滑位提取成无色「针织开衫」, s5 替身男自己的「深海军蓝
+# 针织开衫」命中 → 桑德拉被锚进单人床镜 = 一句两人。签名提取三段闸:
+# 自带色直接用 → 无色回吞紧邻色短语 → 仍无色只放行强身份词 (白大褂/冲锋衣)。
+_OUTFIT_COLOR_CH_RE = _re.compile(
+    r"[深浅暗明正黑白灰蓝红绿黄紫棕杏粉米酒]|卡其|藏青|军绿|墨绿|咖啡")
+_PRE_COLOR_RE = _re.compile(r"[深浅暗明正]?[一-龥]{1,2}色$")
+
+
+def _outfit_sig(look: str) -> "str | None":
+    m = _OUTFIT_GARMENT_RE.search(look or "")
+    if not m:
+        return None
+    sig = _re.sub(r"^(?:穿|戴|披|系|背|配|着)+", "", m.group(0))  # 剥动词头
+    if _OUTFIT_COLOR_CH_RE.search(sig):
+        return sig
+    pre = (look or "")[:m.start()]
+    cm = _PRE_COLOR_RE.search(pre[-6:]) if pre else None
+    if cm:
+        return cm.group(0) + sig
+    if sig in ("白大褂", "冲锋衣"):
+        return sig
+    return None
+
+
+# 1112 双入境根修: look 尾部的定妆照姿态/神态子句禁入 K2 锚 — 锚说「站姿放松
+# 一手插裤袋」+ 画面句说「躺床上/坐沙发」= 锚画站姿版+句画场景版, 同角色×2
+# (s5/s15/s20/s29 实锤; look 丰厚标准后姿态尾系统性出现而放大)。锚只管身份
+# (服/发/脸/道具), 姿态神态归各镜画面句。定妆照页用原 look 不受扰 (缺省姿态
+# 注入仍在)。子句粒度剥 (分隔符内含关键词的整子句)。
+_ANCHOR_POSE_CLAUSE_RE = _re.compile(
+    r"[，,；;][^，,；;]{0,24}?(?:站姿|坐姿|跪姿|蹲姿|行走|奔跑|插[在入]?裤袋|"
+    r"手插|垂放身侧|双手交叠|抱胸|叉腰|神态|神情|表情|目光|眼神|含胸|垂头|"
+    r"仰头|望向|凝视|微笑|耸肩|摊手)[^，,；;]*")
+
+
+def _anchor_look(look: str) -> str:
+    """look → K2 锚用串: 剥定妆照姿态/神态子句 (面部锚/服/发/道具全保留)。"""
+    return _ANCHOR_POSE_CLAUSE_RE.sub("", str(look or "")).strip("，,；; ")
+
+
+def _form_owner(zh: str, hit_names: "list[str]") -> "str | None":
+    """形态 cue 归属 (1112 s23 挂账收口): cue 首现位置前 24 字内最近的卡名 =
+    形态主 (「远处柯维儿子背对他们」只该给儿子盖背影章, 柯维/桑德拉是正面注视
+    — 旧版整镜一刀切, 锚说背影+句说正面 = 又一双入境); 附近无卡名 (纯服装指代
+    镜/整镜背影) → None = 全员挂。"""
+    for pat in (_PRESENCE_BACK_RE, _PRESENCE_DISTANT_RE, _PRESENCE_PARTIAL_RE):
+        m = pat.search(zh or "")
+        if not m:
+            continue
+        win = (zh or "")[:m.start()]
+        best_pos, best_nm = -1, None
+        for n in hit_names:
+            p = win.rfind(n)
+            if p > best_pos:
+                best_pos, best_nm = p, n
+        if best_pos < 0 or m.start() - best_pos > 24:
+            return None
+        return best_nm
+    return None
 
 
 def _name_hits(src: str, cards: list) -> list:
@@ -641,18 +705,17 @@ def _outfit_cast(zh: str, cards: list, already: "list[str] | tuple[str, ...]" = 
     - 撞型 (多卡同签名, 如 浅灰西装=查理·格林+观众替身) → 替身优先 (临时演员
       本职, writer 泛指时按设计意图落替身); 其余撞型不猜 (UNKNOWN 原则)。
     - 已按卡名锚定的角色不重复定角; 色字双写容差 (浅灰西装/浅灰色西装同签)。
+    - 1112 修: 签名必须带色 (_outfit_sig 三段闸) — 无色泛型词 (针织开衫/西装)
+      跨卡误锚 = 单人镜凭空多一个角色 (s5 实锤)。
     """
     zh_n = (zh or "").replace("色", "")
     _sigs: dict[str, list] = {}
     for name, look, _kws in cards or []:
         if not name or not look or name in (already or ()):
             continue
-        m = _OUTFIT_GARMENT_RE.search(look)
-        if not m:
-            continue
-        sig = m.group(0).replace("色", "")
-        if len(sig) >= 3:
-            _sigs.setdefault(sig, []).append((name, look))
+        sig = _outfit_sig(look)
+        if sig and len(sig.replace("色", "")) >= 3:
+            _sigs.setdefault(sig.replace("色", ""), []).append((name, look))
     out: list = []
     _seen: set = set()
     for sig, owners in _sigs.items():
@@ -686,7 +749,8 @@ def _inject_char_looks(scene: str, book_title: str, shot: dict | None = None) ->
                 if _doc is not None and str(shot.get("register") or "") != "author_cite"                         and name == author_of(_doc):
                     logger.warning("[k2] 围栏: %s 非引用镜不前置作者 look (冲突6对账)", name)
                     return scene or ""
-            return f"{name}（{look}），" + (scene or "")
+            # 1112 双入境根修: zh 路同剥定妆照姿态/神态子句 (与 EN 路同尺)
+            return f"{name}（{_anchor_look(look)}），" + (scene or "")
     # 1026 兜底 (s10 实锤: '职场人物(时代锚服装列表)'型镜句 — 无卡名无身份 →
     # 模型自由造人, 一帧绿发黑发各色领带随机人群): 有人物但零身份信号 →
     # 前置观众替身 look。有 皮肤/发型/发色 词(=writer 已自带造型括注)不扰。
@@ -700,7 +764,7 @@ def _inject_char_looks(scene: str, book_title: str, shot: dict | None = None) ->
             _bb = json.loads(_bible_cache_path(book_title).read_text(encoding="utf-8"))
             _sn, _sl = _standin(_bb)
             if _sl and "皮肤" in _sl:   # 退到时代锚的旧替身(无皮肤词)不前置
-                return f"{_sn}（{_sl}），" + scene
+                return f"{_sn}（{_anchor_look(_sl)}），" + scene
         except Exception:  # noqa: BLE001 — 兜底失败保持原句
             pass
     return scene or ""
@@ -761,26 +825,34 @@ def _scene_eff(shot: dict[str, Any], book_title: str) -> str:
         if _scene_has_person(_zh, book_title):
             _hit += _outfit_cast(_zh, _cards, [n for n, _ in _hit])
         if _hit:
+            # 1112 s23 挂账收口: 形态 cue 归「cue 前最近卡名」, 不整镜一刀切
+            _owner = _form_owner(_zh, [n for n, _ in _hit])
             _parts = []
             for nm, lk in _hit[:3]:
+                lk = _anchor_look(lk)   # 1112 双入境根修: 剥定妆照姿态/神态子句
                 _ne, _le = _kl0.char_look_en(nm, lk)
                 # 1108 批A-2 面部锚串首前置: 胡茬四镜残留实锤 (首掷红衣/眼镜
                 # 全修=前置生效, 但面部锚埋在 look 长串尾部权重不足 + "middle-
                 # aged man" 开头自带胡须先验) — 面部律从 zh look 确定性派生
                 # (与 _cast_negative 同判据, 零 LLM), 排进括号内第一位。
+                # 1112 修: 极性翻转 — 丰厚标准 look 明写「无眼镜」, 裸 `"眼镜"
+                # in look` 把不戴镜角色翻成 wearing glasses (锚内自相矛盾实锤)。
                 _face = []
                 if "无胡须" in lk:
                     _face.append("clean-shaven face, no beard, "
                                  "no mustache, no stubble")
-                if "眼镜" in lk:
+                if _re.search(r"无眼镜|不戴眼镜", lk):
+                    _face.append("no glasses")
+                elif "眼镜" in lk:
                     _face.append("wearing glasses")
                 else:
                     _face.append("no glasses")
                 _le2 = f"{'; '.join(_face)}; {_le}" if _face else _le
                 # 1109 双老谭根修: 形态镜锚句挂限定 — look 锚自带「表情沉稳自信」
                 # 全身语义, 与只写袖口/背影的画面句并存 = 锚画全身+句画局部 双入境
+                # (1112 收口: 限定只挂形态主, 前景正面角色不盖背影章)
                 _form = _presence_form(_zh)
-                if _form:
+                if _form and (_owner is None or _owner == nm):
                     _le2 += _kl0.PRESENCE_ANCHOR_EN[_form]
                 _parts.append(f"{_ne} ({_le2})")
             en = f"{'; '.join(_parts)}. " + en
@@ -798,6 +870,7 @@ def _scene_eff(shot: dict[str, Any], book_title: str) -> str:
                 _bb = json.loads(_bible_cache_path(book_title).read_text(encoding="utf-8"))
                 _sn, _sl = _standin(_bb)
                 if _sl and "皮肤" in _sl:
+                    _sl = _anchor_look(_sl)   # 1112: 替身兜底同剥姿态尾
                     en = f"{_sn} ({_kl0.standin_look_en(_sl)}), " + en
             except Exception:  # noqa: BLE001 — 兜底失败走原 EN
                 pass
