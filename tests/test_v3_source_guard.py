@@ -161,6 +161,14 @@ def test_router_stale_gate_wiring():
     # 18 个变更端点全部带 ep 进闸 (GET 不拒 — 页面要能开才能看见警告)
     # (1112 +1: shots/split_all 全拆 — 同拆行家族同闸)
     assert src.count("_line_gate(book_title, ep)") == 18
+
+
+def test_tts_self_provision_wiring():
+    """⑥ 自产 script 桥 (1112 根修): 新书无进产线 UI (1109 撤钮) 时 ⑥ 不再
+    死路 — 无 script_id 走 produce preview 桥造 (草稿+有稿, 人设吃书记忆)。"""
+    src = open("app/routers/anim_v3.py", encoding="utf-8").read()
+    assert "from app.routers.books import ProduceRequest, produce" in src
+    assert "ProduceRequest(preview=True), db)" in src
     # ① 本体 (triage/save) 不闸 — 分诊页编辑是重跑前奏
     assert "def v3_triage_save" in src
     # GET 曝光 stale 标志 (入口页/③ 页横幅数据源)

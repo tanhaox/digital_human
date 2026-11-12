@@ -908,7 +908,17 @@ def v3_tts_generate(book_id: str, ep: int, background_tasks: BackgroundTasks):
         episode = db.query(Episode).filter(
             Episode.book_id == book_id, Episode.ep_index == ep).first()
         if not episode or not episode.script_id:
-            raise HTTPException(status_code=422, detail="本集无产线 script_id")
+            # 1112 根修 (高效能 ep1 实锤「本集无产线 script_id」): ⑥ 需要 Script
+            # 锚 (AudioJob/segments/音色解析), 但造它的进产线按钮 1109 已从讲书页
+            # 撤掉 (TTS 归 v3 ⑤/⑥ 线) — 新书无 UI 路径, 结构性死路。自产自足:
+            # preview 语义走 produce 桥 (草稿+有稿即可; 人设吃书记忆
+            # input_json.persona_id → 老谭线自动对), 与值得信赖 ep6/7 (draft
+            # +script_id) 完全同路径, 不另造第二套造桥逻辑。
+            from app.routers.books import ProduceRequest, produce
+            produce(book_id, ep, ProduceRequest(preview=True), db)
+            db.refresh(episode)
+            if not episode or not episode.script_id:
+                raise HTTPException(status_code=422, detail="本集无产线 script_id")
         script = db.query(Script).filter(Script.id == episode.script_id).first()
         if not script:
             raise HTTPException(status_code=404, detail="script 不存在")
