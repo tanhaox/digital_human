@@ -125,9 +125,10 @@ def test_standins_rule_in_derive_and_arcs():
 
 
 def test_derive_protects_structural_cards(monkeypatch, tmp_path):
-    """1109 🎲 实锤: 重提炼不许洗结构卡 — 老谭/观众替身/作者卡 LLM 漏了
-    → 从旧圣经确定性补回 (look 原样); 撞名变体 (查理 ⊃ 查理·格林) 视作已覆盖;
-    非结构旧卡 (书内人物) 不保护 (重提炼的正当职责)。"""
+    """1109 🎲 实锤: 重提炼不许洗结构卡 — 观众替身/作者卡 LLM 漏了 → 从旧圣经
+    确定性补回 (look 原样); 撞名变体 (查理 ⊃ 查理·格林) 视作已覆盖; 非结构旧卡
+    (书内人物) 不保护 (重提炼的正当职责)。1112 修: 老谭基准=代码定稿常量
+    _LAOTAN_CARD (旧圣经干瘪版/首书无旧圣经都不再是老谭的基准)。"""
     import json
     from app.services.anim_pipeline import character_sheets as cs
     bb = tmp_path / "bb.json"
@@ -145,43 +146,55 @@ def test_derive_protects_structural_cards(monkeypatch, tmp_path):
     names = [c["name"] for c in out]
     assert names[:3] == ["老谭", "观众替身·男", "大卫·梅斯特"]   # 结构卡前置补回
     assert "汤玛斯" not in names                                 # 非结构卡不保护
-    assert out[0]["look"] == "深红色冲锋衣look"                  # look 原样不经 LLM
+    assert out[0]["look"] == cs._LAOTAN_CARD["look"]             # 老谭=定稿常量 (非旧圣经短版)
     # 撞名变体: 新表已有 查理 → 旧 查理·格林 不重复补
     bb.write_text(json.dumps({"characters": [
         {"name": "查理·格林", "role": "书中人物", "look": "old"}]}, ensure_ascii=False),
         encoding="utf-8")
     out2 = cs._protect_structural("测试书", [{"name": "查理", "role": "r", "look": "n"}])
-    assert [c["name"] for c in out2] == ["查理"]                 # 视作已覆盖
-    # 无旧圣经 (首书) → 原样返回
+    assert [c["name"] for c in out2] == ["老谭", "查理"]          # 视作已覆盖 + 定稿注入
+    # 无旧圣经 (首书) → 其余结构卡无可保护, 但老谭定稿仍注入
     bb.unlink()
     got3 = [{"name": "柯波兰德", "role": "r", "look": "x"}]
-    assert cs._protect_structural("测试书", got3) == got3
+    out3 = cs._protect_structural("测试书", got3)
+    assert [c["name"] for c in out3] == ["老谭", "柯波兰德"]
+    assert out3[0]["look"] == cs._LAOTAN_CARD["look"]
 
 
 def test_derive_prompt_and_wiring():
-    """derive prompt 必含卡三件 (作者/替身男女/老谭) + 保护接线。"""
+    """derive prompt 必含卡三件 (作者/替身男女) + 老谭定稿常量接线 (1112: LLM 不产
+    老谭, 确定性注入) + 保护接线。"""
     src = open("app/services/anim_pipeline/character_sheets.py",
                encoding="utf-8").read()
-    assert "必含卡·老谭" in src                    # 老谭必含 (🎲 洗卡实锤)
+    assert "不由你产" in src                       # 老谭定稿不由 LLM 产 (1112 修)
+    assert "_LAOTAN_CARD" in src                   # 账号级定稿常量存在且被接线
     assert "chars = _protect_structural(book_title, chars, author)" in src
 
 
 def test_derive_rolls_back_rewritten_structural(monkeypatch, tmp_path):
-    """1109 二次实锤: 🎲 把老谭**重写**新脸 (在场≠没被动过) → 原样回滚旧卡。
-    手改走页面 (不经此函数), 手改后旧圣经=手改版 → 保护的就是手改版。"""
+    """1109 二次实锤: 🎲 把老谭**重写**新脸 (在场≠没被动过) → 回滚。1112 修:
+    老谭基准=代码定稿常量 (旧圣经干瘪版不再是对标物); 观众替身/作者 在场被重写
+    走**只升不降** — 变厚=丰厚标准重产放行, 变薄=疑似洗卡回滚旧卡。"""
     import json
     from app.services.anim_pipeline import character_sheets as cs
     bb = tmp_path / "bb.json"
     bb.write_text(json.dumps({"characters": [
-        {"name": "老谭", "role": "账号主角", "look": "定稿look", "linked_props": []},
+        {"name": "老谭", "role": "账号主角", "look": "旧圣经干瘪look", "linked_props": []},
+        {"name": "观众替身·男", "role": "临演", "look": "旧版" * 25, "linked_props": []},
     ]}, ensure_ascii=False), encoding="utf-8")
     monkeypatch.setattr(cs, "_bible_cache_path", lambda bt: bb)
     out = cs._protect_structural("测试书", [
-        {"name": "老谭", "role": "r", "look": "LLM重写的新脸"},   # 重写
+        {"name": "老谭", "role": "r", "look": "LLM重写的新脸"},   # 老谭被重写
+        {"name": "观众替身·男", "role": "r", "look": "厚" * 130},  # 替身被重写 (更厚)
         {"name": "柯波兰德", "role": "r", "look": "x"},           # 书内卡照常
     ])
-    assert out[0]["look"] == "定稿look"                          # 回滚旧文
+    assert out[0]["look"] == cs._LAOTAN_CARD["look"]             # 老谭回滚到定稿常量
+    assert out[1]["look"] == "厚" * 130                          # 只升不降: 变厚放行
     assert out[-1]["name"] == "柯波兰德"                         # 非结构卡不动
+    out2 = cs._protect_structural("测试书", [
+        {"name": "观众替身·男", "role": "r", "look": "薄"}])       # 替身被洗薄
+    assert out2[0]["name"] == "老谭"                             # 定稿常驻注入
+    assert out2[1]["look"] == "旧版" * 25                        # 变薄 → 回滚旧卡
 
 
 # ── 1109 子串修 (s7 实锤「几次都修不过」) ─────────────────────────

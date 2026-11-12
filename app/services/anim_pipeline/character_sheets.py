@@ -92,29 +92,55 @@ def save_characters(book_title: str, chars: list[dict]) -> dict:
     return {"saved": len(data["characters"])}
 
 
+# 老谭账号级形象锚 (1109 用户定稿, 确认版措辞) — 定稿此前只存《值得信赖的顾问》
+# 圣经 (gitignored JSON), 1112 实锤: 新书首次提炼拿到 prompt 里的旧短版种子 →
+# 29 字干瘪版上页, 定稿无传递链。代码常量=唯一可靠落点, 🎲 提炼后确定性注入
+# (教义: 出口闸主防, prompt 契约不作数)。改定稿=只改此常量, 全线生效。
+_LAOTAN_CARD = {
+    "name": "老谭",
+    "role": "账号主角·讲述者 (每书必含; 口播「我是老谭」; 形象 1109 用户定稿)",
+    "look": ("中年男性，深棕带灰调层次感短发，头顶一缕呆毛，蓬松纹理卷发，五官清晰，"
+             "穿酒红色连帽冲锋衣（拉链半开，袖口黑色魔术贴细节），灰蓝色休闲工装长裤，"
+             "棕黑拼色户外登山鞋，背军绿色大容量户外登山双肩包（黑色织带卡扣，"
+             "背负肩带细节丰富），下巴光洁无胡须"),
+    "linked_props": [],
+}
+
+
 def _protect_structural(book_title: str, chars: list[dict],
                         author: str = "") -> list[dict]:
     """结构卡保护 (1109 🎲 实锤: 重提炼把 老谭/观众替身/书内 8 卡洗成 6 张新书内
     卡 — save 是替换式回写, 结构卡是系列资产不是书内人物, LLM 漏了就永久丢)。
 
     结构卡 = 名字含 老谭/观众替身, 或 作者卡 (role 含 作者 / 名字==author)。
-    新表缺哪个就从旧圣经原样补回 (look 不经 LLM 重写 — 固定人设); **在场但被
-    LLM 重写** (1109 二次实锤: 🎲 把老谭换成新脸, 与已渲染 30+ 镜旧形象断裂)
-    同样原样回滚; 新表已有撞名卡 (查理 ⊂ 查理·格林 型) 视作已覆盖。只护 🎲
+    老谭 (1112 修): 基准=代码常量 _LAOTAN_CARD (账号级锚) — 在场但 look≠定稿 →
+    回滚定稿, 缺席 → 注入定稿; 不再依赖同书旧圣经 (新书无旧圣经时旧机制空转,
+    旧圣经自身也可能是干瘪短版)。
+    观众替身/作者卡: 旧圣经缺席 → 原样补回 (look 不经 LLM 重写); 在场被重写时
+    **只升不降** (1112 修: 旧卡是 25-50 字瘦标准产物, 无条件回滚会把丰厚标准
+    重产卡打回干瘪版 — 新 look 更厚=升级放行, 变薄=疑似洗卡回滚)。只护 🎲
     自动提炼路径 — 页面手动增删改是用户全权, 不走此保护。"""
-    try:
-        old = json.loads(_bible_cache_path(book_title).read_text(encoding="utf-8"))
-    except Exception:  # noqa: BLE001 — 无旧圣经 = 首次提炼, 无可保护
-        return chars
     names = [str(c.get("name") or "") for c in chars]
     chars = [dict(c) for c in chars]
     carry: list[dict] = []
     rolled: list[str] = []
+    # 老谭: 账号级定稿, 常量通道 (优先级最高, 先于旧圣经回滚)
+    lt = next((i for i, n in enumerate(names) if n == "老谭"), None)
+    if lt is not None:
+        if (chars[lt].get("look") or "") != _LAOTAN_CARD["look"]:
+            chars[lt] = dict(_LAOTAN_CARD)
+            rolled.append("老谭→定稿")
+    else:
+        carry.append(dict(_LAOTAN_CARD))
+    try:
+        old = json.loads(_bible_cache_path(book_title).read_text(encoding="utf-8"))
+    except Exception:  # noqa: BLE001 — 无旧圣经 = 首次提炼, 剩余结构卡无可保护
+        old = {}
     for c in (old.get("characters") or []):
         nm = str(c.get("name") or "").strip()
-        if not nm:
+        if not nm or "老谭" in nm:       # 老谭已走常量通道, 旧圣经卡不参与
             continue
-        structural = ("老谭" in nm or "观众替身" in nm
+        structural = ("观众替身" in nm
                       or "作者" in str(c.get("role") or "") or nm == author)
         if not structural:
             continue
@@ -122,9 +148,10 @@ def _protect_structural(book_title: str, chars: list[dict],
                     "look": str(c.get("look") or "")[:160],
                     "linked_props": list(c.get("linked_props") or [])}
         hit = next((i for i, n in enumerate(names) if n == nm), None)
-        if hit is not None:               # 在场但可能被 LLM 重写 → 原样回滚
-            chars[hit] = verbatim
-            rolled.append(nm)
+        if hit is not None:               # 在场: 只升不降 (变厚=放行, 变薄=回滚)
+            if len(str(chars[hit].get("look") or "")) < len(verbatim["look"]):
+                chars[hit] = verbatim
+                rolled.append(nm)
         elif not any(nm in n or n in nm for n in names):
             carry.append(verbatim)        # 缺席 → 补回
     if carry or rolled:
@@ -169,7 +196,8 @@ def ensure_author_card(book_id: str, book_title: str) -> dict:
         "你是动画短片的角色设计师。为拆书动画补一张**本书作者**角色锁定卡 — "
         "讲述口播里高频出现'作者说/作者举了个例子', 需要一个可复用的作者形象锚。\n"
         "规则: 名人不做写实肖像, 靠公知标志特征识别 (发型/眼镜/年代着装等); "
-        "look=服饰+脸型发型+标志道具的关键词串 (中文 25-50 字); "
+        "look=分件分层外观锚 (中文 80-150 字): 发型+脸型五官/上装(色+品类+细节)/"
+        "下装/鞋/标志道具/面部锚(胡须眼镜有无必写), 每件带颜色; "
         "look 是单帧静态快照 — 禁两帧叙事与状态转换 ('表情从X转Y'), "
         "姿态神态写单一确定状态; "
         "look 禁文字载体道具 (标语牌/横幅/带字物件), 禁军装警服国徽; "
@@ -183,7 +211,7 @@ def ensure_author_card(book_id: str, book_title: str) -> dict:
     card = {"name": str(card.get("name") or name).strip()[:24],
             "role": str(card.get("role") or "本书作者")[:64],
             "look": str(card.get("look") or "")[:160]}
-    if len(card["look"]) < 12:
+    if len(card["look"]) < 40:  # 1112 升档: 80-150 字分层标准, 40=硬地板
         raise RuntimeError("作者卡 look 过短 — 稍后重试")
     save_characters(book_title, chars + [card])
     logger.info("[chars] 作者卡已补: %s (%s)", card["name"], book_title[:16])
@@ -250,14 +278,16 @@ def derive_characters(book_id: str, book_title: str) -> dict:
         "提炼男/女各一张临演卡 (命名 观众替身·男 / 观众替身·女; 名单已有含'观众替身'的卡"
         "视作其一, 只补缺的性别); look 贴合本书受众人群的白领通勤感, 男女 look 的服装色系"
         "必须一眼可区分 (与书内人物卡撞款则换色), 不写肤色;\n"
-        "- **必含卡·老谭 (账号主角·1109 实锤: 🎲 曾把他洗掉)**: 讲述者人设 (口播'我是老谭'), "
-        "每书必含; 本书圣经已有老谭卡则原样沿用 (确定性保护会补回), 首次提炼按讲述者人设"
-        "新建 (中年男性, 深红色冲锋衣, 绿色旅行双肩包 — 账号系列锚);\n"
+        "- 老谭卡**不由你产** (1112 修): 账号主角 (口播'我是老谭') 的形象是账号级定稿, "
+        "系统在提炼后确定性注入定稿卡, 你产的老谭卡一律被定稿覆盖 — 角色名单直接略过老谭;\n"
         "- **每集『贯穿人物』必须逐人覆盖** (同一真实人物跨集并一张卡, role 写清哪几集出场+"
         "叙事功能); 数量以覆盖为准, 一般 4-8 张; 只在成稿节选里反复出场、撑得起画面的可再补 1 张;\n"
         "- 成稿里没出现的人物不建卡 (库外实体/作者生平圈外人一律不要);\n"
-        "- look = 服饰+脸型发型+标志道具的关键词串 (中文 25-50 字), 贴合人物在书中的真实形象"
-        "与身份地位, 不同人物的 look 必须一眼可区分;\n"
+        "- look = 分件分层的完整外观锚 (中文 80-150 字, 1112 用户令: 旧 25-50 字干瘪卡"
+        "定妆照细节不足): 依次覆盖 ①发型+脸型五官 ②上装 (颜色+品类+1-2 处细节, 如领型/"
+        "拉链/袖口) ③下装 (颜色+品类) ④鞋 (颜色+品类) ⑤标志道具或包 (颜色+品类+细节) "
+        "⑥面部锚 (胡须有无/眼镜有无必写); 每件必带颜色, 贴合人物在书中的真实形象与身份"
+        "地位; 不同人物的 look 分件配色必须一眼可区分 (同品类撞色即换色);\n"
         "- **look 是单帧静态快照** (1013 双人根治): 定妆照=单幅单人立绘, 禁两帧叙事与状态转换"
         " ('表情从自信转错愕'会渲成同角色多版本排列 — 董事长x3表情变体实锤), 禁'先…后…';"
         "姿态神态写单一确定状态, 一张卡一个姿态一个表情;\n"

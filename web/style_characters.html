@@ -133,7 +133,7 @@ function renderCards(v){
       <h3>${esc(c.name)} <span style="font-weight:400;font-size:.72rem;color:#6f665a">${esc(c.role || '')}</span></h3>
       ${f ? `<img src="${API}/img/${encodeURIComponent(f)}?t=${Date.now()}" onclick="lbOpen(this.src, '${esc(c.name)} 定妆照')">`
           : '<div class="noimg">未生成定妆照</div>'}
-      <textarea id="look-${i}" rows="3" placeholder="服饰+脸型发型+标志道具 关键词">${esc(c.look)}</textarea>
+      <textarea id="look-${i}" rows="6" placeholder="分件分层 80-150 字: 发型脸型五官 / 上装(色+品类+细节) / 下装 / 鞋 / 标志道具 / 面部锚(胡须眼镜有无必写)">${esc(c.look)}</textarea>
       ${propCks}
       <div class="acts">
         <button class="sm" onclick="designOne('${esc(c.name)}', ${i})">🎲 重roll</button>
