@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-"""v3 八页线路由 (/api/anim/v3) — 1105 双轨 V0 骨架.
+"""v3 八页线路由 (/api/anim/v3) — 1105 双轨 V0 骨架, 1112 双轨令作废后 v3 为唯一线.
 
-选线闸: 书级 pipeline_line() != "v3" → 409 指路 (默认 v2, 存量零扰动)。
+选线闸: pipeline_line() 恒 "v3" (1112) — _line_gate 首查成为防回潮死守卫, 理论不可达。
 job/同集互斥/取消/SSE/台账全复用 anim_service.start_phase (零新机制)。
 """
 from __future__ import annotations
@@ -25,8 +25,8 @@ def _line_gate(book_title: str, ep: int | None = None) -> None:
     if pipeline_line(book_title) != "v3":
         raise HTTPException(
             status_code=409,
-            detail=f"《{book_title}》 未开通 v3 线 (书级产线绑定缺省 v2) — "
-            "写 outputs/动画/_资产/产线绑定_书名.json {\"line\":\"v3\"} 后重试")
+            detail=f"《{book_title}》 未开通 v3 线 — 1112 双轨令作废后恒 v3, "
+            "此 409 理论不可达; 若见此错 = pipeline_line 被回退, 查 git blame")
     if ep is not None:
         # 源稿指纹闸 (1109): POST 变更操作一律拒老快照 (GET 不拒 — 页面要能开才能看见警告)
         from app.services.anim_pipeline.v3_pipeline import script_stale

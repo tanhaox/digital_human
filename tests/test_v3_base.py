@@ -13,24 +13,21 @@ from app.services.anim_pipeline import config as anim_cfg
 from app.services.anim_pipeline import v3_pipeline
 
 
-def test_pipeline_line_default_v2(monkeypatch, tmp_path):
+def test_pipeline_line_always_v3(monkeypatch, tmp_path):
+    """1112 双轨令作废: pipeline_line 恒 "v3" — 无绑定/有绑定/坏绑定/缺 output_root
+    全部 v3 (1105 开关文件自此不读, 留盘无害)。"""
     monkeypatch.setattr(anim_cfg, "load",
                         lambda: type("C", (), {"output_root": str(tmp_path)})())
-    assert anim_cfg.pipeline_line("任何书") == "v2"          # 无绑定 = v2
-
-
-def test_pipeline_line_binding_v3(monkeypatch, tmp_path):
-    monkeypatch.setattr(anim_cfg, "load",
-                        lambda: type("C", (), {"output_root": str(tmp_path)})())
+    assert anim_cfg.pipeline_line("任何书") == "v3"          # 无绑定 = v3
     d = tmp_path / "_资产"
     d.mkdir()
     (d / "产线绑定_测试书.json").write_text('{"line": "v3"}', encoding="utf-8")
     assert anim_cfg.pipeline_line("测试书") == "v3"
-    # 坏绑定/非法值 → v2
-    (d / "产线绑定_坏书.json").write_text('{"line": "v4"}', encoding="utf-8")
-    assert anim_cfg.pipeline_line("坏书") == "v2"
+    # 旧开关的 v2/坏值/烂文件一律不再有话语权
+    (d / "产线绑定_坏书.json").write_text('{"line": "v2"}', encoding="utf-8")
+    assert anim_cfg.pipeline_line("坏书") == "v3"
     (d / "产线绑定_烂书.json").write_text("not json", encoding="utf-8")
-    assert anim_cfg.pipeline_line("烂书") == "v2"
+    assert anim_cfg.pipeline_line("烂书") == "v3"
 
 
 def test_v3_phases_registered():

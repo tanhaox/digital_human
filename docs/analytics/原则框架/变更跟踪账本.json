@@ -488,6 +488,19 @@
     "卡窗与口播句对齐抽查 (人眼剪映终检)"
    ],
    "status": "pending"
+  },
+  {
+   "id": "TR-037",
+   "date": "2026-11-12",
+   "change": "双轨令作废 (令62): pipeline_line 恒返 v3, 书级产线绑定开关退役不再被读; 选线闸成防回潮死守卫; v2 工坊线代码/页面/数据存量不动 (直访 URL 可用)",
+   "commit": "本 commit (1112)",
+   "verify": "无绑定书 state.line=v3 (高效能/卓有实证) + test_pipeline_line_always_v3 四场景; v2 页面直访不受扰",
+   "readout_date": "2026-11-19",
+   "metrics": [
+    "新书开线零手写绑定文件 (下一本新书直接 🎬 进 v3)",
+    "存量 v2 书零报障 (v2 数据/页面不动)"
+   ],
+   "status": "pending"
   }
  ]
 }

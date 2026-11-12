@@ -193,17 +193,15 @@ def style_binding_missing(book_title: str) -> bool:
 
 
 def pipeline_line(book_title: str) -> str:
-    """1105 v3 双轨 (用户令): 书级产线选线 — 缺省 "v2" (存量零扰动)。
+    """1112 双轨令作废 (用户令「v3 完全接入, 双轨令作废」): 恒返 "v3"。
 
-    绑定文件 _资产/产线绑定_{书名}.json {"line": "v3"} → 该书走 /web/v3/ 八页线;
-    文件缺失/损坏/值非法 → 一律 "v2"。回退 = 删文件。"""
-    root = Path(load().output_root)
-    bind = root / "_资产" / f"产线绑定_{_safe_name(book_title)}.json"
-    try:
-        d = json.loads(bind.read_text(encoding="utf-8"))
-        return "v3" if str(d.get("line") or "") == "v3" else "v2"
-    except Exception:  # noqa: BLE001 — 无绑定/坏绑定 = v2
-        return "v2"
+    1105 双轨选线 (产线绑定_{书名}.json 选 v3, 缺省 v2) 服役至 1112 —
+    v3 已全书量产实证 (值得信赖 ep1-7 全链), 讲书页 1109 起每集入口已直指
+    /web/v3/, 书级开关只剩绊脚石 (新书开线要手写绑定文件, 1112 实锤)。
+    开关文件 (_资产/产线绑定_*.json) 自此不再被读, 留盘无害。
+    v2 工坊线代码与页面存量不动 (直访 URL 仍可用); 回退通道 = git revert 本函数,
+    不再是运行时开关。"""
+    return "v3"
 
 
 def resolve_style(book_title: str) -> dict:
