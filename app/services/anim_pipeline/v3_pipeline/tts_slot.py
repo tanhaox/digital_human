@@ -82,72 +82,118 @@ def sync_muted_slots(doc: dict[str, Any], blocks: list[dict[str, Any]]
     """锚匹配块↔槽, 区分三种失配 (1106 用户问: 是修改了还是摒弃了?):
 
     - unaligned = 包不是按槽切的 (1108 ep6 实锤: 旧语义切块包曾把 20/40 槽
-      误标「屏弃」并落盘毒标) → 三不写: 不标屏弃/不回填/不落盘;
-      正道 = 🔁 按槽重生成。判据 = 孤儿块: 有块首行连模糊 (≥0.55) 都锚不到
-      任何槽首 — 真按槽切的包每块必起于槽首 (用户屏弃 = 块缺席, 不产孤儿)。
-    - muted  = 块真没了 (用户 🔇屏蔽) → 槽标 audio_muted, K2/盖章/H3 跳过
-    - drifted = 块在但首行被 ✎编辑改了 → **第五处同步**: 槽口播行回填音频文本
+      误标「屏弃」并落盘毒标) → 三不写: 不标屏弃/不回填/不落盘; 正道 = 🔁 按
+      槽重生成。判据 (1112 修) = **孤儿块占比 ≥ 半数** — 原版任一孤儿即判,
+      但 ⑥ ✎深改 (删首句并块) 的单块孤儿会把全包判死 → 第五处同步+指纹重盖
+      连锁失效 → ⑤ 被闸 (高效能 ep1 实锤 1/35)。真旧语义包块起于句中, 绝大
+      多数锚不到槽首, 占比判据不失守。
+    - muted  = 块真没了 (用户 🔇屏蔽/整块删除) → 槽标 audio_muted, K2/盖章/H3 跳过
+    - drifted = 块在但文本被 ✎编辑改了 → **第五处同步**: 槽口播行回填音频文本
       (音频侧微调字是 ⑤ 的正常精修, v3.lines 就是念出来的稿; 回填后锚自然对齐,
-      下次读取不再失配)。返回 ({sid: muted}, {sid: drifted}, unaligned)。
+      下次读取不再失配)。三轮配对: ①首行锚全等 ②模糊近邻 (≥0.55 三件套) =
+      浅改字 ③ (1112 补) 顺序+共文兜底 = 深改 — 首句被删到模糊锚够不着的块,
+      按 D刀 块[i]↔槽[i] 有序契约走剩余块顺序配对, 弱校验 = 槽文本与块有
+      ≥8 字公共子串 (深改只动文本不动顺序, 残句必留共文)。
+      返回 ({sid: muted}, {sid: drifted}, unaligned)。
     """
     import difflib
-    import re as _re2
-    _pm = _re2.compile(r"\s*-\d+(?:\.\d+)?s-")
     v3 = doc.get("v3") or {}
     lines = {ln["no"]: ln for ln in (v3.get("lines") or [])}
     blk_firsts = [(_strip_marks(str(b.get("text") or "").splitlines()[0]).strip()
                    if str(b.get("text") or "").strip() else "")
                   for b in blocks]
-    muted_out: dict[str, bool] = {}
-    drift_out: dict[str, bool] = {}
-    _slot_keys = []
+    slot_list: list[tuple[dict[str, Any], str]] = []
     for s in (v3.get("shots") or []):
         _r0 = (s.get("line_refs") or [None])[0]
         _ft = lines.get(_r0, {}).get("text") if _r0 is not None else None
-        _k = _anchor(_ft) if str(_ft or "").strip() else ""
-        if _k:
-            _slot_keys.append(_k)
-    if not blocks or any(
-            not t or not any(
-                difflib.SequenceMatcher(None, k, t[:len(k) + 4]).ratio() >= 0.55
-                for k in _slot_keys)
-            for t in blk_firsts):
-        return {}, {}, True                      # 未对齐: 三不写
-    for s in (v3.get("shots") or []):
+        slot_list.append((s, _anchor(_ft) if str(_ft or "").strip() else ""))
+
+    def _backfill(s: dict[str, Any], blk: dict[str, Any]) -> None:
+        # 第五处同步: 槽内各行 ← 音频块行 (剥气口标记; 行数一致才逐行, 否则只回填首行)
         refs = s.get("line_refs") or []
-        first = lines.get(refs[0], {}) if refs else {}
-        key = _anchor(first.get("text"))
-        hit = key in {_anchor(t) for t in blk_firsts}
+        blk_lines = [_strip_marks(x).strip()
+                     for x in str(blk.get("text") or "").splitlines() if x.strip()]
+        refs_eff = [no for no in refs
+                    if str(lines.get(no, {}).get("text") or "").strip()]
+        if len(blk_lines) == len(refs_eff):
+            for no, txt in zip(refs_eff, blk_lines):
+                if lines[no].get("text") != txt:
+                    lines[no]["text"] = txt
+        elif refs_eff and blk_lines:
+            lines[refs_eff[0]]["text"] = blk_lines[0]
+
+    # 1112 修: 孤儿块占比 ≥ 半数才判未对齐 (三不写)
+    _orphans = sum(1 for t in blk_firsts
+                   if not t or not any(difflib.SequenceMatcher(
+                       None, k, t[:len(k) + 4]).ratio() >= 0.55
+                       for _, k in slot_list if k))
+    if not blocks or _orphans * 2 >= len(blk_firsts):
+        return {}, {}, True                      # 未对齐: 三不写
+
+    muted_out: dict[str, bool] = {}
+    drift_out: dict[str, bool] = {}
+    used: set[int] = set()
+
+    def _alive(s: dict[str, Any]) -> None:
         sid = str(s["sid"])
-        if hit:
-            muted_out[sid] = False; drift_out[sid] = False
-            s["audio_muted"] = False
-            continue
-        # 失配分型: 模糊近邻 = 改字漂移; 全无 = 真屏弃
-        best = max(blk_firsts, key=lambda t: difflib.SequenceMatcher(
-            None, key, t[:len(key) + 4]).ratio()) if blk_firsts else ""
-        ratio = difflib.SequenceMatcher(None, key, best[:len(key) + 4]).ratio()
-        _pref = next((i for i, (a, b) in enumerate(zip(key, best)) if a != b),
-                     min(len(key), len(best)))
-        # 门槛三件套: 相似度 + 共享前缀≥2 + 槽首行≥6字 — 短句偶然相似
-        # (第二句。vs 第一句。 ratio 0.67) 会把改字判定打穿覆盖正文 (实锤)
-        if ratio >= 0.55 and _pref >= 2 and len(key) >= 6:
-            drift_out[sid] = True; muted_out[sid] = False
-            s["audio_muted"] = False
-            # 第五处同步: 槽内各行 ← 音频块行 (剥气口标记; 行数一致才逐行, 否则只回填首行)
-            blk = next(b for b in blocks
-                       if _strip_marks(str(b.get("text") or "").splitlines()[0]).strip() == best)
-            blk_lines = [_strip_marks(x).strip()
-                         for x in str(blk.get("text") or "").splitlines() if x.strip()]
-            refs_eff = [no for no in refs if str(lines.get(no, {}).get("text") or "").strip()]
-            if len(blk_lines) == len(refs_eff):
-                for no, txt in zip(refs_eff, blk_lines):
-                    if lines[no].get("text") != txt:
-                        lines[no]["text"] = txt
-            elif refs_eff:
-                lines[refs_eff[0]]["text"] = blk_lines[0] if blk_lines else first.get("text")
+        muted_out[sid] = False
+        drift_out[sid] = False
+        s["audio_muted"] = False
+
+    # ① 首行锚全等 (key 是 12 字截断锚 — 块首行同前缀即中, 全长比较永失配)
+    pend: list[tuple[dict[str, Any], str]] = []
+    for s, key in slot_list:
+        bi = next((i for i, t in enumerate(blk_firsts)
+                   if i not in used and t and t[:len(key)] == key), None)
+        if bi is not None:
+            used.add(bi)
+            _alive(s)
         else:
-            muted_out[sid] = True; drift_out[sid] = False
+            pend.append((s, key))
+    # ② 模糊近邻 = 浅改字 (门槛三件套: 相似度+共享前缀≥2+槽首行≥6字 —
+    #    短句偶然相似 (第二句。vs 第一句。 ratio 0.67) 会打穿覆盖正文 (实锤))
+    pend2: list[tuple[dict[str, Any], str]] = []
+    for s, key in pend:
+        cand = max(((difflib.SequenceMatcher(
+            None, key, t[:len(key) + 4]).ratio(), i)
+            for i, t in enumerate(blk_firsts) if i not in used and t),
+            default=None)
+        if cand and cand[0] >= 0.55:
+            best = blk_firsts[cand[1]]
+            _pref = next((i for i, (a, b) in enumerate(zip(key, best)) if a != b),
+                         min(len(key), len(best)))
+            if _pref >= 2 and len(key) >= 6:
+                used.add(cand[1])
+                sid = str(s["sid"])
+                drift_out[sid] = True
+                muted_out[sid] = False
+                s["audio_muted"] = False
+                _backfill(s, blocks[cand[1]])
+                continue
+        pend2.append((s, key))
+    # ③ (1112) 顺序+共文兜底 = 深改: 剩余槽按剩余块序配对, ≥8 字公共子串放行
+    for s, _key in pend2:
+        sid = str(s["sid"])
+        blob = "\n".join(_strip_marks(str(lines.get(no, {}).get("text") or ""))
+                         for no in (s.get("line_refs") or []))
+        hit = None
+        for bi in range(len(blocks)):
+            if bi in used:
+                continue
+            bt = _strip_marks(str(blocks[bi].get("text") or ""))
+            if difflib.SequenceMatcher(None, blob, bt).find_longest_match(
+                    0, len(blob), 0, len(bt)).size >= 8:
+                hit = bi
+                break
+        if hit is not None:
+            used.add(hit)
+            drift_out[sid] = True
+            muted_out[sid] = False
+            s["audio_muted"] = False
+            _backfill(s, blocks[hit])
+        else:                                     # 全无 = 真屏弃
+            muted_out[sid] = True
+            drift_out[sid] = False
             s["audio_muted"] = True
     return muted_out, drift_out, False
 

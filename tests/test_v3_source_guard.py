@@ -169,6 +169,16 @@ def test_tts_self_provision_wiring():
     src = open("app/routers/anim_v3.py", encoding="utf-8").read()
     assert "from app.routers.books import ProduceRequest, produce" in src
     assert "ProduceRequest(preview=True), db)" in src
+
+
+def test_tts_drift_refingerprint_wiring():
+    """⑥ 改字第五处同步必须连带重盖 source_hash (1112 根修): 0917 四处同步写了
+    DB 书稿, 指纹若不重盖 → 指纹闸永久误拦 ⑤⑦⑧ (页面却承诺「音频在, 不跳过
+    任何工位」)。改字=音频侧精修不是改稿; 真外部改稿无块漂移不触发。"""
+    src = open("app/routers/anim_v3.py", encoding="utf-8").read()
+    assert "any(drifted.values())" in src                 # 漂移才重盖
+    assert '["source_hash"] = source_hash(' in src        # 重盖指纹接线
+    assert "if _changed and not unaligned" in src         # 1108 未对齐不落盘仍在
     # ① 本体 (triage/save) 不闸 — 分诊页编辑是重跑前奏
     assert "def v3_triage_save" in src
     # GET 曝光 stale 标志 (入口页/③ 页横幅数据源)

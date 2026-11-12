@@ -954,7 +954,8 @@ def test_drift_edited_vs_muted_distinction():
 def test_legacy_package_never_mutes_slots():
     """1108 ep6 实锤: 旧语义切块包 (块起于槽中) 曾被误标 20/40 槽「屏弃」并落盘 —
     孤儿块判据: 有块首行连模糊 (≥0.55) 都锚不到任何槽首 = 包未按槽切 → 三不写;
-    按槽重生成 (一槽一块) 后真屏弃判定恢复。"""
+    按槽重生成 (一槽一块) 后真屏弃判定恢复。1112 修: 判据收紧为孤儿占比 ≥ 半数
+    (单块深改孤儿不再判死全包), 本夹具 1/2 孤儿仍判未对齐。"""
     from app.services.anim_pipeline.v3_pipeline.tts_slot import sync_muted_slots
     doc = {"v3": {
         "lines": [{"no": 1, "text": "第一句。"}, {"no": 2, "text": "第二句。"},
@@ -975,6 +976,31 @@ def test_legacy_package_never_mutes_slots():
     assert un2 is False
     assert muted2 == {"s1": False, "s2": False, "s3": True}
     assert doc["v3"]["shots"][2]["audio_muted"] is True
+
+
+def test_deep_edit_block_positional_fallback():
+    """1112 根修 (高效能 ep1 实锤「⑤ 启动失败: 稿件已改」): ⑥ ✎深改删首句 —
+    首行锚/模糊 (≥0.55) 都够不着, 旧版任一孤儿即判全包未对齐 → 三不写 →
+    指纹闸连锁锁死 ⑤。新三轮配对: 占比判据放行 + 顺序共文兜底 (≥8 字公共
+    子串) → 深改槽配对回填, 不误标屏弃。"""
+    from app.services.anim_pipeline.v3_pipeline.tts_slot import sync_muted_slots
+    doc = {"v3": {
+        "lines": [{"no": 1, "text": "开场第一句锚定。"},
+                  {"no": 2, "text": "它的作者叫某人，书名叫《某书》。但在讲之前，先回到二零零一年的一个下午。"},
+                  {"no": 3, "text": "收尾句锚定。"}],
+        "shots": [{"sid": "s1", "line_refs": [1]},
+                  {"sid": "s2", "line_refs": [2]},
+                  {"sid": "s3", "line_refs": [3]}]}}
+    # s2 的块被深改: 首句整句删除 (锚比 ~0.2, 旧版孤儿块 → 全包未对齐)
+    muted, drifted, un = sync_muted_slots(doc, [
+        {"text": "开场第一句锚定。"},
+        {"text": "但在讲之前，先回到二零零一年的一个下午。"},
+        {"text": "收尾句锚定。"}])
+    assert un is False                                    # 1/3 孤儿不再判死全包
+    assert drifted == {"s1": False, "s2": True, "s3": False}   # 深改 = 改字不是屏弃
+    assert muted == {"s1": False, "s2": False, "s3": False}
+    assert not doc["v3"]["shots"][1].get("audio_muted")  # 不落毒标 (K2/H3 不跳)
+    assert doc["v3"]["lines"][1]["text"] == "但在讲之前，先回到二零零一年的一个下午。"  # 回填
 
 
 def test_tts_boundary_strips_invented_markers():

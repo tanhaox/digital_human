@@ -16,6 +16,10 @@ from app.services import anim_service
 from app.services.anim_pipeline import v3_pipeline
 from app.services.anim_pipeline.config import pipeline_line
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/anim/v3", tags=["anim-v3"])
 
 _V3_PHASES = ("v3_triage", "v3_arcs", "v3_shots", "v3_direct", "v3_k2", "v3_redo", "v3_h3", "v3_stamp")
@@ -843,6 +847,22 @@ def v3_tts_get(book_id: str, ep: int):
         muted, drifted, unaligned = sync_muted_slots(doc, blocks)
         _changed = (muted != before) or any(drifted.values())
         if _changed and not unaligned:   # 1108: 未对齐包不落盘 (防屏弃毒标)
+            if any(drifted.values()):
+                # 1112 根修 (高效能 ep1 实锤「⑤ 启动失败: 稿件已改」): ⑥ ✎改字经
+                # _sync_chunk_edit 写 DB 书稿 (0917 第四处), 第五处同步又把 v3.lines
+                # 回填音频文本 — 快照与源稿实为同文, 但 source_hash 仍是 ① 老指纹 →
+                # 指纹闸永久误拦 ⑤⑦⑧, 与页面承诺「音频在, 不跳过任何工位」直接矛盾。
+                # 改字=音频侧精修不是改稿 (tts_slot 既定教义) → 回填即重盖指纹,
+                # 快照重新对齐当前源稿。真外部改稿 (拆书侧编辑) 无块漂移不触发, 闸照拦。
+                from app.services.anim_pipeline.config import load as _cfg_load
+                from app.services.anim_pipeline.planner import fetch_episode
+                from app.services.anim_pipeline.v3_pipeline.triage import source_hash
+                _row = fetch_episode(_cfg_load().db_path, book_id, ep)
+                if _row is not None:
+                    doc.setdefault("v3", {})["source_hash"] = source_hash(
+                        str(_row.get("script_text") or ""))
+                    logger.info("[v3:tts] ⑥ 改字第五处同步: %d 槽回填 + 指纹重盖",
+                                sum(1 for v in drifted.values() if v))
             from app.services.anim_pipeline import shots as shots_mod
             shots_mod.save(doc)
     # 块→槽锚匹配 (展示层: 每块标所属槽)
