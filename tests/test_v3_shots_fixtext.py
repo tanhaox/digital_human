@@ -138,15 +138,17 @@ def test_fix_shot_text_feedback_reaches_llm(monkeypatch):
 
 
 def test_router_fix_endpoints_wired():
-    """路由接线: fix_text / split_slot / slot_overs 三件上桌。"""
+    """路由接线: fix_text / split_slot / split_all / slot_overs 四件上桌。"""
     src = open("app/routers/anim_v3.py", encoding="utf-8").read()
     assert "shots/fix_text" in src and "fix_shot_text" in src
     assert "shots/split_slot" in src and "split_slot_line" in src
+    assert "shots/split_all" in src and "split_all_slots" in src      # 1112 全拆
     assert "slot_overs" in src
     assert 'text_layer_issues(shots, book_title=book_title)' in src  # 令53 补丁
     js = open("web/v3/shots.js", encoding="utf-8").read()
     assert "fix_text" in js and "split_slot" in js and "一键拆行" in js
     assert "一键修全部" in js and "data-fix" in js
+    assert "一键全拆" in js and "data-splitall" in js and "split_all" in js
 
 
 def test_arc_quota_feedback_reaches_llm(monkeypatch):
@@ -247,6 +249,99 @@ def test_split_halves_rules():
     assert h and len(h[0]) >= 8 and len(h[1]) >= 8
     assert v3shots._split_halves("无标点文本一二三四五六七八九十") is None
     assert v3shots._split_halves("短。") is None
+
+
+# ── 一键全拆 (1112 用户令: 逐槽点太麻烦) ───────────────────────────
+
+_L1 = ("十一项打勾：会做什么，不会做什么，客户需做，不需做，分析边界，"
+       "不希望介入领域，工作计划，沟通方式周期，费用结构，违约条款，"
+       "交付节点，验收标准，保密范围")
+_L2 = ("第二张清单：明确目标，再拆任务，估出工时，排进日历，留出缓冲，"
+       "每日复盘，每周迭代，每月归档，每季校准，年度总结，长期主义，"
+       "说到做到，从今天起，马上办")
+
+
+def _two_over_doc():
+    """双弧各一条 78 字超长行 → 装包出两个超限槽 (s1/s2)。"""
+    doc = {"book_title": "测试书", "v3": {
+        "lines": [{"no": 1, "mode": "comm", "text": _L1},
+                  {"no": 2, "mode": "comm", "text": "短句收尾。"},
+                  {"no": 3, "mode": "comm", "text": _L2},
+                  {"no": 4, "mode": "comm", "text": "短句收尾。"}],
+        "arcs": [{"arc_id": "A1", "type": "narr", "no_start": 1, "no_end": 2,
+                  "world": "现代办公", "narrative": "讲清单"},
+                 {"arc_id": "A2", "type": "narr", "no_start": 3, "no_end": 4,
+                  "world": "现代办公", "narrative": "讲计划"}]}}
+    shots, warns = v3shots.pack_shots(doc["v3"]["arcs"], doc["v3"]["lines"])
+    doc["v3"]["shots"] = shots
+    return doc, warns
+
+
+def _fill_mock(monkeypatch):
+    from app.services import llm_service
+
+    def fake_chat(sys_p, prompt, **kw):
+        import json
+        import re
+        sids = re.findall(r"^(s\d+)", prompt, flags=re.M)
+        return json.dumps({"shots": [{"sid": s, "keyframe_zh": CLEAN_KF}
+                                     for s in sids]})
+    monkeypatch.setattr(llm_service.get_llm_service().__class__, "chat",
+                        staticmethod(fake_chat), raising=False)
+
+
+def test_split_all_two_slots_one_round(monkeypatch):
+    """全拆: 两个超限槽同轮批量拆 (一次 LLM 调用) → 全部 ≤15s。"""
+    doc, warns = _two_over_doc()
+    over0 = [s["sid"] for s in doc["v3"]["shots"]
+             if float(s["est_s"]) > v3shots.SLOT_MAX_S]
+    assert over0 == ["s1", "s2"]
+    _fill_mock(monkeypatch)
+    n_lines = len(doc["v3"]["lines"])
+    r = v3shots.split_all_slots(doc)
+    assert r["rounds"] == 1 and r["split_lines"] == 2      # 双槽同轮
+    assert r["over_limit"] == [] and not r["unsplittable"]
+    assert not any(float(s["est_s"]) > v3shots.SLOT_MAX_S
+                   for s in doc["v3"]["shots"])
+    assert len(doc["v3"]["lines"]) == n_lines + 2
+    # 弧段平移: A1 含 L1 拆点 end+1, A2 整体 +1
+    a1, a2 = doc["v3"]["arcs"]
+    assert a2["no_start"] == 4                              # 原 3 +1
+    assert a1["no_end"] == 3 and a2["no_end"] == 6
+    assert not any("超 H3" in w for w in r["warnings"])
+
+
+def test_split_all_rehalves_very_long_line(monkeypatch):
+    """超长行 (140 字) 一轮对半后仍 >15s → 自动续拆第二轮。"""
+    doc = {"book_title": "测试书", "v3": {
+        "lines": [{"no": 1, "mode": "comm", "text": "口播长句测试，" * 20},
+                  {"no": 2, "mode": "comm", "text": "短句。"}],
+        "arcs": [{"arc_id": "A1", "type": "narr", "no_start": 1, "no_end": 2,
+                  "world": "现代办公", "narrative": "讲长句"}]}}
+    shots, _ = v3shots.pack_shots(doc["v3"]["arcs"], doc["v3"]["lines"])
+    doc["v3"]["shots"] = shots
+    _fill_mock(monkeypatch)
+    r = v3shots.split_all_slots(doc)
+    assert r["rounds"] == 2                                 # 140→70→35 字
+    assert r["over_limit"] == []
+    assert not any(float(s["est_s"]) > v3shots.SLOT_MAX_S
+                   for s in doc["v3"]["shots"])
+
+
+def test_split_all_unsplittable_reported(monkeypatch):
+    """无可拆标点的超限槽: 不静默吞 — 点名报告, 槽保留。"""
+    doc = {"book_title": "测试书", "v3": {
+        "lines": [{"no": 1, "mode": "comm", "text": "无标点的超长口播行" * 10},
+                  {"no": 2, "mode": "comm", "text": "短句。"}],
+        "arcs": [{"arc_id": "A1", "type": "narr", "no_start": 1, "no_end": 2,
+                  "world": "现代办公", "narrative": "讲困境"}]}}
+    shots, _ = v3shots.pack_shots(doc["v3"]["arcs"], doc["v3"]["lines"])
+    doc["v3"]["shots"] = shots
+    _fill_mock(monkeypatch)
+    r = v3shots.split_all_slots(doc)
+    assert r["rounds"] == 0 and r["split_lines"] == 0
+    assert r["over_limit"] == ["s1"]
+    assert r["unsplittable"] == ["s1(L1)"]
 
 
 def test_arc_quota_hint_split_by_cast():

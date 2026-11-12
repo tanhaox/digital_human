@@ -507,6 +507,25 @@ def v3_shots_split_slot(book_id: str, ep: int, body: SplitSlotBody):
     return r
 
 
+@router.post("/ep/{book_id}/{ep}/shots/split_all")
+def v3_shots_split_all(book_id: str, ep: int):
+    """全部超标槽一次性拆行 (1112 用户令: 逐槽点太麻烦): 收全部 >15s 槽的
+    祸源行 → 一轮批量对半拆+重装包+LLM 补 (一轮一次调用) → 半行仍超限
+    (原行 150+ 字) 自动续拆至全部 ≤15s; 无可拆标点/品牌镜点名报告不静默。"""
+    from app.services.anim_pipeline.v3_pipeline.shots import split_all_slots
+    try:
+        book_id, book_title = anim_service.resolve_ep(book_id, ep)
+    except anim_service.AnimNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    _line_gate(book_title, ep)
+    with anim_service.ep_guard(book_id, ep):
+        doc = _load_v3_doc(book_title, ep)
+        r = split_all_slots(doc, book_title=book_title)
+        from app.services.anim_pipeline import shots as shots_mod
+        shots_mod.save(doc)
+    return r
+
+
 class DirectSaveBody(BaseModel):
     direct: dict[str, dict[str, Any]] = {}      # {sid: {size, cam{kind,dir,amp,speed}, motion, light}}
 

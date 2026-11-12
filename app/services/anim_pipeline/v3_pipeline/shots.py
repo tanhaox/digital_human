@@ -1194,56 +1194,37 @@ def _split_halves(text: str) -> tuple[str, str] | None:
     return None
 
 
-def split_slot_line(doc: dict[str, Any], sid: str,
-                    book_title: str = "") -> dict[str, Any]:
-    """超限槽一键拆行 (1109 用户令: 槽长>15s 必须给解法)。
+def _apply_splits(doc: dict[str, Any], targets: dict[int, tuple[str, str]],
+                  book_title: str) -> dict[str, Any]:
+    """批量拆行落地 (单拆/全拆共用): targets={行号: (前半, 后半)}。
 
-    超限根因 = 槽内最长口播行独大 (装包按行粒度, 单行>15s 切不开) →
-    该行按标点对半拆成两行 → 重装包 → line_refs 未变的镜原句保留,
-    拆出的新槽画面句由 LLM 补 (走 ③ 同一套提示词与铁律)。
-    结构变 = 下游作废清戳 (与重跑 ③ 同语义)。
-    """
-    v3 = doc.setdefault("v3", {})
-    shots = v3.get("shots") or []
-    lines = v3.get("lines") or []
-    arcs = v3.get("arcs") or []
-    s = next((x for x in shots if str(x.get("sid")) == str(sid)), None)
-    if s is None:
-        raise ValueError(f"镜 {sid} 不存在")
-    if s.get("brand_card"):
-        raise ValueError("品牌镜走冻结骨架, 不拆行")
-    if float(s.get("est_s") or 0) <= SLOT_MAX_S:
-        raise ValueError(f"{sid} 槽长未超限, 无需拆行")
-    line_of = {ln["no"]: ln for ln in lines}
-    target = max((n for n in (s.get("line_refs") or []) if n in line_of),
-                 key=lambda n: len(str(line_of[n].get("text") or "")))
-    halves = _split_halves(str(line_of[target].get("text") or ""))
-    if halves is None:
-        raise ValueError(f"L{target} 无可拆标点 — 到 ① 页手动拆行")
-    # 插行 (h1 保留 suggs/adopted — 卡挂前半; h2 继承其余字段) + 顺序重编号
+    插行重编号 (h1 保留 suggs/adopted — 卡挂前半; h2 继承其余字段) →
+    弧段平移 (弧前拆行数平移 start/end, 弧内拆行数只扩 end) → 重装包
+    (line_refs 键锚定 — 未受拆行影响的镜原句保留) → 拆出的新槽画面句
+    LLM 补 (③ 同尺) → 卡/质检/闸重建 → 下游作废清戳 (重跑 ③ 同语义)。"""
+    v3 = doc["v3"]
+    shots, lines, arcs = (v3.get("shots") or [], v3.get("lines") or [],
+                          v3.get("arcs") or [])
     new_lines: list[dict[str, Any]] = []
     for ln in lines:
-        if ln["no"] == target:
+        if ln["no"] in targets:
             h1 = dict(ln)
-            h1["text"] = halves[0]
+            h1["text"] = targets[ln["no"]][0]
             h2 = {k: v for k, v in ln.items()
                   if k not in ("text", "suggs", "adopted")}
-            h2["text"] = halves[1]
+            h2["text"] = targets[ln["no"]][1]
             new_lines += [h1, h2]
         else:
             new_lines.append(ln)
     for i, ln in enumerate(new_lines, 1):
         ln["no"] = i
-    # 弧行号段平移: 祸源行所在弧 end+1 (行数+1), 其后弧 start/end 各+1
     for a in arcs:
         start, end = int(a.get("no_start") or 0), int(a.get("no_end") or 0)
-        if start > target:
-            start += 1
-        if end >= target:
-            end += 1
+        before = sum(1 for t in targets if t < start)    # 弧前拆行: 整段平移
+        inside = sum(1 for t in targets if start <= t <= end)  # 弧内拆行: 只扩 end
+        start, end = start + before, end + before + inside
         a["no_start"], a["no_end"] = start, end
         a["line_count"] = max(0, end - start + 1)
-    # 重装包 + 原句保留 (line_refs 键锚定 — 未受拆行影响的镜零扰动)
     old_by_refs = {tuple(x.get("line_refs") or []): x for x in shots}
     shots2, warns = pack_shots(arcs, new_lines)
     for s2 in shots2:
@@ -1254,7 +1235,6 @@ def split_slot_line(doc: dict[str, Any], sid: str,
                     s2[k] = old[k]
     v3["lines"] = new_lines
     v3["shots"] = shots2
-    # 拆出的新槽 (画面句空) 走 ③ 同尺 LLM 补
     n_fill = _llm_fill(shots2, arcs, {ln["no"]: ln for ln in new_lines},
                        None, _look_catalog(book_title) or None)
     v3["cards"] = build_cards(v3, shots2)
@@ -1264,17 +1244,87 @@ def split_slot_line(doc: dict[str, Any], sid: str,
     v3["shot_issues"] = issues
     v3["shot_warnings"] = warns
     v3.setdefault("gates", {})["shots"] = not has_blocking_issues(issues)
-    # 结构变 = 下游作废 (重跑 ③ 同语义)
     if v3.get("frozen_at") or v3.get("direct"):
         v3.pop("frozen_at", None)
         v3.pop("direct", None)
         v3.pop("direct_issues", None)
         v3.setdefault("gates", {})["direct"] = False
-        logger.info("[v3:shots] 拆行 %s (L%d) — 结构变, ④/英化/冻结已清", sid, target)
-    return {"split": {"line": target, "halves": halves},
-            "filled": n_fill, "shots": len(shots2),
+        logger.info("[v3:shots] 拆行 L%s — 结构变, ④/英化/冻结已清",
+                    "/".join(str(t) for t in sorted(targets)))
+    return {"filled": n_fill, "shots": len(shots2),
             "warnings": warns, "issues": issues,
             "gate": not has_blocking_issues(issues)}
+
+
+def split_slot_line(doc: dict[str, Any], sid: str,
+                    book_title: str = "") -> dict[str, Any]:
+    """超限槽一键拆行 (1109 用户令: 槽长>15s 必须给解法)。
+
+    超限根因 = 槽内最长口播行独大 (装包按行粒度, 单行>15s 切不开) →
+    该行按标点对半拆成两行 → 重装包 → line_refs 未变的镜原句保留,
+    拆出的新槽画面句由 LLM 补 (走 ③ 同一套提示词与铁律)。
+    结构变 = 下游作废清戳 (与重跑 ③ 同语义)。"""
+    v3 = doc.setdefault("v3", {})
+    s = next((x for x in (v3.get("shots") or [])
+              if str(x.get("sid")) == str(sid)), None)
+    if s is None:
+        raise ValueError(f"镜 {sid} 不存在")
+    if s.get("brand_card"):
+        raise ValueError("品牌镜走冻结骨架, 不拆行")
+    if float(s.get("est_s") or 0) <= SLOT_MAX_S:
+        raise ValueError(f"{sid} 槽长未超限, 无需拆行")
+    line_of = {ln["no"]: ln for ln in (v3.get("lines") or [])}
+    target = max((n for n in (s.get("line_refs") or []) if n in line_of),
+                 key=lambda n: len(str(line_of[n].get("text") or "")))
+    halves = _split_halves(str(line_of[target].get("text") or ""))
+    if halves is None:
+        raise ValueError(f"L{target} 无可拆标点 — 到 ① 页手动拆行")
+    r = _apply_splits(doc, {target: halves}, book_title)
+    return {"split": {"line": target, "halves": halves}, **r}
+
+
+def split_all_slots(doc: dict[str, Any], book_title: str = "") -> dict[str, Any]:
+    """全部超标槽一次性拆行 (1112 用户令: 逐槽点太麻烦)。
+
+    迭代轮次: 每轮收集全部 >15s 槽 (品牌镜跳过点名) 的祸源行, 一轮批量
+    对半拆 + 重装包 + LLM 补 (一轮一次 LLM 调用, 不逐槽烧); 半行仍超限
+    (原行 150+ 字) 下一轮自动续拆, 直到无超限或无可拆。无可拆标点的槽
+    点名报告 (去 ① 页手动拆), 不静默吞。"""
+    v3 = doc.setdefault("v3", {})
+    rounds = split_lines = 0
+    brand_skipped: set[str] = set()
+    unsplittable: list[str] = []
+    for _ in range(10):  # 78 字行 1 轮 / 150+ 字 2-3 轮; 10=护栏
+        shots = v3.get("shots") or []
+        line_of = {ln["no"]: ln for ln in (v3.get("lines") or [])}
+        targets: dict[int, tuple[str, str]] = {}
+        stuck: list[str] = []
+        for s in shots:
+            if float(s.get("est_s") or 0) <= SLOT_MAX_S:
+                continue
+            if s.get("brand_card"):
+                brand_skipped.add(str(s.get("sid")))
+                continue
+            tgt = max((n for n in (s.get("line_refs") or []) if n in line_of),
+                      key=lambda n: len(str(line_of[n].get("text") or "")))
+            halves = _split_halves(str(line_of[tgt].get("text") or ""))
+            if halves is None:
+                stuck.append(f"{s['sid']}(L{tgt})")
+            else:
+                targets[tgt] = halves     # 行唯一属一槽, 无键冲突
+        if not targets:
+            unsplittable = stuck
+            break
+        rounds += 1
+        split_lines += len(targets)
+        _apply_splits(doc, targets, book_title)
+    over = [str(s.get("sid")) for s in (v3.get("shots") or [])
+            if float(s.get("est_s") or 0) > SLOT_MAX_S]
+    return {"rounds": rounds, "split_lines": split_lines,
+            "shots": len(v3.get("shots") or []), "over_limit": over,
+            "unsplittable": unsplittable, "brand_skipped": sorted(brand_skipped),
+            "warnings": v3.get("shot_warnings") or [],
+            "issues": v3.get("shot_issues") or {}}
 
 
 # ── 景别推断 (④导演页 UI 预填; 生成仍由 LLM 做主) ──────────────────────

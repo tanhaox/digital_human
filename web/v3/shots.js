@@ -282,11 +282,18 @@ function renderSide() {
   $('warncard').innerHTML =
     (STALE ? '<div class="hint">⚠ <b>稿件已改 — 本页是老稿快照</b>: 回 ① 文稿分诊重跑后, ②③ 全链重新生成 (本页任何修改都会被拒)</div>' : '')
     + plain.map(w => `<div class="hint">💡 ${esc(w)}</div>`).join('')
+    // 1112 用户令: 一键全拆 — 多个超标槽时不逐槽点, 一次处理全部
+    + (SLOT_OVERS.length > 1 ? `<div class="hint"><button class="btn-fix" data-splitall="1"
+        title="每个超标槽的祸源口播行按标点对半拆 → 一轮批量重装包 (未受影响镜原句保留, 新槽画面句 LLM 补) → 半行仍超限自动续拆">⚡ 一键全拆 (${SLOT_OVERS.length} 个超标槽)</button>
+        一次处理全部, 不逐槽点</div>` : '')
     + SLOT_OVERS.map(o => `<div class="hint">💡 ${esc(o.sid)} 槽长 ${(o.est_s || 0).toFixed(1)}s 超 H3 15s 上限
       <button class="btn-fix" data-split="${esc(o.sid)}" title="祸源口播行按标点对半拆 → 重装包 (未受影响镜原句保留) → 新槽画面句 LLM 补">⚡ 一键拆行</button></div>`).join('');
   $('warncard').hidden = !STALE && !plain.length && !SLOT_OVERS.length;
   $('warncard').querySelectorAll('[data-split]').forEach(b => {
     b.onclick = () => splitSlot(b.dataset.split, b);
+  });
+  $('warncard').querySelectorAll('[data-splitall]').forEach(b => {
+    b.onclick = () => splitAll(b);
   });
 }
 
@@ -323,6 +330,27 @@ async function splitSlot(sid, btn) {
     toast(`✓ L${r.split.line} 已拆两行 → ${r.shots} 镜重排, 新槽补句 ${r.filled} 镜`);
     await refresh();
   } catch (e) { toast('拆行失败: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = old; }
+}
+
+/* 1112 用户令: 一键全拆 — 所有超标槽一次性处理 (逐轮对半至全部 ≤15s) */
+async function splitAll(btn) {
+  const n = SLOT_OVERS.length;
+  if (!confirm(`⚡ 一键全拆 ${n} 个超标槽：每个槽的祸源口播行按标点对半拆 → 一轮批量重排
+(未受影响的镜画面句原样保留, 拆出的新槽由 LLM 补画面句; 半行仍超 15s 自动续拆)。
+若已进 ④, 导演参数/英化将作废重跑。确认？`)) return;
+  const old = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ 全拆中…';
+  try {
+    const r = await (await fetch(`${BASE}/shots/split_all`, { method: 'POST' })).json();
+    if (r.detail) { toast('失败: ' + r.detail); return; }
+    toast(`✓ 拆 ${r.split_lines} 行 (${r.rounds} 轮) → ${r.shots} 镜`
+      + ((r.over_limit || []).length ? ` · ⚠ 仍超限: ${r.over_limit.join('、')}`
+                                     : ' · 全部 ≤15s'));
+    if ((r.unsplittable || []).length)
+      toast('⚠ 无可拆标点 (去 ① 页手动拆): ' + r.unsplittable.join('、'));
+    await refresh();
+  } catch (e) { toast('全拆失败: ' + e.message); }
   finally { btn.disabled = false; btn.textContent = old; }
 }
 

@@ -158,8 +158,9 @@ def test_triage_save_wiring_resets_downstream():
 
 def test_router_stale_gate_wiring():
     src = open("app/routers/anim_v3.py", encoding="utf-8").read()
-    # 17 个变更端点全部带 ep 进闸 (GET 不拒 — 页面要能开才能看见警告)
-    assert src.count("_line_gate(book_title, ep)") == 17
+    # 18 个变更端点全部带 ep 进闸 (GET 不拒 — 页面要能开才能看见警告)
+    # (1112 +1: shots/split_all 全拆 — 同拆行家族同闸)
+    assert src.count("_line_gate(book_title, ep)") == 18
     # ① 本体 (triage/save) 不闸 — 分诊页编辑是重跑前奏
     assert "def v3_triage_save" in src
     # GET 曝光 stale 标志 (入口页/③ 页横幅数据源)
