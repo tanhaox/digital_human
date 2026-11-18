@@ -1679,9 +1679,23 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
         # 硬错拦下 (时长核验早就在 warn, 但装配不读它)。补齐走 ▶️分镜续跑
         # (跳过已有镜的场, 只填空洞)。
         _have = {s.get("arc_id") for s in shots}
+        # 1117 修 (屏弃弧漏拦): 音频工坊屏弃槽 (audio_muted) 在 v2 投影里
+        # 整槽不落 doc.shots (stamp.project_v2 对 muted continue) — 全弧槽被
+        # 屏弃的弧在 v2 眼里 "无镜", 被本闸当缺镜事故硬拦 (高效能 ep1 A2 实锤:
+        # 用户合法屏弃 s4 → A2 零镜 → 装配 500)。屏弃是产品功能: 全弧槽 muted
+        # = 弧无口播无画面是用户本意, 不算缺镜。判据走 v3 槽表 (唯一事实源)。
+        _muted_arcs: set[str] = set()
+        try:
+            _v3s = (doc.get("v3") or {}).get("shots") or []
+            _live = {str(x.get("arc_id")) for x in _v3s if not x.get("audio_muted")}
+            _muted_arcs = {str(x.get("arc_id")) for x in _v3s
+                           if x.get("audio_muted")} - _live
+        except Exception:  # noqa: BLE001 — 无 v3 结构时判据退化为空
+            _muted_arcs = set()
         _empty = [str(a.get("arc_id") or f"#{i}")
                   for i, a in enumerate(doc.get("arcs") or [])
-                  if a.get("arc_id") not in _have]
+                  if a.get("arc_id") not in _have
+                  and a.get("arc_id") not in _muted_arcs]
         if _empty:
             raise RuntimeError(
                 f"骨架场 {'、'.join(_empty)} 无镜 — 这些场的口播将只有声音没有画面。"
