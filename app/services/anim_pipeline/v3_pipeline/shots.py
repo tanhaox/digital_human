@@ -17,7 +17,11 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
-CHARS_PER_SEC = 4.5
+CHARS_PER_SEC = 5.17                   # 语速锚 (1118 统一加速实锚: 1108 注册 5.17字/s
+                                       # ≡ 1118 用户手点收敛 311字/m, 含停顿口径与
+                                       # /tempo 读数同源 — 旧 4.5+原始len 双重偏差:
+                                       # 慢 13% + -0.8s- 标记 6 字符≈多算 1.3s)
+from app.services.speech_anchor import _spoken_count  # 口径唯一事实源
 SHOT_MIN_S, SHOT_MAX_S = 3.0, 7.5     # 正文镜密度带
 SLOT_MAX_S = 15.0                      # 槽位硬上限 (H3 I2VA 生成上限; 1106 用户令:
                                        # 槽位=K2/TTS/H3 共同轴, 任何镜不得超)
@@ -114,7 +118,8 @@ def pack_shots(arcs: list[dict[str, Any]], lines: list[dict[str, Any]]
 
 
 def est_s(nos: list[int], line_of: dict[int, dict]) -> float:
-    chars = sum(len(str(line_of[n].get("text") or "").strip()) for n in nos if n in line_of)
+    chars = sum(_spoken_count(str(line_of[n].get("text") or ""))
+                for n in nos if n in line_of)
     return round(chars / CHARS_PER_SEC, 2)
 
 

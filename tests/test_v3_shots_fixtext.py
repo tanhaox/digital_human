@@ -312,9 +312,11 @@ def test_split_all_two_slots_one_round(monkeypatch):
 
 
 def test_split_all_rehalves_very_long_line(monkeypatch):
-    """超长行 (140 字) 一轮对半后仍 >15s → 自动续拆第二轮。"""
+    """超长行 (168 字) 一轮对半后仍 >15s → 自动续拆第二轮。
+    1118 语速锚 5.17字/s 后, 140 字行一轮对半即 13.5s 达标 — 向量加长到 168
+    才仍超窗 (32.5→16.3→8.1s), 继续演练两轮续拆机制。"""
     doc = {"book_title": "测试书", "v3": {
-        "lines": [{"no": 1, "mode": "comm", "text": "口播长句测试，" * 20},
+        "lines": [{"no": 1, "mode": "comm", "text": "口播长句测试，" * 24},
                   {"no": 2, "mode": "comm", "text": "短句。"}],
         "arcs": [{"arc_id": "A1", "type": "narr", "no_start": 1, "no_end": 2,
                   "world": "现代办公", "narrative": "讲长句"}]}}
@@ -322,7 +324,7 @@ def test_split_all_rehalves_very_long_line(monkeypatch):
     doc["v3"]["shots"] = shots
     _fill_mock(monkeypatch)
     r = v3shots.split_all_slots(doc)
-    assert r["rounds"] == 2                                 # 140→70→35 字
+    assert r["rounds"] == 2                                 # 168→84→42 字
     assert r["over_limit"] == []
     assert not any(float(s["est_s"]) > v3shots.SLOT_MAX_S
                    for s in doc["v3"]["shots"])

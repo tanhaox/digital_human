@@ -29,7 +29,8 @@ NON_NARRATIVE = ("hook", "cta", "brand")     # 非叙事位: 系列冻结语言,
 # (解说 comm + 书证 quote) 是作者的引用笔法不是弧界 — 相邻讲述模块并成一弧
 # (整模块并吞, 弧界仍落模块边界); hook/cta/persona/brand 是结构位, 保持纯语态。
 NARR_MERGEABLE = {"comm", "quote"}
-CHARS_PER_SEC = 4.5                          # 中文口播估时 (与 ① 预估同口径)
+CHARS_PER_SEC = 5.17                         # 中文口播估时 = 语速锚 (1118 统一加速
+                                             # 实锚, 含停顿口径与 ③ 分镜/⑥ TTS 同尺)
 SPLIT_SUGGEST_LINES = 15                     # 单语态段超过此值, 提示可在段内再拆
 
 
@@ -63,7 +64,8 @@ def modules_of(lines: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 
 def est_seconds(lines: list[dict[str, Any]]) -> float:
-    chars = sum(len(str(l.get("text") or "").strip()) for l in lines)
+    from app.services.speech_anchor import _spoken_count
+    chars = sum(_spoken_count(str(l.get("text") or "")) for l in lines)
     return round(chars / CHARS_PER_SEC, 1)
 
 

@@ -305,8 +305,8 @@ import re as _re
 
 _SENT_END = _re.compile(r'[。！？；!?;]+[」』"”]*')
 _CLAUSE = _re.compile(r"[，、——]+")
-SPLIT_ABOVE_CHARS = 40        # ≈8.9s @4.5字/s — 超过即拆 (窗 7.5s 装不下)
-SPLIT_HARD_CHARS = 60         # ≈13.3s — 句拆后仍超, 退到逗号级
+SPLIT_ABOVE_CHARS = 39        # ≈7.5s @5.17字/s 语速锚 — 超过即拆 (窗 7.5s 装不下)
+SPLIT_HARD_CHARS = 60         # ≈11.6s — 句拆后仍超, 退到逗号级
 
 
 def split_text(t: str) -> list[str]:
