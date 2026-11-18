@@ -466,6 +466,9 @@ def _do_tts(job_id: str):
                 )
             job.status = final_status
             job.completed_segments = len(segments)
+            # 1118 C 刀: completed_at 从未写入 (模型 content.py:217 一直为 null) —
+            # 耗时诊断 (created_at→completed_at) 无从查起。仅终态完成落 (failed/cancelled 保持 null, 语义=未完成)。
+            job.completed_at = datetime.datetime.now(datetime.timezone.utc)
             db.commit()
 
             output_dir = Path(job.output_dir)

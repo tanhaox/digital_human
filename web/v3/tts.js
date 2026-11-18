@@ -38,6 +38,14 @@ async function boot() {
   nx.title = k2ok ? '进入 ⑥ K2 生图 (烧卡工位)' : '音频块数=未屏弃槽位数后解锁';
   $('btn-audio').href = `/web/audio.html?book_id=${encodeURIComponent(B)}&ep_index=${E}`;
 
+  // B 刀 1118: 刷新即丢轮询闭包 — 有在跑的任务则恢复进度显示
+  if (d.job_id && pollingJob !== d.job_id) {
+    try {
+      const j = await (await fetch(`/api/audio/jobs/${d.job_id}`)).json();
+      if (['pending', 'running', 'cancelling'].includes(j.status)) resumePoll(d.job_id);
+    } catch { /* job 接口失败不拦 boot */ }
+  }
+
   if (!d.has_audio) {
     $('counts').innerHTML = '<span class="badge warn">无音频</span>';
     $('body').innerHTML = `<div class="panel empty-audio">
@@ -235,6 +243,40 @@ $('btn-next').onclick = async () => {
   toast('⑥ K2 页建设中 — 音频包已就位');
 };
 
+/* 轮询到终态 (A 刀 1118: 旧版 200×3s=10 分钟静默退出 — 14 分钟任务 19:16 起页面无回传实锤);
+   终态 = completed/stale/failed/cancelled; 60 分钟护栏, 超时提示仍在后台跑 */
+async function pollJob(jobId, onTick) {
+  const t0 = Date.now(), CAP = 60 * 60 * 1000;
+  while (true) {
+    if (Date.now() - t0 > CAP) { toast('⏳ 轮询 60 分钟到顶 — 任务仍在后台跑, 稍后刷新查看'); return null; }
+    await new Promise(x => setTimeout(x, 3000));
+    let j; try { j = await (await fetch(`/api/audio/jobs/${jobId}`)).json(); } catch { continue; }
+    onTick?.(j);
+    if (['completed', 'stale', 'failed', 'cancelled'].includes(j.status)) return j;
+  }
+}
+let pollingJob = null;               // 防双开: boot 恢复 vs 手点重生成
+function trackPoll(jobId, onTick) {
+  pollingJob = jobId;
+  return pollJob(jobId, onTick).finally(() => { if (pollingJob === jobId) pollingJob = null; });
+}
+/* B 刀 1118: 刷新/重开页面即丢轮询闭包 — boot 发现在跑的任务则恢复进度显示 */
+function resumePoll(jobId) {
+  const btn = $('btn-gen');
+  btn.disabled = true;
+  toast('⏳ 检测到合成进行中 — 已恢复进度显示');
+  trackPoll(jobId, j => { btn.textContent = `⏳ ${j.completed_segments ?? 0}/${j.total_segments ?? '?'} · 合成中`; })
+    .then(j => {
+      btn.disabled = false; btn.textContent = '🔁 按槽重生成';
+      if (!j) return;
+      toast(j.status === 'completed' ? `✓ 按槽合成完成 (${j.total_segments} 块)`
+        : j.status === 'stale' ? '⚠ 合成完成, 但期间文稿被改 — 包已标过期'
+        : j.status === 'failed' ? '合成失败: ' + (j.error || '')
+        : '已停止 — 已生成部分保留 (音频工坊可续)');
+      boot();
+    });
+}
+
 /* 按槽重生成 (D 刀): 段表按槽重切 → 音频线合成 → 钉选新包; 块[i]↔槽[i] 1:1 */
 $('btn-gen').onclick = async () => {
   const n = (await (await fetch(`${BASE}/tts`)).json()).blocks?.length || '?';
@@ -247,14 +289,15 @@ $('btn-gen').onclick = async () => {
     const r = await (await fetch(`${BASE}/tts/generate`, { method: 'POST',
       headers: { 'Content-Type': 'application/json' }, body: '{}' })).json();
     if (!r.job_id) throw new Error(r.detail || '启动失败');
-    toast(`合成中: ${r.slots} 槽 · 音色 ${r.voice || '默认'} (约 2-4 分钟)`);
-    for (let i = 0; i < 200; i++) {
-      await new Promise(x => setTimeout(x, 3000));
-      let j; try { j = await (await fetch(`/api/audio/jobs/${r.job_id}`)).json(); } catch { continue; }
-      btn.textContent = `⏳ ${j.completed_segments ?? 0}/${j.total_segments ?? '?'}`;
-      if (j.status === 'completed') { toast(`✓ 按槽合成完成 (${j.total_segments} 块)`); break; }
-      if (j.status === 'failed') { toast('合成失败: ' + (j.error || '')); break; }
-    }
+    toast(`合成中: ${r.slots} 槽 · 音色 ${r.voice || '默认'} (实测 5-15 分钟)`);
+    const t0 = Date.now();
+    const j = await trackPoll(r.job_id, j => {
+      btn.textContent = `⏳ ${j.completed_segments ?? 0}/${j.total_segments ?? '?'} · ${Math.round((Date.now() - t0) / 60000)}分`;
+    });
+    if (j?.status === 'completed') toast(`✓ 按槽合成完成 (${j.total_segments} 块)`);
+    else if (j?.status === 'stale') toast('⚠ 合成完成, 但期间文稿被改 — 包已标过期');
+    else if (j?.status === 'failed') toast('合成失败: ' + (j.error || ''));
+    else if (j?.status === 'cancelled') toast('已停止 — 已生成部分保留 (音频工坊可续)');
     await boot();
   } catch (e) { toast('失败: ' + e.message); }
   btn.disabled = false; btn.textContent = '🔁 按槽重生成';

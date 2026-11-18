@@ -808,7 +808,22 @@ def v3_tts_get(book_id: str, ep: int):
     try:
         audio = fetch_episode_audio(book_id, ep)
     except Exception as exc:  # noqa: BLE001 — 无音频不炸页
-        return {"has_audio": False, "reason": str(exc)[:200], "blocks": []}
+        # 1118 B 刀: 无包期间也回 job_id (episode.audio_job_id 在 generate 即钉,
+        # anim_v3.py:973) — 首轮合成中 fetch 必抛异常, 此前响应缺 job_id,
+        # 页面刷新后恢复轮询 (tts.js resumePoll) 无从下手。
+        _jid = None
+        try:
+            from contextlib import closing as _closing2   # _closing 到下方才导入, 此处自备
+            from app.database import get_session_maker as _gsm2
+            from app.models.book import Episode as _EP
+            with _closing2(_gsm2()()) as _db:
+                _ep = (_db.query(_EP)
+                       .filter(_EP.book_id == book_id, _EP.ep_index == ep).first())
+                _jid = _ep.audio_job_id if _ep else None
+        except Exception:  # noqa: BLE001 — 兜底信息缺不炸页
+            _jid = None
+        return {"has_audio": False, "reason": str(exc)[:200], "blocks": [],
+                "job_id": _jid}
     blocks = [{"i": i, "id": b.get("id"), "seg": bool(b.get("segment_id")),
                "text": str(b.get("text") or "")[:120],
                "dur_s": b.get("dur_s"), "file": str(b.get("file") or "")}

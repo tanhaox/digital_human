@@ -4,6 +4,15 @@
 > 2026-07 ~ 2026-09 历史条目已归档至 `docs/changelog/`（见下方切片索引），
 > 历史条目零改动，docs/... 路径以项目根为基准。
 
+## 2026-11-18(三)｜⑥ TTS 页轮询回传根修 — 10 分钟静默退出 + 刷新丢进度 (A/B/C 三刀)
+
+### 做了什么
+用户报 ⑥ 页生成无回传 (实弹: 1118 19:06 任务 36 槽实跑 ~14 分钟, 页面轮询 200×3s=10 分钟上限 19:16 静默退出无任何提示, 19:20 后台实际完成 — 时间线严丝合缝)。**A** (tts.js): 轮询改「跑到终态才停」 (completed/stale/failed/cancelled), 60 分钟护栏+超时提示「仍在后台跑」, 按钮实时 `n/m · X分`; 终态分类 toast (stale/失败/停止各有文案); 「约 2-4 分钟」失真文案改「实测 5-15 分钟」。**B** 刷新恢复: 页面刷新/重开即丢轮询闭包 → boot() 发现在跑任务 (pending/running/cancelling) 即 resumePoll 恢复进度, `pollingJob` 防手点双开; 后端 `/ep/{b}/{e}/tts` 无包期 (首轮合成中 fetch 必抛异常) 原返回体缺 job_id → 补查 `episode.audio_job_id` 回传 (generate 即钉, anim_v3 原 :973) — 前端恢复的抓手。**C**: `audio_jobs.completed_at` 模型字段一直无人写入 (终态完成首次落值, UTC 同 `_now()`), 耗时诊断 (created_at→completed_at) 从此可查; failed/cancelled 保持 null (语义=未完成)。
+### 验证
+`node --check` tts.js / `py_compile` 两 py 过; 定向 pytest (`-k "anim_v3 or audio_job or tts"`) **2f/62p** — 失败=历史债 test_tts_chunk_semantic ×2 原样, 失败集未扩大; 途中自查纠错一处: except 分支 `_closing` 前向引用 (函数下方才导入) 会 NameError 被 try 吞成静默 null, 补局部导入 `_closing2`。生效: A+B 前端半边刷新页面即生效; B 后端半边+C 需重启后端 (用户拍板暂不重启, 下次生成前生效即可)。
+### 遗留
+completed_at 不回填历史行 (永远 null); 重启前首轮合成中刷新仍无恢复抓手 (恢复钩子静默跳过, 不炸页)。
+
 ## 2026-11-03(二)｜全面复盘→白领锁定→制度批 (选书SOP/画像#3/精简令落产线/令状登记簿)
 
 ### 做了什么
