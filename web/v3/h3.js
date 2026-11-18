@@ -12,6 +12,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g,
 const ST_ZH = { approved: '图过审·待生', anim_done: '✓ 视频出', anim_fail: '✗ 失败',
                 planned: '待图', img_done: '图出·待审' };
 let SHOTS = [], BLOCKED = false, RUNNING = false;   // 1109: 首卡点禁钮 + 任务态双旗
+let OPENING_READY = true;   // 1118 B 挂点: 书级开场白素材就绪态 (后端 /h3 下发; 旧响应缺字段=按就绪)
 
 /* 1108 修 (与 ⑥ K2 同根): job 完成 boot() 重渲染清 checkbox, cart 条停旧值
    → 重做按钮静默失效。SEL 单源跨重渲染存活; sessionStorage 兜刷新。 */
@@ -75,6 +76,7 @@ function refreshGate() {
     const nImgNB = SHOTS.filter(s => s.status === 'img_done' && !s.brand).length;
     $('stat').textContent = `视频 ${nDone}/${SHOTS.length} · 待生 ${nApp}`
       + (nImgNB ? ` · ⚠ ${nImgNB} 镜图出未过审 (去 ⑥ 页 ✅)` : '')
+      + (!OPENING_READY ? ' · ⚠ 开场白素材缺 — 点 🎤 生成 (书级一次, 缺则装配吞开场 ~5s)' : '')
       + ' — 全出后 v2 工坊装配剪映草稿';
     $('btn-run').title = 'approved 镜批生视频 (h3/r2v 工位自动路由)';
   }
@@ -89,6 +91,8 @@ async function boot() {
   ]);
   SHOTS = d.shots || [];
   LASTG = d.gates || {}; LASTSTAMPED = !!d.stamped;
+  OPENING_READY = d.opening_ready !== false;   // 1118: 缺字段 (老后端) 按就绪, 不误报
+  $('btn-opening').hidden = OPENING_READY;
   $('sub').textContent = `${st.book_title} · 第${st.ep}集`;
   rail($('rail'), { line: st.line, gates: d.gates, active: 'h3' });
   if (st.running_job) runner.attach(st.running_job);
@@ -173,10 +177,29 @@ $('btn-draft').onclick = async () => {
     const r = await fetch(`/api/anim/ep/${encodeURIComponent(B)}/${E}/draft`, { method: 'POST',
       headers: { 'Content-Type': 'application/json' }, body: '{}' });
     const d = await r.json();
-    if (!r.ok) { toast('装配失败: ' + (d.detail || '')); return; }
+    if (!r.ok) { toast('装配失败: ' + (d.detail || ''));
+      b.disabled = false; b.textContent = '🎞 装配剪映草稿'; return; }
     toast(`✓ 剪映草稿已装配: ${JSON.stringify(d).slice(0, 120)}`);
+    if (d.opening === 'missing')   // 1118 修 (静默吞 5s 实锤): 缺开场白素材时整组开场套件让位
+      toast('⚠ 书级开场白素材缺失 — 开场套件整组没挂 (开头 ~5s 没了)。'
+        + '等 GPU 卡空后 POST /api/anim/ep/{book}/{ep}/opening 生成素材, 再重装配');
   } catch (e) { toast('装配失败: ' + e.message); }
   b.disabled = false; b.textContent = '🎞 装配剪映草稿';
+};
+
+// 1118 B 挂点: 开场白素材一键生成 (走既有 POST /opening; GPU 独占守卫 —
+// H3 批生进行中拒点, 防双 AI 上卡死命令)
+$('btn-opening').onclick = async () => {
+  if (RUNNING) { toast('H3 批生进行中 — GPU 独占, 等批完再生成开场白'); return; }
+  const b = $('btn-opening'); b.disabled = true; b.textContent = '⏳ 生成中…';
+  try {
+    const r = await fetch(`/api/anim/ep/${encodeURIComponent(B)}/${E}/opening`, { method: 'POST' });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) { toast('开场白生成失败: ' + (d.detail || r.status)); return; }
+    toast(`✓ 开场白素材已就绪 (source=${d.source || 'ok'}) — 可装配`);
+  } catch (e) { toast('开场白生成失败: ' + e.message); }
+  finally { b.disabled = false; b.textContent = '🎤 生成开场白'; }
+  boot();
 };
 
 $('btn-run').onclick = async () => {

@@ -111,6 +111,7 @@ function renderPage(b) {
         <button class="sm secondary" onclick="window.open('/web/style_board.html?book_id=${b.id}', '_blank')" title="风格选型 (0922): ep1 钩子段切 3 试镜镜 → 风格库轮询 + Kimi 新配方 → 选择板点选落绑定; 动画开工硬挡板要求先绑定">🎨 风格选型</button>
         <button class="sm secondary" onclick="window.open('/web/style_bible.html?book_id=${b.id}', '_blank')" title="艺术圣经 (0922): 大纲→风格选型→圣经独立页; 选定配方后为本书产统一视觉身份 (色板/质感/角色策略), 分镜每镜必继承">📖 艺术圣经</button>
         <button class="sm secondary" onclick="window.open('/web/style_characters.html?book_id=${b.id}', '_blank')" title="角色设计台 (0923): 圣经角色卡 → 定妆照沉淀 (书级风格×look全身立绘), _资产/角色设计/, 全书人物锚">👥 人物造型</button>
+        <button class="sm secondary" onclick="genOpeningAssets(this)" title="书级开场白素材包 (开场两段人声 wav, 装配剪映草稿开场套件的声源) — 一次生成全书复用; 需 IndexTTS2.5, GPU 忙 (H3 批生/ComfyUI) 时会拒">🎤 开场素材</button>
         ${roadmap_ok ? `<button class="sm" style="background:#16a34a" onclick="saveRoadmap()">💾 保存修改</button>` : ''}
         <button class="sm warn" onclick="run('confirm-roadmap', this)" ${roadmap_ok ? '' : 'disabled title="需先生成总纲（蒸馏后自动）"'}>确认2 → 进入逐集</button>
       </div>
@@ -164,6 +165,23 @@ async function syncStoryL0() {
     toast((r.auto_filled || []).join('、') || '已同步（无新增）', 'success');
     await loadBook(BOOKS.cur.id);
   } catch (e) { toast('同步失败: ' + e.message, 'error'); }
+}
+
+// 1119 书级开场白素材包 (用户令: 机制化兜底入口): 装配剪映草稿开场套件的声源,
+// 书级幂等一次全书复用。走既有动画端点 (ep 值不参与解析, 书级操作):
+// _资产 缓存 → 各集 opening 迁移 → IndexTTS2.5 现合成; 缺服务/GPU 忙时端点
+// 503 明说不静默 (1118 实锤: 素材缺 = 装配静默吞开场 ~5s)。
+async function genOpeningAssets(btn) {
+  if (!BOOKS.cur) return;
+  const old = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ 素材包制作中…';
+  try {
+    const r = await api('/api/anim/ep/' + BOOKS.cur.id + '/1/opening', { method: 'POST' });
+    toast('✓ 开场素材包已就绪 (source=' + (r.source || 'ok') + ') — 之后装配草稿自动挂开场', 'success');
+  } catch (e) {
+    toast('开场素材失败: ' + e.message + ' — GPU 卡忙 (H3 批生) 时先等卡空', 'error');
+  }
+  btn.disabled = false; btn.textContent = old;
 }
 
 // ── 钩子三版 (0913 机制⑤⑦): 多版×KPI分化 + 人工选版 ──

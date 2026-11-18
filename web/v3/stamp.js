@@ -142,7 +142,7 @@ $('btn-stamp').onclick = async () => {
     }
     await boot();
   } catch (e) { toast('盖章失败: ' + e.message); }
-  b.disabled = false; b.textContent = '🔍 盖章 (灌秒 + v2 回填)';
+  finally { b.disabled = false; b.textContent = '🔍 盖章 (灌秒 + v2 回填)'; }   // 1118 修: 失败路径也复位按钮 (原 return 卡死 ⏳, 同 h3.js 上会话修的同款)
 };
 
 function toast(m) {

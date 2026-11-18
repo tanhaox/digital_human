@@ -916,6 +916,26 @@ def v3_tts_combined(book_id: str, ep: int):
     return FileResponse(str(p), headers={"Cache-Control": "no-cache"})
 
 
+def _do_tts_then_opening(book_title: str, job_id: str) -> None:
+    """⑤ TTS 收尾自补书级开场白 (1118 机制化 A 挂点): 槽音频合成完 IndexTTS2.5
+    必在线 — 素材缺则顺手补产 (produce_opening 书级幂等: 缓存/迁移/合成, 每本书
+    只真烧一次)。尽力而为: 开场白失败不回写 TTS job 态 (主包完成语义不受扰),
+    只留日志; 装配侧双保险 = ⑧ 页缺素材警告 + 一键生成 (B 挂点)。
+    (0920 令不破: 装配仍只读素材 — 自补挂 ⑤ TTS 相位, 不挂装配。)
+    """
+    from app.routers.audio import _do_tts
+    _do_tts(job_id)
+    try:
+        from app.services.anim_draft import _opening_asset_paths, produce_opening
+        v1, v2 = _opening_asset_paths(book_title)
+        if v1.exists() and v2.exists():
+            return                     # 已有 (含并行其他集刚补的) — 零成本短路
+        out = produce_opening(book_title)
+        logger.info("[v3:tts] %s 书级开场白自补 ✓ (source=%s)", book_title, out.get("source"))
+    except Exception as exc:  # noqa: BLE001 — 尽力而为, 不扰主包
+        logger.warning("[v3:tts] %s 开场白自补失败 (⑧ 页装配时会再提示): %s", book_title, exc)
+
+
 @router.post("/ep/{book_id}/{ep}/tts/generate")
 def v3_tts_generate(book_id: str, ep: int, background_tasks: BackgroundTasks):
     """⑥ 按槽重生成 TTS (D 刀): 段表按槽重切 → 复用音频线合成 → 钉选新包。
@@ -929,7 +949,6 @@ def v3_tts_generate(book_id: str, ep: int, background_tasks: BackgroundTasks):
     from app.models.content import Script, Voice, Host, AudioJob
     from app.models.roles import Persona
     from app.services.anim_pipeline.v3_pipeline.tts_slot import resegment_by_slots, slot_texts
-    from app.routers.audio import _do_tts
     try:
         book_id, book_title = anim_service.resolve_ep(book_id, ep)
     except anim_service.AnimNotFound as exc:
@@ -987,7 +1006,7 @@ def v3_tts_generate(book_id: str, ep: int, background_tasks: BackgroundTasks):
         voice_name = voice.name if voice else None
         episode.audio_job_id = job_id         # 钉选新包 (旧包 fetch 自动退位)
         db.commit()
-    background_tasks.add_task(_do_tts, job_id)
+    background_tasks.add_task(_do_tts_then_opening, book_title, job_id)   # 1118 A 挂点: TTS 完 → 书级开场白自补
     return {"job_id": job_id, "slots": n, "voice": voice_name}
 
 
@@ -1116,8 +1135,11 @@ def v3_h3_get(book_id: str, ep: int):
                     "video_url": (f"/api/anim/v3/ep/{book_id}/{ep}/h3/brand-video"
                                   if (s.get("brand_card") and vf) else None),
                     "redo_review": str(s.get("shot_id")) in _r_flags})  # 1108 R 标
+    from app.services.anim_draft import _opening_asset_paths
+    _op1, _op2 = _opening_asset_paths(book_title)
     return {"shots": out, "gates": v3_pipeline.gates_view(doc),
-            "stamped": bool((v3.get("stamp") or {}).get("at"))}
+            "stamped": bool((v3.get("stamp") or {}).get("at")),
+            "opening_ready": bool(_op1.exists() and _op2.exists())}   # 1118 B 挂点: 缺 → ⑧ 页显 🎤 生成钮
 
 
 @router.post("/ep/{book_id}/{ep}/shots/save")

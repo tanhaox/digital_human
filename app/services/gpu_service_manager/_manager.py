@@ -209,6 +209,11 @@ class GPUServiceManager(ServiceLifecycleMixin):
 
     # ── 状态与手动控制 ────────────────────────────────────────
 
+    def gpu_busy(self) -> bool:
+        """GPU 互斥锁当前是否被占 (1119: 书级合成入口的「忙即拒」判据,
+        替代无限排队 — H3 批生/ComfyUI/另一 TTS 会话任一持锁都算忙)."""
+        return self._gpu_lock.locked()
+
     def status(self) -> dict[str, Any]:
         with self._state_lock:
             services = {}

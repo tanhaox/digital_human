@@ -28,6 +28,7 @@ import re
 import shutil
 import sqlite3
 import subprocess
+import threading
 import wave
 from contextlib import closing
 from datetime import datetime
@@ -1533,6 +1534,9 @@ def _spoken_title(book_title: str) -> str:
         t = t[:m.start()].rstrip()
 
 
+_OPENING_LOCK = threading.Lock()   # 1119: 书级开场白互斥 — 手动钮/⑤TTS 自补/h3 钮三方互不知情
+
+
 def produce_opening(book_title: str) -> dict[str, str]:
     """开场白书级素材生产 (幂等; 一次生成全系列复用 — 与品牌卡同路数).
 
@@ -1542,15 +1546,29 @@ def produce_opening(book_title: str) -> dict[str, str]:
     书名走 _spoken_title 出口闸 (1029 令: 版别后缀不念, 卓有成效"（中英文双语
     珍藏版）"实锤); 合成中间产物按**文案指纹**命名 — 旧文案原料不被复用, 换文案
     即重烧. 附文案 sidecar 开场白_{书}_文案.txt 留痕. 返回 {1,2,source}.
+
+    1119 并发互斥: 慢路书级串行 (_OPENING_LOCK), 拿锁后二次缓存检查 —
+    排队期间对方刚产完即 cached 退出, 不重烧。
     """
     v1, v2 = _opening_asset_paths(book_title)
     if v1.exists() and v2.exists():
         return {"1": str(v1), "2": str(v2), "source": "cached"}
+    with _OPENING_LOCK:
+        if v1.exists() and v2.exists():          # 排队期间对方刚产完
+            return {"1": str(v1), "2": str(v2), "source": "cached"}
+        return _produce_opening_uncached(book_title, v1, v2)
+
+
+def _produce_opening_uncached(book_title: str, v1: Path, v2: Path) -> dict[str, str]:
+    """produce_opening 慢路 (② 迁移 / ③ 合成); 调用方持 _OPENING_LOCK."""
     safe = shots_mod._safe(book_title)
     work = shots_mod.anim_output_root() / "_资产" / f"开场白_{safe}_中间产物"
     # ② 迁移: 各集 opening 缓存 (老集已合成过, 不重烧 TTS)
+    # 1119 修 (半套死路): 候选必须 1/2 双件齐 — 只锚 intro_1 会迁一半 → 终检
+    # 503, 且重试永远命中迁移走不到合成 (死循环)。缺 2 的候选整组跳过。
     cands = sorted((shots_mod.anim_output_root() / safe).glob("ep*/opening/intro_1t.f.wav"),
                    key=lambda x: x.stat().st_mtime, reverse=True)
+    cands = [c for c in cands if c.with_name("intro_2t.f.wav").exists()]
     if cands:
         import shutil as _sh
         work.mkdir(parents=True, exist_ok=True)
@@ -1561,13 +1579,18 @@ def produce_opening(book_title: str) -> dict[str, str]:
         src = "migrated"
     else:
         # ③ 现合成 (生产步骤才碰 TTS; 装配永不)
+        # 1119 修 (GPU 忙即拒): 旧 session() 排队无上限 — H3 批生占锁期间 HTTP
+        # 挂死, 前端 12min 超时误报「后端已重启」而后端仍会完成 (状态错乱)。
+        # 入口即查互斥锁, 忙则 503 明说, 与按钮 tooltip「GPU 忙时会拒」一致。
+        from app.services.gpu_service_manager import get_gpu_service_manager
+        if get_gpu_service_manager().gpu_busy():
+            raise RuntimeError("GPU 忙 (产线批生/TTS 占卡中) — 开场白合成暂拒, 等卡空再点")
         work.mkdir(parents=True, exist_ok=True)
         from app.services.anim_pipeline import tts as T
         from app.services.anim_pipeline.config import load
         tcfg = load().tts
         if not T._server_ok(tcfg.base_url):
             try:
-                from app.services.gpu_service_manager import get_gpu_service_manager
                 with get_gpu_service_manager().session("indextts25"):
                     pass
             except Exception as exc:  # noqa: BLE001 — 拉起尽力
@@ -2156,7 +2179,11 @@ def build_draft(book_ref: str, ep: int, with_title_card: bool = True) -> dict[st
         # 飞入/扫描/收敛动画与音效 = 剪映后期位 (素材就位, 特效剪映里套)
         typing_text = ""
         wall_notes: list[str] = []
-        if with_title_card:
+        # 1117 修 (开场套件撞轨三连): 开场白素材缺失 → intro=None → t_shift=0
+        # → v3 盖章轴 0 起, s1 视频已占 [0,..]; 此时再硬加 S00 打字卡 [0,2s]
+        # = SegmentOverlap 炸整稿 (高效能 ep1 首装实锤, 与 1107 注释自认的
+        # "两连实锤" 同根)。开场套件以 intro 实际到货为前提, 缺素材整组让位。
+        if with_title_card and intro is not None:
             typing_text = _resolve_typing_text(book_id, ep)
             bg = Path(cfg.brand_card.title_bg)
             bg = bg if bg.exists() else _placeholder_card(
