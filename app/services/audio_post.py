@@ -176,9 +176,10 @@ def zone_tempo(result: dict, od: Path, mods: list[dict], pacing: dict,
 
 def anchor_harmonize(result: dict, od: Path, anchors: dict,
                      publish: Publish, job_tag: str) -> int:
-    """批量锚定协调 (0929): 逐行对同 zone 锚 atempo 微调 (带内不动, 只动超带宽行)。
+    """批量锚定协调 (0929 立, 1118 改语义): 锚=地板 — 慢行拉回锚, 快行不动。
 
     必须最后跑 — 用户锚是行级最高意志, 后跑后赢。返回调整行数。
+    未标锚 zone 回落巡航锚 (1118 统一加速)。
     """
     from app.services.speech_anchor import harmonize, zone_of
 
@@ -186,7 +187,8 @@ def anchor_harmonize(result: dict, od: Path, anchors: dict,
     off = 0
     for seg in ((result.get("manifest") or {}).get("segments") or []):
         txt = str(seg.get("text") or "")
-        za = anchors.get(zone_of(off))
+        za = anchors.get(zone_of(off)) or anchors.get("cruise")
+        # 1118 统一加速: 未标锚 zone 回落巡航锚 — 锚是全片地板, 不再只管巡航区
         if za and za.get("rate"):
             wav = od / str(seg.get("file"))
             if wav.exists():
@@ -201,3 +203,64 @@ def anchor_harmonize(result: dict, od: Path, anchors: dict,
                                       "message": f"行{seg.get('index', '?')} 锚定协调 {v.get('dev', '')} → {float(za['rate']):.2f}字/s ✓"})
         off += len(txt)
     return harm
+
+
+def harmonize_package(od: Path, anchors: dict, job=None, db=None) -> list[dict]:
+    """存量包统一加速 (1118 用户令): 对已生成音频包逐行跑锚定协调。
+
+    与生成期 anchor_harmonize 同一判定 (speech_anchor.harmonize, 锚=地板),
+    但不走生成 result 内存态 — 直接读 manifest.json, 时长取 wav 实测 (单一事实源,
+    防 manifest 漂移), 回写 manifest + audio_files.duration。
+    已有 tempo sidecar 的行 (手点/机制皆然) 同规则接力: apply_atempo 从 accel_bak
+    按绝对倍率成型, 手点档不丢。
+
+    返回逐行报告 [{index, file, before, after, factor, flag}] (before/after 单位 字/s)。
+    """
+    import json as _json
+    import wave as _wave
+
+    from app.services.speech_anchor import harmonize, measure_rate, zone_of
+
+    mpath = od / "manifest.json"
+    m = _json.loads(mpath.read_text(encoding="utf-8"))
+    report: list[dict] = []
+    off = 0
+    for seg in (m.get("segments") or []):
+        txt = str(seg.get("text") or "")
+        wav = od / str(seg.get("file"))
+        entry = {"index": seg.get("index"), "file": seg.get("file"),
+                 "before": None, "after": None, "factor": None,
+                 "capped": False, "flag": "no_file"}
+        report.append(entry)
+        if not wav.exists():
+            off += len(txt)
+            continue
+        try:
+            with _wave.open(str(wav), "rb") as w:
+                dur = w.getnframes() / w.getframerate()
+        except Exception:  # noqa: BLE001 — 坏 wav 不阻断整包
+            entry["flag"] = "bad_wav"
+            off += len(txt)
+            continue
+        za = anchors.get(zone_of(off)) or anchors.get("cruise")
+        if not (za and za.get("rate")):
+            entry["flag"] = "no_anchor"
+            off += len(txt)
+            continue
+        entry["before"] = measure_rate(txt, dur)
+        v = harmonize(wav, txt, dur, float(za["rate"]))
+        entry["flag"] = v.get("flag")
+        if v.get("changed"):
+            entry["after"] = v["rate"]
+            entry["factor"] = v.get("factor")
+            entry["capped"] = bool(v.get("capped"))
+            seg["duration"] = v["duration"]
+            if db is not None and job is not None:
+                from ..models import AudioFile as _AF
+                for af in (db.query(_AF)
+                           .filter(_AF.audio_job_id == job.id,
+                                   _AF.filename == seg.get("file"))):
+                    af.duration = v["duration"]
+        off += len(txt)
+    mpath.write_text(_json.dumps(m, ensure_ascii=False, indent=2), encoding="utf-8")
+    return report

@@ -1338,6 +1338,71 @@ def tempo_line(file_id: str, payload: dict | None = None, db: Session = Depends(
             "cps": round(_n / dur, 2) if _n and dur > 0 else None}
 
 
+@router.post("/jobs/{job_id}/unified-speedup")
+def unified_speedup(job_id: str, db: Session = Depends(get_db)):
+    """存量包统一加速 (1118 用户令): 锚=地板, 生成后统一加速机制的存量包入口。
+
+    与生成期 anchor_harmonize (audio_post) 同一判定 speech_anchor.harmonize:
+    - 慢行 (<锚 98%) atempo 拉回锚; 快行不动; 欠速超 1.5x 报 far 建议重roll;
+    - 未标锚 zone 回落巡航锚; 手点过的行从 accel_bak 绝对倍率接力, 不丢手调。
+
+    返回逐行报告 (before/after 字/s) + 重拼 full_paragraph。
+    """
+    from app.services import audio_post as _ap
+    from app.services.speech_anchor import read_anchor as _read_anchor
+
+    job = db.query(AudioJob).filter(AudioJob.id == job_id).first()
+    if not job:
+        raise HTTPException(404, detail="job 不存在")
+    out_dir = Path(job.output_dir)
+    if not (out_dir / "manifest.json").exists():
+        raise HTTPException(404, detail=f"包无 manifest: {out_dir}")
+    voice = db.query(Voice).filter(Voice.id == job.voice_id).first() if job.voice_id else None
+    anchors = _read_anchor(voice) if voice else {}
+    if not anchors.get("cruise"):
+        raise HTTPException(400, detail="本音色未注册巡航锚 (📌基准) — 无统一加速目标")
+
+    report = _ap.harmonize_package(out_dir, anchors, job=job, db=db)
+    done = [r for r in report if r.get("flag") == "done"]
+    far = [r for r in report if r.get("flag") == "far"]
+    # 整包 DB 时长与 manifest 对齐 (含未动行 — 生成期遗留漂移, 与 rebuild-combined 同款)
+    try:
+        m = json.loads((out_dir / "manifest.json").read_text(encoding="utf-8"))
+        _dmap = {s.get("file"): s.get("duration") for s in m.get("segments", [])}
+        for af2 in db.query(AudioFile).filter(AudioFile.audio_job_id == job_id).all():
+            if af2.filename in _dmap and _dmap[af2.filename]:
+                af2.duration = float(_dmap[af2.filename])
+    except Exception:
+        logger.exception("[unified-speedup %s] DB 时长对齐失败", job_id[:8])
+    db.commit()
+    logger.info("[unified-speedup %s] 拉回 %d 行 / 顶帽 %d 行",
+                job_id[:8], len(done),
+                sum(1 for v in done if v.get("capped")))
+
+    # 整包时长变了, 重拼完整段落 (与 /tempo 同款, 失败不阻断段级产物)
+    try:
+        from scripts.tts_client import _concat_wavs_with_ffmpeg
+        _concat_wavs_with_ffmpeg(sorted(out_dir.glob("[0-9][0-9][0-9].wav")),
+                                 out_dir / "full_paragraph.wav")
+        import wave as _wave
+        fp = out_dir / "full_paragraph.wav"
+        if fp.exists():
+            with _wave.open(str(fp), "rb") as w:
+                _dur = round(w.getnframes() / w.getframerate(), 3)
+            _af = (db.query(AudioFile)
+                   .filter(AudioFile.audio_job_id == job_id,
+                           AudioFile.filename == "full_paragraph.wav").first())
+            if _af:
+                _af.duration = _dur
+                db.commit()
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("[unified-speedup %s] full_paragraph 重拼失败: %s", job_id[:8], exc)
+
+    return {"ok": True, "anchor": anchors.get("cruise", {}).get("rate"),
+            "adjusted": len(done), "far": len(far),
+            "capped": sum(1 for v in done if v.get("capped")), "report": report}
+
+
 @router.post("/jobs/{job_id}/rebuild-combined")
 def rebuild_combined(job_id: str, db: Session = Depends(get_db)):
     """完整段落音频重拼 (0912): 段级 reroll/修复后从当前段 wav 重建 full_paragraph,

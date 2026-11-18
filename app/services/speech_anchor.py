@@ -12,7 +12,7 @@
 - 校正 = atempo 一次成型拉回锚带内 (变速不变调, 语音与气口等比缩放):
   复用 0921 accel_bak 模式 — 首次校正前存原始 take, 之后从原始按绝对倍率成型,
   小步多点与一步到位等价; factor 写 tempo.json 与页面 ⏩/⟲ 无缝接力.
-- 带宽 ±10% (听感无差别) 不动; 超 ±15% (atempo 痕迹风险) 不硬拉, 报 far 建议重roll.
+- 1118 用户令: 带宽设计废除 (带内放走大量拖行 / 帽拒修最慢行), 锚=地板, 见 harmonize.
 """
 from __future__ import annotations
 
@@ -26,7 +26,10 @@ from pathlib import Path
 _HAN_RE = re.compile(r"[\u4e00-\u9fff]")
 # 与 scripts/tts_lib/lines.py 三区斜坡同口径 (行首字符偏移)
 ZONE_HOOK, ZONE_TRANS = 60, 150
-BAND, CAP = 0.10, 0.15
+# 0929 带宽常量 (BAND/CAP) 随 1118 带宽废除留名防外部 import 炸 (不再被读)
+BAND, CAP = 0.0, 1.5
+FMAX = 1.5   # atempo 单级上限, 与 /tempo 端点 FMAX 对齐
+_TOL = 0.02  # 慢侧容差: 距锚 2% 内不动 (防 1-2% 增益的无效重采样)
 
 
 def han_count(text: str) -> int:
@@ -41,9 +44,22 @@ def zone_of(offset: int) -> str:
     return "cruise"
 
 
+def _spoken_count(text: str) -> int:
+    """1118 口径: 与 /tempo 端点读数一致 — 剥停顿标记与空白, 标点/数字计入。
+
+    旧 han_count 纯汉字口径把数字行 (48小时/76台/PPT) 读慢 ~5-8%, 会顶帽误拉。
+    """
+    try:
+        from scripts.tts_lib.text import _PAUSE_MARK_ANY_RE as _PMARK
+        t = _PMARK.sub("", text or "")
+    except Exception:  # noqa: BLE001 — scripts 包不可用时退化为内联同款模式
+        t = re.sub(r"(?<![A-Za-z0-9])-(\d+(?:\.\d+)?)s-", "", text or "")
+    return len(re.sub(r"\s", "", t))
+
+
 def measure_rate(text: str, duration: float) -> float | None:
     """含气口实测语速 (字/s); 字太少或无时长返回 None (不参与协调)."""
-    n, d = han_count(text), float(duration or 0)
+    n, d = _spoken_count(text), float(duration or 0)
     if n < 6 or d <= 0.3:
         return None
     return n / d
@@ -112,22 +128,38 @@ def apply_atempo(wav: Path, factor: float) -> float:
 
 
 def harmonize(wav: Path, text: str, duration: float, anchor_rate: float) -> dict:
-    """单行协调: 带内不动 / 带外帽内 atempo 拉回 / 超帽报 far.
+    """单行统一加速 (1118 用户令: 锚=地板, 非 0929 带宽).
+
+    - 快行 (≥锚 98%): 绝不减速 — 护栏非总督 (1109/1112 实锚语义);
+    - 慢行 (<锚 98%): atempo 一次成型拉回锚 (变速不变调, 语音与气口等比缩放);
+      绝对档 = sidecar 已存档 × 增量 (1118 修: 直接用增量会覆盖手调档改慢行);
+    - 总档超 FMAX(1.5): 尽力拉到帽, 标 capped 提示回听/重roll。
 
     返回 {"changed", "rate"(校正后), "anchor", "flag": ok|done|far, "factor", "duration"}.
     """
     rate = measure_rate(text, duration)
     if rate is None:
         return {"changed": False, "flag": "skip", "anchor": anchor_rate}
-    ratio = rate / anchor_rate
-    dev = ratio - 1
-    if abs(dev) <= BAND:
+    dev = rate / anchor_rate - 1
+    if dev >= -_TOL:
         return {"changed": False, "rate": round(rate, 2), "anchor": anchor_rate, "flag": "ok"}
-    if abs(dev) > CAP:
-        return {"changed": False, "rate": round(rate, 2), "anchor": anchor_rate,
-                "flag": "far", "dev": f"{dev:+.0%}"}
-    factor = 1 / ratio  # 慢行 factor>1 加速, 快行 factor<1 减速
+    factor = anchor_rate / rate  # 慢行增量倍率 (当前速率 → 锚)
+    try:
+        # apply_atempo 是从原始 take (accel_bak) 按**绝对倍率**成型 —
+        # 手点/前次机制写过的行 sidecar 已存绝对档, 必须接力累乘,
+        # 否则用增量档当绝对档会把已有档位改小 = 手调被改慢 (1118 实测 000 行 286→280)。
+        _f_old = float(json.loads(
+            wav.with_suffix(".tempo.json").read_text(encoding="utf-8"))["factor"])
+    except Exception:  # noqa: BLE001 — 无 sidecar = 原始 take
+        _f_old = 1.0
+    needed = _f_old * factor
+    if needed > FMAX:
+        # 顶帽尽力拉 (与手点 ⏩ 的 FMAX 封顶同域), 标 capped 提示重roll/回听
+        factor, capped = FMAX, True
+    else:
+        factor, capped = round(needed, 4), False
     new_dur = apply_atempo(wav, factor)
-    return {"changed": True, "rate": round(anchor_rate, 2), "anchor": anchor_rate,
+    new_rate = measure_rate(text, new_dur) or rate
+    return {"changed": True, "rate": round(new_rate, 2), "anchor": anchor_rate,
             "flag": "done", "factor": round(factor, 3), "dev": f"{dev:+.0%}",
-            "duration": new_dur}
+            "duration": new_dur, "capped": capped}
